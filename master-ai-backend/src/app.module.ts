@@ -33,6 +33,13 @@ import { OnboardingService } from './tenancy/onboarding.service';
 import { TenancyController } from './tenancy/tenancy.controller';
 import { TenancyService } from './tenancy/tenancy.service';
 import { CallsController } from './voice/calls.controller';
+import { ReportsController, ReportsService } from './reports/reports.service';
+import { RoutinesController } from './routines/routines.controller';
+import { RoutinesService } from './routines/routines.service';
+import { CallsService } from './voice/calls.service';
+import { CheckinEngine } from './voice/checkin-engine';
+import { TwilioService } from './voice/twilio';
+import { TwilioController } from './voice/twilio.controller';
 import { DelegationService } from './voice/delegation.service';
 import { CallEngine } from './voice/engine';
 import { TeamController, TeamService } from './voice/team.service';
@@ -56,6 +63,9 @@ import { TeamController, TeamService } from './voice/team.service';
     OpsController,
     TeamController,
     CallsController,
+    TwilioController,
+    ReportsController,
+    RoutinesController,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
@@ -83,6 +93,11 @@ import { TeamController, TeamService } from './voice/team.service';
     TeamService,
     CallEngine,
     DelegationService,
+    TwilioService,
+    ReportsService,
+    RoutinesService,
+    CheckinEngine,
+    CallsService,
     // Ops and realtime
     OpsService,
     RealtimeGateway,

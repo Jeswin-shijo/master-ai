@@ -46,6 +46,7 @@ const STAGE_GOALS: Record<CallStage, string> = {
     'Check progress before the deadline. Outcome: on_track, done, blocked (reason in notes) or needs_more_time (new due_at).',
   confirm:
     'Confirm the work is finished and capture what was done in notes. Outcome: done or not_done (reason in notes).',
+  checkin: 'Not used: check-in calls run on the CheckinEngine.',
 };
 
 const MAX_PERSON_TURNS = 3;
@@ -74,6 +75,8 @@ export class CallEngine {
         return `Hi ${first}, it's the ${ctx.companyName} assistant again. Quick check on "${ctx.task.title}"${due ? `, due ${due}` : ''}. How is it going?`;
       case 'confirm':
         return `Hi ${first}, the ${ctx.companyName} assistant here. Is "${ctx.task.title}" done? Please tell me briefly what was done.`;
+      case 'checkin':
+        throw new Error('Check-in calls use the CheckinEngine');
     }
   }
 
@@ -218,6 +221,8 @@ export function scriptedTurn(ctx: CallContext, personText: string, now: Date = n
       }
       return { say: 'Sorry, is it finished? Just a yes or no and a few words is fine.', end: false, outcome: null, dueAt: null, notes: null };
     }
+    case 'checkin':
+      throw new Error('Check-in calls use the CheckinEngine');
   }
 }
 
@@ -230,5 +235,7 @@ export function simulatedReply(ctx: CallContext): string {
       return "It's going well, I'm about halfway there. On track.";
     case 'confirm':
       return "Yes, it's done. Everything is in order.";
+    case 'checkin':
+      throw new Error('Check-in calls use the CheckinEngine');
   }
 }

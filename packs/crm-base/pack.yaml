@@ -94,7 +94,7 @@ policies:
   - id: first-customer-messages
     action: message.send
     require_approval: true
-    reason: Messages to customers need approval until the agent earns autonomy for them.
+    reason: You check messages to customers until you trust the agent to send them on its own.
 
 kpis:
   - id: open-enquiries

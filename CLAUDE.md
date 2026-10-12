@@ -19,7 +19,12 @@ Read `README.md` first. The spec is `docs/architecture-plan.md`; decisions are i
 - Workspaces store a snapshot of their pack. Base-pack additions reach existing workspaces only through the update banner (`packUpdates` → `POST /workspaces/:id/updates`), which adds and never replaces.
 - One React version repo-wide (Expo's). Don't bump React in web alone.
 - Work done by people goes through `staff.delegate` and `delegationWorkflow` (`master-ai-backend/src/voice/`). Real telephony must plug in behind `DelegationService.placeCall` and reuse `answer`/`reply`/`decline`; don't fork the call flow ([ADR 0007](docs/adr/0007-phone-delegation-to-staff.md)).
+- Real calls (Twilio) arrive as public webhooks under `/voice/twilio/*`. They must stay `@Public()`, verify `X-Twilio-Signature` against `PUBLIC_URL` + the original URL, and answer with TwiML even on errors. To test without Twilio, point `TWILIO_API_URL` at a fake server and give the test API and worker their own `TEMPORAL_TASK_QUEUE`.
+- Calls have one owner: `CallsService` (answer/reply/decline/list) passes each to `DelegationService` or `RoutinesService` by `delegation_id` / `checkin_id`. New call purposes plug in there, not in the controllers ([ADR 0008](docs/adr/0008-routines-manual-or-automatic.md)).
+- Routine schedules are Temporal Schedules (`routine-<id>`), kept in step by `RoutinesService` on create/update. In pack YAML, quote question text that contains commas (`ask: "…, …?"`); `pack.test.ts` checks every `ask` ends with "?".
+- Animations use `motion` (pinned with its own packages via `overrides` in pnpm-workspace.yaml); the shell wraps everything in `MotionConfig reducedMotion="user"`. Shared pieces live in `master-ai-web/src/components/motion.tsx`.
 - `RealtimeGateway` closes WebSocket and SSE connections on shutdown. Without that, `node --watch` restarts of the API hang while a browser is open.
+- Owners and their clients never see tool names, ids or JSON. Describe steps with `narrateStep` (agent-kit), goals with `GoalReport` (`ReportsService`), and action details with `readableFields` (sdk). Raw data stays in the Audit page.
 - Colours come from `@onehuman/ui` tokens (dark-first, n8n style). Use the token classes (`bg-surface`, `text-fg-muted`, `bg-canvas`, …), not raw Tailwind colours.
 - Shared packages are consumed from `dist/`. Rebuild them (`pnpm build:packages`) or run `pnpm dev`, which watches.
 

@@ -16,14 +16,15 @@ export function PackUpdatesBanner() {
   const apply = useMutation({
     mutationFn: () => api.workspaces.applyUpdates(ws!.id),
     onSuccess: () => {
-      for (const key of ['pack-updates', 'workspaces', 'agents', 'policy']) void queryClient.invalidateQueries({ queryKey: [key] });
+      for (const key of ['pack-updates', 'workspaces', 'agents', 'policy', 'routines']) void queryClient.invalidateQueries({ queryKey: [key] });
     },
   });
 
   const u = updates.data;
   if (!u) return null;
   const extras = u.tools.length + u.policies.length + u.kpis.length;
-  if (u.agents.length + u.workflows.length + extras === 0) return null;
+  const routines = u.routines ?? [];
+  if (u.agents.length + u.workflows.length + routines.length + extras === 0) return null;
   const callsTeam = u.agents.some((a) => a.tools.includes('staff.delegate'));
 
   return (
@@ -47,6 +48,9 @@ export function PackUpdatesBanner() {
             ))}
             {u.workflows.map((w) => (
               <li key={w.id}><span className="font-medium text-fg">{w.name}</span> <span className="text-fg-muted">· workflow · {w.description}</span></li>
+            ))}
+            {routines.map((r) => (
+              <li key={r.id}><span className="font-medium text-fg">{r.name}</span> <span className="text-fg-muted">· daily check-in · {r.description}</span></li>
             ))}
             {extras > 0 && <li className="text-fg-muted">plus {extras} tool, policy or KPI change{extras === 1 ? '' : 's'}</li>}
           </ul>

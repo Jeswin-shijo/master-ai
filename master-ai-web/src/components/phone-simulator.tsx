@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'motion/react';
 import { Mic, MicOff, Phone, PhoneOff, Send, Volume2, VolumeX } from 'lucide-react';
 import type { CallRecord, CallStage } from '@onehuman/schemas';
 import { Button } from '@/components/ui/button';
@@ -7,17 +8,18 @@ import { api, errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 /**
- * Phone simulator. Until a telephony provider is connected, calls to staff
- * ring here: you answer as the person in charge, by voice or by typing, and
- * the AI speaks its side. The same conversation engine will drive real calls.
+ * Phone simulator. With the simulator provider, calls to staff ring here: you
+ * answer as the person in charge, by voice or by typing, and the AI speaks its
+ * side. Real calls (Twilio) are answered on the phone; this shows them live.
  */
 
-const STAGE_LABEL: Record<CallStage, string> = { assign: 'Assigning work', follow_up: 'Follow-up', confirm: 'Confirming done' };
+const STAGE_LABEL: Record<CallStage, string> = { assign: 'Assigning work', follow_up: 'Follow-up', confirm: 'Confirming done', checkin: 'Daily check-in' };
 
 const QUICK_REPLIES: Record<CallStage, string[]> = {
   assign: ['Yes, I can do it by tomorrow 5 pm', 'Sure, by Friday evening', "Sorry, I can't, I'm on leave"],
   follow_up: ["It's on track", 'I need more time, by Friday', "There's a problem, I'm waiting for the keys"],
   confirm: ["Yes, it's done", 'Not yet, still pending'],
+  checkin: [],
 };
 
 interface SpeechRecognitionLike {
@@ -50,7 +52,12 @@ function speak(text: string) {
 
 export function PhoneSimulator() {
   const queryClient = useQueryClient();
-  const active = useQuery({ queryKey: ['calls', 'active'], queryFn: api.calls.active, refetchInterval: 5000 });
+  const active = useQuery({
+    queryKey: ['calls', 'active'],
+    queryFn: api.calls.active,
+    // Real calls update their transcript turn by turn without an event, so poll faster while one is live.
+    refetchInterval: (q) => (q.state.data?.some((c) => c.provider !== 'simulator') ? 2000 : 5000),
+  });
   const [current, setCurrent] = useState<CallRecord | null>(null);
   const [text, setText] = useState('');
   const [voiceOn, setVoiceOn] = useState(true);
@@ -59,7 +66,8 @@ export function PhoneSimulator() {
   const spokenCount = useRef(0);
   const bottom = useRef<HTMLDivElement>(null);
 
-  const ringing = active.data?.find((c) => c.status === 'ringing');
+  const ringing = active.data?.find((c) => c.provider === 'simulator' && c.status === 'ringing');
+  const live = active.data?.find((c) => c.provider !== 'simulator');
   const call = current ?? ringing ?? null;
   const ended = current?.status === 'completed' || current?.status === 'no_answer';
 
@@ -107,12 +115,12 @@ export function PhoneSimulator() {
     r.start();
   };
 
-  if (!call) return null;
+  if (!call) return live ? <LiveCall call={live} /> : null;
 
   // Ringing card
   if (!current) {
     return (
-      <div className="fixed right-4 bottom-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="dialog" aria-label="Incoming call">
+      <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="dialog" aria-label="Incoming call">
         <div className="hero-glow px-5 pt-5 pb-4">
           <p className="text-xs font-medium tracking-wide text-fg-muted uppercase">Simulated call · {STAGE_LABEL[call.stage]}</p>
           <div className="mt-3 flex items-center gap-3">
@@ -136,13 +144,13 @@ export function PhoneSimulator() {
           </Button>
         </div>
         {(answer.error || decline.error) && <p className="px-4 pb-3 text-sm text-danger">{errorMessage(answer.error ?? decline.error)}</p>}
-      </div>
+      </motion.div>
     );
   }
 
   // In-call conversation
   return (
-    <div className="fixed right-4 bottom-4 z-50 flex max-h-[min(36rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="dialog" aria-label={`Call with ${current.staffName}`}>
+    <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 flex max-h-[min(36rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="dialog" aria-label={`Call with ${current.staffName}`}>
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <span className={cn('grid size-9 place-items-center rounded-full text-white', ended ? 'bg-fg-muted' : 'bg-success')}>
           <Phone className="size-4" aria-hidden />
@@ -181,7 +189,7 @@ export function PhoneSimulator() {
       ) : (
         <div className="space-y-2 border-t border-border p-3">
           <div className="flex flex-wrap gap-1.5">
-            {QUICK_REPLIES[current.stage].map((q) => (
+            {(current.suggestions ?? QUICK_REPLIES[current.stage]).map((q) => (
               <button key={q} onClick={() => reply.mutate(q)} disabled={reply.isPending} className="rounded-full border border-border px-2.5 py-1 text-xs text-fg-muted hover:border-primary hover:text-fg disabled:opacity-50">
                 {q}
               </button>
@@ -213,6 +221,40 @@ export function PhoneSimulator() {
           {reply.error && <p className="text-sm text-danger">{errorMessage(reply.error)}</p>}
         </div>
       )}
-    </div>
+    </motion.div>
+  );
+}
+
+/** A real phone call in progress: who is being called, and the conversation as it happens. */
+function LiveCall({ call }: { call: CallRecord }) {
+  const bottom = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState<string | null>(null);
+  useEffect(() => bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [call.transcript.length]);
+  if (hidden === call.id) return null;
+  const ringing = call.status === 'ringing';
+  return (
+    <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 flex max-h-[min(32rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="status" aria-label={`Phone call with ${call.staffName}`}>
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <span className={cn('grid size-9 place-items-center rounded-full bg-success text-white', ringing && 'ringing')}>
+          <Phone className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-fg">{ringing ? `Calling ${call.staffName}…` : `On the phone with ${call.staffName}`}</p>
+          <p className="truncate text-xs text-fg-muted">Real call · {STAGE_LABEL[call.stage]} · attempt {call.attempt}</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setHidden(call.id)}>Hide</Button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3" aria-live="polite">
+        {call.transcript.length === 0 && <p className="text-sm text-fg-muted">{call.delegationTitle}</p>}
+        {call.transcript.map((l, i) => (
+          <div key={i} className={cn('flex', l.speaker === 'person' ? 'justify-end' : 'justify-start')}>
+            <p className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm', l.speaker === 'person' ? 'rounded-br-sm bg-primary text-primary-fg' : 'rounded-bl-sm bg-muted text-fg')}>
+              {l.text}
+            </p>
+          </div>
+        ))}
+        <div ref={bottom} />
+      </div>
+    </motion.div>
   );
 }

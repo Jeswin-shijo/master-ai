@@ -3,13 +3,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bot, Check, Clock, PencilLine, ShieldCheck, X } from 'lucide-react';
 import { Link } from 'react-router';
 import type { ApprovalRequest } from '@onehuman/schemas';
+import { readableFields } from '@onehuman/sdk';
 import { Button } from '@/components/ui/button';
 import { ErrorNote } from '@/components/ui/feedback';
 import { Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { signDecision } from '@/lib/device-key';
 import { formatInr, timeAgo } from '@/lib/utils';
-import { JsonView, RiskMeter, StatusBadge } from './status';
+import { RiskMeter, StatusBadge } from './status';
 
 /**
  * One approval request: the action, why the policy engine stopped it, the
@@ -55,8 +56,6 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
             <Bot className="size-3.5" aria-hidden />
             <span>{approval.agentName}</span>
             <span aria-hidden>·</span>
-            <span className="font-mono">{approval.tool}</span>
-            <span aria-hidden>·</span>
             <span>{timeAgo(approval.createdAt)}</span>
           </div>
           <h3 className="text-base font-semibold text-fg">{approval.summary}</h3>
@@ -82,18 +81,23 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
 
         {!compact && (
           <details className="group text-sm">
-            <summary className="cursor-pointer text-fg-muted select-none hover:text-fg">Evidence and exact arguments</summary>
+            <summary className="cursor-pointer text-fg-muted select-none hover:text-fg">Details and what was done before</summary>
             <dl className="mt-3 grid gap-2 sm:grid-cols-[10rem_1fr]">
+              {readableFields(approval.args).map((f) => (
+                <div key={f.label} className="contents">
+                  <dt className="text-fg-muted">{f.label}</dt>
+                  <dd className="break-words text-fg">{f.value}</dd>
+                </div>
+              ))}
               {approval.evidence.map((e, i) => (
                 <div key={i} className="contents">
                   <dt className="text-fg-muted">{e.label}</dt>
-                  <dd className="break-words text-fg">{e.value}</dd>
+                  <dd className="break-words whitespace-pre-line text-fg">{e.value}</dd>
                 </div>
               ))}
               <dt className="text-fg-muted">AI cost so far</dt>
               <dd>{formatInr(approval.costSoFarInr)}</dd>
             </dl>
-            <JsonView value={approval.args} className="mt-3" />
           </details>
         )}
 

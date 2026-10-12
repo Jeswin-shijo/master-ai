@@ -10,7 +10,6 @@ import type {
   TranscriptLine,
 } from '@onehuman/schemas';
 import { AuditService, SYSTEM } from '../audit/audit.service';
-import type { Session } from '../common/auth';
 import { DEFAULT_TENANT_SETTINGS, truncate } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
 import { calls, delegations, goals, principals, staff, tasks, tenants, toolCalls, workspaces } from '../db/schema';
@@ -20,6 +19,8 @@ import { TemporalService } from '../orchestration/temporal.service';
 import { CallEngine, simulatedReply, type CallContext } from './engine';
 import { TeamService } from './team.service';
 import { defaultDue, followUpTime, nextCallableTime, parseDue } from './time';
+import { toCall } from './call-record';
+import { TwilioService } from './twilio';
 
 export interface CallResult {
   answered: boolean;
@@ -40,13 +41,15 @@ export interface DelegationResult {
 }
 
 const ESCALATE: DelegationStatus[] = ['declined', 'blocked', 'not_done', 'unreachable'];
+/** How long a real phone rings before the provider gives up. */
+const RING_SECONDS = 40;
 
 /**
  * Delegation by phone: the agent hands work to the person in charge, then a
  * durable workflow calls them to assign it, follow up and confirm it is done.
- * Calls go through a provider; today that is the simulator, which either
- * answers by itself (auto) or rings in the web app for a person to answer
- * as the staff member (interactive).
+ * Calls go through a provider: Twilio places real calls; the simulator either
+ * answers by itself (auto) or rings in the web app for a person to answer as
+ * the staff member (interactive). Both drive the same answer/reply/decline path.
  */
 @Injectable()
 export class DelegationService {
@@ -59,6 +62,7 @@ export class DelegationService {
     private readonly team: TeamService,
     private readonly temporal: TemporalService,
     private readonly notifications: NotificationsService,
+    private readonly twilio: TwilioService,
   ) {}
 
   // ---------- called from the task workflow ----------
@@ -144,10 +148,13 @@ export class DelegationService {
 
   async plan(tenantId: string): Promise<{ maxAttempts: number; retryMs: number; ringTimeoutMs: number; talkTimeoutMs: number }> {
     const s = await this.settings(tenantId);
+    const real = s.provider !== 'simulator';
     return {
       maxAttempts: s.maxAttempts,
-      retryMs: s.fastSchedule ? 5_000 : s.retryMinutes * 60_000,
-      ringTimeoutMs: 45_000,
+      // Real people are not re-dialled seconds after a missed call, even in fast mode.
+      retryMs: s.fastSchedule ? (real ? 60_000 : 5_000) : s.retryMinutes * 60_000,
+      // Real calls ring for up to RING_SECONDS, plus time for a trial-account preamble.
+      ringTimeoutMs: real ? 90_000 : 45_000,
       talkTimeoutMs: 15 * 60_000,
     };
   }
@@ -166,7 +173,8 @@ export class DelegationService {
       if (!row) throw new Error(`Delegation ${delegationId} not found`);
       const s = { ...DEFAULT_TENANT_SETTINGS.calls, ...row.tenant.settings.calls };
       if (row.tenant.status === 'paused' || row.ws.status === 'paused') return s.fastSchedule ? 5_000 : 5 * 60_000;
-      if (s.fastSchedule) return 0;
+      // Fast schedule skips working hours only in the simulator; real people are never called out of hours.
+      if (s.fastSchedule && s.provider === 'simulator') return 0;
       const now = new Date();
       return Math.max(0, nextCallableTime(now, row.person.workingHours).getTime() - now.getTime());
     });
@@ -175,8 +183,9 @@ export class DelegationService {
   /** Place one call. In auto mode the simulated person answers and the result comes back at once. */
   async placeCall(tenantId: string, delegationId: string, stage: CallStage, attempt: number): Promise<{ callId: string; result: CallResult | null }> {
     const s = await this.settings(tenantId);
-    const { callId, ctx } = await this.db.tenant(tenantId, async (tx) => {
+    const { callId, ctx, phone } = await this.db.tenant(tenantId, async (tx) => {
       const d = await this.delegation(tx, delegationId);
+      const [person] = await tx.select({ phone: staff.phone }).from(staff).where(eq(staff.id, d.staffId));
       const [call] = await tx
         .insert(calls)
         .values({ tenantId, delegationId, staffId: d.staffId, stage, attempt, status: 'ringing', provider: s.provider })
@@ -192,11 +201,22 @@ export class DelegationService {
         goalId: d.goalId,
         taskId: d.taskId,
         refId: call!.id,
-        payload: { staffName: ctx.staff.name, stage, attempt, mode: s.simulatorMode },
+        payload: { staffName: ctx.staff.name, stage, attempt, mode: s.provider === 'simulator' ? s.simulatorMode : s.provider },
       });
-      return { callId: call!.id, ctx };
+      return { callId: call!.id, ctx, phone: person?.phone ?? '' };
     });
 
+    if (s.provider === 'twilio') {
+      try {
+        const sid = await this.twilio.placeCall({ to: phone, tenantId, callId, ringSeconds: RING_SECONDS });
+        await this.db.tenant(tenantId, (tx) => tx.update(calls).set({ providerCallId: sid }).where(eq(calls.id, callId)));
+        return { callId, result: null };
+      } catch (err) {
+        this.logger.warn(`Call ${callId} not placed: ${(err as Error).message}`);
+        await this.markNoAnswer(tenantId, callId, `Couldn't place the call. ${(err as Error).message}`);
+        return { callId, result: await this.callResult(tenantId, callId) };
+      }
+    }
     if (s.simulatorMode === 'interactive') return { callId, result: null };
 
     // Auto mode: a simulated team member answers.
@@ -228,8 +248,8 @@ export class DelegationService {
     });
   }
 
-  /** Nobody picked up (or the call was cut off): record it so the workflow can retry. */
-  async markNoAnswer(tenantId: string, callId: string) {
+  /** Nobody picked up, the call was cut off, or it could not be placed (`failure`): record it so the workflow can retry. */
+  async markNoAnswer(tenantId: string, callId: string, failure?: string) {
     const [c] = await this.db.tenant(tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
     if (!c) return;
     if (c.status === 'in_progress') {
@@ -238,9 +258,12 @@ export class DelegationService {
     }
     if (c.status !== 'ringing') return;
     await this.db.tenant(tenantId, async (tx) => {
-      const d = await this.delegation(tx, c.delegationId);
+      const d = await this.delegation(tx, c.delegationId!);
       const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId));
-      await tx.update(calls).set({ status: 'no_answer', endedAt: new Date(), outcome: 'no_answer', summary: `${person?.name ?? 'They'} didn't answer.` }).where(eq(calls.id, callId));
+      await tx
+        .update(calls)
+        .set({ status: failure ? 'failed' : 'no_answer', endedAt: new Date(), outcome: 'no_answer', summary: failure ?? `${person?.name ?? 'They'} didn't answer.` })
+        .where(eq(calls.id, callId));
       await this.audit.append(tx, tenantId, {
         type: 'call.no_answer',
         actor: SYSTEM,
@@ -260,7 +283,7 @@ export class DelegationService {
       const now = new Date();
       const due = d.dueAt ?? defaultDue(now);
       const at = s.fastSchedule
-        ? new Date(now.getTime() + 20_000)
+        ? new Date(now.getTime() + (s.provider === 'simulator' ? 20_000 : 30_000))
         : stage === 'follow_up'
           ? followUpTime(now, due)
           : new Date(Math.max(due.getTime(), now.getTime() + 60_000));
@@ -331,51 +354,48 @@ export class DelegationService {
     return out;
   }
 
-  // ---------- interactive simulator (API) ----------
+  // ---------- the conversation: simulator UI and provider webhooks ----------
 
-  /** Calls ringing or in progress, for the web phone simulator. */
-  async active(tenantId: string): Promise<CallRecord[]> {
-    return this.listCalls(tenantId, { statuses: ['ringing', 'in_progress'] });
-  }
-
-  async answer(session: Session, callId: string): Promise<CallRecord> {
-    const delegationId = await this.db.tenant(session.tenantId, async (tx) => {
+  async answer(tenantId: string, callId: string): Promise<CallRecord> {
+    const delegationId = await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
       if (!c) throw new NotFoundException('Call not found');
       if (c.status !== 'ringing') throw new ConflictException(`Call is ${c.status.replace('_', ' ')}`);
-      const ctx = await this.context(tx, c.delegationId, c.stage, []);
+      const ctx = await this.context(tx, c.delegationId!, c.stage, []);
       await tx.update(calls).set({ status: 'in_progress', startedAt: new Date(), transcript: [line('ai', this.engine.opening(ctx))] }).where(eq(calls.id, callId));
-      return c.delegationId;
+      return c.delegationId!;
     });
     await this.temporal.signalCall(delegationId, { callId, event: 'answered' });
-    return this.getCall(session.tenantId, callId);
+    return this.getCall(tenantId, callId);
   }
 
-  async reply(session: Session, callId: string, text: string): Promise<CallRecord> {
-    const { c, ctx } = await this.db.tenant(session.tenantId, async (tx) => {
+  async reply(tenantId: string, callId: string, text: string): Promise<CallRecord> {
+    const { c, ctx } = await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId));
       if (!c) throw new NotFoundException('Call not found');
       if (c.status !== 'in_progress') throw new BadRequestException('Answer the call first');
-      return { c, ctx: await this.context(tx, c.delegationId, c.stage, c.transcript) };
+      return { c, ctx: await this.context(tx, c.delegationId!, c.stage, c.transcript) };
     });
     const res = await this.engine.turn(ctx, text);
     const transcript = [...c.transcript, line('person', text), line('ai', res.say)];
     if (res.end) {
-      await this.finalize(session.tenantId, callId, transcript, res.outcome ?? 'unclear', res.dueAt, res.notes);
-      await this.temporal.signalCall(c.delegationId, { callId, event: 'ended' });
+      await this.finalize(tenantId, callId, transcript, res.outcome ?? 'unclear', res.dueAt, res.notes);
+      await this.temporal.signalCall(c.delegationId!, { callId, event: 'ended' });
     } else {
-      await this.db.tenant(session.tenantId, (tx) => tx.update(calls).set({ transcript }).where(eq(calls.id, callId)));
+      await this.db.tenant(tenantId, (tx) => tx.update(calls).set({ transcript }).where(eq(calls.id, callId)));
     }
-    return this.getCall(session.tenantId, callId);
+    return this.getCall(tenantId, callId);
   }
 
-  async decline(session: Session, callId: string): Promise<CallRecord> {
-    const [c] = await this.db.tenant(session.tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
+  /** Rejected, rang out or hung up. An answered call keeps its transcript and ends as unclear. */
+  async decline(tenantId: string, callId: string): Promise<CallRecord> {
+    const [c] = await this.db.tenant(tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
     if (!c) throw new NotFoundException('Call not found');
-    await this.markNoAnswer(session.tenantId, callId);
-    await this.temporal.signalCall(c.delegationId, { callId, event: 'ended' });
-    return this.getCall(session.tenantId, callId);
+    await this.markNoAnswer(tenantId, callId);
+    await this.temporal.signalCall(c.delegationId!, { callId, event: 'ended' });
+    return this.getCall(tenantId, callId);
   }
+
 
   // ---------- reads ----------
 
@@ -447,13 +467,13 @@ export class DelegationService {
     await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId));
       if (!c) return;
-      const ctx = await this.context(tx, c.delegationId, c.stage, transcript);
+      const ctx = await this.context(tx, c.delegationId!, c.stage, transcript);
       const summary = this.engine.summarize(ctx, outcome, dueAt, notes);
       await tx
         .update(calls)
         .set({ status: 'completed', endedAt: new Date(), transcript, outcome, summary, extracted: { dueAt: dueAt?.toISOString() ?? null, notes } })
         .where(eq(calls.id, callId));
-      const d = await this.delegation(tx, c.delegationId);
+      const d = await this.delegation(tx, c.delegationId!);
       await this.audit.append(tx, tenantId, {
         type: 'call.completed',
         actor: SYSTEM,
@@ -507,26 +527,3 @@ function line(speaker: TranscriptLine['speaker'], text: string): TranscriptLine 
   return { speaker, text, at: new Date().toISOString() };
 }
 
-function toCall(c: typeof calls.$inferSelect, person: typeof staff.$inferSelect, delegationTitle: string): CallRecord {
-  return {
-    id: c.id,
-    delegationId: c.delegationId,
-    staffId: c.staffId,
-    staffName: person.name,
-    staffTitle: person.title,
-    stage: c.stage,
-    attempt: c.attempt,
-    status: c.status,
-    provider: c.provider,
-    scheduledFor: c.scheduledFor.toISOString(),
-    startedAt: c.startedAt?.toISOString() ?? null,
-    endedAt: c.endedAt?.toISOString() ?? null,
-    durationSec: c.startedAt && c.endedAt ? Math.round((c.endedAt.getTime() - c.startedAt.getTime()) / 1000) : null,
-    transcript: c.transcript,
-    summary: c.summary,
-    outcome: c.outcome,
-    extracted: c.extracted,
-    delegationTitle,
-    createdAt: c.createdAt.toISOString(),
-  };
-}

@@ -1,7 +1,14 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Client, Connection, WorkflowNotFoundError } from '@temporalio/client';
+import { Client, Connection, DAYS_OF_WEEK, ScheduleNotFoundError, ScheduleOverlapPolicy, WorkflowNotFoundError } from '@temporalio/client';
 import { config } from '../config';
-import { SIGNALS, type ApprovalDecisionSignal, type CallUpdateSignal, type GoalWorkflowInput, type PlanDecisionSignal } from './shared';
+import {
+  SIGNALS,
+  type ApprovalDecisionSignal,
+  type CallUpdateSignal,
+  type GoalWorkflowInput,
+  type PlanDecisionSignal,
+  type RoutineRunInput,
+} from './shared';
 
 export const goalWorkflowId = (goalId: string) => `goal-${goalId}`;
 export const taskWorkflowId = (taskId: string) => `task-${taskId}`;
@@ -46,6 +53,47 @@ export class TemporalService implements OnModuleDestroy {
   /** A simulated or real call was answered or ended: wake the delegation workflow. */
   async signalCall(delegationId: string, update: CallUpdateSignal) {
     await this.signal(`delegation-${delegationId}`, SIGNALS.callUpdate, update);
+  }
+
+  /** A check-in call was answered or ended: wake its call workflow. */
+  async signalCheckin(entryId: string, update: CallUpdateSignal) {
+    await this.signal(`checkin-${entryId}`, SIGNALS.callUpdate, update);
+  }
+
+  /** Run a routine now ("Run now", or a test): calls whoever has not reported today. */
+  async startRoutineRun(input: RoutineRunInput): Promise<string> {
+    const client = await this.client();
+    const workflowId = `routine-${input.routineId}-${Date.now()}`;
+    await client.workflow.start('routineRunWorkflow', { taskQueue: config.TEMPORAL_TASK_QUEUE, workflowId, args: [input] });
+    return workflowId;
+  }
+
+  /**
+   * Keep a routine's Temporal schedule in step with it: on its days at its
+   * time (India time), start a run. Paused routines keep a paused schedule.
+   */
+  async syncRoutineSchedule(r: { tenantId: string; routineId: string; days: number[]; time: string; active: boolean }) {
+    const client = await this.client();
+    const scheduleId = `routine-${r.routineId}`;
+    const [hour, minute] = r.time.split(':').map(Number) as [number, number];
+    try {
+      await client.schedule.getHandle(scheduleId).delete();
+    } catch (err) {
+      if (!(err instanceof ScheduleNotFoundError)) throw err;
+    }
+    await client.schedule.create({
+      scheduleId,
+      spec: { calendars: [{ dayOfWeek: r.days.map((d) => DAYS_OF_WEEK[d]!), hour, minute }], timezone: 'Asia/Kolkata' },
+      action: {
+        type: 'startWorkflow',
+        workflowType: 'routineRunWorkflow',
+        taskQueue: config.TEMPORAL_TASK_QUEUE,
+        workflowId: scheduleId,
+        args: [{ tenantId: r.tenantId, routineId: r.routineId, trigger: 'schedule' } satisfies RoutineRunInput],
+      },
+      policies: { overlap: ScheduleOverlapPolicy.SKIP },
+      state: { paused: !r.active, note: r.active ? undefined : 'Routine paused by the owner' },
+    });
   }
 
   async pauseTasks(taskIds: string[]) {

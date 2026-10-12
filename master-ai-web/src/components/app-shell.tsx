@@ -4,6 +4,7 @@ import {
   Bot,
   BookOpen,
   Database,
+  FileText,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -11,12 +12,14 @@ import {
   Package,
   Phone,
   Power,
+  Repeat,
   ScrollText,
   Settings,
   Users,
   Workflow,
 } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { NavLink, useLocation, useOutlet } from 'react-router';
 import { brandPalette, darkPalette, lightPalette } from '@onehuman/ui';
 import { PhoneSimulator } from '@/components/phone-simulator';
 import { Button } from '@/components/ui/button';
@@ -32,7 +35,9 @@ const NAV = [
       { to: '/', label: 'Command center', icon: LayoutDashboard, end: true },
       { to: '/workflows', label: 'Workflows', icon: Workflow },
       { to: '/approvals', label: 'Approvals', icon: Inbox },
+      { to: '/routines', label: 'Routines', icon: Repeat },
       { to: '/calls', label: 'Calls', icon: Phone },
+      { to: '/reports', label: 'Reports', icon: FileText },
     ],
   },
   {
@@ -94,6 +99,9 @@ export function AppShell() {
   });
 
   const pendingCount = approvals.data?.length ?? 0;
+  const location = useLocation();
+  // Keep the leaving page's own content while it animates out.
+  const outlet = useOutlet();
 
   const nav = (
     <nav className="space-y-5" aria-label="Main">
@@ -109,14 +117,15 @@ export function AppShell() {
                 onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
-                    isActive ? 'bg-primary-soft font-medium text-fg' : 'text-fg-muted hover:bg-muted hover:text-fg',
+                    'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
+                    isActive ? 'font-medium text-fg' : 'text-fg-muted hover:bg-muted hover:text-fg',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <Icon className={cn('size-4', isActive && 'text-primary')} aria-hidden />
+                    {isActive && <motion.span layoutId="nav-active" className="absolute inset-0 -z-10 rounded-lg bg-primary-soft" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                    <Icon className={cn('size-4 transition-transform group-hover:scale-110', isActive && 'text-primary')} aria-hidden />
                     <span className="flex-1">{label}</span>
                     {to === '/approvals' && pendingCount > 0 && (
                       <span className="rounded-full bg-primary px-1.5 py-px text-xs font-semibold text-primary-fg">{pendingCount}</span>
@@ -132,8 +141,9 @@ export function AppShell() {
   );
 
   return (
-    <div className="flex h-full">
-      <aside className={cn('fixed inset-y-0 left-0 z-30 w-60 flex-col border-r border-border bg-surface px-3 py-4 md:static md:flex', menuOpen ? 'flex' : 'hidden')}>
+    <MotionConfig reducedMotion="user">
+    <div className="flex h-full print:block print:h-auto">
+      <aside className={cn('fixed inset-y-0 left-0 z-30 w-60 flex-col border-r border-border bg-surface px-3 py-4 md:static md:flex print:hidden', menuOpen ? 'flex' : 'hidden')}>
         <div className="mb-7 flex items-center gap-2.5 px-2">
           <img src="/favicon.svg" alt="" className="size-8" />
           <div className="min-w-0">
@@ -157,8 +167,8 @@ export function AppShell() {
       </aside>
       {menuOpen && <div className="fixed inset-0 z-20 bg-black/30 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden />}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 md:px-6">
+      <div className="flex min-w-0 flex-1 flex-col print:block">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 md:px-6 print:hidden">
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu">
             <Menu />
           </Button>
@@ -183,17 +193,30 @@ export function AppShell() {
           </Button>
         </header>
         {paused && (
-          <div className="border-b border-warning/30 bg-warning-soft px-6 py-2 text-sm text-warning" role="status">
+          <div className="border-b border-warning/30 bg-warning-soft px-6 py-2 text-sm text-warning print:hidden" role="status">
             The kill switch is on. Every agent is paused and no action can run until you resume.
           </div>
         )}
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 print:overflow-visible print:p-0">
           <div className="mx-auto max-w-6xl">
-            <Outlet />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {outlet}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>
-      <PhoneSimulator />
+      <div className="print:hidden">
+        <PhoneSimulator />
+      </div>
     </div>
+    </MotionConfig>
   );
 }

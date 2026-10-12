@@ -5,11 +5,11 @@ import { PackUpdatesBanner } from '@/components/pack-updates';
 import { StatusBadge } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
+import { connectorName } from '@onehuman/sdk';
 import { api } from '@/lib/api';
 
-/** Pack studio: what is installed, its lineage, and the exact Cedar policy in force. */
+/** The business setup in everyday words; the exact rule code stays folded away for IT. */
 export function PackPage() {
   const queryClient = useQueryClient();
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
@@ -37,28 +37,25 @@ export function PackPage() {
           </div>
         }
       />
-      <div className="flex flex-wrap gap-2 text-xs">
-        <Badge>v{ws.packVersion}</Badge>
-        <Badge tone="info">{ws.pack.source}</Badge>
-        <Badge>{ws.pack.lineage.join(' → ')}</Badge>
-        {ws.pack.connectors.map((c) => (
-          <Badge key={c} tone="warning">needs {c}</Badge>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Badge tone="info">{ws.pack.source === 'registry' ? 'Ready-made for your industry' : 'Made for your business'}</Badge>
+        {ws.pack.connectors.length > 0 && (
+          <span className="text-fg-muted">Works best connected to: {ws.pack.connectors.map(connectorName).join(', ')}</span>
+        )}
       </div>
       <ErrorNote error={toggle.error} />
       <PackUpdatesBanner />
 
       <PackSummary pack={ws.pack} />
 
-      <Card>
-        <CardHeader
-          title={`Policy set v${policy.data?.version ?? '…'} (Cedar)`}
-          description="This is the exact policy the engine evaluates for every agent action. The AI never decides what it may do."
-        />
-        <CardBody>
+      <details className="group rounded-lg border border-border bg-surface">
+        <summary className="cursor-pointer px-5 py-4 text-sm text-fg-muted select-none hover:text-fg">
+          Technical details for your IT team: the exact rule code checked before every step (version {policy.data?.version ?? '…'})
+        </summary>
+        <div className="border-t border-border px-5 py-4">
           {policy.isLoading ? <Spinner /> : <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 font-mono text-xs leading-relaxed text-fg">{policy.data?.cedar}</pre>}
-        </CardBody>
-      </Card>
+        </div>
+      </details>
     </div>
   );
 }

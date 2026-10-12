@@ -13,9 +13,11 @@ import {
   type ApprovalDecisionSignal,
   type CallStageName,
   type CallUpdateSignal,
+  type CheckinCallInput,
   type DelegationWorkflowInput,
   type GoalWorkflowInput,
   type PlanDecisionSignal,
+  type RoutineRunInput,
   type TaskOutcome,
   type TaskWorkflowInput,
 } from './shared';
@@ -234,4 +236,59 @@ export async function delegationWorkflow(input: DelegationWorkflowInput) {
   const confirmed = await callStage('confirm');
   if (!confirmed) return db.closeDelegation({ ...input, status: 'unreachable', result: null });
   return db.closeDelegation({ ...input, status: confirmed.outcome === 'done' ? 'done' : 'not_done', result: confirmed });
+}
+
+/**
+ * One run of a routine (its time came round, or "Run now"): everyone who has
+ * not reported today gets a check-in call, all at once, then the owner gets
+ * the day's summary.
+ */
+export async function routineRunWorkflow(input: RoutineRunInput) {
+  const run = await db.startRoutineRun(input);
+  await Promise.all(
+    run.entryIds.map((entryId) =>
+      executeChild(checkinCallWorkflow, {
+        workflowId: `checkin-${entryId}`,
+        args: [{ tenantId: input.tenantId, entryId }],
+        parentClosePolicy: ParentClosePolicy.TERMINATE,
+      }),
+    ),
+  );
+  await db.finishRoutineRun(input);
+}
+
+/**
+ * One person's check-in by phone: call inside calling hours, wait for the
+ * answer, retry if they miss it or ask to be called back, and mark the day
+ * missed if every attempt fails. A report filled in by hand meanwhile stops it.
+ */
+export async function checkinCallWorkflow(input: CheckinCallInput) {
+  const answered = new Set<string>();
+  const ended = new Set<string>();
+  setHandler(callUpdate, ({ callId, event }) => {
+    answered.add(callId);
+    if (event === 'ended') ended.add(callId);
+  });
+
+  const plan = await db.checkinPlan(input);
+  for (let attempt = 1; attempt <= plan.maxAttempts; attempt++) {
+    let wait = await db.checkinWait(input);
+    while (wait > 0) {
+      await sleep(wait);
+      wait = await db.checkinWait(input);
+    }
+    if (wait < 0) break;
+    const placed = await db.placeCheckinCall({ ...input, attempt });
+    if (!placed.callId) return;
+    if (!placed.done) {
+      const callId = placed.callId;
+      const picked = await condition(() => answered.has(callId), plan.ringTimeoutMs);
+      if (picked) await condition(() => ended.has(callId), plan.talkTimeoutMs);
+      if (!ended.has(callId)) await db.endCheckinCall({ ...input, callId });
+    }
+    const result = await db.checkinResult({ ...input, callId: placed.callId });
+    if (result.reported) return;
+    if (attempt < plan.maxAttempts) await sleep(plan.retryMs);
+  }
+  await db.markCheckinMissed(input);
 }

@@ -6,6 +6,8 @@ import type {
   AuditVerifyResult,
   AuthResponse,
   CallRecord,
+  CheckinInput,
+  CreateRoutineInput,
   CreateStaffInput,
   Delegation,
   StaffMember,
@@ -18,6 +20,7 @@ import type {
   CreateKnowledgeDocInput,
   DeviceKey,
   Goal,
+  GoalReport,
   KnowledgeDoc,
   LoginInput,
   OpsOverview,
@@ -29,6 +32,10 @@ import type {
   PackUpdates,
   PlanDecisionInput,
   PolicyRule,
+  ReportPeriod,
+  Routine,
+  RoutineDay,
+  RoutineTemplate,
   Pulse,
   RegisterDeviceKeyInput,
   RegisterPushTokenInput,
@@ -39,6 +46,9 @@ import type {
   TenantSummary,
   ToolCall,
   UpdateAgentInput,
+  UpdateRoutineInput,
+  VoiceStatus,
+  WorkReport,
   Workspace,
 } from '@onehuman/schemas';
 
@@ -65,6 +75,8 @@ export interface GoalDetail {
   tasks: Task[];
   toolCalls: ToolCall[];
   approvals: ApprovalRequest[];
+  /** The goal's outcome in plain words. */
+  report: GoalReport;
 }
 
 export interface RegistryPackSummary {
@@ -207,6 +219,26 @@ export function createClient(options: ClientOptions) {
       /** Simulator: speak as the staff member; returns the call with the AI's reply. */
       reply: (id: string, text: string) => post<CallRecord>(`/calls/${id}/reply`, { text }),
       decline: (id: string) => post<CallRecord>(`/calls/${id}/decline`),
+    },
+    routines: {
+      list: () => get<Routine[]>('/routines'),
+      /** Check-ins the industry setup offers, ready to switch on. */
+      templates: () => get<(RoutineTemplate & { inUse: boolean })[]>('/routines/templates'),
+      create: (input: CreateRoutineInput) => post<Routine>('/routines', input),
+      day: (id: string, date?: string) => get<RoutineDay>(`/routines/${id}${qs({ date })}`),
+      update: (id: string, input: UpdateRoutineInput) => patch<Routine>(`/routines/${id}`, input),
+      /** Fill in today's check-in by hand. */
+      submit: (id: string, input: CheckinInput) => post<RoutineDay>(`/routines/${id}/checkins`, input),
+      /** Call everyone who has not reported today, right now. */
+      run: (id: string) => post<{ ok: true }>(`/routines/${id}/run`),
+    },
+    reports: {
+      /** What got done in a period, in plain language: today, the last 7 or 30 days, or everything. */
+      list: (period: ReportPeriod = 'week') => get<WorkReport>(`/reports${qs({ period })}`),
+    },
+    voice: {
+      /** Whether this server can place real phone calls, and what is missing if not. */
+      status: () => get<VoiceStatus>('/voice/status'),
     },
     delegations: {
       list: (goalId?: string) => get<Delegation[]>(`/delegations${qs({ goalId })}`),

@@ -138,3 +138,24 @@ export function followUpTime(now: Date, due: Date): Date {
   if (span <= 2 * 3_600_000) return new Date(Math.max(now.getTime() + 15 * 60_000, due.getTime() - 3_600_000));
   return new Date(now.getTime() + Math.max(3_600_000, span / 2));
 }
+
+/** Any day, any hour: for calls limited only by the 9:00–21:00 window (e.g. evening reports). */
+export const ANY_HOURS: WorkingHours = { days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' };
+
+/** The India date, YYYY-MM-DD, that `date` falls on. */
+export function istDate(date: Date = new Date()): string {
+  const p = ist(date);
+  return `${p.y}-${String(p.m + 1).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+}
+
+/** The next time a routine runs: on one of `days` (0 = Sunday) at `time` (HH:MM, India time), after `from`. */
+export function nextRunAt(days: number[], time: string, from: Date = new Date()): Date | null {
+  if (days.length === 0) return null;
+  const [hh, mm] = time.split(':').map(Number) as [number, number];
+  const p = ist(from);
+  for (let i = 0; i <= 7; i++) {
+    const at = fromIst(p.y, p.m, p.d + i, hh, mm);
+    if (at > from && days.includes(ist(at).dow)) return at;
+  }
+  return null;
+}

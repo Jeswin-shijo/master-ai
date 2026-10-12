@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Speech from 'expo-speech';
 import { RefreshControl, View } from 'react-native';
 import { formatInr } from '@onehuman/ui';
+import { TodaysCheckins } from '@/components/checkins';
 import { Button, Card, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { space } from '@/lib/theme';
@@ -40,6 +41,7 @@ export default function PulseScreen() {
               <T key={l} tone="muted">{l}</T>
             ))}
           </Card>
+          <TodaysCheckins />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
             {[
               ['Waiting for you', p.pendingApprovals],

@@ -25,6 +25,7 @@ const pack = {
     },
   ],
   workflows: [],
+  routines: [],
   policies: [],
   kpis: [],
   connectors: [],

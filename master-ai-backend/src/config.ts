@@ -23,6 +23,14 @@ const EnvSchema = z.object({
   LLM_MODEL_SMALL: z.string().default('claude-haiku-5-5'),
   USD_INR_RATE: z.coerce.number().positive().default(88),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  // Real phone calls (Twilio). PUBLIC_URL is where Twilio reaches this API (a tunnel in development).
+  PUBLIC_URL: z.preprocess((v) => v || undefined, z.url().optional()).transform((u) => u?.replace(/\/+$/, '')),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM_NUMBER: z.string().optional(),
+  TWILIO_VOICE: z.string().default('Polly.Aditi'),
+  /** Overridable only so tests can stand in for Twilio. */
+  TWILIO_API_URL: z.string().default('https://api.twilio.com'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

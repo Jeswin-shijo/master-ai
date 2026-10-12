@@ -9,6 +9,7 @@ import { DbService } from '../db/db.service';
 import { agents, approvalRequests, goals, tasks, tenants, toolCalls } from '../db/schema';
 import { RecordsService } from '../records/records.service';
 import { TemporalService } from '../orchestration/temporal.service';
+import { ReportsService } from '../reports/reports.service';
 
 @Injectable()
 export class GoalsService {
@@ -17,6 +18,7 @@ export class GoalsService {
     private readonly audit: AuditService,
     private readonly temporal: TemporalService,
     private readonly records: RecordsService,
+    private readonly reports: ReportsService,
   ) {}
 
   /** A goal becomes a durable workflow: plan → owner review → agents → summary. */
@@ -70,11 +72,19 @@ export class GoalsService {
         .innerJoin(agents, eq(agents.id, approvalRequests.agentId))
         .where(eq(approvalRequests.goalId, goalId))
         .orderBy(asc(approvalRequests.createdAt));
+      const { narratives, report } = await this.reports.forGoal(
+        tx,
+        goal,
+        taskRows.map((r) => r.task),
+        callRows,
+        approvalRows.map((r) => r.approval),
+      );
       return {
         goal: toGoal(goal),
         tasks: taskRows.map((r) => toTask(r.task, r.agent)),
-        toolCalls: callRows.map(toToolCall),
+        toolCalls: callRows.map((c) => ({ ...toToolCall(c), narrative: narratives.get(c.id) })),
         approvals: approvalRows.map((r) => toApproval(r.approval, r.agentName)),
+        report,
       };
     });
   }

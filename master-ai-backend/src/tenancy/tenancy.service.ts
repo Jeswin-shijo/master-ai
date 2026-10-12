@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { TenantSettingsInput, TenantSummary, Workspace } from '@onehuman/schemas';
 import { AuditService } from '../audit/audit.service';
@@ -8,6 +8,7 @@ import { DbService, type Tx } from '../db/db.service';
 import { agents, goals, tasks, tenants, workspaces } from '../db/schema';
 import { TemporalService } from '../orchestration/temporal.service';
 import { PolicyService } from '../policy/policy.service';
+import { TwilioService } from '../voice/twilio';
 
 const ACTIVE_TASK_STATES = ['running', 'waiting_approval', 'waiting_on_team', 'paused'];
 
@@ -19,6 +20,7 @@ export class TenancyService {
     private readonly audit: AuditService,
     private readonly temporal: TemporalService,
     private readonly policy: PolicyService,
+    private readonly twilio: TwilioService,
   ) {}
 
   async get(tenantId: string): Promise<TenantSummary> {
@@ -26,6 +28,10 @@ export class TenancyService {
   }
 
   async updateSettings(session: Session, input: TenantSettingsInput): Promise<TenantSummary> {
+    const twilio = this.twilio.status();
+    if (input.calls?.provider === 'twilio' && !twilio.configured) {
+      throw new BadRequestException(`Real calls need Twilio set up on the server first. Missing: ${twilio.missing.join(', ')}`);
+    }
     return this.db.tenant(session.tenantId, async (tx) => {
       const current = await this.tenantRow(tx, session.tenantId);
       const [row] = await tx

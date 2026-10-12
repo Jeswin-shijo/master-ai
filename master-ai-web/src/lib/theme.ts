@@ -18,6 +18,18 @@ export function applyTheme(choice: ThemeChoice) {
   document.documentElement.dataset.theme = choice;
 }
 
+/** Reports print on white paper: switch to the light palette while printing, then back. */
+export function installPrintTheme() {
+  let before: string | undefined;
+  window.addEventListener('beforeprint', () => {
+    before = document.documentElement.dataset.theme;
+    document.documentElement.dataset.theme = 'light';
+  });
+  window.addEventListener('afterprint', () => {
+    if (before) document.documentElement.dataset.theme = before;
+  });
+}
+
 export function useTheme(): [ThemeChoice, (t: ThemeChoice) => void] {
   const [theme, setTheme] = useState<ThemeChoice>(readTheme);
   useEffect(() => {

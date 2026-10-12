@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
-import type { Goal } from '@onehuman/schemas';
+import { Pressable, RefreshControl, Share, StyleSheet, TextInput, View } from 'react-native';
+import type { Goal, GoalReport } from '@onehuman/schemas';
+import { goalStatusWord, reportText } from '@onehuman/sdk';
 import { Badge, Button, Card, Empty, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { radius, space, useTheme } from '@/lib/theme';
@@ -52,20 +53,24 @@ export default function GoalsScreen() {
 
 function GoalRow({ goal }: { goal: Goal }) {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
   const decide = useMutation({
     mutationFn: (approved: boolean) => api.goals.decidePlan(goal.id, { approved }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['goals'] }),
   });
+  const detail = useQuery({ queryKey: ['goal', goal.id], queryFn: () => api.goals.get(goal.id), enabled: open });
   const reviewing = goal.status === 'awaiting_plan_approval';
   return (
     <Card>
-      <T weight="600">{goal.text}</T>
-      <Badge tone={TONE[goal.status] ?? 'muted'} label={goal.status === 'awaiting_plan_approval' ? 'Plan review' : goal.status.replace(/_/g, ' ')} />
+      <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityHint="Shows the report" style={{ gap: space.xs }}>
+        <T weight="600">{goal.text}</T>
+        <Badge tone={TONE[goal.status] ?? 'muted'} label={goal.status === 'awaiting_plan_approval' ? 'Plan review' : goalStatusWord(goal.status)} />
+      </Pressable>
       {reviewing && goal.plan && (
         <View style={{ gap: space.xs }}>
           <T tone="muted" size="sm">{goal.plan.rationale}</T>
           {goal.plan.tasks.map((t) => (
-            <T key={t.key} size="sm">• {t.title} — {t.agentRole}</T>
+            <T key={t.key} size="sm">• {t.title}</T>
           ))}
           <View style={{ flexDirection: 'row', gap: space.sm }}>
             <Button title="Approve plan" variant="success" style={{ flex: 1 }} onPress={() => decide.mutate(true)} loading={decide.isPending && decide.variables} />
@@ -73,8 +78,43 @@ function GoalRow({ goal }: { goal: Goal }) {
           </View>
         </View>
       )}
-      {goal.summary && !reviewing && <T tone="muted" size="sm">{goal.summary}</T>}
+      {!open && goal.summary && !reviewing && (
+        <T tone="muted" size="sm" numberOfLines={3}>
+          {goal.summary}
+        </T>
+      )}
+      {open && detail.error && <T tone="danger" size="sm">{errorMessage(detail.error)}</T>}
+      {open && detail.data && <ReportView report={detail.data.report} />}
     </Card>
+  );
+}
+
+/** The goal's report in plain words, with a Share button for sending it to a client. */
+function ReportView({ report }: { report: GoalReport }) {
+  const sections: [string, string[], string][] = [
+    ['What was done', report.done, '✓'],
+    ['Still in progress', report.pending, '…'],
+    ['Needs attention', report.attention, '!'],
+    ['People involved', report.people, '•'],
+  ];
+  const empty = report.done.length + report.pending.length + report.attention.length === 0;
+  return (
+    <View style={{ gap: space.md }}>
+      {empty && <T tone="muted" size="sm">Nothing has been done yet.</T>}
+      {sections.map(([title, lines, mark]) =>
+        lines.length ? (
+          <View key={title} style={{ gap: 4 }}>
+            <T tone="muted" size="xs" weight="600">{title.toUpperCase()}</T>
+            {lines.map((line, i) => (
+              <T key={i} size="sm" tone={mark === '!' ? 'danger' : undefined}>
+                {mark} {line}
+              </T>
+            ))}
+          </View>
+        ) : null,
+      )}
+      <Button title="Share report" variant="secondary" onPress={() => void Share.share({ message: reportText(report) })} />
+    </View>
   );
 }
 

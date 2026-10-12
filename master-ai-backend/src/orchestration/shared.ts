@@ -67,6 +67,18 @@ export interface CallUpdateSignal {
 
 export type CallStageName = 'assign' | 'follow_up' | 'confirm';
 
+export interface RoutineRunInput {
+  tenantId: string;
+  routineId: string;
+  /** schedule: the routine's time came round. manual: "Run now". */
+  trigger: 'schedule' | 'manual';
+}
+
+export interface CheckinCallInput {
+  tenantId: string;
+  entryId: string;
+}
+
 
 export interface ApprovalCreated {
   approvalId: string;

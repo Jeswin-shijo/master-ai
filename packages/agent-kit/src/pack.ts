@@ -59,11 +59,12 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   };
   visit(pack);
 
-  const merged: Pack = { ...pack, entities: [], agents: [], tools: [], workflows: [], policies: [], kpis: [], connectors: [], labels: {} };
+  const merged: Pack = { ...pack, entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], labels: {} };
   const entities = new Map<string, EntityDef>();
   const agents = new Map<string, Pack['agents'][number]>();
   const tools = new Map<string, Pack['tools'][number]>();
   const workflows = new Map<string, Pack['workflows'][number]>();
+  const routines = new Map<string, Pack['routines'][number]>();
   const policies = new Map<string, Pack['policies'][number]>();
   const kpis = new Map<string, Pack['kpis'][number]>();
   const connectors = new Set<string>();
@@ -73,6 +74,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
     p.agents.forEach((a) => agents.set(a.role, a));
     p.tools.forEach((t) => tools.set(t.name, t));
     p.workflows.forEach((w) => workflows.set(w.id, { ...w, category: w.category ?? p.name }));
+    (p.routines ?? []).forEach((r) => routines.set(r.id, r));
     p.policies.forEach((r) => policies.set(policyKey(r), r));
     p.kpis.forEach((k) => kpis.set(k.id, k));
     p.connectors.forEach((c) => connectors.add(c));
@@ -83,6 +85,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   merged.agents = [...agents.values()];
   merged.tools = [...tools.values()];
   merged.workflows = [...workflows.values()];
+  merged.routines = [...routines.values()];
   merged.policies = [...policies.values()];
   merged.kpis = [...kpis.values()];
   merged.connectors = [...connectors];
@@ -119,13 +122,14 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     agents,
     tools,
     workflows: missing(latest.workflows, installed.workflows, (w) => w.id).filter((w) => w.steps.every((s) => roles.has(s.agent))),
+    routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id),
     policies: missing(latest.policies, installed.policies, policyKey).filter((r) => !r.agent || roles.has(r.agent)),
     kpis: missing(latest.kpis, installed.kpis, (k) => k.id).filter((k) => k.source?.type !== 'records_count' || entities.has(k.source.entity)),
   };
 }
 
 export function countPackUpdates(u: PackUpdates): number {
-  return u.agents.length + u.tools.length + u.workflows.length + u.policies.length + u.kpis.length;
+  return u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length;
 }
 
 export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): ResolvedPack {
@@ -134,6 +138,7 @@ export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): Resol
     agents: [...installed.agents, ...u.agents],
     tools: [...installed.tools, ...u.tools],
     workflows: [...installed.workflows, ...u.workflows],
+    routines: [...(installed.routines ?? []), ...u.routines],
     policies: [...installed.policies, ...u.policies],
     kpis: [...installed.kpis, ...u.kpis],
   };
@@ -170,6 +175,12 @@ export function applyLabels(pack: ResolvedPack): ResolvedPack {
       name: relabel(w.name),
       description: relabel(w.description),
       steps: w.steps.map((s) => ({ ...s, title: relabel(s.title), instructions: relabel(s.instructions) })),
+    })),
+    routines: (pack.routines ?? []).map((r) => ({
+      ...r,
+      name: relabel(r.name),
+      description: relabel(r.description),
+      questions: r.questions.map((q) => ({ ...q, label: relabel(q.label), ask: relabel(q.ask) })),
     })),
     kpis: pack.kpis.map((k) => ({ ...k, name: relabel(k.name), description: relabel(k.description) })),
   };

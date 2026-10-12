@@ -138,6 +138,24 @@ async function main() {
   const finalVerify = await api.audit.verify();
   if (!finalVerify.ok) throw new Error('audit chain broken after calls');
 
+  // 4c. Routines: a daily check-in collected by phone (simulated staff answer every question).
+  const templates = await api.routines.templates();
+  const checkin = await api.routines.create({ templateId: templates.find((t) => t.id === 'daily-bookings-check')?.id ?? templates[0]!.id });
+  await api.routines.run(checkin.id);
+  const checked = await waitFor(
+    'check-in calls to finish',
+    async () => {
+      const day = await api.routines.day(checkin.id);
+      return day.summary.reported + day.summary.missed === day.summary.expected && day;
+    },
+    120_000,
+  );
+  if (checked.summary.reported !== checked.summary.expected) throw new Error(`only ${checked.summary.reported} of ${checked.summary.expected} reported`);
+  log('Routine check-in by phone', `${checkin.name}: ${checked.summary.reported}/${checked.summary.expected} reported, ${checked.summary.flags.length} problem(s) flagged`);
+  for (const e of checked.entries) console.log(`    · ${e.staffName.padEnd(14)} ${JSON.stringify(e.values)}`);
+  // Leave no daily schedule behind for the test company.
+  await api.routines.update(checkin.id, { status: 'paused' });
+
   // 5. An industry with no curated pack is composed/generated and adapted.
   const clinic = await onboard('Dental clinic in Kochi', 'Smile Dental');
   const labels = clinic.ws.pack.entities.map((e) => e.label).join(', ');

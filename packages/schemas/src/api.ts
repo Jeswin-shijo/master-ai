@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AgentClearanceSchema } from './autonomy';
-import { BudgetsSchema, ToolNameSchema } from './pack';
+import { BudgetsSchema, RoutineQuestionSchema, ToolNameSchema } from './pack';
 
 /** Request bodies. The backend validates with these; the SDK sends them. */
 
@@ -164,8 +164,49 @@ export const CallReplyInputSchema = z.object({ text: z.string().trim().min(1).ma
 export type CallReplyInput = z.input<typeof CallReplyInputSchema>;
 
 export const CallSettingsInputSchema = z.object({
+  provider: z.enum(['simulator', 'twilio']).optional(),
   simulatorMode: z.enum(['auto', 'interactive']).optional(),
   fastSchedule: z.boolean().optional(),
   maxAttempts: z.number().int().min(1).max(5).optional(),
   retryMinutes: z.number().int().min(1).max(240).optional(),
 });
+
+// ---------- Routines ----------
+
+const TimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM');
+const DaysSchema = z.array(z.number().int().min(0).max(6)).min(1).max(7);
+
+/** Start a routine from one of the pack's templates, or from scratch. */
+export const CreateRoutineInputSchema = z.object({
+  templateId: z.string().optional(),
+  name: z.string().trim().min(2).max(80).optional(),
+  description: z.string().trim().max(300).optional(),
+  mode: z.enum(['manual', 'automatic']).optional(),
+  days: DaysSchema.optional(),
+  time: TimeSchema.optional(),
+  chaseMissing: z.boolean().optional(),
+  questions: z.array(RoutineQuestionSchema).min(1).max(8).optional(),
+  /** Who reports. Defaults to everyone active on the team. */
+  staffIds: z.array(z.uuid()).optional(),
+});
+export type CreateRoutineInput = z.input<typeof CreateRoutineInputSchema>;
+
+export const UpdateRoutineInputSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  description: z.string().trim().max(300).optional(),
+  mode: z.enum(['manual', 'automatic']).optional(),
+  days: DaysSchema.optional(),
+  time: TimeSchema.optional(),
+  chaseMissing: z.boolean().optional(),
+  questions: z.array(RoutineQuestionSchema).min(1).max(8).optional(),
+  staffIds: z.array(z.uuid()).optional(),
+  status: z.enum(['active', 'paused']).optional(),
+});
+export type UpdateRoutineInput = z.input<typeof UpdateRoutineInputSchema>;
+
+/** A check-in filled in by hand (manual mode, or correcting what a call collected). */
+export const CheckinInputSchema = z.object({
+  staffId: z.uuid(),
+  values: z.record(z.string(), z.union([z.string().max(2000), z.number(), z.boolean(), z.null()])),
+});
+export type CheckinInput = z.input<typeof CheckinInputSchema>;

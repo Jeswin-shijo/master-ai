@@ -11,3 +11,9 @@ onlyBuiltDependencies:
   - esbuild
   - "@nestjs/core"
   - protobufjs
+
+# Pin motion's own packages to releases at least two weeks old (its ranges would pull the newest).
+overrides:
+  framer-motion: 13.4.4
+  motion-dom: 13.4.4
+  motion-utils: 13.3.0

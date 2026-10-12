@@ -10,6 +10,102 @@ import { ensureDeviceKey } from '@/lib/device-key';
 import { useTheme, type ThemeChoice } from '@/lib/theme';
 import { cn, formatDateTime } from '@/lib/utils';
 
+/** How the AI reaches the team: the in-app simulator or real calls through Twilio. */
+function PhoneCallSettings() {
+  const queryClient = useQueryClient();
+  const tenant = useQuery({ queryKey: ['tenant'], queryFn: api.tenant.get });
+  const voice = useQuery({ queryKey: ['voice-status'], queryFn: api.voice.status });
+  const save = useMutation({
+    mutationFn: (calls: NonNullable<Parameters<typeof api.tenant.updateSettings>[0]['calls']>) => api.tenant.updateSettings({ calls }),
+    onSuccess: (t) => queryClient.setQueryData(['tenant'], t),
+  });
+  const calls = tenant.data?.settings.calls;
+  const twilio = voice.data?.twilio;
+  const real = calls?.provider === 'twilio';
+
+  const radio = 'mt-1 accent-[var(--oh-primary)]';
+  return (
+    <Card>
+      <CardHeader title="Phone calls to the team" description="How the AI reaches the people in charge to assign work, follow up and confirm." />
+      <CardBody className="space-y-5 text-sm">
+        <fieldset className="space-y-2">
+          <legend className="mb-1 font-medium text-fg">How calls are made</legend>
+          <label className="flex items-start gap-3">
+            <input type="radio" name="provider" checked={!real} onChange={() => save.mutate({ provider: 'simulator' })} className={radio} />
+            <span>
+              <span className="font-medium text-fg">Simulated, in this app</span>
+              <span className="block text-fg-muted">No real phone rings. Good for trying things out.</span>
+            </span>
+          </label>
+          <label className={cn('flex items-start gap-3', !twilio?.configured && !real && 'opacity-60')}>
+            <input
+              type="radio"
+              name="provider"
+              checked={real}
+              disabled={!twilio?.configured && !real}
+              onChange={() => save.mutate({ provider: 'twilio' })}
+              className={radio}
+            />
+            <span>
+              <span className="font-medium text-fg">Real phone calls (Twilio)</span>
+              {twilio?.configured ? (
+                <span className="block text-fg-muted">
+                  Calls come from <span className="font-mono">{twilio.from}</span>. Your team hears an AI voice and answers by speaking.
+                  Calls only go out in each person's working hours, between 9 am and 9 pm IST.
+                </span>
+              ) : (
+                <span className="block text-fg-muted">
+                  Not set up on the server yet. Add <span className="font-mono">{twilio?.missing.join(', ') ?? '…'}</span> to{' '}
+                  <span className="font-mono">master-ai-backend/.env</span> and restart <span className="font-mono">pnpm dev</span>.
+                </span>
+              )}
+            </span>
+          </label>
+        </fieldset>
+
+        {!real && (
+          <fieldset className="space-y-2">
+            <legend className="mb-1 font-medium text-fg">Who answers simulated calls</legend>
+            {([
+              ['interactive', 'You do, in this app', 'Calls ring at the bottom right. Answer as the staff member, by typing or speaking, and hear the AI.'],
+              ['auto', 'A simulated staff member', 'Calls are answered automatically and cooperatively. Good for demos and tests.'],
+            ] as const).map(([value, label, hint]) => (
+              <label key={value} className="flex items-start gap-3">
+                <input type="radio" name="sim-mode" checked={calls?.simulatorMode === value} onChange={() => save.mutate({ simulatorMode: value })} className={radio} />
+                <span>
+                  <span className="font-medium text-fg">{label}</span>
+                  <span className="block text-fg-muted">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={calls?.fastSchedule ?? true}
+            onChange={(e) => save.mutate({ fastSchedule: e.target.checked })}
+            className="mt-0.5 size-4 accent-[var(--oh-primary)]"
+          />
+          <span>
+            <span className="font-medium text-fg">Fast schedule (testing)</span>
+            <span className="block text-fg-muted">
+              {real
+                ? 'Follow-up and confirm calls come about 30 seconds apart instead of halfway to the deadline and at the deadline. Turn this off when calling your real team.'
+                : 'Follow-up and confirm calls come seconds apart instead of halfway to the deadline and at the deadline.'}
+            </span>
+          </span>
+        </label>
+        <p className="text-fg-muted">
+          Up to {calls?.maxAttempts} attempts per call, {calls?.retryMinutes} minutes apart; after that the job comes back to you.
+        </p>
+        <ErrorNote error={save.error} />
+      </CardBody>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient();
   const tenant = useQuery({ queryKey: ['tenant'], queryFn: api.tenant.get });
@@ -49,50 +145,7 @@ export function SettingsPage() {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Phone calls to the team"
-          description="Provider: simulator. Exotel or Plivo plug in here for real calls to Indian numbers."
-        />
-        <CardBody className="space-y-4 text-sm">
-          <fieldset className="space-y-2">
-            <legend className="mb-1 font-medium text-fg">Who answers simulated calls</legend>
-            {([
-              ['interactive', 'You do, in this app', 'Calls ring at the bottom right. Answer as the staff member, by typing or speaking, and hear the AI.'],
-              ['auto', 'A simulated staff member', 'Calls are answered automatically and cooperatively. Good for demos and tests.'],
-            ] as const).map(([value, label, hint]) => (
-              <label key={value} className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="sim-mode"
-                  checked={settings?.calls.simulatorMode === value}
-                  onChange={() => save.mutate({ calls: { simulatorMode: value } })}
-                  className="mt-1 accent-[var(--oh-primary)]"
-                />
-                <span>
-                  <span className="font-medium text-fg">{label}</span>
-                  <span className="block text-fg-muted">{hint}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              checked={settings?.calls.fastSchedule ?? true}
-              onChange={(e) => save.mutate({ calls: { fastSchedule: e.target.checked } })}
-              className="mt-0.5 size-4 accent-[var(--oh-primary)]"
-            />
-            <span>
-              <span className="font-medium text-fg">Fast schedule (demo)</span>
-              <span className="block text-fg-muted">Follow-up and confirm calls come seconds apart instead of halfway to the deadline and at the deadline.</span>
-            </span>
-          </label>
-          <p className="text-fg-muted">
-            Up to {settings?.calls.maxAttempts} attempts per call, {settings?.calls.retryMinutes} minutes apart; after that the job comes back to you.
-          </p>
-        </CardBody>
-      </Card>
+      <PhoneCallSettings />
 
       <Card>
         <CardHeader title="Brand" description="White-label the command center and mobile app with your colour." />

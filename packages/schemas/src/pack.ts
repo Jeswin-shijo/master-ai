@@ -127,6 +127,37 @@ export const WorkflowStepSchema = z.object({
   instructions: z.string().min(1),
 });
 
+/** One thing a check-in asks, e.g. "How many workers were on site today?". */
+export const RoutineQuestionSchema = z.object({
+  key: z.string().regex(/^[a-z][a-zA-Z0-9_]*$/, 'camelCase key'),
+  /** Short label for tables and reports: "Workers on site". */
+  label: z.string().min(1),
+  /** How the AI asks it on the phone, and the form shows it. */
+  ask: z.string().min(1),
+  type: z.enum(['number', 'percent', 'yes_no', 'text', 'choice']),
+  options: z.array(z.string()).optional(),
+  required: z.boolean().default(true),
+  /** Any answer other than none / no is a problem to show the owner (shortages, blockers). */
+  flag: z.boolean().default(false),
+  /** Unit for numbers, e.g. "workers". */
+  unit: z.string().optional(),
+});
+export type RoutineQuestion = z.infer<typeof RoutineQuestionSchema>;
+
+/** A repeating check-in the pack offers, e.g. a daily site report. The owner turns it on. */
+export const RoutineTemplateSchema = z.object({
+  id: SlugSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  mode: z.enum(['manual', 'automatic']).default('automatic'),
+  /** 0 = Sunday … 6 = Saturday. */
+  days: z.array(z.number().int().min(0).max(6)).min(1).default([1, 2, 3, 4, 5, 6]),
+  /** Local time (India), HH:MM: when the AI calls, or when manual updates are due. */
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default('18:00'),
+  questions: z.array(RoutineQuestionSchema).min(1).max(8),
+});
+export type RoutineTemplate = z.infer<typeof RoutineTemplateSchema>;
+
 export const WorkflowDefSchema = z.object({
   id: SlugSchema,
   name: z.string().min(1),
@@ -211,6 +242,8 @@ export const PackSchema = z.object({
   agents: z.array(PackAgentSchema).default([]),
   tools: z.array(ToolAliasSchema).default([]),
   workflows: z.array(WorkflowDefSchema).default([]),
+  /** Repeating check-ins the business can switch on, e.g. a daily site report by phone. */
+  routines: z.array(RoutineTemplateSchema).default([]),
   policies: z.array(PolicyRuleSchema).default([]),
   kpis: z.array(KpiDefSchema).default([]),
   /** Integrations the sector needs (booking engines, ERP, EHR...). */
@@ -233,6 +266,7 @@ export interface PackUpdates {
   agents: Pack['agents'];
   tools: Pack['tools'];
   workflows: Pack['workflows'];
+  routines: Pack['routines'];
   policies: Pack['policies'];
   kpis: Pack['kpis'];
 }

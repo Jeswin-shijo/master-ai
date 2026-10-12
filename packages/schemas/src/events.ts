@@ -50,6 +50,12 @@ export const AUDIT_EVENT_TYPES = [
   'call.ringing',
   'call.completed',
   'call.no_answer',
+  'routine.created',
+  'routine.updated',
+  'routine.run_started',
+  'routine.run_finished',
+  'checkin.reported',
+  'checkin.missed',
 ] as const;
 
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
@@ -107,6 +113,18 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `Call with ${p.staffName ?? 'staff'}: ${p.summary ?? p.outcome ?? 'completed'}`;
     case 'call.no_answer':
       return `${p.staffName ?? 'Staff'} did not answer (attempt ${p.attempt ?? '?'})`;
+    case 'routine.created':
+      return `New routine: ${p.name ?? ''}`;
+    case 'routine.updated':
+      return `Routine changed: ${p.name ?? ''}`;
+    case 'routine.run_started':
+      return `${p.name ?? 'Routine'} started: calling ${p.calling ?? 0} ${p.calling === 1 ? 'person' : 'people'}`;
+    case 'routine.run_finished':
+      return `${p.name ?? 'Routine'}: ${p.reported ?? 0} of ${p.expected ?? 0} reported${p.flags ? `, ${p.flags} problem(s)` : ''}`;
+    case 'checkin.reported':
+      return `${p.staffName ?? 'Someone'} reported for ${p.name ?? 'the routine'}${p.source === 'call' ? ' (by phone)' : ''}`;
+    case 'checkin.missed':
+      return `No ${p.name ?? 'update'} from ${p.staffName ?? 'someone'}`;
     case 'pack.updated':
       return `Workspace updated: added ${p.summary ?? 'platform additions'}`;
     case 'staff.added':

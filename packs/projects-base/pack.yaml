@@ -84,6 +84,20 @@ workflows:
         agent: invoicing-assistant
         instructions: Find Milestone records with status done, send a payment request for each, then mark it billed.
 
+routines:
+  - id: daily-work-report
+    name: Daily work report
+    description: Each person in charge reports headcount, progress, shortages and problems at the end of the day.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "18:00"
+    questions:
+      - { key: people, label: "People on the job", ask: "How many people worked on the job today?", type: number, unit: people }
+      - { key: workDone, label: "Work done", ask: "What work got done today?", type: text }
+      - { key: progress, label: "Progress", ask: "How far along is the work now, in percent?", type: percent }
+      - { key: shortages, label: "Running short", ask: "Is anything running short, like materials or supplies?", type: text, flag: true }
+      - { key: problems, label: "Problems", ask: "Is there any problem you need help with?", type: text, flag: true, required: false }
+
 kpis:
   - id: active-projects
     name: Active projects

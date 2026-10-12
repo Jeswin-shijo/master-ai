@@ -1,50 +1,68 @@
 import { Bot, Database, GitBranch, Gauge, ShieldCheck } from 'lucide-react';
 import type { ResolvedPack } from '@onehuman/schemas';
+import { clearanceLabel, ruleText, toolLabel } from '@onehuman/sdk';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { formatInr, humanize } from '@/lib/utils';
 
-function policyText(p: ResolvedPack['policies'][number]): string {
-  const what = p.action === '*' ? 'Every action' : p.action;
-  const who = p.agent ? ` (${humanize(p.agent)})` : '';
-  if (p.forbid) return `${what}${who} is forbidden`;
-  if (p.forbid_above) return `${what}${who} above ${formatInr(p.forbid_above.amount)} is forbidden`;
-  if (p.require_approval_above) return `${what}${who} above ${formatInr(p.require_approval_above.amount)} needs approval`;
-  return `${what}${who} needs approval`;
+function title(icon: React.ReactNode, text: string) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      {icon} {text}
+    </span>
+  );
 }
 
-/** What an Industry Pack sets up: agents, records, workflows, rules and KPIs. */
+/**
+ * What an industry setup gives the business, in everyday words for owners and
+ * their clients: the AI team and what each may do, what is kept track of, the
+ * rules, the ready-made jobs and what is measured. No tool or code names.
+ */
 export function PackSummary({ pack }: { pack: ResolvedPack }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       <Card className="lg:col-span-2">
-        <CardHeader title={<span className="inline-flex items-center gap-2"><Bot className="size-4" /> Agents ({pack.agents.length})</span>} description="Each agent has its own identity, tools, budget and clearance level." />
+        <CardHeader
+          title={title(<Bot className="size-4" />, `Your AI team (${pack.agents.length})`)}
+          description="Each assistant has its own job and limits. Anything beyond what it may do on its own waits for your OK."
+        />
         <CardBody className="grid gap-3 sm:grid-cols-2">
-          {pack.agents.map((a) => (
-            <div key={a.role} className="rounded-md border border-border p-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium text-fg">{a.name}</p>
-                <Badge tone={a.autonomy >= 4 ? 'warning' : 'primary'}>clearance L{a.autonomy}</Badge>
+          {pack.agents.map((a) => {
+            const clearance = clearanceLabel(a.autonomy);
+            return (
+              <div key={a.role} className="rounded-md border border-border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-fg">{a.name}</p>
+                  <span title={clearance.long}>
+                    <Badge tone="primary">{clearance.short}</Badge>
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-fg-muted">{a.description}</p>
+                <p className="mt-2 text-xs text-fg-muted">Can:</p>
+                <ul className="mt-1 flex flex-wrap gap-1" aria-label={`What the ${a.name} can do`}>
+                  {a.tools.map((t) => (
+                    <li key={t} className="rounded-md bg-muted px-2 py-0.5 text-xs text-fg">
+                      {toolLabel(t, pack)}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <p className="mt-1 text-sm text-fg-muted">{a.description}</p>
-              <p className="mt-2 flex flex-wrap gap-1">
-                {a.tools.map((t) => (
-                  <code key={t} className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-fg-muted">{t}</code>
-                ))}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader title={<span className="inline-flex items-center gap-2"><Database className="size-4" /> Records ({pack.entities.length})</span>} />
+        <CardHeader title={title(<Database className="size-4" />, 'What it keeps track of')} />
         <CardBody>
           <ul className="space-y-2 text-sm">
             {pack.entities.map((e) => (
               <li key={e.name}>
-                <span className="font-medium text-fg">{e.label}</span>
-                <span className="text-fg-muted"> — {e.fields.slice(0, 6).map((f) => f.label).join(', ')}{e.fields.length > 6 ? '…' : ''}</span>
+                <span className="font-medium text-fg">{e.plural_label ?? `${e.label}s`}</span>
+                <span className="text-fg-muted">
+                  {' '}
+                  — {e.fields.slice(0, 6).map((f) => f.label.toLowerCase()).join(', ')}
+                  {e.fields.length > 6 ? ', …' : ''}
+                </span>
               </li>
             ))}
           </ul>
@@ -52,12 +70,13 @@ export function PackSummary({ pack }: { pack: ResolvedPack }) {
       </Card>
 
       <Card>
-        <CardHeader title={<span className="inline-flex items-center gap-2"><ShieldCheck className="size-4" /> Approval rules ({pack.policies.length})</span>} />
+        <CardHeader title={title(<ShieldCheck className="size-4" />, 'Your rules')} description="Checked before every step. The AI cannot change them." />
         <CardBody>
+          {pack.policies.length === 0 && <p className="text-sm text-fg-muted">No extra rules yet.</p>}
           <ul className="space-y-2 text-sm">
             {pack.policies.map((p, i) => (
               <li key={p.id ?? i}>
-                <p className="text-fg">{policyText(p)}</p>
+                <p className="text-fg">{ruleText(p, pack)}</p>
                 {p.reason && <p className="text-xs text-fg-muted">{p.reason}</p>}
               </li>
             ))}
@@ -66,7 +85,7 @@ export function PackSummary({ pack }: { pack: ResolvedPack }) {
       </Card>
 
       <Card>
-        <CardHeader title={<span className="inline-flex items-center gap-2"><GitBranch className="size-4" /> Workflows ({pack.workflows.length})</span>} />
+        <CardHeader title={title(<GitBranch className="size-4" />, 'Ready-made jobs')} />
         <CardBody>
           <ul className="space-y-3 text-sm">
             {pack.workflows.map((w) => (
@@ -80,13 +99,13 @@ export function PackSummary({ pack }: { pack: ResolvedPack }) {
       </Card>
 
       <Card>
-        <CardHeader title={<span className="inline-flex items-center gap-2"><Gauge className="size-4" /> KPIs ({pack.kpis.length})</span>} />
+        <CardHeader title={title(<Gauge className="size-4" />, 'What it measures')} />
         <CardBody>
           <ul className="space-y-2 text-sm">
             {pack.kpis.map((k) => (
               <li key={k.id} className="flex items-start justify-between gap-3">
                 <span className="text-fg">{k.name}</span>
-                {!k.source && <Badge>needs connector</Badge>}
+                {!k.source && <Badge>needs a connected app</Badge>}
               </li>
             ))}
           </ul>

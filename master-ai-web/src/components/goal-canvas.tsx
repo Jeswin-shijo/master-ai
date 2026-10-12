@@ -278,7 +278,7 @@ export function GoalCanvas({
           position: { x: x + 16 + i * SUB_GAP - width / 2, y: y + SUB_Y },
           data: deleg
             ? { icon: Phone, label: deleg.staffName, tone: delegationTone(deleg), stages: stageTones(deleg), selected: isSel({ kind: 'delegation', id: deleg.id }) }
-            : { icon: c.status === 'awaiting_approval' ? ShieldAlert : toolIcon(c.tool), label: c.tool, tone: callTone(c.status), level: c.decision?.level, selected: isSel({ kind: 'call', id: c.id }) },
+            : { icon: c.status === 'awaiting_approval' ? ShieldAlert : toolIcon(c.tool), label: c.narrative?.short ?? c.tool, tone: callTone(c.status), selected: isSel({ kind: 'call', id: c.id }) },
         });
         edges.push({
           id: `${id}=>${subId}`,

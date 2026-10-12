@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { amountOf, prepareArgs, resolveTool } from '@onehuman/agent-kit';
+import { amountOf, narrateStep, prepareArgs, resolveTool } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import { describeAction, truncate, type ActionTarget } from '../common/mappers';
 import { ConnectorsService } from '../connectors/connectors.service';
@@ -200,7 +200,10 @@ export class TaskLifecycleService {
       const evidence = [
         { label: 'Goal', value: ctx.goal.text },
         { label: 'Task', value: ctx.task.title },
-        ...recent.map((c) => ({ label: `Earlier: ${c.tool}`, value: truncate(JSON.stringify(c.result), 300) })),
+        ...recent.reverse().map((c) => {
+          const n = narrateStep({ tool: c.tool, status: c.status, args: c.args, result: c.result, pack: ctx.workspace.pack });
+          return { label: 'Already done', value: truncate([n.text, ...(n.items ?? []).slice(0, 3)].join('\n'), 400) };
+        }),
       ];
       const [approval] = await tx
         .insert(approvalRequests)

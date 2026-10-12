@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowRight, CircleAlert, ClipboardCheck, Inbox, Phone, PhoneMissed, Send, Sparkles } from 'lucide-react';
+import { ArrowRight, CircleAlert, ClipboardCheck, Inbox, Phone, PhoneMissed, Repeat, Send, Sparkles } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import type { Goal } from '@onehuman/schemas';
+import { ProgressRing, RingPulse } from '@/components/motion';
 import { StatusBadge } from '@/components/status';
+import { time12 } from '@/routes/routines';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { EmptyState, ErrorNote, Spinner } from '@/components/ui/feedback';
@@ -89,6 +91,8 @@ export function CommandCenterPage() {
   const goals = useQuery({ queryKey: ['goals'], queryFn: api.goals.list });
   const approvals = useQuery({ queryKey: ['approvals', 'pending'], queryFn: () => api.approvals.list('pending') });
   const delegations = useQuery({ queryKey: ['delegations', 'all'], queryFn: () => api.delegations.list() });
+  const routines = useQuery({ queryKey: ['routines'], queryFn: api.routines.list });
+  const activeRoutines = (routines.data ?? []).filter((r) => r.status === 'active');
   const withTeam = (delegations.data ?? []).filter((d) => d.stage !== 'closed');
   const dayAgo = Date.now() - 86_400_000;
   const teamStuck = (delegations.data ?? []).filter(
@@ -179,6 +183,38 @@ export function CommandCenterPage() {
                           return <span key={st} title={STAGE_NAME[st]} className={done ? 'size-2 rounded-full bg-success' : d.stage === st ? 'live-dot size-2 rounded-full bg-info' : 'size-2 rounded-full bg-muted'} />;
                         })}
                       </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {activeRoutines.length > 0 && (
+            <Card>
+              <CardHeader
+                title={<span className="inline-flex items-center gap-2"><Repeat className="size-4 text-primary" /> Today's check-ins</span>}
+                description="Daily reports collected by hand or by the AI's calls."
+                action={<Link to="/routines" className="text-sm text-primary hover:underline">All routines</Link>}
+              />
+              <ul className="divide-y divide-border">
+                {activeRoutines.map((r) => (
+                  <li key={r.id}>
+                    <Link to={`/routines/${r.id}`} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/60">
+                      <ProgressRing value={r.today.reported} max={r.today.expected} size={44} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-fg">{r.name}</span>
+                        <span className="block truncate text-xs text-fg-muted">
+                          {r.mode === 'automatic' ? 'AI calls' : 'Filled in by hand'} at {time12(r.time)}
+                          {r.today.flags.length > 0 && <span className="text-warning"> · {r.today.flags.length} problem{r.today.flags.length === 1 ? '' : 's'}</span>}
+                        </span>
+                      </span>
+                      {r.today.calling > 0 && (
+                        <span className="relative grid size-8 place-items-center rounded-full bg-primary text-primary-fg" title="Calling now">
+                          <Phone className="size-4" aria-hidden />
+                          <RingPulse />
+                        </span>
+                      )}
                     </Link>
                   </li>
                 ))}

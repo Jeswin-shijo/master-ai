@@ -9,7 +9,7 @@ import { useSession } from '@/lib/session';
 /** Every job handed to the team and every call made about it, newest first. */
 export function CallsPage() {
   const delegations = useQuery({ queryKey: ['delegations', 'all'], queryFn: () => api.delegations.list() });
-  const mode = useSession((s) => s.tenant?.settings.calls.simulatorMode);
+  const calls = useSession((s) => s.tenant?.settings.calls);
   const open = (delegations.data ?? []).filter((d) => d.stage !== 'closed');
   const closed = (delegations.data ?? []).filter((d) => d.stage === 'closed');
 
@@ -20,9 +20,11 @@ export function CallsPage() {
         description={
           <>
             Work delegated to the team by phone: assign → follow up → confirm.{' '}
-            {mode === 'interactive'
-              ? 'Simulator: calls ring in this app; answer as the staff member to try it.'
-              : 'Simulator: simulated staff answer automatically.'}{' '}
+            {calls?.provider === 'twilio'
+              ? 'Real phone calls through Twilio.'
+              : calls?.simulatorMode === 'interactive'
+                ? 'Simulator: calls ring in this app; answer as the staff member to try it.'
+                : 'Simulator: simulated staff answer automatically.'}{' '}
             <Link to="/settings" className="text-primary hover:underline">Call settings</Link>
           </>
         }

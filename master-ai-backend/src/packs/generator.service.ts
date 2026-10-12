@@ -154,7 +154,7 @@ export class PackGenerator {
         pack: this.registry.resolve(match.pack),
         source: 'registry',
         generator: 'registry',
-        rationale: `Matched the curated "${match.pack.name}" pack (keyword "${match.matchedKeyword}", score ${match.score}).`,
+        rationale: `A ready-made setup for ${match.pack.name.toLowerCase()} businesses. It keeps track of ${keeps(this.registry.resolve(match.pack))}.`,
       };
     }
 
@@ -170,7 +170,7 @@ export class PackGenerator {
       pack,
       source: 'generated',
       generator: 'offline-template',
-      rationale: `No curated pack for "${industry}". Composed one from the ${pack.lineage.slice(0, -1).join(', ')} building blocks and renamed shared records for your sector. Connect a model (ANTHROPIC_API_KEY) to generate industry-specific agents and rules.`,
+      rationale: `Set up for "${industry}" with what most businesses need: it keeps track of ${keeps(pack)}${yourWords(pack)}.`,
     };
   }
 
@@ -218,7 +218,7 @@ export class PackGenerator {
             pack,
             source: 'generated',
             generator: 'llm',
-            rationale: `Generated for "${industry}" on top of ${pack.lineage.slice(0, -1).join(', ')}.`,
+            rationale: `Designed by AI for "${industry}". It keeps track of ${keeps(pack)}${yourWords(pack)}.`,
           };
         }
       } catch (err) {
@@ -316,4 +316,16 @@ export class PackGenerator {
       connectors: g.connectors,
     });
   }
+}
+
+/** "clients, enquiries, projects and milestones" */
+function keeps(pack: ResolvedPack): string {
+  const names = pack.entities.map((e) => (e.plural_label ?? `${e.label}s`).toLowerCase());
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? 'your records');
+}
+
+/** ", using your words (Clients, not Customers)" when the sector renames shared terms. */
+function yourWords(pack: ResolvedPack): string {
+  const renamed = Object.entries(pack.labels).filter(([from, to]) => from !== to).slice(0, 2);
+  return renamed.length ? `, using your words (${renamed.map(([from, to]) => `${to}, not ${from}`).join('; ')})` : '';
 }

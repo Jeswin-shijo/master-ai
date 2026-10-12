@@ -49,6 +49,16 @@ const LABELS: Record<string, string> = {
   awaiting_plan_approval: 'Plan review',
   waiting_on_team: 'With the team',
   waiting_approval: 'Needs approval',
+  awaiting_approval: 'Waiting for you',
+  executed: 'Done',
+  completed: 'Done',
+  partially_completed: 'Partly done',
+  escalated: 'Needs you',
+  blocked: 'Not allowed',
+  failed: "Couldn't do",
+  rejected: 'You said no',
+  proposed: 'Planned',
+  running: 'In progress',
 };
 
 export function StatusBadge({ status }: { status: string }) {

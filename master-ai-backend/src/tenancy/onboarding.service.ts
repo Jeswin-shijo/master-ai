@@ -155,7 +155,7 @@ export class OnboardingService {
 
   private updatesFor(installed: ResolvedPack): PackUpdates {
     const latest = this.registry.latestFor(installed);
-    return latest ? packUpdates(installed, latest) : { agents: [], tools: [], workflows: [], policies: [], kpis: [] };
+    return latest ? packUpdates(installed, latest) : { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [] };
   }
 
   /** Every agent is a principal with its own identity, permissions and budget. */

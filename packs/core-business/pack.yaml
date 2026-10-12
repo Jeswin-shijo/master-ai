@@ -44,6 +44,18 @@ workflows:
         agent: ops-assistant
         instructions: Search recent records and the knowledge base, then write a short report with wins, open items and risks.
 
+routines:
+  - id: daily-update
+    name: Daily status update
+    description: Everyone in charge says what got done, what is stuck and what they need from you.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "18:00"
+    questions:
+      - { key: doneToday, label: "Done today", ask: "What did you get done today?", type: text }
+      - { key: stuck, label: "Stuck or delayed", ask: "Is anything stuck or delayed?", type: text, flag: true }
+      - { key: needs, label: "Needs from owner", ask: "Is there anything you need from the owner?", type: text, flag: true, required: false }
+
 policies:
   - id: refund-hard-cap
     action: refund.issue

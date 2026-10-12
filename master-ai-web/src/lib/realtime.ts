@@ -49,6 +49,10 @@ export function useRealtimeConnection(): RealtimeStatus {
           void queryClient.invalidateQueries({ queryKey: ['team'] });
         }
         if (area === 'staff') void queryClient.invalidateQueries({ queryKey: ['team'] });
+        if (area === 'routine' || area === 'checkin' || area === 'call') {
+          void queryClient.invalidateQueries({ queryKey: ['routines'] });
+          void queryClient.invalidateQueries({ queryKey: ['routine'] });
+        }
         if (area === 'tenant' || area === 'workspace' || area === 'pack') {
           void queryClient.invalidateQueries({ queryKey: ['tenant'] });
           void queryClient.invalidateQueries({ queryKey: ['workspaces'] });

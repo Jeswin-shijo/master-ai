@@ -95,6 +95,23 @@ describe('industry matching', () => {
   });
 });
 
+describe('routines', () => {
+  it('every check-in question is complete and keys are unique', () => {
+    for (const pack of registry.values()) {
+      for (const r of pack.routines) {
+        expect(new Set(r.questions.map((q) => q.key)).size, `${pack.id}/${r.id}`).toBe(r.questions.length);
+        for (const q of r.questions) expect(q.ask, `${pack.id}/${r.id}/${q.key}`).toMatch(/\?$/);
+      }
+    }
+  });
+
+  it('a construction company gets a daily work report and a status update', () => {
+    const construction = resolvePack(composeOfflinePack('Construction company'), lookup, 'generated');
+    expect(construction.routines.map((r) => r.id).sort()).toEqual(['daily-update', 'daily-work-report']);
+    expect(construction.routines.find((r) => r.id === 'daily-work-report')!.questions.map((q) => q.type)).toEqual(['number', 'text', 'percent', 'text', 'text']);
+  });
+});
+
 describe('pack updates', () => {
   // A workspace installed before core-business gained the work coordinator.
   const latest = resolvePack(composeOfflinePack('Construction company'), lookup, 'generated');

@@ -43,6 +43,18 @@ entities:
         options: [unpaid, requested, paid, refunded]
       - { name: notes, label: Notes, type: text }
 
+routines:
+  - id: daily-bookings-check
+    name: Daily bookings check-in
+    description: The person in charge reports new bookings, problem bookings and pending payments.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "19:00"
+    questions:
+      - { key: newBookings, label: "New bookings", ask: "How many new bookings came in today?", type: number, unit: bookings }
+      - { key: problems, label: "Problem bookings", ask: "Is there any booking with a problem?", type: text, flag: true }
+      - { key: pendingPayments, label: "Payments pending", ask: "Is any customer payment still pending?", type: text, flag: true, required: false }
+
 tools:
   - name: booking.hold
     description: Put a booking on hold while the customer decides. Reversible.

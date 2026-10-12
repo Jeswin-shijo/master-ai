@@ -18,12 +18,15 @@ import type {
   CallOutcome,
   CallStage,
   CallStatus,
+  CheckinStatus,
+  CheckinValue,
   DelegationStatus,
   PackAgent,
   PlannedTask,
   PolicyDecision,
   PolicyRule,
   ResolvedPack,
+  RoutineQuestion,
   TenantSettings,
   TranscriptLine,
   WorkingHours,
@@ -403,6 +406,48 @@ export const staff = pgTable(
   (t) => [index('staff_tenant_idx').on(t.tenantId)],
 );
 
+/** A repeating check-in (e.g. the daily work report), collected by phone or filled in by hand. */
+export const routines = pgTable(
+  'routines',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    templateId: text('template_id'),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    mode: text('mode', { enum: ['manual', 'automatic'] }).notNull().default('automatic'),
+    days: integer('days').array().notNull(),
+    time: text('time').notNull(),
+    chaseMissing: boolean('chase_missing').notNull().default(true),
+    questions: jsonb('questions').$type<RoutineQuestion[]>().notNull(),
+    staffIds: uuid('staff_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    status: text('status', { enum: ['active', 'paused'] }).notNull().default('active'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('routines_tenant_idx').on(t.tenantId)],
+);
+
+/** One person's answers to a routine for one day (India date). */
+export const routineEntries = pgTable(
+  'routine_entries',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    routineId: uuid('routine_id').notNull().references(() => routines.id, { onDelete: 'cascade' }),
+    staffId: uuid('staff_id').notNull().references(() => staff.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(),
+    status: text('status').$type<CheckinStatus>().notNull().default('pending'),
+    source: text('source', { enum: ['manual', 'call'] }),
+    values: jsonb('values').$type<Record<string, CheckinValue>>().notNull().default({}),
+    flags: jsonb('flags').$type<string[]>().notNull().default([]),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('routine_entries_day_idx').on(t.routineId, t.staffId, t.date), index('routine_entries_date_idx').on(t.tenantId, t.date)],
+);
+
 /** Work handed to a person in charge, tracked through assign → follow-up → confirm calls. */
 export const delegations = pgTable(
   'delegations',
@@ -433,7 +478,10 @@ export const calls = pgTable(
   {
     id: id(),
     tenantId: tenantId(),
-    delegationId: uuid('delegation_id').notNull().references(() => delegations.id, { onDelete: 'cascade' }),
+    /** Set for calls about delegated work. */
+    delegationId: uuid('delegation_id').references(() => delegations.id, { onDelete: 'cascade' }),
+    /** Set for routine check-in calls. */
+    checkinId: uuid('checkin_id').references(() => routineEntries.id, { onDelete: 'cascade' }),
     staffId: uuid('staff_id').notNull().references(() => staff.id),
     stage: text('stage').$type<CallStage>().notNull(),
     attempt: integer('attempt').notNull(),
@@ -446,9 +494,13 @@ export const calls = pgTable(
     transcript: jsonb('transcript').$type<TranscriptLine[]>().notNull().default([]),
     summary: text('summary'),
     outcome: text('outcome').$type<CallOutcome>(),
-    extracted: jsonb('extracted').$type<{ dueAt?: string | null; notes?: string | null }>().notNull().default({}),
+    /** Delegation calls: deadline and notes. Check-in calls: answers so far and re-asks per question. */
+    extracted: jsonb('extracted')
+      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number> }>()
+      .notNull()
+      .default({}),
     costInr: money('cost_inr'),
     createdAt: createdAt(),
   },
-  (t) => [index('calls_delegation_idx').on(t.delegationId), index('calls_status_idx').on(t.tenantId, t.status)],
+  (t) => [index('calls_delegation_idx').on(t.delegationId), index('calls_checkin_idx').on(t.checkinId), index('calls_status_idx').on(t.tenantId, t.status)],
 );

@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bot, Check, ScrollText, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Bot, Check, CheckCircle2, Clock, Info, ScrollText, X } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import type { AgentTextChunk, Task, ToolCall } from '@onehuman/schemas';
 import { ApprovalCard } from '@/components/approval-card';
 import { DelegationCard } from '@/components/delegation-card';
 import { GoalCanvas, type CanvasSelection } from '@/components/goal-canvas';
-import { JsonView, LevelBadge, StatusBadge } from '@/components/status';
+import { GoalReportCard } from '@/components/goal-report';
+import { StatusBadge } from '@/components/status';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ErrorNote, Spinner } from '@/components/ui/feedback';
 import { Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { formatDateTime, formatInr, timeAgo } from '@/lib/utils';
+import { cn, formatDateTime, formatInr, timeAgo } from '@/lib/utils';
 
 /** The agent's words while it decides its next step (server-sent events). */
 function useAgentText(taskId: string, active: boolean): string {
@@ -57,27 +58,36 @@ function PlanReview({ goalId, rationale }: { goalId: string; rationale: string }
   );
 }
 
+const TONE_ICON = {
+  done: <CheckCircle2 className="size-4 text-success" aria-hidden />,
+  info: <Info className="size-4 text-info" aria-hidden />,
+  pending: <Clock className="size-4 text-level-4" aria-hidden />,
+  problem: <AlertTriangle className="size-4 text-danger" aria-hidden />,
+};
+
+/** One step, told in plain words: what was done (or why not), and what it found or sent. */
 function ToolCallRow({ call }: { call: ToolCall }) {
+  const n = call.narrative ?? { text: call.rationale || 'Step', short: '', tone: 'info' as const };
+  const guarded = call.status === 'awaiting_approval' || call.status === 'blocked';
   return (
-    <li className="py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <code className="text-sm font-medium text-fg">{call.tool}</code>
-        {call.decision && <LevelBadge level={call.decision.level} />}
-        <StatusBadge status={call.status} />
-        <span className="ml-auto text-xs text-fg-muted">{timeAgo(call.createdAt)}</span>
-      </div>
-      {call.rationale && <p className="mt-1 text-sm text-fg-muted">{call.rationale}</p>}
-      {call.decision && call.decision.reasons.length > 0 && (
-        <p className="mt-1 text-xs text-fg-muted">Policy: {call.decision.reasons.join(' · ')}</p>
-      )}
-      {call.error && <p className="mt-1 text-sm text-danger">{call.error}</p>}
-      <details className="mt-1 text-xs">
-        <summary className="cursor-pointer text-fg-muted hover:text-fg">Arguments and result</summary>
-        <div className="mt-2 grid gap-2 md:grid-cols-2">
-          <JsonView value={call.args} />
-          <JsonView value={call.result} />
+    <li className="flex gap-3 py-3">
+      <span className="mt-0.5 shrink-0">{TONE_ICON[n.tone]}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start gap-2">
+          <p className={cn('min-w-0 flex-1 text-sm', n.tone === 'problem' ? 'text-danger' : 'text-fg')}>{n.text}</p>
+          <span className="text-xs text-fg-muted">{timeAgo(call.executedAt ?? call.createdAt)}</span>
         </div>
-      </details>
+        {n.items && n.items.length > 0 && (
+          <ul className="mt-1.5 space-y-1 border-l-2 border-border pl-3 text-sm text-fg-muted">
+            {n.items.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        )}
+        {guarded && call.decision && call.decision.reasons.length > 0 && (
+          <p className="mt-1 text-xs text-fg-muted">Why it needs you: {call.decision.reasons.join(' · ')}</p>
+        )}
+      </div>
     </li>
   );
 }
@@ -91,8 +101,7 @@ function TaskCard({ task, calls, children }: { task: Task; calls: ToolCall[]; ch
         title={task.title}
         description={
           <span className="inline-flex flex-wrap items-center gap-1.5">
-            <Bot className="size-3.5" aria-hidden /> {task.agentName} · {task.steps} step{task.steps === 1 ? '' : 's'} · {formatInr(task.costInr)}
-            {task.dependsOn.length > 0 && <> · after {task.dependsOn.join(', ')}</>}
+            <Bot className="size-3.5" aria-hidden /> {task.agentName} · {task.steps} step{task.steps === 1 ? '' : 's'}
           </span>
         }
         action={<StatusBadge status={task.status} />}
@@ -106,7 +115,7 @@ function TaskCard({ task, calls, children }: { task: Task; calls: ToolCall[]; ch
         )}
         {children}
         {calls.length > 0 && <ul className="divide-y divide-border">{calls.map((c) => <ToolCallRow key={c.id} call={c} />)}</ul>}
-        {task.output && <p className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm text-fg">{task.output.summary}</p>}
+        {task.output && <p className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm whitespace-pre-line text-fg">{task.output.summary}</p>}
       </CardBody>
     </Card>
   );
@@ -120,7 +129,7 @@ export function GoalDetailPage() {
 
   if (detail.isLoading) return <Spinner />;
   if (detail.error || !detail.data) return <ErrorNote error={detail.error ?? new Error('Goal not found')} />;
-  const { goal, tasks, toolCalls, approvals } = detail.data;
+  const { goal, tasks, toolCalls, approvals, report } = detail.data;
   const delegs = delegations.data ?? [];
 
   // Default to whatever needs attention: plan review, an approval, a job with the team.
@@ -135,14 +144,7 @@ export function GoalDetailPage() {
   const panel = (() => {
     switch (selected.kind) {
       case 'goal':
-        return (
-          <Card>
-            <CardHeader title="Goal" description={goal.text} action={<StatusBadge status={goal.status} />} />
-            <CardBody>
-              <p className="text-sm whitespace-pre-line text-fg">{goal.summary ?? 'In progress.'}</p>
-            </CardBody>
-          </Card>
-        );
+        return <GoalReportCard report={report} />;
       case 'plan':
         return goal.status === 'awaiting_plan_approval' && goal.plan ? (
           <PlanReview goalId={goal.id} rationale={goal.plan.rationale} />
@@ -155,7 +157,7 @@ export function GoalDetailPage() {
                   <li key={t.key} className="flex gap-3">
                     <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs text-fg-muted">{i + 1}</span>
                     <span>
-                      <span className="font-medium text-fg">{t.title}</span> <span className="text-fg-muted">· {t.agentRole}</span>
+                      <span className="font-medium text-fg">{t.title}</span>
                       <span className="block text-fg-muted">{t.description.split('\n')[0]}</span>
                     </span>
                   </li>
@@ -210,17 +212,18 @@ export function GoalDetailPage() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-fg">{goal.text}</h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Created {formatDateTime(goal.createdAt)} · {goal.tokens.toLocaleString('en-IN')} tokens · {formatInr(goal.costInr)}
+            Created {formatDateTime(goal.createdAt)}
+            {goal.costInr > 0 && <> · {formatInr(goal.costInr)} AI cost</>}
             {delegs.length > 0 && (() => {
               const n = delegs.reduce((sum, d) => sum + d.calls.length, 0);
               return <> · {n} call{n === 1 ? '' : 's'} with the team</>;
             })()}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
           <StatusBadge status={goal.status} />
           <Link to={`/audit?goal=${goal.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-            <ScrollText className="size-4" /> Replay
+            <ScrollText className="size-4" /> Audit trail
           </Link>
         </div>
       </div>
@@ -228,17 +231,13 @@ export function GoalDetailPage() {
       {goal.status === 'planning' && <Spinner label="The orchestrator is planning…" />}
       {goal.status === 'awaiting_plan_approval' && goal.plan && selected.kind !== 'plan' && <PlanReview goalId={goal.id} rationale={goal.plan.rationale} />}
 
-      <GoalCanvas detail={detail.data} delegations={delegs} selected={selected} onSelect={setPicked} />
+      <div className="print:hidden">
+        <GoalCanvas detail={detail.data} delegations={delegs} selected={selected} onSelect={setPicked} />
+      </div>
 
-      {goal.summary && goal.status !== 'running' && selected.kind !== 'goal' && (
-        <Card>
-          <CardHeader title="Outcome" />
-          <CardBody>
-            <p className="text-sm whitespace-pre-line text-fg">{goal.summary}</p>
-          </CardBody>
-        </Card>
-      )}
-      {panel}
+      {/* The report: what was done, in plain words. It is what prints. */}
+      {selected.kind !== 'goal' && goal.status !== 'planning' && goal.status !== 'awaiting_plan_approval' && <GoalReportCard report={report} />}
+      <div className="print:hidden">{panel}</div>
     </div>
   );
 }

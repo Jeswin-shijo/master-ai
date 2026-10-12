@@ -17,12 +17,15 @@ import { PackPage } from '@/routes/pack';
 import { RecordsPage } from '@/routes/records';
 import { SettingsPage } from '@/routes/settings';
 import { CallsPage } from '@/routes/calls';
+import { ReportsPage } from '@/routes/reports';
+import { RoutineBoardPage, RoutinesPage } from '@/routes/routines';
 import { TeamPage } from '@/routes/team';
 import { WorkflowsPage } from '@/routes/workflows';
-import { applyTheme, readTheme } from '@/lib/theme';
+import { applyTheme, installPrintTheme, readTheme } from '@/lib/theme';
 import './index.css';
 
 applyTheme(readTheme());
+installPrintTheme();
 
 function RequireSession({ children, onboarded = true }: { children: ReactNode; onboarded?: boolean }) {
   const { token, tenant } = useSession();
@@ -48,6 +51,9 @@ const router = createBrowserRouter([
       { path: 'workflows', element: <WorkflowsPage /> },
       { path: 'approvals', element: <ApprovalsPage /> },
       { path: 'calls', element: <CallsPage /> },
+      { path: 'reports', element: <ReportsPage /> },
+      { path: 'routines', element: <RoutinesPage /> },
+      { path: 'routines/:id', element: <RoutineBoardPage /> },
       { path: 'team', element: <TeamPage /> },
       { path: 'agents', element: <AgentsPage /> },
       { path: 'records', element: <RecordsPage /> },

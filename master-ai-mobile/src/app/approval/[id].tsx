@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { readableFields } from '@onehuman/sdk';
 import { Badge, Button, Card, RiskBar, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { confirmWithBiometrics, signDecision } from '@/lib/device-key';
@@ -78,16 +79,26 @@ export default function ApprovalScreen() {
       ) : null}
 
       <Card>
-        <T weight="600">Evidence</T>
-        {a.evidence.map((e, i) => (
-          <View key={i}>
-            <T tone="muted" size="xs">{e.label}</T>
-            <T size="sm">{e.value}</T>
+        <T weight="600">Details</T>
+        {readableFields(a.args).map((f) => (
+          <View key={f.label}>
+            <T tone="muted" size="xs">{f.label}</T>
+            <T size="sm">{f.value}</T>
           </View>
         ))}
-        <T tone="muted" size="xs">Exact action</T>
-        <T size="xs" style={{ fontFamily: 'Menlo' }}>{JSON.stringify(a.args, null, 2)}</T>
       </Card>
+
+      {a.evidence.length > 0 && (
+        <Card>
+          <T weight="600">What was done before</T>
+          {a.evidence.map((e, i) => (
+            <View key={i}>
+              <T tone="muted" size="xs">{e.label}</T>
+              <T size="sm">{e.value}</T>
+            </View>
+          ))}
+        </Card>
+      )}
 
       {pending && (
         <>

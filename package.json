@@ -16,7 +16,8 @@
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
     "db:migrate": "pnpm --filter @onehuman/backend db:migrate",
-    "smoke": "pnpm --filter @onehuman/backend smoke"
+    "smoke": "pnpm --filter @onehuman/backend smoke",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },
   "devDependencies": {
     "turbo": "^2.11.7",

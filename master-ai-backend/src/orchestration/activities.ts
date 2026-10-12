@@ -1,9 +1,18 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import type { DelegationStatus } from '@onehuman/schemas';
+import { RoutinesService } from '../routines/routines.service';
 import { DelegationService, type CallResult, type DelegationResult } from '../voice/delegation.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 import { OrchestratorService } from './orchestrator.service';
-import type { CallStageName, DelegationWorkflowInput, GoalWorkflowInput, TaskOutcome, TaskWorkflowInput } from './shared';
+import type {
+  CallStageName,
+  CheckinCallInput,
+  DelegationWorkflowInput,
+  GoalWorkflowInput,
+  RoutineRunInput,
+  TaskOutcome,
+  TaskWorkflowInput,
+} from './shared';
 import { TaskLifecycleService } from './task-lifecycle.service';
 
 /**
@@ -15,6 +24,7 @@ export function createActivities(app: INestApplicationContext) {
   const runtime = app.get(AgentRuntimeService);
   const lifecycle = app.get(TaskLifecycleService);
   const delegation = app.get(DelegationService);
+  const routines = app.get(RoutinesService);
 
   return {
     planGoal: (i: GoalWorkflowInput) => orchestrator.planGoal(i.tenantId, i.goalId, !!i.autoStart),
@@ -53,6 +63,16 @@ export function createActivities(app: INestApplicationContext) {
     applyCallOutcome: (i: DelegationWorkflowInput & { result: CallResult }) => delegation.applyOutcome(i.tenantId, i.delegationId, i.result),
     closeDelegation: (i: DelegationWorkflowInput & { status: DelegationStatus; result: CallResult | null }) =>
       delegation.close(i.tenantId, i.delegationId, i.status, i.result),
+
+    // Routines: check-ins collected by phone
+    startRoutineRun: (i: RoutineRunInput) => routines.startRun(i.tenantId, i.routineId, i.trigger),
+    finishRoutineRun: (i: RoutineRunInput) => routines.finishRun(i.tenantId, i.routineId),
+    checkinPlan: (i: CheckinCallInput) => routines.plan(i.tenantId),
+    checkinWait: (i: CheckinCallInput) => routines.waitBeforeCall(i.tenantId, i.entryId),
+    placeCheckinCall: (i: CheckinCallInput & { attempt: number }) => routines.placeCall(i.tenantId, i.entryId, i.attempt),
+    checkinResult: (i: CheckinCallInput & { callId: string | null }) => routines.callResult(i.tenantId, i.entryId, i.callId),
+    endCheckinCall: (i: CheckinCallInput & { callId: string }) => routines.endUnanswered(i.tenantId, i.callId),
+    markCheckinMissed: (i: CheckinCallInput) => routines.markMissed(i.tenantId, i.entryId),
   };
 }
 

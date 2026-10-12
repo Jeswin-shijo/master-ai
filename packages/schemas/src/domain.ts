@@ -1,5 +1,5 @@
 import type { AgentClearance, AutonomyLevel, DataClass, ModelTier } from './autonomy';
-import type { PackAgent, ResolvedPack } from './pack';
+import type { PackAgent, ResolvedPack, RoutineQuestion } from './pack';
 
 /** Response shapes returned by the API. Dates are ISO strings on the wire. */
 
@@ -41,10 +41,17 @@ export interface TenantSettings {
   calls: CallSettings;
 }
 
+export type CallProvider = 'simulator' | 'twilio';
+
+/** Whether real calls can be placed from this server, and what is missing if not. */
+export interface VoiceStatus {
+  twilio: { configured: boolean; missing: string[]; from: string | null; publicUrl: string | null };
+}
+
 /** How phone calls to staff are placed. */
 export interface CallSettings {
-  /** `simulator` until a telephony provider (Exotel, Plivo, Twilio) is connected. */
-  provider: 'simulator';
+  /** `simulator` rings in the web app; `twilio` places real phone calls. */
+  provider: CallProvider;
   /** `interactive`: calls ring in the web app and a person answers as the staff member. `auto`: a simulated staff member answers. */
   simulatorMode: 'auto' | 'interactive';
   /** Compress the follow-up/confirm schedule to seconds (simulation and demos). */
@@ -206,6 +213,48 @@ export interface ToolCall {
   error: string | null;
   createdAt: string;
   executedAt: string | null;
+  /** The step in plain words for the owner. Present on goal details. */
+  narrative?: StepNarrative;
+}
+
+/** One agent step told in plain language, e.g. "Marked Priya Sharma's enquiry as contacted". */
+export interface StepNarrative {
+  /** A full sentence. */
+  text: string;
+  /** Two or three words for small labels, e.g. "Mark contacted". */
+  short: string;
+  /** Supporting lines: records found, the message that was sent. */
+  items?: string[];
+  tone: 'done' | 'info' | 'pending' | 'problem';
+}
+
+/** What a goal achieved, in words a client understands. */
+export interface GoalReport {
+  goalId: string;
+  text: string;
+  status: GoalStatus;
+  createdAt: string;
+  completedAt: string | null;
+  /** Things that were done, one sentence each. */
+  done: string[];
+  /** Waiting on approval or on the team. */
+  pending: string[];
+  /** Things that failed, were refused or need the owner. */
+  attention: string[];
+  /** Team members phoned, and the owner's own decisions. */
+  people: string[];
+  counts: { actions: number; messages: number; recordsChanged: number; calls: number; approvals: number };
+  costInr: number;
+}
+
+export type ReportPeriod = 'today' | 'week' | 'month' | 'all';
+
+export interface WorkReport {
+  period: ReportPeriod;
+  from: string | null;
+  to: string;
+  totals: { goals: number; finished: number; needYou: number; actions: number; messages: number; calls: number; costInr: number };
+  goals: GoalReport[];
 }
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'edited' | 'expired';
@@ -337,7 +386,8 @@ export interface StaffMember {
   createdAt: string;
 }
 
-export type CallStage = 'assign' | 'follow_up' | 'confirm';
+/** Delegation calls assign, follow up and confirm; check-in calls collect a routine's answers. */
+export type CallStage = 'assign' | 'follow_up' | 'confirm' | 'checkin';
 
 export type CallStatus = 'scheduled' | 'ringing' | 'in_progress' | 'completed' | 'no_answer' | 'failed' | 'cancelled';
 
@@ -351,7 +401,11 @@ export type CallOutcome =
   | 'done'
   | 'not_done'
   | 'no_answer'
-  | 'unclear';
+  | 'unclear'
+  /** Check-in calls: every required answer was collected. */
+  | 'reported'
+  /** Check-in calls: the person asked to be called back. */
+  | 'call_back';
 
 export interface TranscriptLine {
   speaker: 'ai' | 'person';
@@ -361,7 +415,10 @@ export interface TranscriptLine {
 
 export interface CallRecord {
   id: string;
-  delegationId: string;
+  /** Set for calls about delegated work. */
+  delegationId: string | null;
+  /** Set for routine check-in calls. */
+  checkinId: string | null;
   staffId: string;
   staffName: string;
   staffTitle: string;
@@ -376,8 +433,11 @@ export interface CallRecord {
   transcript: TranscriptLine[];
   summary: string | null;
   outcome: CallOutcome | null;
-  extracted: { dueAt?: string | null; notes?: string | null };
+  extracted: { dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue> };
+  /** What the call is about: the delegated job, or the routine's name. */
   delegationTitle: string;
+  /** Likely replies for the simulator, e.g. for the question being asked. */
+  suggestions?: string[];
   createdAt: string;
 }
 
@@ -411,4 +471,78 @@ export interface Delegation {
   calls: CallRecord[];
   createdAt: string;
   completedAt: string | null;
+}
+
+// ---------- Routines: repeating check-ins, by hand or by phone ----------
+
+export type RoutineMode = 'manual' | 'automatic';
+
+/** A repeating check-in the business runs, e.g. the daily site report. */
+export interface Routine {
+  id: string;
+  templateId: string | null;
+  name: string;
+  description: string;
+  /** automatic: the AI phones everyone at `time`. manual: people fill it in by `time`. */
+  mode: RoutineMode;
+  /** 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  /** HH:MM, India time. */
+  time: string;
+  /** Manual mode: phone whoever has not reported by `time`. */
+  chaseMissing: boolean;
+  questions: RoutineQuestion[];
+  people: { id: string; name: string; title: string }[];
+  status: 'active' | 'paused';
+  /** The next time it runs, when active. */
+  nextRunAt: string | null;
+  today: RoutineDaySummary;
+  /** Each reporter's state today, by staff id. */
+  todayStatus: Record<string, CheckinStatus>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CheckinStatus = 'pending' | 'calling' | 'reported' | 'missed';
+export type CheckinValue = string | number | boolean | null;
+
+/** One person's answers for one day. */
+export interface CheckinEntry {
+  id: string;
+  routineId: string;
+  staffId: string;
+  staffName: string;
+  staffTitle: string;
+  /** YYYY-MM-DD, India time. */
+  date: string;
+  status: CheckinStatus;
+  source: 'manual' | 'call' | null;
+  values: Record<string, CheckinValue>;
+  /** Problems raised in the answers, in plain words. */
+  flags: string[];
+  /** Calls made for this entry, newest last. */
+  calls: CallRecord[];
+  updatedAt: string;
+}
+
+export interface RoutineDaySummary {
+  date: string;
+  expected: number;
+  reported: number;
+  calling: number;
+  missed: number;
+  pending: number;
+  /** "Ravi Kumar: cement is running low" */
+  flags: string[];
+  /** Number questions summed (workers) and percents averaged (progress). */
+  totals: { key: string; label: string; value: number; unit?: string }[];
+}
+
+export interface RoutineDay {
+  routine: Routine;
+  date: string;
+  entries: CheckinEntry[];
+  summary: RoutineDaySummary;
+  /** Earlier days, newest first. */
+  history: RoutineDaySummary[];
 }

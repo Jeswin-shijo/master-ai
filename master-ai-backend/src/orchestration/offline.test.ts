@@ -78,7 +78,7 @@ describe('offline agent', () => {
       ],
     });
     expect(fromWireName(out.toolCalls![0]!.name)).toBe('task.finish');
-    expect(String(out.toolCalls![0]!.input.summary)).toMatch(/rejected by the owner \("Wait for supplier"\)/);
+    expect(String(out.toolCalls![0]!.input.summary)).toMatch(/^You said no to: refund .*\("Wait for supplier"\)\.$/);
   });
 });
 
@@ -143,7 +143,7 @@ describe('offline agent: stays on task', () => {
       history: [{ tool: 'records.search', status: 'executed', args: {}, result: { count: 0, records: [] }, error: null }],
     });
     expect(fromWireName(out.toolCalls![0]!.name)).toBe('task.finish');
-    expect(String(out.toolCalls![0]!.input.summary)).toMatch(/Could not cancel/);
+    expect(String(out.toolCalls![0]!.input.summary)).toBe('Could not mark the booking as cancelled: nothing matching was found, so nothing was changed.');
   });
 
   it('takes search filters from the owner, not from instructions', () => {
@@ -190,5 +190,59 @@ describe('offline agent: delegation', () => {
     });
     expect(fromWireName(out.toolCalls![0]!.name)).toBe('task.finish');
     expect(String(out.toolCalls![0]!.input.summary)).toContain("Meera confirmed it's done");
+  });
+});
+
+describe('offline agent: follow-ups on enquiries (construction)', () => {
+  const construction = resolvePack(composeOfflinePack('Construction company'), (id) => registry.get(id), 'generated');
+  const agent = construction.agents.find((a) => a.role === 'follow-up-agent')!;
+  const enquiries = [
+    { id: 'e-1', customerName: 'Priya Sharma', subject: 'Villa site visit', status: 'contacted' },
+    { id: 'e-2', customerName: 'Arjun Rao', subject: 'Office fit-out', status: 'new' },
+    { id: 'e-3', customerName: 'Neha Iyer', subject: 'Kitchen remodel', status: 'new' },
+  ];
+  const searched = { tool: 'records.search', status: 'executed', args: { entity: 'Enquiry' }, result: { entity: 'Enquiry', count: 3, records: enquiries }, error: null };
+  const base = {
+    goalText: 'Follow up on every enquiry that has been waiting more than two days',
+    taskTitle: 'Follow up with clients',
+    taskDescription: 'Contact each waiting enquiry and mark it as contacted.',
+    pack: construction,
+    tools: toolsForAgent(construction, agent.tools),
+  };
+
+  it('looks up the records the action changes, not the ones the title mentions', () => {
+    const out = offlineAgentStep({ ...base, history: [] });
+    expect(fromWireName(out.toolCalls![0]!.name)).toBe('records.search');
+    expect(out.toolCalls![0]!.input).toMatchObject({ entity: 'Enquiry' });
+  });
+
+  it('acts on each waiting enquiry in turn, skipping ones already contacted', () => {
+    const first = offlineAgentStep({ ...base, history: [searched] });
+    expect(fromWireName(first.toolCalls![0]!.name)).toBe('enquiry.mark_contacted');
+    expect(first.toolCalls![0]!.input).toMatchObject({ id: 'e-2' });
+
+    const marked = (r: (typeof enquiries)[number]) => ({ tool: 'enquiry.mark_contacted', status: 'executed', args: { id: r.id }, result: { updated: true, id: r.id, entity: 'Enquiry', data: { ...r, status: 'contacted' } }, error: null });
+    const second = offlineAgentStep({ ...base, history: [searched, marked(enquiries[1]!)] });
+    expect(second.toolCalls![0]!.input).toMatchObject({ id: 'e-3' });
+
+    const done = offlineAgentStep({ ...base, history: [searched, marked(enquiries[1]!), marked(enquiries[2]!)] });
+    expect(fromWireName(done.toolCalls![0]!.name)).toBe('task.finish');
+    expect(done.toolCalls![0]!.input.summary).toBe(
+      'Marked Arjun Rao\'s enquiry ("Office fit-out") as contacted. Marked Neha Iyer\'s enquiry ("Kitchen remodel") as contacted.',
+    );
+  });
+
+  it('never moves a record backwards (a quoted enquiry is past contacted)', () => {
+    const quoted = { ...searched, result: { entity: 'Enquiry', count: 2, records: [{ ...enquiries[1]!, status: 'quoted' }, enquiries[2]!] } };
+    const out = offlineAgentStep({ ...base, history: [quoted] });
+    expect(out.toolCalls![0]!.input).toMatchObject({ id: 'e-3' });
+  });
+
+  it('only looks things up when the task says find, and reports what it found', () => {
+    const find = { ...base, taskTitle: 'Find enquiries waiting on a reply' };
+    expect(fromWireName(offlineAgentStep({ ...find, history: [] }).toolCalls![0]!.name)).toBe('records.search');
+    const out = offlineAgentStep({ ...find, history: [searched] });
+    expect(fromWireName(out.toolCalls![0]!.name)).toBe('task.finish');
+    expect(out.toolCalls![0]!.input.summary).toMatch(/^Looked up enquiries and found 3\.\n• Priya Sharma — Villa site visit · contacted/);
   });
 });

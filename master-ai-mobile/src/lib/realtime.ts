@@ -17,9 +17,13 @@ export function useRealtime() {
       onEvent: (e) => {
         const area = e.type.split('.')[0];
         if (area === 'approval' || area === 'policy' || area === 'action') void queryClient.invalidateQueries({ queryKey: ['approvals'] });
-        if (area === 'goal' || area === 'task') void queryClient.invalidateQueries({ queryKey: ['goals'] });
+        if (area === 'goal' || area === 'task' || area === 'action') {
+          void queryClient.invalidateQueries({ queryKey: ['goals'] });
+          if (e.goalId) void queryClient.invalidateQueries({ queryKey: ['goal', e.goalId] });
+        }
         if (area === 'tenant') void queryClient.invalidateQueries({ queryKey: ['tenant'] });
         if (area === 'call' || area === 'delegation') void queryClient.invalidateQueries({ queryKey: ['delegations'] });
+        if (area === 'routine' || area === 'checkin' || area === 'call') void queryClient.invalidateQueries({ queryKey: ['routines'] });
         void queryClient.invalidateQueries({ queryKey: ['pulse'] });
       },
     });

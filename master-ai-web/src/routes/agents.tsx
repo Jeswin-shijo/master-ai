@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Bot, Pause, Play, Undo2 } from 'lucide-react';
-import type { AgentView, AutonomySuggestion } from '@onehuman/schemas';
-import { AUTONOMY_LEVELS } from '@onehuman/schemas';
+import type { AgentView, AutonomySuggestion, ResolvedPack } from '@onehuman/schemas';
+import { toolLabel } from '@onehuman/sdk';
 import { StatusBadge } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,16 @@ import { Select } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { formatInr } from '@/lib/utils';
 
-function AgentCard({ agent, suggestions }: { agent: AgentView; suggestions: AutonomySuggestion[] }) {
+/** What an assistant may do on its own. Level 4 steps always ask the owner, so 4 reads like 3. */
+const CLEARANCE_OPTIONS: Record<1 | 2 | 3 | 4, string> = {
+  1: 'Only look things up',
+  2: 'Look things up and prepare drafts',
+  3: 'Handle everyday tasks',
+  4: 'Handle everyday tasks',
+};
+
+function AgentCard({ agent, suggestions, pack }: { agent: AgentView; suggestions: AutonomySuggestion[]; pack?: ResolvedPack }) {
+  const label = (tool: string) => toolLabel(tool, pack);
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['agents'] });
   const toggle = useMutation({ mutationFn: () => (agent.status === 'paused' ? api.agents.resume(agent.id) : api.agents.pause(agent.id)), onSuccess: refresh });
@@ -40,49 +49,59 @@ function AgentCard({ agent, suggestions }: { agent: AgentView; suggestions: Auto
         </dl>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="text-sm text-fg-muted" htmlFor={`clearance-${agent.id}`}>Clearance</label>
+          <label className="text-sm text-fg-muted" htmlFor={`clearance-${agent.id}`}>On its own it may</label>
           <Select
             id={`clearance-${agent.id}`}
             className="w-auto"
             value={agent.autonomy}
             onChange={(e) => setClearance.mutate(Number(e.target.value) as 1 | 2 | 3 | 4)}
           >
-            {([1, 2, 3, 4] as const).map((l) => (
-              <option key={l} value={l}>L{l} · {AUTONOMY_LEVELS[l].name}</option>
-            ))}
+            {([1, 2, 3, 4] as const)
+              .filter((l) => l < 4 || agent.autonomy === 4)
+              .map((l) => (
+                <option key={l} value={l}>{CLEARANCE_OPTIONS[l]}</option>
+              ))}
           </Select>
           <span className="text-xs text-fg-muted">
-            {agent.model.tier} model · {agent.model.dataClass} data · {budgets.max_steps} steps · {budgets.tokens_per_task.toLocaleString('en-IN')} tokens/task · {formatInr(budgets.money_per_task_inr)} spend/task
+            Anything more waits for your OK ·{' '}
+            {budgets.money_per_task_inr > 0 ? `spending limit ${formatInr(budgets.money_per_task_inr)} per job` : 'cannot spend money'}
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          {agent.tools.map((t) => {
-            const override = agent.overrides.find((o) => o.tool === t);
-            return (
-              <code key={t} className={override ? 'rounded bg-success-soft px-1.5 py-0.5 text-[11px] text-success' : 'rounded bg-muted px-1.5 py-0.5 text-[11px] text-fg-muted'} title={override ? `Earned autonomy: L${override.level}` : undefined}>
-                {t}
-              </code>
-            );
-          })}
+        <div>
+          <p className="mb-1 text-xs text-fg-muted">Can:</p>
+          <ul className="flex flex-wrap gap-1">
+            {agent.tools.map((t) => {
+              const override = agent.overrides.find((o) => o.tool === t);
+              return (
+                <li
+                  key={t}
+                  className={override ? 'rounded-md bg-success-soft px-2 py-0.5 text-xs text-success' : 'rounded-md bg-muted px-2 py-0.5 text-xs text-fg'}
+                  title={override ? 'You trusted it to do this without asking' : undefined}
+                >
+                  {label(t)}
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
         {suggestions.map((s) => (
           <div key={s.tool} className="flex flex-wrap items-center gap-3 rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm">
             <Award className="size-4 text-success" aria-hidden />
             <span className="flex-1 text-fg">
-              You approved <code>{s.tool}</code> {s.consecutiveCleanApprovals} times in a row without changes. Let {agent.name} do it without asking (Level 3)?
+              You approved “{label(s.tool)}” {s.consecutiveCleanApprovals} times in a row without changes. Let {agent.name} do it without asking? Money limits still apply.
             </span>
-            <Button size="sm" variant="success" onClick={() => grant.mutate(s.tool)} loading={grant.isPending}>Grant</Button>
+            <Button size="sm" variant="success" onClick={() => grant.mutate(s.tool)} loading={grant.isPending}>Yes, trust it</Button>
           </div>
         ))}
 
         {agent.overrides.map((o) => (
           <div key={o.id} className="flex items-center gap-3 text-sm text-fg-muted">
-            <Badge tone="success">earned</Badge>
-            <code>{o.tool}</code> runs at Level {o.level} without approval
+            <Badge tone="success">trusted</Badge>
+            “{label(o.tool)}” no longer asks you first
             <Button size="sm" variant="ghost" onClick={() => revoke.mutate(o.id)} loading={revoke.isPending}>
-              <Undo2 /> Revoke
+              <Undo2 /> Ask me again
             </Button>
           </div>
         ))}
@@ -99,19 +118,20 @@ function AgentCard({ agent, suggestions }: { agent: AgentView; suggestions: Auto
 export function AgentsPage() {
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents.list });
   const suggestions = useQuery({ queryKey: ['agents', 'suggestions'], queryFn: api.agents.suggestions });
+  const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
 
   return (
     <div>
       <PageHeader
         title="Agents"
-        description="Each agent is a first-class worker with its own identity, tools, budget and clearance. Pause any of them instantly."
+        description="Your AI team. Each assistant has its own job, what it may do on its own, and a spending limit. Pause any of them instantly."
       />
       {agents.isLoading && <Spinner />}
       <ErrorNote error={agents.error} />
       {agents.data?.length === 0 && <EmptyState icon={<Bot />} title="No agents yet">Install an industry pack to hire your first agents.</EmptyState>}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 [&>*]:min-w-0">
         {agents.data?.map((a) => (
-          <AgentCard key={a.id} agent={a} suggestions={(suggestions.data ?? []).filter((s) => s.agentId === a.id)} />
+          <AgentCard key={a.id} agent={a} pack={workspaces.data?.[0]?.pack} suggestions={(suggestions.data ?? []).filter((s) => s.agentId === a.id)} />
         ))}
       </div>
     </div>

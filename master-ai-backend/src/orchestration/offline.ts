@@ -1,5 +1,5 @@
 import type { EntityDef, PackAgent, PlannedTask, ResolvedPack } from '@onehuman/schemas';
-import { toWireName, type ResolvedTool } from '@onehuman/agent-kit';
+import { narrateStep, toWireName, type ResolvedTool } from '@onehuman/agent-kit';
 import type { LlmToolCall, OfflineResult } from '../llm/llm.service';
 import { parseDue } from '../voice/time';
 
@@ -107,6 +107,12 @@ export interface OfflineStepInput {
 }
 
 const READ = new Set(['records.search', 'knowledge.search']);
+/** Task titles that only ask to look something up. */
+const LOOK_ONLY = /^(find|look up|list|check|review|identify|search|see|count)\b/i;
+/** Goals that ask for the same action on many records. */
+const BULK = /\b(every|all|each)\b/i;
+/** Most records one task changes in bulk. */
+const BULK_LIMIT = 10;
 
 export function offlineAgentStep(input: OfflineStepInput): OfflineResult {
   const text = `${input.taskTitle}\n${input.taskDescription}\n${input.goalText}`;
@@ -116,12 +122,11 @@ export function offlineAgentStep(input: OfflineStepInput): OfflineResult {
   const actions = usable.filter((t) => !READ.has(t.primitive.name));
 
   const attempted = (t: ResolvedTool) => input.history.some((h) => h.tool === t.name);
-  const lastRecords = latestRecords(input.history);
 
   // Work that people do goes straight to the person in charge.
   const delegateTool = actions.find((t) => t.primitive.control === 'delegate');
   if (delegateTool && input.history.some((h) => h.tool === delegateTool.name && h.status === 'executed')) {
-    return finish(input.history);
+    return finish(input);
   }
   if (delegateTool && !attempted(delegateTool) && input.team?.length) {
     const titleWords = words(input.taskTitle);
@@ -132,33 +137,59 @@ export function offlineAgentStep(input: OfflineStepInput): OfflineResult {
     }
   }
 
-  // 1. Look before acting.
+  // Filters come from the owner's words and the task title, never from the instructions.
+  const ownerWords = `${input.taskTitle}\n${input.goalText}`;
+  const lookOnly = LOOK_ONLY.test(input.taskTitle.trim()) && !/\band\b/i.test(input.taskTitle);
+
+  // The one action that best fits the task. The task title says what to do; the description and goal only add context.
+  const titleWords = words(input.taskTitle);
+  const best = lookOnly
+    ? undefined
+    : [...actions]
+        .map((t) => {
+          const toolWords = words(`${t.name.replace(/[._]/g, ' ')} ${t.description}`);
+          return { t, score: overlap(titleWords, toolWords) * 3 + overlap(textWords, toolWords) + t.baseLevel * 0.1 };
+        })
+        .sort((a, b) => b.score - a.score)
+        .find((r) => r.score >= 1)?.t;
+  // The records the action changes, e.g. Enquiry for enquiry.mark_contacted.
+  const needs = best?.primitive.name === 'records.update' ? ((best.fixedArgs.entity as string | undefined) ?? mentionedEntity(input.pack, text)?.name) : undefined;
+
+  // 1. Look before acting: at the records the action will change, or else at what the goal mentions.
+  if (needs) {
+    const search = reads.find((t) => t.primitive.name === 'records.search' && (!t.fixedArgs.entity || t.fixedArgs.entity === needs));
+    // Searched already, or tried and failed: either way, don't search again.
+    const tried = input.history.some((h) => isSearchOf(h, needs) || (h.tool === search?.name && h.args.entity === needs));
+    if (search && !tried) return step(`I'll start by looking up what we already have.`, search, readArgs(search, input.pack, ownerWords, needs));
+  }
   const read = pickRead(reads, input.pack, text);
-  if (read && !attempted(read)) {
-    // Filters come from the owner's words and the task title, never from the instructions.
-    const ownerWords = `${input.taskTitle}\n${input.goalText}`;
+  if (!needs && read && !attempted(read)) {
     return step(`I'll start by looking up what we already have.`, read, readArgs(read, input.pack, ownerWords));
   }
 
-  // 2. Take the one action that best fits the task (skipping ones with nothing to act on).
-  // The task title says what to do; the description and goal only add context.
-  const titleWords = words(input.taskTitle);
-  const ranked = [...actions]
-    .map((t) => {
-      const toolWords = words(`${t.name.replace(/[._]/g, ' ')} ${t.description}`);
-      return { t, score: overlap(titleWords, toolWords) * 3 + overlap(textWords, toolWords) + t.baseLevel * 0.1 };
-    })
-    .sort((a, b) => b.score - a.score);
-  const best = ranked[0];
-  if (best && best.score >= 1 && !actions.some(attempted)) {
-    const args = actionArgs(best.t, input.pack, text, lastRecords);
-    if (args) return step(`Next, ${describeIntent(best.t)}.`, best.t, args);
-    // Nothing to act on (no matching record, no known amount): say so instead of doing something else.
-    return finish(input.history, `Could not ${best.t.name.split('.').pop()?.replace(/_/g, ' ')}: no matching record or amount was found, so nothing was changed.`);
+  // 2. Act: once, or on each matching record when the owner asked for every one.
+  if (best && !actions.some((t) => t !== best && attempted(t))) {
+    const times = input.history.filter((h) => h.tool === best.name).length;
+    const perRecord = best.primitive.name === 'records.update';
+    const bulk = perRecord && BULK.test(ownerWords);
+    const found = recordsOf(input.history, needs);
+    const touched = new Set(input.history.filter((h) => h.tool === best.name).map((h) => h.args.id));
+    const already = (best.fixedArgs.patch as { status?: string } | undefined)?.status;
+    // Skip records already handled, already in the state the action sets, or further along than it.
+    const targets = perRecord ? found.filter((r) => !touched.has(r.id) && !atOrPast(input.pack, needs, r.status, already)) : found;
+    if (times === 0 || (bulk && times < BULK_LIMIT && targets.length > 0)) {
+      const args = actionArgs(best, input.pack, text, targets);
+      if (args) return step(times ? `Next one: ${describeIntent(best)}.` : `Next, ${describeIntent(best)}.`, best, args);
+      // Nothing to act on (no matching record, no known amount): say so instead of doing something else.
+      if (times === 0) {
+        const what = narrateStep({ tool: best.name, status: 'proposed', args: {}, pack: input.pack }).text.replace(/^About to /, '').replace(/\.$/, '');
+        return finish(input, `Could not ${what}: nothing matching was found, so nothing was changed.`);
+      }
+    }
   }
 
   // 3. Wrap up.
-  return finish(input.history);
+  return finish(input);
 }
 
 function delegateArgs(input: OfflineStepInput): Record<string, unknown> {
@@ -180,24 +211,21 @@ function step(text: string, tool: ResolvedTool, args: Record<string, unknown>): 
   return { text, toolCalls: [call] };
 }
 
-function finish(history: OfflineHistoryItem[], note?: string): OfflineResult {
-  const lines = history.map((h) => {
-    const outcome =
-      h.status === 'executed'
-        ? 'done'
-        : h.status === 'rejected'
-          ? `rejected by the owner${h.notes ? ` ("${h.notes}")` : ''}`
-          : h.status === 'blocked'
-            ? 'blocked by policy'
-            : h.status === 'failed'
-              ? `failed (${h.error ?? 'error'})`
-              : h.status;
-    const result = h.result as { count?: number; summary?: string } | null;
-    if (h.tool === 'staff.delegate' && result?.summary) return result.summary.replace(/\.$/, '');
-    return `${h.tool}${typeof result?.count === 'number' ? ` (${result.count} found)` : ''}: ${outcome}`;
-  });
-  const done = lines.length ? `${lines.join('; ')}.` : '';
-  const summary = note ? `${note} ${done}`.trim() : lines.length ? `Completed the task. ${done}` : 'Nothing needed doing for this task.';
+/** Finish with a plain-language summary of what was done, as the owner would tell it. */
+function finish(input: OfflineStepInput, note?: string): OfflineResult {
+  const told = input.history.map((h) => ({
+    read: READ.has(input.tools.find((t) => t.name === h.tool)?.primitive.name ?? h.tool) || h.tool === 'records.get',
+    n: narrateStep({ tool: h.tool, status: h.status, args: h.args, result: h.result, error: h.error, notes: h.notes, pack: input.pack }),
+  }));
+  const acted = told.filter((t) => !t.read || t.n.tone === 'problem');
+  // When the task only looked things up, what was found is the result.
+  const lines = acted.length
+    ? acted.map((t) => t.n.text)
+    : note
+      ? []
+      : told.map((t) => [t.n.text, ...(t.n.items ?? []).map((i) => `• ${i}`)].join('\n'));
+  const done = lines.join(' ');
+  const summary = note ? `${note} ${done}`.trim() : done || 'Nothing needed doing for this task.';
   return {
     text: 'That covers this task.',
     toolCalls: [{ name: toWireName('task.finish'), input: { summary } }],
@@ -214,9 +242,9 @@ function pickRead(reads: ResolvedTool[], pack: ResolvedPack, text: string): Reso
   );
 }
 
-function readArgs(tool: ResolvedTool, pack: ResolvedPack, text: string): Record<string, unknown> {
+function readArgs(tool: ResolvedTool, pack: ResolvedPack, text: string, entityOverride?: string): Record<string, unknown> {
   if (tool.primitive.name === 'knowledge.search') return { query: truncate(text, 60) };
-  const entityName = (tool.fixedArgs.entity as string | undefined) ?? mentionedEntity(pack, text)?.name ?? pack.entities[0]?.name;
+  const entityName = entityOverride ?? (tool.fixedArgs.entity as string | undefined) ?? mentionedEntity(pack, text)?.name ?? pack.entities[0]?.name;
   const entity = pack.entities.find((e) => e.name === entityName);
   const filter: Record<string, string> = {};
   const lower = text.toLowerCase();
@@ -288,12 +316,33 @@ function describeIntent(tool: ResolvedTool): string {
   return tool.description.charAt(0).toLowerCase() + tool.description.slice(1).replace(/\.$/, '');
 }
 
-function latestRecords(history: OfflineHistoryItem[]): Record<string, unknown>[] {
+/** Records from the latest search of `entity` (any entity when not given). */
+function recordsOf(history: OfflineHistoryItem[], entity?: string): Record<string, unknown>[] {
   for (let i = history.length - 1; i >= 0; i--) {
     const r = history[i]!.result as { records?: Record<string, unknown>[] } | null;
-    if (history[i]!.status === 'executed' && Array.isArray(r?.records) && r.records.length) return r.records;
+    if (history[i]!.status === 'executed' && Array.isArray(r?.records) && r.records.length && (!entity || isSearchOf(history[i]!, entity))) return r.records;
   }
   return [];
+}
+
+/**
+ * Is a record's status already at, or past, the status an action would set?
+ * Status options are listed in lifecycle order (new → contacted → quoted → won),
+ * so marking a quoted enquiry as contacted would move it backwards.
+ */
+function atOrPast(pack: ResolvedPack, entity: string | undefined, current: unknown, target: string | undefined): boolean {
+  if (!target || typeof current !== 'string') return false;
+  if (current === target) return true;
+  const options = pack.entities.find((e) => e.name === entity)?.fields.find((f) => f.name === 'status')?.options ?? [];
+  const at = options.indexOf(current);
+  const to = options.indexOf(target);
+  return at >= 0 && to >= 0 && at > to;
+}
+
+/** A search of this entity (older results without an entity count as a match). */
+function isSearchOf(h: OfflineHistoryItem, entity: string): boolean {
+  const searched = (h.result as { entity?: string } | null)?.entity ?? (h.args.entity as string | undefined);
+  return Array.isArray((h.result as { records?: unknown } | null)?.records) && (searched === undefined || searched === entity);
 }
 
 function mentionedEntity(pack: ResolvedPack, text: string): EntityDef | undefined {
