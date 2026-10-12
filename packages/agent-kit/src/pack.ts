@@ -59,7 +59,8 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   };
   visit(pack);
 
-  const merged: Pack = { ...pack, entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], labels: {} };
+  const { lifecycle: _ownLifecycle, ...ownPack } = pack;
+  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], labels: {} };
   const entities = new Map<string, EntityDef>();
   const agents = new Map<string, Pack['agents'][number]>();
   const tools = new Map<string, Pack['tools'][number]>();
@@ -125,6 +126,7 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id),
     policies: missing(latest.policies, installed.policies, policyKey).filter((r) => !r.agent || roles.has(r.agent)),
     kpis: missing(latest.kpis, installed.kpis, (k) => k.id).filter((k) => k.source?.type !== 'records_count' || entities.has(k.source.entity)),
+    lifecycle: { whole: null, categories: [], roles: [] },
   };
 }
 

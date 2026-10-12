@@ -1,5 +1,13 @@
 import { z } from 'zod';
 import { AgentClearanceSchema, DataClassSchema, ModelTierSchema } from './autonomy';
+import {
+  LifecycleSchema,
+  PolicyWhenSchema,
+  SectorIdSchema,
+  type CaseCategory,
+  type LifecycleRole,
+  type ResolvedLifecycle,
+} from './lifecycle';
 
 /**
  * Industry Pack format. A sector is data: entities, agent roles, workflows,
@@ -190,6 +198,8 @@ export const PolicyRuleSchema = z
     /** Who approves: `owner` or a role name. */
     approver: z.string().default('owner'),
     reason: z.string().optional(),
+    /** Only for case gates: narrows the rule to cases in these categories, priorities, risks or sources. */
+    when: PolicyWhenSchema.optional(),
   })
   .refine(
     (r) => r.require_approval || r.require_approval_above || r.forbid || r.forbid_above,
@@ -233,6 +243,10 @@ export const PackSchema = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
   kind: z.enum(['base', 'industry']).default('industry'),
+  /** Sector this pack belongs to (inherited when unset). */
+  sector: SectorIdSchema.optional(),
+  /** The 8-stage case lifecycle, partial; merged down the `extends` chain. */
+  lifecycle: LifecycleSchema.optional(),
   /** Words used to match an owner's free-text industry to this pack. */
   match: z.object({ keywords: z.array(z.string()).default([]) }).optional(),
   extends: z.array(SlugSchema).default([]),
@@ -253,10 +267,12 @@ export type Pack = z.infer<typeof PackSchema>;
 export type PackInput = z.input<typeof PackSchema>;
 
 /** A pack with `extends` flattened. This is what a workspace runs. */
-export type ResolvedPack = Pack & {
+export type ResolvedPack = Omit<Pack, 'lifecycle'> & {
   /** Pack ids from the most basic ancestor to this pack. */
   lineage: string[];
   source: PackSource;
+  /** Missing on workspaces installed before lifecycles existed; read it with `lifecycleOf()`. */
+  lifecycle?: ResolvedLifecycle;
 };
 
 export type PackSource = 'registry' | 'generated' | 'forked';
@@ -269,4 +285,6 @@ export interface PackUpdates {
   routines: Pack['routines'];
   policies: Pack['policies'];
   kpis: Pack['kpis'];
+  /** The whole lifecycle for workspaces installed before lifecycles, otherwise new categories and roles. */
+  lifecycle: { whole: ResolvedLifecycle | null; categories: CaseCategory[]; roles: LifecycleRole[] };
 }

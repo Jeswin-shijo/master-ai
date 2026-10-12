@@ -68,6 +68,8 @@ export class PackRegistry implements OnModuleInit {
     const ids = installed.lineage.filter((id) => this.packs.has(id));
     if (ids.length === 0) return null;
     const empty = { entities: [], agents: [], tools: [], workflows: [], policies: [], kpis: [], connectors: [] };
-    return this.resolve({ ...installed, ...empty, id: 'installed-latest', extends: ids, labels: installed.labels }, installed.source);
+    // The installed lifecycle is a resolved snapshot; the latest one comes from the registry packs.
+    const { lifecycle: _installedLifecycle, ...base } = installed;
+    return this.resolve({ ...base, ...empty, id: 'installed-latest', extends: ids, labels: installed.labels }, installed.source);
   }
 }
