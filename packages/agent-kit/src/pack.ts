@@ -10,6 +10,7 @@ import {
   type ResolvedPack,
 } from '@onehuman/schemas';
 import { CASE_COORDINATOR_ROLE, getCatalogTool } from './catalog';
+import { lifecyclePolicies, mergeLifecycles, validateLifecycle } from './lifecycle/resolve';
 
 export class PackError extends Error {
   constructor(
@@ -82,6 +83,13 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
     Object.assign(merged.labels, p.labels);
   }
 
+  const lifecycle = mergeLifecycles(chain.flatMap((p) => (p.lifecycle ? [p.lifecycle] : [])));
+  // Derived gate policies; an explicit pack policy with the same id wins.
+  for (const rule of lifecyclePolicies(lifecycle)) {
+    if (!policies.has(policyKey(rule))) policies.set(policyKey(rule), rule);
+  }
+  merged.sector = [...chain].reverse().find((p) => p.sector)?.sector;
+
   merged.entities = [...entities.values()];
   merged.agents = [...agents.values()];
   merged.tools = [...tools.values()];
@@ -91,7 +99,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   merged.kpis = [...kpis.values()];
   merged.connectors = [...connectors];
 
-  return applyLabels({ ...merged, lineage: chain.map((p) => p.id), source });
+  return applyLabels({ ...merged, lifecycle, lineage: chain.map((p) => p.id), source });
 }
 
 const policyKey = (r: Pack['policies'][number]) => r.id ?? `${r.action}:${r.agent ?? '*'}`;
@@ -119,22 +127,56 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     a.tools.every((t) => !!getCatalogTool(t) || toolNames.has(t)),
   );
   const roles = new Set([...installed.agents, ...agents].map((a) => a.role));
+  const workflows = missing(latest.workflows, installed.workflows, (w) => w.id).filter((w) => w.steps.every((s) => roles.has(s.agent)));
+  const workflowIds = new Set([...installed.workflows, ...workflows].map((w) => w.id));
+
+  let lifecycle: PackUpdates['lifecycle'] = { whole: null, categories: [], roles: [] };
+  if (latest.lifecycle && !installed.lifecycle) {
+    lifecycle = { whole: latest.lifecycle, categories: [], roles: [] };
+  } else if (latest.lifecycle && installed.lifecycle) {
+    lifecycle = {
+      whole: null,
+      categories: missing(latest.lifecycle.categories, installed.lifecycle.categories, (c) => c.id).filter((c) => !c.workflow || workflowIds.has(c.workflow)),
+      roles: missing(latest.lifecycle.roles, installed.lifecycle.roles, (r) => r.id),
+    };
+  }
+  const categoryIds = new Set([
+    ...(lifecycle.whole?.categories ?? installed.lifecycle?.categories ?? []),
+    ...lifecycle.categories,
+  ].map((c) => c.id));
+
   return {
     agents,
     tools,
-    workflows: missing(latest.workflows, installed.workflows, (w) => w.id).filter((w) => w.steps.every((s) => roles.has(s.agent))),
+    workflows,
     routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id),
-    policies: missing(latest.policies, installed.policies, policyKey).filter((r) => !r.agent || roles.has(r.agent)),
+    policies: missing(latest.policies, installed.policies, policyKey).filter(
+      (r) => (!r.agent || roles.has(r.agent)) && (r.when?.category ?? []).every((id) => categoryIds.has(id)),
+    ),
     kpis: missing(latest.kpis, installed.kpis, (k) => k.id).filter((k) => k.source?.type !== 'records_count' || entities.has(k.source.entity)),
-    lifecycle: { whole: null, categories: [], roles: [] },
+    lifecycle,
   };
 }
 
+export function emptyPackUpdates(): PackUpdates {
+  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], lifecycle: { whole: null, categories: [], roles: [] } };
+}
+
 export function countPackUpdates(u: PackUpdates): number {
-  return u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length;
+  return (
+    u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length +
+    (u.lifecycle.whole ? 1 : 0) + u.lifecycle.categories.length + u.lifecycle.roles.length
+  );
 }
 
 export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): ResolvedPack {
+  const lifecycle = u.lifecycle.whole
+    ? u.lifecycle.whole
+    : installed.lifecycle && {
+        ...installed.lifecycle,
+        categories: [...installed.lifecycle.categories, ...u.lifecycle.categories],
+        roles: [...installed.lifecycle.roles, ...u.lifecycle.roles],
+      };
   return {
     ...installed,
     agents: [...installed.agents, ...u.agents],
@@ -143,6 +185,7 @@ export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): Resol
     routines: [...(installed.routines ?? []), ...u.routines],
     policies: [...installed.policies, ...u.policies],
     kpis: [...installed.kpis, ...u.kpis],
+    ...(lifecycle && { lifecycle }),
   };
 }
 
@@ -257,10 +300,15 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
       }
     }
   }
+  const categoryIds = new Set((pack.lifecycle?.categories ?? []).map((c) => c.id));
   for (const rule of pack.policies) {
     if (rule.action !== '*' && !toolExists(rule.action)) issues.push(`policy on unknown tool ${rule.action}`);
     if (rule.agent && !roles.has(rule.agent)) issues.push(`policy on unknown agent role ${rule.agent}`);
+    for (const id of rule.when?.category ?? []) {
+      if (!categoryIds.has(id)) issues.push(`policy ${rule.id ?? rule.action}: unknown lifecycle category ${id}`);
+    }
   }
+  if (pack.lifecycle) issues.push(...validateLifecycle(pack.lifecycle, pack));
   for (const kpi of pack.kpis) {
     if (kpi.source?.type === 'records_count' && !entityNames.has(kpi.source.entity)) {
       issues.push(`kpi ${kpi.id}: unknown entity ${kpi.source.entity}`);

@@ -22,9 +22,10 @@ export function PackUpdatesBanner() {
 
   const u = updates.data;
   if (!u) return null;
-  const extras = u.tools.length + u.policies.length + u.kpis.length;
+  const extras = u.tools.length + u.policies.length + u.kpis.length + (u.lifecycle?.categories.length ?? 0) + (u.lifecycle?.roles.length ?? 0);
   const routines = u.routines ?? [];
-  if (u.agents.length + u.workflows.length + routines.length + extras === 0) return null;
+  const lifecycle = u.lifecycle?.whole ?? null;
+  if (u.agents.length + u.workflows.length + routines.length + extras + (lifecycle ? 1 : 0) === 0) return null;
   const callsTeam = u.agents.some((a) => a.tools.includes('staff.delegate'));
 
   return (
@@ -43,6 +44,9 @@ export function PackUpdatesBanner() {
               : 'The platform gained these since you installed your industry pack. Adding them changes nothing you already have.'}
           </p>
           <ul className="mt-3 space-y-1 text-sm">
+            {lifecycle && (
+              <li><span className="font-medium text-fg">8-stage case lifecycle</span> <span className="text-fg-muted">· every request runs from {lifecycle.stages[0]!.name} to {lifecycle.stages[7]!.name}</span></li>
+            )}
             {u.agents.map((a) => (
               <li key={a.role}><span className="font-medium text-fg">{a.name}</span> <span className="text-fg-muted">· agent · {a.description}</span></li>
             ))}

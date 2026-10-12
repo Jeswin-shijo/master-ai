@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import type { PackAgent, PackDraft, PackUpdates, ResolvedPack, Workspace } from '@onehuman/schemas';
-import { applyPackUpdates, countPackUpdates, packUpdates, validatePackRefs } from '@onehuman/agent-kit';
+import { applyPackUpdates, countPackUpdates, emptyPackUpdates, packUpdates, validatePackRefs } from '@onehuman/agent-kit';
 import { PolicyEngine } from '@onehuman/policy';
 import { AuditService } from '../audit/audit.service';
 import type { Session } from '../common/auth';
@@ -155,7 +155,7 @@ export class OnboardingService {
 
   private updatesFor(installed: ResolvedPack): PackUpdates {
     const latest = this.registry.latestFor(installed);
-    return latest ? packUpdates(installed, latest) : { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], lifecycle: { whole: null, categories: [], roles: [] } };
+    return latest ? packUpdates(installed, latest) : emptyPackUpdates();
   }
 
   /** Every agent is a principal with its own identity, permissions and budget. */
@@ -176,6 +176,8 @@ export class OnboardingService {
 
 function describeUpdates(u: PackUpdates): string {
   const parts = [
+    u.lifecycle.whole ? '8-stage case lifecycle' : '',
+    ...u.lifecycle.categories.map((c) => `${c.name} (case type)`),
     ...u.agents.map((a) => `${a.name} (agent)`),
     ...u.workflows.map((w) => `${w.name} (workflow)`),
     u.tools.length ? `${u.tools.length} tool${u.tools.length === 1 ? '' : 's'}` : '',
