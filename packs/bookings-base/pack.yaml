@@ -1,0 +1,144 @@
+# Anything sold as a slot: appointments, reservations, sessions, trips, classes.
+id: bookings-base
+version: 1.0.0
+name: Bookings base
+description: Services, bookings, payment collection and booking changes.
+kind: base
+extends: [crm-base]
+
+entities:
+  - name: Service
+    label: Service
+    description: Something the business sells as a booking.
+    title_field: name
+    list_columns: [name, price, durationMinutes, active]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - { name: description, label: Description, type: text }
+      - { name: price, label: Price, type: money }
+      - { name: durationMinutes, label: Duration (minutes), type: integer }
+      - { name: active, label: Active, type: boolean }
+  - name: Booking
+    label: Booking
+    description: A customer's reservation of a service on a date.
+    title_field: customerName
+    list_columns: [customerName, service, date, status, paymentStatus, amount]
+    fields:
+      - { name: customerName, label: Customer name, type: string, required: true }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: service, label: Service, type: string, required: true }
+      - { name: date, label: Date, type: date, required: true }
+      - { name: time, label: Time, type: string }
+      - { name: partySize, label: People, type: integer }
+      - { name: amount, label: Amount, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [requested, held, confirmed, cancelled, completed]
+      - name: paymentStatus
+        label: Payment
+        type: enum
+        options: [unpaid, requested, paid, refunded]
+      - { name: notes, label: Notes, type: text }
+
+tools:
+  - name: booking.hold
+    description: Put a booking on hold while the customer decides. Reversible.
+    uses: records.update
+    with: { entity: Booking, patch: { status: held } }
+    level: 2
+  - name: booking.confirm
+    description: Confirm a booking with the customer and the supplier.
+    uses: records.update
+    with: { entity: Booking, patch: { status: confirmed } }
+    level: 3
+    risk: { external_reach: true, reversible: false }
+  - name: booking.cancel
+    description: Cancel a booking.
+    uses: records.update
+    with: { entity: Booking, patch: { status: cancelled } }
+    level: 3
+    risk: { external_reach: true, reversible: false }
+
+agents:
+  - role: booking-coordinator
+    name: Booking coordinator
+    description: Turns requests into confirmed bookings, collects payment and handles changes and refunds.
+    autonomy: 4
+    tools:
+      - records.search
+      - records.create
+      - booking.hold
+      - booking.confirm
+      - booking.cancel
+      - payment.request
+      - refund.issue
+      - message.draft
+      - message.send
+      - human.handoff
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 200000, money_per_task_inr: 0, max_steps: 40 }
+
+workflows:
+  - id: booking-request
+    name: Booking request
+    description: Turn a customer's request into a confirmed, paid booking.
+    keywords: [book, booking, reserve, reservation, appointment, slot, confirm]
+    steps:
+      - key: create-booking
+        title: Record the booking request
+        agent: booking-coordinator
+        instructions: Create or find the Booking record and hold it while details are confirmed.
+      - key: confirm-and-collect
+        title: Confirm and collect payment
+        agent: booking-coordinator
+        depends_on: [create-booking]
+        instructions: Confirm the booking and send a payment request for the amount due.
+  - id: booking-cancellation
+    name: Cancel a booking
+    description: Cancel a customer's booking at their request.
+    keywords: [cancel, cancellation, call off, not coming, not travelling]
+    steps:
+      - key: cancel-booking
+        title: Cancel the booking
+        agent: booking-coordinator
+        instructions: Find the customer's Booking record and cancel it. If they already paid, say so in your summary so a refund can follow under the refund policy.
+  - id: refund-request
+    name: Refund request
+    description: Check a refund request against the refund policy and issue it.
+    keywords: [refund, cancel, cancellation, money back, chargeback]
+    steps:
+      - key: check-and-refund
+        title: Check the request and refund
+        agent: booking-coordinator
+        instructions: Find the booking, check the refund policy in the knowledge base, cancel the booking and issue the refund.
+
+policies:
+  - id: confirm-booking
+    action: booking.confirm
+    require_approval: true
+    reason: Confirming a booking commits the business to a supplier and a customer.
+  - id: cancel-booking
+    action: booking.cancel
+    require_approval: true
+    reason: Cancellations cannot be undone.
+  - id: refund-above-5000
+    action: refund.issue
+    require_approval_above: { amount: 5000, currency: INR }
+    reason: Refunds above ₹5,000 need owner approval.
+
+kpis:
+  - id: bookings-confirmed
+    name: Confirmed bookings
+    description: Bookings currently confirmed.
+    unit: count
+    direction: up
+    source: { type: records_count, entity: Booking, where: { status: confirmed } }
+  - id: unpaid-bookings
+    name: Unpaid bookings
+    description: Confirmed bookings still waiting for payment.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Booking, where: { paymentStatus: unpaid } }

@@ -1,0 +1,174 @@
+# First curated industry pack, as specified in the architecture plan.
+id: travel-agency
+version: 1.2.0
+name: Travel agency
+description: Trip enquiries, itinerary planning, supplier bookings, payments and disruption handling for travel agencies and tour operators.
+kind: industry
+extends: [bookings-base, crm-base]
+match:
+  keywords: [travel agency, travel agent, tour operator, tours and travels, holiday planner, tourism, trip planner, travel]
+
+labels:
+  Customer: Traveller
+  Service: Package
+
+entities:
+  - name: Trip
+    label: Trip
+    title_field: destination
+    list_columns: [travellerName, destination, startDate, travellers, status, budget]
+    fields:
+      - { name: travellerName, label: Lead traveller, type: string, required: true }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: destination, label: Destination, type: string, required: true }
+      - { name: startDate, label: Start date, type: date }
+      - { name: endDate, label: End date, type: date }
+      - { name: travellers, label: Travellers, type: integer }
+      - { name: budget, label: Budget, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [enquiry, planning, quoted, booked, travelling, completed, cancelled]
+      - { name: notes, label: Notes, type: text }
+  - name: Itinerary
+    label: Itinerary
+    plural_label: Itineraries
+    title_field: title
+    list_columns: [trip, title, totalPrice, status]
+    fields:
+      - { name: trip, label: Trip, type: string, required: true }
+      - { name: title, label: Title, type: string, required: true }
+      - { name: days, label: Day-by-day plan, type: text, required: true }
+      - { name: totalPrice, label: Total price, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [draft, sent, accepted, rejected]
+  - name: Supplier
+    label: Supplier
+    title_field: name
+    list_columns: [name, type, city, rating, commissionPercent]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - name: type
+        label: Type
+        type: enum
+        required: true
+        options: [hotel, airline, transport, activity, guide, other]
+      - { name: city, label: City, type: string }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: rating, label: Rating, type: number }
+      - { name: commissionPercent, label: Commission %, type: number }
+
+tools:
+  - name: suppliers.search
+    description: Search hotels, transport, guides and activity suppliers.
+    uses: records.search
+    with: { entity: Supplier }
+  - name: trips.search
+    description: Search trips by traveller, destination or status.
+    uses: records.search
+    with: { entity: Trip }
+
+agents:
+  - role: trip-intake
+    name: Trip intake
+    description: Captures each travel enquiry as a Trip and drafts the first reply.
+    autonomy: 2
+    tools: [trips.search, records.create, message.draft, knowledge.search, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 15 }
+  - role: itinerary-planner
+    name: Itinerary planner
+    description: Builds day-by-day itineraries from suppliers and the knowledge base, within the traveller's budget.
+    autonomy: 2
+    tools: [suppliers.search, trips.search, knowledge.search, records.create, document.generate, human.handoff]
+    model: { tier: frontier, fallback: standard, data_class: confidential }
+    budgets: { tokens_per_task: 250000, money_per_task_inr: 0, max_steps: 30 }
+  - role: booking-coordinator
+    name: Booking coordinator
+    description: Confirms supplier bookings for approved itineraries, collects payment and handles refunds.
+    autonomy: 4
+    tools: [trips.search, records.search, records.create, booking.hold, booking.confirm, booking.cancel, payment.request, refund.issue, message.send, message.draft, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 200000, money_per_task_inr: 0, max_steps: 40 }
+
+workflows:
+  - id: new-enquiry
+    name: New trip enquiry
+    description: Capture the enquiry, then draft an itinerary.
+    keywords: [enquiry, inquiry, trip, holiday, plan, itinerary, quote, honeymoon, package]
+    trigger: { event: enquiry.received }
+    steps:
+      - key: capture-trip
+        title: Capture the trip enquiry
+        agent: trip-intake
+        instructions: Create a Trip record with status enquiry and draft a warm first reply asking for any missing details.
+      - key: draft-itinerary
+        title: Draft an itinerary
+        agent: itinerary-planner
+        depends_on: [capture-trip]
+        instructions: Search suppliers and the knowledge base, then write a day-by-day itinerary within budget and save it as a draft Itinerary.
+  - id: itinerary-to-booking
+    name: Itinerary to booking
+    description: Book suppliers and collect payment for an accepted itinerary.
+    keywords: [book, booking, confirm, accepted, payment, advance]
+    steps:
+      - key: book-suppliers
+        title: Book suppliers and collect payment
+        agent: booking-coordinator
+        instructions: Create and confirm the Booking records for the accepted itinerary, then send a payment request for the advance.
+  - id: disruption-response
+    name: Disruption response
+    description: Handle a cancelled flight, closed hotel or weather disruption.
+    keywords: [disruption, cancelled, delay, flight, weather, rebook, refund]
+    steps:
+      - key: assess
+        title: Assess affected trips
+        agent: booking-coordinator
+        instructions: Find affected trips and bookings and decide between rebooking and refunding.
+      - key: inform-travellers
+        title: Inform travellers
+        agent: trip-intake
+        depends_on: [assess]
+        instructions: Draft a clear message to each affected traveller with the options.
+
+policies:
+  - id: confirm-booking
+    action: booking.confirm
+    require_approval: true
+    reason: Confirming commits the agency to suppliers.
+  - id: refund-above-5000
+    action: refund.issue
+    require_approval_above: { amount: 5000, currency: INR }
+    reason: Refunds above ₹5,000 need owner approval.
+
+kpis:
+  - id: enquiry-response-time
+    name: Enquiry response time
+    description: Minutes from enquiry to first reply. Needs the WhatsApp/email connector.
+    unit: minutes
+    direction: down
+    target: 30
+  - id: quote-to-booking-rate
+    name: Quote-to-booking rate
+    description: Share of quoted trips that get booked. Needs trip history.
+    unit: percent
+    direction: up
+  - id: refund-rate
+    name: Refund rate
+    description: Share of bookings refunded. Needs the payments connector.
+    unit: percent
+    direction: down
+  - id: trips-booked
+    name: Trips booked
+    description: Trips currently booked.
+    unit: count
+    direction: up
+    source: { type: records_count, entity: Trip, where: { status: booked } }
+
+connectors: [booking-engine, whatsapp-business, razorpay, gmail]

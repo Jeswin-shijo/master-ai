@@ -1,0 +1,99 @@
+# Service firms that deliver work as projects: agencies, consultants, builders, law and CA firms.
+id: projects-base
+version: 1.0.0
+name: Projects base
+description: Projects, milestones, client updates and milestone billing.
+kind: base
+extends: [crm-base]
+
+entities:
+  - name: Project
+    label: Project
+    title_field: name
+    list_columns: [name, clientName, status, dueDate, budget]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - { name: clientName, label: Client, type: string, required: true }
+      - { name: clientEmail, label: Client email, type: email }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [proposed, active, on-hold, completed, cancelled]
+      - { name: startDate, label: Start date, type: date }
+      - { name: dueDate, label: Due date, type: date }
+      - { name: budget, label: Budget, type: money }
+      - { name: notes, label: Notes, type: text }
+  - name: Milestone
+    label: Milestone
+    title_field: title
+    list_columns: [project, title, dueDate, status, amount]
+    fields:
+      - { name: project, label: Project, type: string, required: true }
+      - { name: title, label: Title, type: string, required: true }
+      - { name: dueDate, label: Due date, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [pending, done, late, billed]
+      - { name: amount, label: Billable amount, type: money }
+
+tools:
+  - name: milestone.mark_billed
+    description: Mark a milestone as billed after sending the payment request.
+    uses: records.update
+    with: { entity: Milestone, patch: { status: billed } }
+
+agents:
+  - role: project-coordinator
+    name: Project coordinator
+    description: Tracks projects and milestones, schedules check-ins and sends client updates.
+    autonomy: 3
+    tools: [records.search, records.update, schedule.create, document.generate, message.draft, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+  - role: invoicing-assistant
+    name: Invoicing assistant
+    description: Bills completed milestones and chases payment.
+    autonomy: 3
+    tools: [records.search, document.generate, payment.request, milestone.mark_billed, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+
+workflows:
+  - id: weekly-client-update
+    name: Weekly client update
+    description: Send each active client a short progress update.
+    keywords: [update, client update, progress, status, weekly]
+    steps:
+      - key: gather-status
+        title: Gather project status
+        agent: project-coordinator
+        instructions: Search active Project and Milestone records and note progress and blockers.
+      - key: send-updates
+        title: Send client updates
+        agent: project-coordinator
+        depends_on: [gather-status]
+        instructions: Send each client a short update with done, next and anything needed from them.
+  - id: milestone-billing
+    name: Milestone billing
+    description: Bill milestones that are done but not yet billed.
+    keywords: [bill, billing, invoice, milestone, payment, collect]
+    steps:
+      - key: bill-milestones
+        title: Bill completed milestones
+        agent: invoicing-assistant
+        instructions: Find Milestone records with status done, send a payment request for each, then mark it billed.
+
+kpis:
+  - id: active-projects
+    name: Active projects
+    description: Projects currently in progress.
+    unit: count
+    direction: up
+    source: { type: records_count, entity: Project, where: { status: active } }
+  - id: late-milestones
+    name: Late milestones
+    description: Milestones past their due date.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Milestone, where: { status: late } }

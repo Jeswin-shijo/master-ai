@@ -1,0 +1,40 @@
+{
+  "name": "@onehuman/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed API client, realtime stream and approval signing for web, mobile and partners",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@onehuman/schemas": "workspace:*",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsup": "^8.5.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

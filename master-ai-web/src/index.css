@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+@import '@onehuman/ui/theme.css';
+
+/* Map the shared design tokens (CSS variables from @onehuman/ui) into Tailwind. */
+@theme inline {
+  --color-background: var(--oh-background);
+  --color-surface: var(--oh-surface);
+  --color-muted: var(--oh-surface-muted);
+  --color-border: var(--oh-border);
+  --color-fg: var(--oh-text);
+  --color-fg-muted: var(--oh-text-muted);
+  --color-primary: var(--oh-primary);
+  --color-primary-fg: var(--oh-primary-text);
+  --color-primary-soft: var(--oh-primary-soft);
+  --color-accent: var(--oh-accent);
+  --color-accent-soft: var(--oh-accent-soft);
+  --color-canvas: var(--oh-canvas);
+  --color-canvas-dot: var(--oh-canvas-dot);
+  --color-success: var(--oh-success);
+  --color-success-soft: var(--oh-success-soft);
+  --color-warning: var(--oh-warning);
+  --color-warning-soft: var(--oh-warning-soft);
+  --color-danger: var(--oh-danger);
+  --color-danger-soft: var(--oh-danger-soft);
+  --color-info: var(--oh-info);
+  --color-info-soft: var(--oh-info-soft);
+  --color-level-1: var(--oh-level1);
+  --color-level-2: var(--oh-level2);
+  --color-level-3: var(--oh-level3);
+  --color-level-4: var(--oh-level4);
+  --color-level-5: var(--oh-level5);
+  --font-sans: var(--oh-font-sans);
+  --font-mono: var(--oh-font-mono);
+  --radius-sm: var(--oh-radius-sm);
+  --radius-md: var(--oh-radius-md);
+  --radius-lg: var(--oh-radius-lg);
+}
+
+@custom-variant light (&:where([data-theme='light'], [data-theme='light'] *));
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--oh-background);
+  color: var(--oh-text);
+  font-family: var(--oh-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--oh-primary-soft);
+}
+
+@keyframes oh-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.live-dot {
+  animation: oh-pulse-dot 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+
+/* n8n-style dotted canvas */
+.canvas-dots {
+  background-color: var(--oh-canvas);
+  background-image: radial-gradient(var(--oh-canvas-dot) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+
+/* Brand glow used on hero headers, like n8n.io */
+.hero-glow {
+  background:
+    radial-gradient(60% 120% at 15% 0%, color-mix(in oklab, var(--oh-primary) 22%, transparent), transparent 70%),
+    radial-gradient(50% 110% at 85% 10%, color-mix(in oklab, var(--oh-accent) 20%, transparent), transparent 70%);
+}
+
+@keyframes oh-ring {
+  0%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(-14deg); }
+  20%, 40% { transform: rotate(14deg); }
+  50% { transform: rotate(0deg); }
+}
+.ringing {
+  animation: oh-ring 1.2s ease-in-out infinite;
+}
+
+@keyframes oh-spin-border {
+  to { transform: rotate(360deg); }
+}
+
+/* React Flow, themed with our tokens */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: var(--oh-text-muted);
+  --xy-edge-stroke-width: 2;
+  --xy-node-border-radius: 12px;
+  --xy-controls-button-background-color: var(--oh-surface);
+  --xy-controls-button-background-color-hover: var(--oh-surface-muted);
+  --xy-controls-button-color: var(--oh-text);
+  --xy-controls-button-border-color: var(--oh-border);
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__attribution { display: none; }
+.react-flow__handle { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ringing { animation: none; }
+}

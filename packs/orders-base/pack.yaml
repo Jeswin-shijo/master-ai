@@ -1,0 +1,117 @@
+# Businesses that sell products: shops, restaurants, distributors, manufacturers.
+id: orders-base
+version: 1.0.0
+name: Orders base
+description: Products, orders, billing and payment collection.
+kind: base
+extends: [crm-base]
+
+entities:
+  - name: Product
+    label: Product
+    title_field: name
+    list_columns: [name, sku, price, stock, active]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - { name: sku, label: SKU, type: string }
+      - { name: price, label: Price, type: money }
+      - { name: stock, label: Stock, type: integer }
+      - { name: active, label: Active, type: boolean }
+  - name: Order
+    label: Order
+    title_field: customerName
+    list_columns: [customerName, amount, status, paymentStatus, orderedAt]
+    fields:
+      - { name: customerName, label: Customer name, type: string, required: true }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: items, label: Items, type: text, required: true }
+      - { name: amount, label: Amount, type: money, required: true }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [new, confirmed, packed, shipped, delivered, cancelled, returned]
+      - name: paymentStatus
+        label: Payment
+        type: enum
+        options: [unpaid, requested, paid, refunded]
+      - { name: orderedAt, label: Ordered at, type: datetime }
+      - { name: notes, label: Notes, type: text }
+
+tools:
+  - name: order.confirm
+    description: Confirm an order and tell the customer.
+    uses: records.update
+    with: { entity: Order, patch: { status: confirmed } }
+    level: 3
+  - name: order.cancel
+    description: Cancel an order.
+    uses: records.update
+    with: { entity: Order, patch: { status: cancelled } }
+    level: 3
+    risk: { external_reach: true, reversible: false }
+
+agents:
+  - role: order-desk
+    name: Order desk
+    description: Takes new orders, confirms them and keeps customers updated.
+    autonomy: 3
+    tools: [records.search, records.create, order.confirm, order.cancel, message.draft, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+  - role: billing-assistant
+    name: Billing assistant
+    description: Chases unpaid orders with payment links, prepares invoices and handles refunds.
+    autonomy: 3
+    tools: [records.search, payment.request, refund.issue, document.generate, message.draft, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 2000, max_steps: 30 }
+
+workflows:
+  - id: payment-collection
+    name: Collect unpaid orders
+    description: Send payment links for orders that are still unpaid.
+    keywords: [payment, unpaid, collect, dues, outstanding, invoice, receivable]
+    steps:
+      - key: find-unpaid
+        title: Find unpaid orders
+        agent: billing-assistant
+        instructions: Search Order records with paymentStatus unpaid.
+      - key: request-payments
+        title: Send payment requests
+        agent: billing-assistant
+        depends_on: [find-unpaid]
+        instructions: Send a payment request for each unpaid order's amount, with a short polite message.
+  - id: new-order
+    name: New order
+    description: Record and confirm a new order.
+    keywords: [order, purchase, buy, new order]
+    steps:
+      - key: record-order
+        title: Record and confirm the order
+        agent: order-desk
+        instructions: Create the Order record, confirm it and send the customer a confirmation.
+
+policies:
+  - id: cancel-order
+    action: order.cancel
+    require_approval: true
+    reason: Cancelled orders cannot be restored.
+  - id: refund-above-2000
+    action: refund.issue
+    require_approval_above: { amount: 2000, currency: INR }
+    reason: Refunds above ₹2,000 need owner approval.
+
+kpis:
+  - id: open-orders
+    name: New orders waiting
+    description: Orders not yet confirmed.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Order, where: { status: new } }
+  - id: unpaid-orders
+    name: Unpaid orders
+    description: Orders waiting for payment.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Order, where: { paymentStatus: unpaid } }

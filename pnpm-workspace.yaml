@@ -1,0 +1,13 @@
+packages:
+  - master-ai-backend
+  - master-ai-web
+  - master-ai-mobile
+  - packages/*
+
+# Native/postinstall builds that are allowed to run.
+onlyBuiltDependencies:
+  - "@temporalio/core-bridge"
+  - "@swc/core"
+  - esbuild
+  - "@nestjs/core"
+  - protobufjs

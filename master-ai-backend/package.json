@@ -1,0 +1,52 @@
+{
+  "name": "@onehuman/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ONEHUMAN OS backend: NestJS modular monolith (API) + Temporal worker (agents)",
+  "scripts": {
+    "build": "nest build",
+    "dev": "concurrently -k -n build,api,worker -c gray,cyan,magenta \"nest build --watch --preserveWatchOutput\" \"wait-on dist/main.js && node --enable-source-maps --watch dist/main.js\" \"wait-on dist/worker.js && node --enable-source-maps --watch dist/worker.js\"",
+    "start": "node --enable-source-maps dist/main.js",
+    "start:worker": "node --enable-source-maps dist/worker.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@nestjs/common": "^11.2.7",
+    "@nestjs/core": "^11.2.7",
+    "@nestjs/platform-express": "^11.2.7",
+    "@onehuman/agent-kit": "workspace:*",
+    "@onehuman/policy": "workspace:*",
+    "@onehuman/schemas": "workspace:*",
+    "@temporalio/activity": "^1.24.0",
+    "@temporalio/client": "^1.24.0",
+    "@temporalio/worker": "^1.24.0",
+    "@temporalio/workflow": "^1.24.0",
+    "drizzle-orm": "^0.45.4",
+    "nats": "^2.29.3",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "ws": "^8.18.3",
+    "yaml": "^2.8.1",
+    "zod": "^4.3.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@onehuman/sdk": "workspace:*",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.15.5",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.1",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.3",
+    "wait-on": "^9.0.1"
+  }
+}

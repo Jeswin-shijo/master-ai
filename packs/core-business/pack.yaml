@@ -1,0 +1,82 @@
+# Shared building blocks every tenant gets: a general operations assistant,
+# platform-wide guardrails and operations KPIs.
+id: core-business
+version: 1.0.0
+name: Core business
+description: General operations assistant, money guardrails and operations KPIs shared by every pack.
+kind: base
+
+agents:
+  - role: ops-assistant
+    name: Operations assistant
+    description: Researches company knowledge and records, writes reports and drafts messages for the owner.
+    autonomy: 2
+    tools: [knowledge.search, records.search, records.get, document.generate, message.draft, human.handoff]
+    model: { tier: standard, fallback: small, data_class: internal }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 20 }
+
+  - role: work-coordinator
+    name: Work coordinator
+    description: Gets work done through the team. Picks the person in charge, phones them to assign the work and agree a deadline, follows up by phone, and confirms it is done.
+    instructions: Delegate to the single best-placed team member. Put the full task, place, people and deadline in plain words they can act on from one phone call.
+    autonomy: 3
+    tools: [staff.delegate, records.search, knowledge.search, human.handoff]
+    model: { tier: standard, fallback: small, data_class: internal }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 12 }
+
+workflows:
+  - id: delegate-work
+    name: Get it done by the team
+    description: Hand the work to the person in charge, follow up by phone and confirm it is done.
+    keywords: [make sure, ensure, arrange, check with, ask, assign, team, staff, inspect, inspection, prepare, collect, deliver, visit, fix, organise, organize, clean, repair, pick up, drop, send someone]
+    steps:
+      - key: delegate
+        title: Delegate to the person in charge
+        agent: work-coordinator
+        instructions: Pick the team member in charge of this work and delegate it by phone. Report what they confirmed.
+  - id: weekly-report
+    name: Weekly operations report
+    description: Summarise the week's work, open items and risks for the owner.
+    keywords: [report, summary, weekly, week, review, status]
+    steps:
+      - key: compile-report
+        title: Compile the weekly report
+        agent: ops-assistant
+        instructions: Search recent records and the knowledge base, then write a short report with wins, open items and risks.
+
+policies:
+  - id: refund-hard-cap
+    action: refund.issue
+    forbid_above: { amount: 200000, currency: INR }
+    reason: Refunds above ₹2,00,000 are handled by a human outside the system.
+  - id: payment-request-large
+    action: payment.request
+    require_approval_above: { amount: 25000, currency: INR }
+    reason: Payment requests above ₹25,000 need a second look.
+
+kpis:
+  - id: tasks-completed
+    name: Tasks completed by agents
+    description: Agent tasks finished in the last 30 days.
+    unit: count
+    direction: up
+    source: { type: ops, metric: tasks_completed }
+  - id: approval-rejection-rate
+    name: Approval rejection rate
+    description: Share of approval requests the owner rejected. Lower means agents propose better actions.
+    unit: percent
+    direction: down
+    target: 10
+    source: { type: ops, metric: approval_rejection_rate }
+  - id: avg-approval-time
+    name: Average approval time
+    description: Minutes from an approval request to the owner's decision.
+    unit: minutes
+    direction: down
+    source: { type: ops, metric: avg_approval_minutes }
+  - id: ai-spend
+    name: AI spend (30 days)
+    description: Model cost across all agents.
+    unit: inr
+    direction: down
+    source: { type: ops, metric: llm_cost_inr }

@@ -1,0 +1,117 @@
+# Customers and enquiries: the front door of almost every business.
+id: crm-base
+version: 1.0.0
+name: CRM base
+description: Customers, enquiries and follow-ups.
+kind: base
+extends: [core-business]
+
+entities:
+  - name: Customer
+    label: Customer
+    description: A person or company the business serves.
+    title_field: name
+    list_columns: [name, phone, email, city, source]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: city, label: City, type: string }
+      - name: source
+        label: Source
+        type: enum
+        options: [walk-in, phone, whatsapp, website, referral, other]
+      - { name: notes, label: Notes, type: text }
+  - name: Enquiry
+    label: Enquiry
+    plural_label: Enquiries
+    description: An incoming question or lead from a customer.
+    title_field: subject
+    list_columns: [customerName, subject, status, followUpOn, value]
+    fields:
+      - { name: customerName, label: Customer name, type: string, required: true }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: subject, label: Subject, type: string, required: true }
+      - { name: details, label: Details, type: text }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [new, contacted, quoted, won, lost]
+      - { name: followUpOn, label: Follow up on, type: date }
+      - { name: value, label: Estimated value, type: money }
+
+tools:
+  - name: enquiry.mark_contacted
+    description: Mark an enquiry as contacted after replying to the customer.
+    uses: records.update
+    with: { entity: Enquiry, patch: { status: contacted } }
+
+agents:
+  - role: enquiry-intake
+    name: Enquiry intake
+    description: Logs every new customer enquiry and drafts the first reply using company knowledge.
+    autonomy: 2
+    tools: [records.search, records.create, knowledge.search, message.draft, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 15 }
+  - role: follow-up-agent
+    name: Follow-up agent
+    description: Finds enquiries waiting on a reply and follows up with customers.
+    autonomy: 3
+    tools: [records.search, enquiry.mark_contacted, message.draft, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+
+workflows:
+  - id: new-enquiry
+    name: Handle a new enquiry
+    description: Log the enquiry and draft a reply.
+    keywords: [enquiry, enquiries, inquiry, lead, new customer, question]
+    trigger: { event: enquiry.received }
+    steps:
+      - key: log-enquiry
+        title: Log the enquiry
+        agent: enquiry-intake
+        instructions: Create an Enquiry record with status new, then draft a helpful first reply grounded in the knowledge base.
+  - id: follow-up-sweep
+    name: Follow-up sweep
+    description: Follow up on enquiries that are waiting for a reply.
+    keywords: [follow, follow-up, followups, overdue, pending, waiting, chase, remind]
+    steps:
+      - key: find-overdue
+        title: Find enquiries waiting on a reply
+        agent: follow-up-agent
+        instructions: Search Enquiry records with status new or quoted. Pick the ones that need a follow-up.
+      - key: send-follow-ups
+        title: Follow up with customers
+        agent: follow-up-agent
+        depends_on: [find-overdue]
+        instructions: Send a short, polite follow-up to each customer and mark the enquiry contacted.
+
+policies:
+  - id: first-customer-messages
+    action: message.send
+    require_approval: true
+    reason: Messages to customers need approval until the agent earns autonomy for them.
+
+kpis:
+  - id: open-enquiries
+    name: Open enquiries
+    description: Enquiries still marked new.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Enquiry, where: { status: new } }
+  - id: enquiries-won
+    name: Enquiries won
+    description: Enquiries that turned into business.
+    unit: count
+    direction: up
+    source: { type: records_count, entity: Enquiry, where: { status: won } }
+  - id: enquiry-response-time
+    name: Enquiry response time
+    description: Time from enquiry to first reply. Needs the WhatsApp/email connector.
+    unit: minutes
+    direction: down
+    target: 30

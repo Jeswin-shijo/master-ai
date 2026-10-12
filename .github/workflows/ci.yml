@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Build, typecheck, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version comes from "packageManager" in package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build typecheck test
+
+  e2e:
+    name: End-to-end smoke test (Postgres + Temporal + NATS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start infrastructure
+        run: docker compose -f infra/docker/docker-compose.yml up -d --wait postgres nats temporal
+      - name: Build
+        run: pnpm turbo run build --filter=@onehuman/backend...
+      - name: Migrate
+        working-directory: master-ai-backend
+        run: cp .env.example .env && pnpm db:migrate
+      - name: Start API and worker (offline LLM mode)
+        working-directory: master-ai-backend
+        run: |
+          nohup node dist/main.js > api.log 2>&1 &
+          nohup node dist/worker.js > worker.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:3000/health && break; sleep 1; done
+      - name: Smoke test
+        working-directory: master-ai-backend
+        run: pnpm smoke
+      - name: Logs on failure
+        if: failure()
+        working-directory: master-ai-backend
+        run: tail -n 200 api.log worker.log
