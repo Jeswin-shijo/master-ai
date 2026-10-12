@@ -19,3 +19,6 @@ master-ai-mobile/android/
 *.p12
 *.key
 *.mobileprovision
+
+# Brainstorming mockups (visual companion)
+.superpowers/
