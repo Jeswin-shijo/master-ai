@@ -17,6 +17,7 @@
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
     "db:migrate": "pnpm --filter @onehuman/backend db:migrate",
     "smoke": "pnpm --filter @onehuman/backend smoke",
+    "evals": "pnpm --filter @onehuman/evals test",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },
   "devDependencies": {

@@ -1,0 +1,25 @@
+# Generic lifecycle (every organization starts here). Organization suites come with their packs.
+pack: core-business
+cases:
+  - id: statement
+    request: Please send me last month's statement, I need it for the bank.
+    source: customer
+    expect: { category: general, priority: P3, review: complete, approval: { required: false }, signoff: { required: false } }
+  - id: fire
+    request: There is a small fire in the store room near the generator.
+    source: staff
+    expect: { category: general, priority: P1, review: complete, approval: { required: false }, signoff: { required: false } }
+    why: '"fire" is an urgent keyword, so the request becomes P1.'
+  - id: feedback
+    request: Canteen food has been cold all week.
+    source: staff
+    expect: { category: general, priority: P3, review: complete }
+  - id: injury
+    request: A worker was injured while unloading the truck, needs help now.
+    source: staff
+    expect: { category: general, priority: P1, review: complete }
+  - id: big-amount
+    request: Please help us pay the supplier ₹3 lakh this week.
+    source: owner
+    expect: { category: general, priority: P3, review: complete, approval: { required: false } }
+    why: The generic lifecycle has no amount rule, and ₹3 lakh alone stays under the owner-approval risk band.

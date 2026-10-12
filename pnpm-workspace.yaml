@@ -3,6 +3,7 @@ packages:
   - master-ai-web
   - master-ai-mobile
   - packages/*
+  - evals
 
 # Native/postinstall builds that are allowed to run.
 onlyBuiltDependencies:
