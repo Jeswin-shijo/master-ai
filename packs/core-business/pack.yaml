@@ -1,7 +1,7 @@
 # Shared building blocks every tenant gets: a general operations assistant,
 # platform-wide guardrails and operations KPIs.
 id: core-business
-version: 1.0.0
+version: 1.1.0
 name: Core business
 description: General operations assistant, money guardrails and operations KPIs shared by every pack.
 kind: base
@@ -23,6 +23,15 @@ agents:
     tools: [staff.delegate, records.search, knowledge.search, human.handoff]
     model: { tier: standard, fallback: small, data_class: internal }
     budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 12 }
+
+  - role: case-coordinator
+    name: Case coordinator
+    description: Takes in every request and moves it through its stages. It checks the details, sets the priority, finds the person in charge, asks for approval when the rules require it, checks the result and writes the report.
+    instructions: Follow the stage you are given. Use the organization's own words for its work. Never approve anything yourself; approvals come from people.
+    autonomy: 3
+    tools: [case.proceed, case.close, records.search, knowledge.search]
+    model: { tier: small, fallback: standard, data_class: internal }
+    budgets: { tokens_per_task: 60000, money_per_task_inr: 0, max_steps: 10 }
 
 workflows:
   - id: delegate-work

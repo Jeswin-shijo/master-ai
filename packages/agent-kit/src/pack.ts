@@ -9,7 +9,7 @@ import {
   type PackUpdates,
   type ResolvedPack,
 } from '@onehuman/schemas';
-import { getCatalogTool } from './catalog';
+import { CASE_COORDINATOR_ROLE, getCatalogTool } from './catalog';
 
 export class PackError extends Error {
   constructor(
@@ -230,6 +230,9 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
   for (const agent of pack.agents) {
     for (const tool of agent.tools) {
       if (!toolExists(tool)) issues.push(`agent ${agent.role}: unknown tool ${tool}`);
+      else if (agent.role !== CASE_COORDINATOR_ROLE && resolveToolControl(pack, tool) === 'gate') {
+        issues.push(`agent ${agent.role}: ${tool} is reserved for the case coordinator`);
+      }
     }
   }
   for (const entity of pack.entities) {
@@ -264,6 +267,12 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
     }
   }
   return issues;
+}
+
+/** A tool's runtime control, looking through pack aliases to the primitive. */
+function resolveToolControl(pack: ResolvedPack, name: string): string | undefined {
+  const alias = pack.tools.find((t) => t.name === name);
+  return getCatalogTool(alias ? alias.uses : name)?.control;
 }
 
 /** Build a Zod validator for records of one entity. Works in browser and server. */

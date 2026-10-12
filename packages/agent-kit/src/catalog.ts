@@ -31,9 +31,10 @@ export interface CatalogTool {
   /**
    * Runtime control: `handoff` ends the task for a human; `delegate` hands the
    * work to a team member and runs the phone-call cadence (assign → follow up →
-   * confirm) before the agent continues.
+   * confirm) before the agent continues; `gate` is a case stage gate (stage 5
+   * or 7), decided by the policy engine and never called by work agents.
    */
-  control?: 'handoff' | 'delegate';
+  control?: 'handoff' | 'delegate' | 'gate';
 }
 
 const channel = z.enum(['email', 'whatsapp', 'sms']);
@@ -48,6 +49,29 @@ const read = (sensitivity: DataClass = 'internal'): ToolRisk => ({
   spendsMoney: false,
   sensitivity,
 });
+
+/** Gate tools are held only by this agent role. */
+export const CASE_COORDINATOR_ROLE = 'case-coordinator';
+export const GATE_TOOLS = ['case.proceed', 'case.close'] as const;
+
+const gateInput = z.object({
+  caseId: z.string().min(1),
+  category: z.string().min(1),
+  priority: z.enum(['P1', 'P2', 'P3', 'P4']),
+  risk: z.enum(['low', 'medium', 'high']),
+  amount: z.number().nonnegative().optional().describe('Money at stake in rupees, if any'),
+  summary: z.string().min(1),
+});
+
+/** Gates commit the organization to work (and often money) but move nothing themselves. */
+const gateRisk: ToolRisk = {
+  category: 'write',
+  reversible: true,
+  externalReach: false,
+  movesMoney: true,
+  spendsMoney: false,
+  sensitivity: 'internal',
+};
 
 export const TOOL_CATALOG: readonly CatalogTool[] = [
   {
@@ -223,6 +247,22 @@ export const TOOL_CATALOG: readonly CatalogTool[] = [
     baseLevel: 1,
     risk: read(),
     control: 'handoff',
+  },
+  {
+    name: 'case.proceed',
+    description: 'Let a case pass its approval gate and move into the work.',
+    input: gateInput,
+    baseLevel: 3,
+    risk: gateRisk,
+    control: 'gate',
+  },
+  {
+    name: 'case.close',
+    description: 'Close a case once its result is verified.',
+    input: gateInput,
+    baseLevel: 3,
+    risk: gateRisk,
+    control: 'gate',
   },
 ];
 
