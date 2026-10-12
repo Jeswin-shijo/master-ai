@@ -74,6 +74,10 @@ export function compileRules(rules: PolicyRule[], prefix: string): CedarPolicy[]
     const conditions: string[] = [];
     if (rule.action !== '*') conditions.push(`context.tool == ${cedarString(rule.action)}`);
     if (rule.agent) conditions.push(`principal.role == ${cedarString(rule.agent)}`);
+    if (rule.when?.category) conditions.push(`${cedarSet(rule.when.category)}.contains(context.caseCategory)`);
+    if (rule.when?.priority) conditions.push(`${cedarSet(rule.when.priority)}.contains(context.casePriority)`);
+    if (rule.when?.risk) conditions.push(`${cedarSet(rule.when.risk)}.contains(context.caseRisk)`);
+    if (rule.when?.source) conditions.push(`${cedarSet(rule.when.source)}.contains(context.caseSource)`);
     const reason = rule.reason ?? describeRule(rule);
     const out: CedarPolicy[] = [];
 
@@ -113,4 +117,8 @@ function describeRule(rule: PolicyRule): string {
 
 function cedarString(s: string): string {
   return JSON.stringify(s);
+}
+
+function cedarSet(items: readonly string[]): string {
+  return `[${items.map(cedarString).join(', ')}]`;
 }

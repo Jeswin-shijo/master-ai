@@ -1,5 +1,5 @@
 import { isAuthorized, type AuthorizationAnswer } from '@cedar-policy/cedar-wasm/nodejs';
-import type { AutonomyLevel, DataClass, PolicyDecision, PolicyRule, RiskFactor } from '@onehuman/schemas';
+import type { AutonomyLevel, CaseRisk, CaseSource, DataClass, PolicyDecision, PolicyRule, PriorityId, RiskFactor } from '@onehuman/schemas';
 import { amountOf, type ResolvedTool } from '@onehuman/agent-kit';
 import { BASE_POLICIES, compileRules, INVOKE, INVOKE_UNATTENDED, type CedarPolicy } from './cedar';
 import { bandLevel, DEFAULT_RISK_BANDS, scoreRisk, type RiskBands, type TrackRecord } from './risk';
@@ -28,6 +28,8 @@ export interface PolicyRequest {
   moneySpentInr?: number;
   /** The task came from outside (inbound email, webhook), not from the owner. */
   untrustedOrigin?: boolean;
+  /** Set for case gates (case.proceed / case.close): what `when` rules match on. */
+  caseContext?: { category: string; priority: PriorityId; risk: CaseRisk; source: CaseSource } | null;
 }
 
 export interface PolicySetInput {
@@ -75,6 +77,8 @@ export class PolicyEngine {
       trackRecord: req.trackRecord,
     });
     const reasons: string[] = [];
+    // Earned autonomy lifts blanket approval rules for actions, never for case gates.
+    const override = req.tool.primitive.control === 'gate' ? null : req.override;
     const decision = (level: AutonomyLevel, approver: string | null = null): PolicyDecision => ({
       level,
       riskScore: score,
@@ -85,7 +89,7 @@ export class PolicyEngine {
     });
 
     // 1. May this action run at all?
-    const invoke = this.authorize(INVOKE, req, amount);
+    const invoke = this.authorize(INVOKE, req, amount, !!override);
     if (invoke.decision === 'deny') {
       reasons.push(...invoke.reasons);
       return decision(5);
@@ -94,13 +98,13 @@ export class PolicyEngine {
     // 2. Risk-based level, never below the tool's own floor.
     let level = Math.max(req.tool.baseLevel, bandLevel(score, this.bands)) as AutonomyLevel;
     if (level === 4) reasons.push(`Risk score ${score} is in the approval band`);
-    if (req.override && req.override.level < level) {
-      level = Math.max(req.override.level, 1) as AutonomyLevel;
-      reasons.push(`Earned autonomy: owner lowered ${req.tool.name} to Level ${req.override.level}`);
+    if (override && override.level < level) {
+      level = Math.max(override.level, 1) as AutonomyLevel;
+      reasons.push(`Earned autonomy: owner lowered ${req.tool.name} to Level ${override.level}`);
     }
 
     // 3. May it run without a human?
-    const unattended = this.authorize(INVOKE_UNATTENDED, req, amount);
+    const unattended = this.authorize(INVOKE_UNATTENDED, req, amount, !!override);
     if (unattended.decision === 'deny') {
       reasons.push(...unattended.reasons);
       return decision(4, unattended.approver ?? 'owner');
@@ -119,6 +123,7 @@ export class PolicyEngine {
     action: string,
     req: PolicyRequest,
     amount: number | null,
+    overridden: boolean,
   ): { decision: 'allow' | 'deny'; reasons: string[]; approver?: string } {
     const answer: AuthorizationAnswer = isAuthorized({
       principal: { type: 'OneHuman::Agent', id: req.agent.id },
@@ -134,9 +139,13 @@ export class PolicyEngine {
         moneyBudget: Math.round(req.agent.moneyBudgetInr),
         externalReach: req.tool.risk.externalReach,
         untrustedOrigin: req.untrustedOrigin ?? false,
-        overridden: !!req.override,
+        overridden,
         workspaceStatus: req.workspace.status,
         tenantStatus: req.tenant.status,
+        caseCategory: req.caseContext?.category ?? '',
+        casePriority: req.caseContext?.priority ?? '',
+        caseRisk: req.caseContext?.risk ?? '',
+        caseSource: req.caseContext?.source ?? '',
       },
       policies: { staticPolicies: this.staticPolicies },
       entities: [
