@@ -21,7 +21,7 @@ export function mergeLifecycles(parts: Lifecycle[]): ResolvedLifecycle {
   const priorities = new Map<string, LifecyclePriority>(GENERIC_LIFECYCLE.priorities.map((p) => [p.id, p]));
   const roles = new Map<string, LifecycleRole>(GENERIC_LIFECYCLE.roles.map((r) => [r.id, r]));
   const categories = new Map<string, CaseCategory>(GENERIC_LIFECYCLE.categories.map((c) => [c.id, c]));
-  const urgent = new Set(GENERIC_LIFECYCLE.urgent_keywords);
+  let urgent = new Set(GENERIC_LIFECYCLE.urgent_keywords);
   const examples: LifecycleExample[] = [...GENERIC_LIFECYCLE.examples];
   let caseLabel = GENERIC_LIFECYCLE.case;
   let fallback = GENERIC_LIFECYCLE.fallback_category;
@@ -37,7 +37,9 @@ export function mergeLifecycles(parts: Lifecycle[]): ResolvedLifecycle {
     part.priorities.forEach((p) => priorities.set(p.id, p));
     part.roles.forEach((r) => roles.set(r.id, r));
     part.categories.forEach((c) => categories.set(c.id, c));
-    part.urgent_keywords.forEach((k) => urgent.add(k));
+    // A pack that sets urgent keywords replaces the inherited list (an IT firm's
+    // planned "outage" is routine; a power plant's is not).
+    if (part.urgent_keywords) urgent = new Set(part.urgent_keywords);
     examples.push(...part.examples);
     if (part.fallback_category) fallback = part.fallback_category;
   }
@@ -77,9 +79,10 @@ export function lifecyclePolicies(lc: ResolvedLifecycle): PolicyRule[] {
         rules.push({
           ...base,
           id: `lifecycle-${c.id}-approve`,
-          require_approval_above: { amount: c.approval.amount_inr!, currency: 'INR' },
+          // The amount comes from the request text; when it is missing, ask rather than wave it through.
+          require_approval_above: { amount: c.approval.amount_inr!, currency: 'INR', unknown_needs_approval: true },
           when: { category: [c.id] },
-          reason: `${c.name} above ₹${c.approval.amount_inr!.toLocaleString('en-IN')} needs approval by the ${roleName(role)}`,
+          reason: `${c.name} above ₹${c.approval.amount_inr!.toLocaleString('en-IN')}, or with no amount given, needs approval by the ${roleName(role)}`,
         });
         break;
       case 'high_risk_or_p1':

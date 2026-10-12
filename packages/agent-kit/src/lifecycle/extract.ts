@@ -21,33 +21,80 @@ export function phraseIn(text: string, phrase: string): boolean {
   return p.length > 0 && ` ${stemmed(text)} `.includes(` ${p} `);
 }
 
-const MAGNITUDE: Record<string, number> = { lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, crore: 1e7, crores: 1e7, cr: 1e7, thousand: 1e3, k: 1e3 };
-const NUM = String.raw`(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.(\d+))?`;
-const MAG = String.raw`(lakhs?|lacs?|crores?|cr|thousand|k)\b`;
-const AMOUNT_PATTERNS = [
-  // ₹45,000 · Rs 1.5 lakh · INR 12000
-  new RegExp(String.raw`(?:₹|\brs\.?|\binr)\s*${NUM}(?:\s*${MAG})?`, 'gi'),
-  // 1.5 lakh · 2 crore · 50k · 5 thousand (rupees)
-  new RegExp(String.raw`\b${NUM}\s*${MAG}`, 'gi'),
-  // 500 rupees · 4000 rs
-  new RegExp(String.raw`\b${NUM}\s*(?:rupees?|rs\b\.?|inr\b)`, 'gi'),
-];
+const MAGNITUDE: Record<string, number> = {
+  lakh: 1e5,
+  lakhs: 1e5,
+  lac: 1e5,
+  lacs: 1e5,
+  l: 1e5,
+  crore: 1e7,
+  crores: 1e7,
+  cr: 1e7,
+  thousand: 1e3,
+  k: 1e3,
+};
 
 /**
- * The largest rupee amount in the text, or null. Only numbers marked as money
- * (₹, Rs, INR, rupees) or with a size word (lakh, crore, thousand, k) count,
- * so ids, dates and measurements never become amounts.
+ * A number, an optional size word, and an optional smaller part ("1 lakh 20
+ * thousand"). The currency mark may sit before it, glued or spaced ("Rs1.5",
+ * "₹ 2,00,000"). The look-behind stops a match starting inside a word, an id or
+ * a decimal, so "Rs1.5 lakh" never also yields a bare "5 lakh".
+ */
+const AMOUNT = new RegExp(
+  String.raw`(?<![\w.,])(?:(₹|rs\.?|inr|rupees?)\s*)?` +
+    String.raw`(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|\d+(?:\.\d+)?)` +
+    String.raw`(?:(\s*)(lakhs?|lacs?|crores?|thousand|cr|k|l)\b)?` +
+    String.raw`(?:\s+(?:and\s+)?(\d+(?:\.\d+)?)\s*(lakhs?|lacs?|thousand|k)\b)?`,
+  'gi',
+);
+
+/** A currency word right after the number: "75,000/-", "500 rupees", "4000 rs" (not "Rs 2,400", which marks the next number). */
+const CURRENCY_AFTER = /^\s*(?:rupees?\b|\/-|only\b|rs\b\.?(?!\s*\d)|inr\b(?!\s*\d))/i;
+
+/** Quantities, not money: "50k km", "2 lakh bricks", "5 lakh litres". */
+const UNIT_AFTER =
+  /^\s*(?:%|(?:km|kms|kg|kgs|g|gm|ml|litres?|liters?|ltrs?|metres?|meters?|tonnes?|tons?|mt|units?|pcs|pieces|nos|bags|bricks|boxes|cartons|bottles|people|persons|users|customers|members|students|patients|visitors|views|followers|sq|sqft|ft|feet|acres?|hectares?|mw|kw|kwh|calls|messages|days|hours|months|years|percent)\b)/i;
+
+/** Words that make a bare number money: "loan of 1,50,000", "budget 15L". */
+const MONEY_WORDS =
+  /\b(?:loan|amount|fees?|cost|costs|price|budget|bill|invoice|payment|pay|paid|refund|salary|deposit|advance|emi|quote|quotation|worth|value|balance|dues?|fine|penalty|rent|charges?|grant|donation|limit|sanction(?:ed)?|disburse(?:d|ment)?|purchase|spend|spent|expense|estimate|premium|claim|compensation|release|transfer)\b/i;
+
+function parseNumber(raw: string): number {
+  return Number(raw.replace(/,/g, ''));
+}
+
+/**
+ * The largest rupee amount in the text, or null. A number is money when a
+ * currency mark sits next to it (₹, Rs, INR, rupees, /-), or when it has a size
+ * word or Indian digit grouping and a money word comes just before it ("loan of
+ * 1,50,000", "budget 15L"). Ids, dates, measurements and quantities ("50k km",
+ * "2 lakh bricks") are not money. The largest amount wins, the cautious choice
+ * for approval limits.
  */
 export function extractAmountInr(text: string): number | null {
   let best: number | null = null;
-  for (const pattern of AMOUNT_PATTERNS) {
-    for (const m of text.matchAll(pattern)) {
-      const whole = Number(m[1]!.replace(/,/g, ''));
-      const value = m[2] ? Number(`${whole}.${m[2]}`) : whole;
-      const mag = m[3] ? MAGNITUDE[m[3].toLowerCase()] ?? 1 : 1;
-      const amount = Math.round(value * mag);
-      if (Number.isFinite(amount) && amount > 0 && (best === null || amount > best)) best = amount;
+  for (const m of text.matchAll(AMOUNT)) {
+    const [whole, currency, digits, space, magWord, tailDigits, tailMag] = m;
+    const start = m.index ?? 0;
+    const after = text.slice(start + whole.length);
+    const word = magWord?.toLowerCase();
+    // A spaced lone "l" is litres ("5 l of oil"), not lakh ("15L").
+    const litres = word === 'l' && (space ?? '') !== '';
+    const mag = word && !litres ? MAGNITUDE[word]! : 1;
+    let value = parseNumber(digits!) * mag;
+    if (tailDigits && tailMag) {
+      const tail = MAGNITUDE[tailMag.toLowerCase()]!;
+      if (tail < mag) value += parseNumber(tailDigits) * tail;
     }
+
+    const marked = !!currency || CURRENCY_AFTER.test(after);
+    const quantity = litres || UNIT_AFTER.test(after);
+    const sized = mag > 1 || digits!.includes(',');
+    const moneyContext = MONEY_WORDS.test(text.slice(Math.max(0, start - 40), start));
+    if (!(marked || (sized && moneyContext && !quantity))) continue;
+
+    const amount = Math.round(value);
+    if (Number.isFinite(amount) && amount > 0 && (best === null || amount > best)) best = amount;
   }
   return best;
 }
@@ -56,8 +103,12 @@ const MONTH = String.raw`(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may
 const DATE_PATTERNS = [
   /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/,
   /\b\d{4}-\d{2}-\d{2}\b/,
-  new RegExp(String.raw`\b\d{1,2}(?:st|nd|rd|th)?\s+${MONTH}\b`, 'i'),
+  /\b\d{1,2}\/\d{1,2}\b/,
+  new RegExp(String.raw`\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`, 'i'),
   new RegExp(String.raw`\b${MONTH}\s+\d{1,2}(?:st|nd|rd|th)?\b`, 'i'),
+  /\b(?:on|by|before|after|from|till|until)\s+(?:the\s+)?\d{1,2}(?:st|nd|rd|th)\b/i,
+  /\b(?:in|within)\s+\d+\s+(?:days?|weeks?|months?)\b/i,
+  /\b(?:end|start|beginning)\s+of\s+(?:the\s+)?(?:week|month|year|quarter)\b/i,
   /\b(?:today|tonight|tomorrow|yesterday|next week|this week|next month)\b/i,
   /\b(?:next |this |on )?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
 ];
@@ -67,8 +118,12 @@ export function hasDate(text: string): boolean {
 }
 
 export function extractPhone(text: string): string | null {
-  const indian = text.match(/(?:\+91[\s-]?)?\b[6-9]\d{4}[\s-]?\d{5}\b/);
-  if (indian) return indian[0];
+  // Mobiles: +91 98450 12345, 9845012345, 09845012345.
+  const mobile = text.match(/(?:\+91[\s-]?|\b0)?\b[6-9]\d{4}[\s-]?\d{5}\b/);
+  if (mobile) return mobile[0];
+  // Landlines with an STD code: 0484 2345678, 044-23456789.
+  const landline = text.match(/\b0\d{2,4}[\s-]?\d{6,8}\b/);
+  if (landline) return landline[0];
   const general = text.match(/\+\d{1,3}[\d\s-]{8,14}\d/);
   return general ? general[0] : null;
 }

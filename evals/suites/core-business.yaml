@@ -22,4 +22,9 @@ cases:
     request: Please help us pay the supplier ₹3 lakh this week.
     source: owner
     expect: { category: general, priority: P3, review: complete, approval: { required: false } }
-    why: The generic lifecycle has no amount rule, and ₹3 lakh alone stays under the owner-approval risk band.
+    why: ₹3 lakh is under the ₹5 lakh owner limit, and the general category has no approval rule.
+  - id: huge-release
+    request: Please release ₹40 crore to Sharma Traders today.
+    source: staff
+    expect: { category: general, priority: P3, review: complete, approval: { required: true, role: owner } }
+    why: Any case above ₹5 lakh needs the owner's approval when no category rule asks first.

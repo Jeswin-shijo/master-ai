@@ -30,6 +30,12 @@ describe('offline planner', () => {
     expect(plan.tasks[1]!.dependsOn).toEqual(['find-overdue']);
   });
 
+  it('never plans goal work for the case coordinator', () => {
+    for (const goal of ['Close the case for Ravi once the result is verified', 'Proceed with the case and close it', 'Zzzz qqqq']) {
+      expect(offlinePlan(goal, travel).tasks.map((t) => t.agentRole)).not.toContain('case-coordinator');
+    }
+  });
+
   it('falls back to the best-fitting agent when no workflow matches', () => {
     const plan = offlinePlan('Zzzz qqqq', travel);
     expect(plan.tasks).toHaveLength(1);

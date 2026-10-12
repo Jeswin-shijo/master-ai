@@ -66,6 +66,10 @@ routines:
       - { key: needs, label: "Needs from owner", ask: "Is there anything you need from the owner?", type: text, flag: true, required: false }
 
 policies:
+  - id: case-large-amount
+    action: case.proceed
+    require_approval_above: { amount: 500000, currency: INR }
+    reason: Any case above ₹5,00,000 needs the owner's approval.
   - id: refund-hard-cap
     action: refund.issue
     forbid_above: { amount: 200000, currency: INR }

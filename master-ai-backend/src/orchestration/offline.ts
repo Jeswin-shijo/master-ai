@@ -1,5 +1,5 @@
 import type { EntityDef, PackAgent, PlannedTask, ResolvedPack } from '@onehuman/schemas';
-import { narrateStep, toWireName, type ResolvedTool } from '@onehuman/agent-kit';
+import { narrateStep, toWireName, workAgents, type ResolvedTool } from '@onehuman/agent-kit';
 import type { LlmToolCall, OfflineResult } from '../llm/llm.service';
 import { parseDue } from '../voice/time';
 
@@ -51,7 +51,7 @@ export function offlinePlan(goalText: string, pack: ResolvedPack): { rationale: 
         overlap(goalWords, words(wf.keywords.join(' '))) * 2 +
         overlap(goalWords, words(wf.description)),
     }))
-    .filter((s) => s.wf.steps.every((step) => pack.agents.some((a) => a.role === step.agent)))
+    .filter((s) => s.wf.steps.every((step) => workAgents(pack).some((a) => a.role === step.agent)))
     .sort((a, b) => b.score - a.score);
 
   const best = scored[0];
@@ -68,7 +68,7 @@ export function offlinePlan(goalText: string, pack: ResolvedPack): { rationale: 
     };
   }
 
-  const agent = bestAgent(goalText, pack.agents);
+  const agent = bestAgent(goalText, workAgents(pack));
   return {
     rationale: `No workflow matched, so the goal goes to the ${agent.name}, whose role fits best.`,
     tasks: [{ key: 'do-goal', title: truncate(goalText, 80), description: goalText, agentRole: agent.role, dependsOn: [] }],

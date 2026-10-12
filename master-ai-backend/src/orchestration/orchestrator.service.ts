@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { PlannedTask, ResolvedPack } from '@onehuman/schemas';
+import { workAgents } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import { truncate } from '../common/mappers';
 import { DbService } from '../db/db.service';
@@ -119,7 +120,7 @@ export class OrchestratorService {
     const offline = offlinePlan(goalText, pack);
     if (this.llm.mode === 'offline') return { plan: offline, tokens: 0, costInr: 0 };
 
-    const agentsText = pack.agents
+    const agentsText = workAgents(pack)
       .map((a) => `- ${a.role}: ${a.name}. ${a.description} Tools: ${a.tools.join(', ')}`)
       .join('\n');
     const workflowsText = pack.workflows
@@ -191,7 +192,7 @@ export class OrchestratorService {
 }
 
 function toPlan(raw: z.infer<typeof PlanSchema>, pack: ResolvedPack): { rationale: string; tasks: PlannedTask[] } | null {
-  const roles = new Set(pack.agents.map((a) => a.role));
+  const roles = new Set(workAgents(pack).map((a) => a.role));
   if (raw.tasks.length === 0 || raw.tasks.length > 8) return null;
   const keys = new Set<string>();
   const tasksOut: PlannedTask[] = [];

@@ -71,9 +71,10 @@ export function offlineReview(lc: ResolvedLifecycle, request: RequestPart, amoun
   const amount = amountInr ?? extractAmountInr(request.text);
 
   for (const rule of category.not_eligible) {
-    const byWord = rule.keywords.some((k) => phraseIn(request.text, k));
-    const byAmount = rule.amount_above_inr !== undefined && amount !== null && amount > rule.amount_above_inr;
-    if (byWord || byAmount) {
+    // A rule with both words and a limit means both: "personal purchases above ₹1 lakh".
+    const byWord = rule.keywords.length === 0 || rule.keywords.some((k) => phraseIn(request.text, k));
+    const byAmount = rule.amount_above_inr === undefined || (amount !== null && amount > rule.amount_above_inr);
+    if (byWord && byAmount) {
       return { outcome: 'not_eligible', provisionalCategory: category.id, checks: [], missing: [], toConfirm: [], reason: rule.reason };
     }
   }
@@ -124,6 +125,9 @@ export function offlineClassify(lc: ResolvedLifecycle, request: RequestPart, now
   };
 }
 
+/** Words too common to tell people apart when matching responsibilities. */
+const FILLER = new Set(['and', 'the', 'for', 'with', 'from', 'into', 'all', 'any', 'our', 'your', 'their', 'its', 'also', 'other', 'others', 'etc', 'work', 'general']);
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -143,7 +147,7 @@ export function offlineAssign(lc: ResolvedLifecycle, classify: ClassifyPart, tea
   let best: { member: TeamMember; score: number } | null = null;
   for (const member of team) {
     const words = [member.title, ...member.responsibilities].join(' ');
-    const score = normalizeText(words).split(' ').filter((w) => w.length > 2 && phraseIn(topic, w)).length;
+    const score = new Set(normalizeText(words).split(' ').filter((w) => w.length > 2 && !FILLER.has(w) && phraseIn(topic, w))).size;
     if (score > 0 && (!best || score > best.score)) best = { member, score };
   }
   if (!best) {

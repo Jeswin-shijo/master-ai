@@ -9,7 +9,7 @@ import {
   type PackUpdates,
   type ResolvedPack,
 } from '@onehuman/schemas';
-import { CASE_COORDINATOR_ROLE, getCatalogTool } from './catalog';
+import { CASE_COORDINATOR_ROLE, GATE_TOOLS, getCatalogTool } from './catalog';
 import { lifecyclePolicies, mergeLifecycles, validateLifecycle } from './lifecycle/resolve';
 
 export class PackError extends Error {
@@ -131,12 +131,20 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
   const workflowIds = new Set([...installed.workflows, ...workflows].map((w) => w.id));
 
   let lifecycle: PackUpdates['lifecycle'] = { whole: null, categories: [], roles: [] };
+  const offerable = (c: { workflow?: string }) => !c.workflow || workflowIds.has(c.workflow);
   if (latest.lifecycle && !installed.lifecycle) {
-    lifecycle = { whole: latest.lifecycle, categories: [], roles: [] };
+    // Leave out case types whose stage-6 workflow cannot be added, so the update always validates.
+    const categories = latest.lifecycle.categories.filter(offerable);
+    const kept = new Set(categories.map((c) => c.id));
+    lifecycle = {
+      whole: { ...latest.lifecycle, categories, examples: latest.lifecycle.examples.filter((e) => kept.has(e.category)) },
+      categories: [],
+      roles: [],
+    };
   } else if (latest.lifecycle && installed.lifecycle) {
     lifecycle = {
       whole: null,
-      categories: missing(latest.lifecycle.categories, installed.lifecycle.categories, (c) => c.id).filter((c) => !c.workflow || workflowIds.has(c.workflow)),
+      categories: missing(latest.lifecycle.categories, installed.lifecycle.categories, (c) => c.id).filter(offerable),
       roles: missing(latest.lifecycle.roles, installed.lifecycle.roles, (r) => r.id),
     };
   }
@@ -156,6 +164,11 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     kpis: missing(latest.kpis, installed.kpis, (k) => k.id).filter((k) => k.source?.type !== 'records_count' || entities.has(k.source.entity)),
     lifecycle,
   };
+}
+
+/** Agents that do goal work. The case coordinator only runs case stages, so planners never pick it. */
+export function workAgents(pack: Pick<ResolvedPack, 'agents'>): ResolvedPack['agents'] {
+  return pack.agents.filter((a) => a.role !== CASE_COORDINATOR_ROLE);
 }
 
 export function emptyPackUpdates(): PackUpdates {
@@ -265,6 +278,8 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
   for (const alias of pack.tools) {
     if (!getCatalogTool(alias.uses)) issues.push(`tool ${alias.name}: uses unknown primitive ${alias.uses}`);
     if (getCatalogTool(alias.name)) issues.push(`tool ${alias.name}: alias name collides with a catalog tool`);
+    // A renamed gate would slip past every lifecycle rule (they match on the gate tool's name).
+    if (getCatalogTool(alias.uses)?.control === 'gate') issues.push(`tool ${alias.name}: case gates cannot be aliased`);
     const entity = alias.with?.entity;
     if (typeof entity === 'string' && !entityNames.has(entity)) {
       issues.push(`tool ${alias.name}: unknown entity ${entity}`);
@@ -295,17 +310,25 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
     const keys = new Set(wf.steps.map((s) => s.key));
     for (const step of wf.steps) {
       if (!roles.has(step.agent)) issues.push(`workflow ${wf.id}.${step.key}: unknown agent role ${step.agent}`);
+      if (step.agent === CASE_COORDINATOR_ROLE) issues.push(`workflow ${wf.id}.${step.key}: the case coordinator runs case stages, not workflow steps`);
       for (const dep of step.depends_on) {
         if (!keys.has(dep)) issues.push(`workflow ${wf.id}.${step.key}: depends on unknown step ${dep}`);
       }
     }
   }
   const categoryIds = new Set((pack.lifecycle?.categories ?? []).map((c) => c.id));
+  const approverRoles = new Set((pack.lifecycle?.roles ?? []).map((r) => r.id));
   for (const rule of pack.policies) {
     if (rule.action !== '*' && !toolExists(rule.action)) issues.push(`policy on unknown tool ${rule.action}`);
     if (rule.agent && !roles.has(rule.agent)) issues.push(`policy on unknown agent role ${rule.agent}`);
     for (const id of rule.when?.category ?? []) {
       if (!categoryIds.has(id)) issues.push(`policy ${rule.id ?? rule.action}: unknown lifecycle category ${id}`);
+    }
+    if (rule.when && !(GATE_TOOLS as readonly string[]).includes(rule.action)) {
+      issues.push(`policy ${rule.id ?? rule.action}: \`when\` only applies to case gates`);
+    }
+    if (pack.lifecycle && rule.approver !== 'owner' && !approverRoles.has(rule.approver)) {
+      issues.push(`policy ${rule.id ?? rule.action}: unknown approver role ${rule.approver}`);
     }
   }
   if (pack.lifecycle) issues.push(...validateLifecycle(pack.lifecycle, pack));

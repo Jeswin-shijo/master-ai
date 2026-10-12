@@ -88,6 +88,12 @@ export class PolicyEngine {
       policyVersion: this.version,
     });
 
+    // A gate decides one case; without the case no rule can match, so it must not run.
+    if (req.tool.primitive.control === 'gate' && !req.caseContext) {
+      reasons.push('A stage gate needs its case');
+      return decision(5);
+    }
+
     // 1. May this action run at all?
     const invoke = this.authorize(INVOKE, req, amount, !!override);
     if (invoke.decision === 'deny') {
@@ -169,11 +175,18 @@ export class PolicyEngine {
       };
     }
     if (decision === 'allow') return { decision, reasons: [] };
-    const matched = diagnostics.reason.map((id) => this.byId.get(id)).filter((p): p is CedarPolicy => !!p);
+    // Keep the policy set's own order (base, pack, tenant), not Cedar's.
+    const matched = diagnostics.reason
+      .map((id) => this.byId.get(id))
+      .filter((p): p is CedarPolicy => !!p)
+      .sort((a, b) => this.policies.indexOf(a) - this.policies.indexOf(b));
+    // The owner can decide anything, so a named role (the safety officer, the
+    // credit committee) is asked first when several rules want an approval.
+    const approver = matched.find((p) => p.approver && p.approver !== 'owner')?.approver ?? matched.find((p) => p.approver)?.approver;
     return {
       decision,
       reasons: matched.length ? matched.map((p) => p.reason) : ['No policy permits this action'],
-      approver: matched.find((p) => p.approver)?.approver,
+      approver,
     };
   }
 }

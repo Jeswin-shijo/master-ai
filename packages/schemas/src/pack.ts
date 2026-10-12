@@ -184,6 +184,11 @@ const MoneyThresholdSchema = z.object({
   currency: z.string().length(3).default('INR'),
 });
 
+const ApprovalThresholdSchema = MoneyThresholdSchema.extend({
+  /** Also ask when the amount is unknown (case gates read it from free text, so it can be missing). */
+  unknown_needs_approval: z.boolean().optional(),
+});
+
 export const PolicyRuleSchema = z
   .object({
     id: SlugSchema.optional(),
@@ -192,7 +197,7 @@ export const PolicyRuleSchema = z
     /** Restrict the rule to one agent role. */
     agent: SlugSchema.optional(),
     require_approval: z.boolean().optional(),
-    require_approval_above: MoneyThresholdSchema.optional(),
+    require_approval_above: ApprovalThresholdSchema.optional(),
     forbid: z.boolean().optional(),
     forbid_above: MoneyThresholdSchema.optional(),
     /** Who approves: `owner` or a role name. */

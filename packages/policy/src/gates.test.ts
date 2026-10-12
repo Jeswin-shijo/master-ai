@@ -88,6 +88,49 @@ describe('case gates', () => {
     expect(gate('case.proceed', breakdownP1, undefined, { tenant: { id: 't', status: 'paused' } }).level).toBe(5);
   });
 
+  it('needs approval when an amount rule cannot see the amount', () => {
+    const strict = new PolicyEngine({
+      version: 1,
+      packRules: [{ id: 'lifecycle-loan-approve', action: 'case.proceed', approver: 'credit-manager', require_approval_above: { amount: 50000, currency: 'INR', unknown_needs_approval: true }, when: { category: ['loan'] } }],
+    });
+    const ctx = { category: 'loan', priority: 'P3', risk: 'medium', source: 'customer' } as const;
+    const decide = (amount?: number) =>
+      strict.decide({
+        tool: resolveTool(pack, 'case.proceed')!,
+        args: { caseId: 'c1', category: 'loan', priority: 'P3', risk: 'medium', summary: 's', ...(amount !== undefined && { amount }) },
+        agent: coordinator, workspace: { id: 'ws', status: 'active' }, tenant: { id: 't', status: 'active' },
+        trackRecord: { approved: 0, rejected: 0, edited: 0 }, caseContext: ctx,
+      });
+    expect(decide().level).toBe(4);
+    expect(decide().approver).toBe('credit-manager');
+    expect(decide(20000).level).toBe(3);
+    expect(decide(80000).level).toBe(4);
+    expect(strict.cedarText).toContain('(!context.hasAmount || context.amount > 50000)');
+  });
+
+  it('blocks a gate evaluated without its case', () => {
+    const d = gate('case.proceed', breakdownP1, undefined, { caseContext: null });
+    expect(d.level).toBe(5);
+    expect(d.reasons).toContain('A stage gate needs its case');
+  });
+
+  it('asks the role named by the matching category rule before a generic owner rule', () => {
+    const both = new PolicyEngine({
+      version: 1,
+      packRules: [
+        { id: 'a-owner-guard', action: 'case.proceed', approver: 'owner', require_approval: true, when: { risk: ['high'] } },
+        { id: 'lifecycle-breakdown-approve-p1', action: 'case.proceed', approver: 'safety-officer', require_approval: true, when: { category: ['breakdown'], priority: ['P1'] } },
+      ],
+    });
+    const d = both.decide({
+      tool: resolveTool(pack, 'case.proceed')!, args: { caseId: 'c1', category: 'breakdown', priority: 'P1', risk: 'high', summary: 's' },
+      agent: coordinator, workspace: { id: 'ws', status: 'active' }, tenant: { id: 't', status: 'active' },
+      trackRecord: { approved: 0, rejected: 0, edited: 0 }, caseContext: breakdownP1,
+    });
+    expect(d.level).toBe(4);
+    expect(d.approver).toBe('safety-officer');
+  });
+
   it('writes readable Cedar for when conditions', () => {
     expect(engine.cedarText).toContain('["breakdown"].contains(context.caseCategory)');
     expect(engine.cedarText).toContain('["P1"].contains(context.casePriority)');

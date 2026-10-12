@@ -41,13 +41,13 @@ export type CaseSource = z.infer<typeof CaseSourceSchema>;
 
 const IdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/, 'lowercase letters, digits and dashes, starting with a letter');
 
-export const LifecycleStageSchema = z.object({
+export const LifecycleStageSchema = z.strictObject({
   name: z.string().min(1).max(48),
   description: z.string().min(1).optional(),
   checks: z.array(z.string().min(1)).optional(),
 });
 
-export const LifecyclePrioritySchema = z.object({
+export const LifecyclePrioritySchema = z.strictObject({
   id: PriorityIdSchema,
   name: z.string().min(1),
   respond_within_hours: z.number().positive(),
@@ -55,7 +55,7 @@ export const LifecyclePrioritySchema = z.object({
 });
 export type LifecyclePriority = z.infer<typeof LifecyclePrioritySchema>;
 
-export const LifecycleRoleSchema = z.object({
+export const LifecycleRoleSchema = z.strictObject({
   id: IdSchema,
   name: z.string().min(1),
   approves: z.string().min(1),
@@ -64,7 +64,7 @@ export type LifecycleRole = z.infer<typeof LifecycleRoleSchema>;
 
 /** Something review must find in the request, e.g. the amount or which machine. */
 export const RequiredDetailSchema = z
-  .object({
+  .strictObject({
     key: z.string().regex(/^[a-z][a-zA-Z0-9_]*$/, 'camelCase key'),
     label: z.string().min(1),
     kind: z.enum(['amount', 'date', 'phone', 'email', 'contact', 'keywords']),
@@ -74,7 +74,7 @@ export const RequiredDetailSchema = z
 export type RequiredDetail = z.infer<typeof RequiredDetailSchema>;
 
 export const NotEligibleRuleSchema = z
-  .object({
+  .strictObject({
     keywords: z.array(z.string().min(1)).default([]),
     amount_above_inr: z.number().positive().optional(),
     reason: z.string().min(1),
@@ -83,7 +83,7 @@ export const NotEligibleRuleSchema = z
 export type NotEligibleRule = z.infer<typeof NotEligibleRuleSchema>;
 
 export const CaseApprovalRuleSchema = z
-  .object({
+  .strictObject({
     required: z.enum(['always', 'above_amount', 'high_risk_or_p1', 'never']),
     role: IdSchema.optional(),
     amount_inr: z.number().positive().optional(),
@@ -92,10 +92,10 @@ export const CaseApprovalRuleSchema = z
   .refine((r) => r.required !== 'above_amount' || r.amount_inr !== undefined, 'above_amount needs amount_inr');
 
 export const CaseSignoffRuleSchema = z
-  .object({ required: z.boolean(), role: IdSchema.optional() })
+  .strictObject({ required: z.boolean(), role: IdSchema.optional() })
   .refine((r) => !r.required || !!r.role, 'a required sign-off needs a role');
 
-export const CaseCategorySchema = z.object({
+export const CaseCategorySchema = z.strictObject({
   id: IdSchema,
   name: z.string().min(1),
   keywords: z.array(z.string().min(1)).min(1),
@@ -114,7 +114,7 @@ export const CaseCategorySchema = z.object({
 export type CaseCategory = z.infer<typeof CaseCategorySchema>;
 
 /** A solved example for stage prompts. Never copied from an eval suite. */
-export const LifecycleExampleSchema = z.object({
+export const LifecycleExampleSchema = z.strictObject({
   request: z.string().min(1),
   category: IdSchema,
   priority: PriorityIdSchema,
@@ -122,7 +122,7 @@ export const LifecycleExampleSchema = z.object({
 });
 export type LifecycleExample = z.infer<typeof LifecycleExampleSchema>;
 
-export const CaseLabelSchema = z.object({
+export const CaseLabelSchema = z.strictObject({
   label: z.string().min(1),
   plural: z.string().min(1),
   prefix: z.string().regex(/^[A-Z]{2,4}$/, '2-4 capital letters'),
@@ -130,10 +130,10 @@ export const CaseLabelSchema = z.object({
 export type CaseLabel = z.infer<typeof CaseLabelSchema>;
 
 /** As authored in a pack: any part may be left out and inherited. */
-export const LifecycleSchema = z.object({
+export const LifecycleSchema = z.strictObject({
   case: CaseLabelSchema.optional(),
   stages: z
-    .object({
+    .strictObject({
       request: LifecycleStageSchema.optional(),
       review: LifecycleStageSchema.optional(),
       classify: LifecycleStageSchema.optional(),
@@ -146,8 +146,8 @@ export const LifecycleSchema = z.object({
     .default({}),
   priorities: z.array(LifecyclePrioritySchema).default([]),
   roles: z.array(LifecycleRoleSchema).default([]),
-  /** Words that make any request P1 (fire, injury, outage...). */
-  urgent_keywords: z.array(z.string().min(1)).default([]),
+  /** Words that make any request P1 (fire, injury, outage...). Replaces the inherited list when set. */
+  urgent_keywords: z.array(z.string().min(1)).optional(),
   categories: z.array(CaseCategorySchema).default([]),
   /** Category used when no keyword matches. */
   fallback_category: IdSchema.optional(),
@@ -175,7 +175,7 @@ export interface ResolvedLifecycle {
 }
 
 /** Narrows a policy rule to cases with this context. Compiled to Cedar. */
-export const PolicyWhenSchema = z.object({
+export const PolicyWhenSchema = z.strictObject({
   category: z.array(z.string().min(1)).min(1).optional(),
   priority: z.array(PriorityIdSchema).min(1).optional(),
   risk: z.array(CaseRiskSchema).min(1).optional(),

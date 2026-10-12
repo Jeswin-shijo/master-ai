@@ -95,7 +95,12 @@ export function compileRules(rules: PolicyRule[], prefix: string): CedarPolicy[]
     // never amount thresholds or forbids.
     if (rule.require_approval) policy('approval', INVOKE_UNATTENDED, ['!context.overridden'], rule.approver);
     if (rule.require_approval_above) {
-      policy('approval-above', INVOKE_UNATTENDED, ['context.hasAmount', `context.amount > ${Math.round(rule.require_approval_above.amount)}`], rule.approver);
+      const limit = Math.round(rule.require_approval_above.amount);
+      // Gates read the amount from free text; when it is missing they fail closed.
+      const condition = rule.require_approval_above.unknown_needs_approval
+        ? [`(!context.hasAmount || context.amount > ${limit})`]
+        : ['context.hasAmount', `context.amount > ${limit}`];
+      policy('approval-above', INVOKE_UNATTENDED, condition, rule.approver);
     }
     if (rule.forbid) policy('forbid', INVOKE, []);
     if (rule.forbid_above) {
@@ -110,7 +115,8 @@ function describeRule(rule: PolicyRule): string {
   if (rule.forbid) return `${what} is forbidden`;
   if (rule.forbid_above) return `${what} above ₹${rule.forbid_above.amount.toLocaleString('en-IN')} is forbidden`;
   if (rule.require_approval_above) {
-    return `${what} above ₹${rule.require_approval_above.amount.toLocaleString('en-IN')} needs approval`;
+    const unknown = rule.require_approval_above.unknown_needs_approval ? ' (or with no amount given)' : '';
+    return `${what} above ₹${rule.require_approval_above.amount.toLocaleString('en-IN')}${unknown} needs approval`;
   }
   return `${what} needs approval`;
 }
