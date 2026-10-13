@@ -8,7 +8,7 @@ This repository implements the **vertical slice** of the [architecture plan](doc
 
 | Flow | How it works |
 | --- | --- |
-| **Industry adaptation** | At signup the owner types their industry in their own words. The registry matches a curated pack (`travel-agency`), or the generator builds one: with a model it designs sector-specific entities, agents, tools, workflows, policies and KPIs; without one it composes base packs and renames records for the sector (a dental clinic gets *Patients*, *Treatments*, *Appointments*). The owner reviews the pack, then installs it. |
+| **Industry adaptation** | Five sectors (Energy & Heavy Industry; Trade, Logistics & Tourism; Finance & Development; Technology & Innovation; Essential Public & Service), each with three ready-made organization types: power plant, manufacturing, construction, logistics, wholesale & retail, travel agency, lender, accounting firm, NGO, software & SaaS, IT services, digital agency, hospital, education and municipal services. Each ready-made pack names the 8 stages in that organization's own words, and comes with its case types, approval and sign-off roles, playbooks for the knowledge base and a scored test set, all researched from Indian rules and practice. An organization type typed in its own words borrows the closest ready-made type of its sector (a cement plant gets the manufacturing pack's stages) or the sector's defaults; with a model, the generator designs one. The owner reviews the pack, then installs it. The new signup and the case engine that runs the stages arrive with Plan 3 of the [design](docs/superpowers/specs/2026-10-12-org-types-and-case-lifecycle-design.md). |
 | **Goal → plan → agents** | A goal becomes a durable Temporal workflow. The orchestrator plans a task graph; the owner reviews the plan; each task runs as its own workflow where an agent proposes one tool call per step. |
 | **Policy gate** | Every proposed action is risk-scored (action type, money, reversibility, external reach, data sensitivity, track record) and checked by Cedar policies compiled from the pack: Levels 1–3 run, Level 4 waits for approval, Level 5 is blocked. Kill switches, allow-lists, money budgets and prompt-injection guards are Cedar rules too. |
 | **Signed approvals** | Each device has an Ed25519 key (browser storage on web; keychain + Face ID / fingerprint on mobile). Decisions are signed and verified server-side; forged signatures are refused. The task workflow sleeps until the decision arrives, for days if needed. Rejections go back to the agent with the owner's note. |
@@ -69,7 +69,7 @@ Open http://localhost:5173, choose **Set up your company**, and type your indust
   4. In **Settings → Phone calls to the team**, choose **Real phone calls (Twilio)**.
 
   The person hears an AI voice and answers by speaking, and the web app shows the conversation live. Real calls only go out in each person's working hours, between 9 am and 9 pm IST, even with fast schedule on. A quick tunnel's address changes every time it restarts, so update `PUBLIC_URL` to match.
-- **Checks:** `pnpm turbo run build typecheck test` (unit tests) and `pnpm smoke` (end to end against a running stack).
+- **Checks:** `pnpm turbo run build typecheck test` (unit tests, including the scored pack test sets), `pnpm evals` (just the test sets, with a scorecard per pack) and `pnpm smoke` (end to end against a running stack).
 
 ## How a pack works
 
@@ -82,7 +82,7 @@ A pack is YAML ([example](packs/travel-agency/pack.yaml)) that `extends` base pa
 - **policies**: `require_approval`, `require_approval_above`, `forbid`, `forbid_above`, compiled to Cedar;
 - **kpis**: counts over records, operational metrics, or "needs connector".
 
-Adding an industry means adding a YAML file, or letting the generator draft one. No core change is needed.
+Adding an industry means adding a YAML file, or letting the generator draft one. No core change is needed. The pack authoring guide is [docs/packs.md](docs/packs.md); check a draft with `pnpm pack:check --pack <pack.yaml> --suite <suite.yaml>` before copying it into `packs/`.
 
 An installed workspace keeps a snapshot of its pack. When the base packs later gain agents, workflows, tools, policies or KPIs, the Industry pack and Team pages offer them as an update. Applying it only adds what is missing; nothing the owner already has is replaced.
 
