@@ -1,0 +1,108 @@
+# Digital & creative agency: realistic requests from the owner, clients, staff,
+# a media partner and monitoring, with what the stages should decide.
+pack: digital-agency
+cases:
+  - id: shopify-rebuild-owner-said-yes
+    request: "Mehta Jewellers called. They want their online store rebuilt on Shopify with about 2,000 products, cash on delivery and UPI. Budget Rs 12 lakh plus GST, live by 15 January. Their marketing head Rakesh will approve. Brief and product sheet are in the shared folder. I've already said yes, start Monday."
+    source: owner
+    amount_inr: 1200000
+    expect:
+      category: web-project
+      priority: P4
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: engineering-manager }
+    why: Online store, rebuilt and on Shopify mark a website project (P4). Scope, deadline, budget and the client's approver are given. ₹12 lakh is above the ₹5 lakh limit, so the owner approves in the app; a yes on the phone is not a recorded approval, and the client's signed estimate or PO and the advance are still needed. The tech lead signs off the finished site.
+  - id: new-year-campaign-brief
+    request: "New Year campaign brief from Sharma Sweets: 3 key visuals, 6 reels and 10 micro-influencers in Delhi NCR, launch 20 December. Budget Rs 4.5 lakh plus GST, media extra. Brand book and product photos attached. Neha, our marketing head, approves all creatives."
+    source: customer
+    amount_inr: 450000
+    expect:
+      category: creative-project
+      priority: P4
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: creative-director }
+    why: Campaign brief, key visuals, micro-influencers and brand book mark a campaign project (P4) over the reels. Deliverables, launch date, budget, brand files and the approver are there. ₹4.5 lakh before GST is not above ₹5 lakh, so no approval. Influencer posts must carry #ad or #collab, and the creative director signs off the final work.
+  - id: fantasy-app-cash-contests
+    request: "Referral from our media partner: Ace11, a fantasy cricket app with cash contests, wants an influencer campaign with 25 cricket creators and a launch ad film before the IPL. Budget Rs 20 lakh. They want to sign this week."
+    source: partner
+    amount_inr: 2000000
+    expect:
+      category: creative-project
+      priority: P4
+      review: not_eligible
+    why: Influencer campaign, creators and ad film mark a campaign project (P4). A fantasy app with cash contests is an online money game, and ads for it have been banned since 1 May 2026 (up to 2 years in jail or a ₹50 lakh fine), so the job ends at review and the partner is told why.
+  - id: childrens-day-post
+    request: "Hi team, please make a Children's Day post for our Instagram and Facebook, square and story sizes, with the new tagline 'Pure since 1962'. It should go live on 14 November at 9 am. Please send it to me for OK by the 12th."
+    source: customer
+    expect:
+      category: retainer-task
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A post for the client's pages in story sizes is a retainer task (P3), not a launch. What, sizes, platforms and the go-live time are clear. A festival post inside the retainer needs no approval and no sign-off; it goes live only after the client's written OK is recorded and the account manager clears it.
+  - id: few-more-changes-unclear
+    request: "Kaveri Hospitals wants 'a few more changes' on the website before launch but hasn't said which pages or what. The signed scope had 2 rounds and both are used. Should we start?"
+    source: staff
+    expect:
+      category: change-request
+      priority: P3
+      review: needs_info
+      approval: { required: true, role: account-director }
+      signoff: { required: false }
+    why: More changes after both included rounds are used make it a scope change (P3). Nobody knows what the changes are, so review asks the client for the exact list before a change order can be priced. Scope changes always go to the account director; no sign-off is needed.
+  - id: google-ads-budget-increase
+    request: "Urban Nest confirmed on email: increase the Google Ads budget by Rs 1.5 lakh for October for their Whitefield project launch. The RERA number is already on all ads. They pay Google directly from their own card."
+    source: staff
+    amount_inr: 150000
+    expect:
+      category: ad-budget
+      priority: P2
+      review: complete
+      approval: { required: true, role: account-director }
+      signoff: { required: false }
+    why: A Google Ads budget increase is new ad spend (P2). The client's email is the written OK, the amount is given and the RERA number is on the ads. ₹1.5 lakh is above the ₹1 lakh limit, so the account director approves before the change goes live. No sign-off is needed.
+  - id: meta-overspend-alert
+    request: "Spend alert: Meta ads campaign 'Diwali - Delhi NCR' for Sharma Sweets has spent Rs 38,000 today against a daily budget of Rs 15,000 (3:10 pm)."
+    source: system
+    amount_inr: 23000
+    expect:
+      category: ad-problem
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A spend alert is an ad problem (P2), not new spend and not a campaign brief. Capping or pausing runaway spend never waits for approval; agents check whether this is the platform's normal daily swing, get the media buyer to cap the ad set and tell the account manager and the client.
+  - id: japanese-spam-hacked
+    request: "URGENT!! Our website is showing a Japanese spam page and Google says 'This site may be hacked'. Customers are calling and online orders have stopped. Please fix it now."
+    source: customer
+    expect:
+      category: security-incident
+      priority: P1
+      review: complete
+      approval: { required: true, role: security-lead }
+      signoff: { required: true, role: owner }
+    why: Japanese spam and "site may be hacked" make it a hacked site (P1), ahead of the stopped orders. The maintenance page and password changes start at once, the CERT-In report goes within 6 hours, and the security lead approves the containment and the report. The owner signs off the closure and the client report.
+  - id: invoice-52-days-overdue
+    request: "Invoice DA/26-27/118 to Lotus Interiors for Rs 1,77,000 (Rs 1,50,000 plus 18% GST) is 52 days overdue. Two email reminders sent, no reply."
+    source: system
+    amount_inr: 177000
+    expect:
+      category: billing
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: An overdue invoice with reminders sent is billing (P3); the client not replying is not a complaint. Reminders and calls need no approval, and ₹1.77 lakh is under the ₹5 lakh owner limit. 52 days is past the 45-day MSME limit, so if we are a micro or small enterprise interest is due; stopping work or a legal notice needs the owner's approval.
+  - id: posts-late-wrong-price
+    request: "Third time this month our posts went out late, and yesterday's post had the wrong price. We are very unhappy with the team. If this continues we will end the retainer."
+    source: customer
+    expect:
+      category: complaint
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: account-director }
+    why: Unhappy, wrong price and end the retainer mark a client complaint (P2). The facts are clear. No approval is needed to act; the wrong post comes down at once, the account director signs off the reply and fix plan, and the threat to end the retainer goes to the owner the same day.

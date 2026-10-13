@@ -1,0 +1,1562 @@
+# Ready-made pack: digital agencies (digital marketing, social media, SEO and
+# performance marketing, creative and branding, web and app studios) working
+# for clients. Built from researched Indian practice: the CCPA misleading-ads
+# (2022) and dark-patterns (2023) guidelines, ASCI influencer guidelines, the
+# Promotion and Regulation of Online Gaming Act 2025, the Copyright Act 1957,
+# CERT-In Directions 2022, the DPDP Act 2023 and Rules 2025, the CGST Act, TDS
+# under the Income-tax Act 2025 and the MSMED Act 2006.
+id: digital-agency
+version: 1.0.0
+name: Digital & creative agency
+description: Website and app projects, campaigns and branding, retainer posts and AMC tasks, scope and price changes, ad budgets and ad problems, client sites down or hacked, launches, invoices and TDS, and client complaints for digital marketing, creative, web and app agencies.
+kind: industry
+sector: technology-innovation
+extends: [sector-technology-innovation, projects-base]
+match:
+  keywords:
+    - digital agency
+    - digital marketing agency
+    - digital marketing company
+    - digital marketing firm
+    - digital marketing
+    - online marketing agency
+    - internet marketing agency
+    - marketing agency
+    - creative agency
+    - advertising agency
+    - ad agency
+    - advertising and marketing agency
+    - branding agency
+    - branding studio
+    - creative studio
+    - graphic design studio
+    - graphic design agency
+    - web design agency
+    - web design company
+    - website design company
+    - web designing company
+    - website designing
+    - web development agency
+    - website development company
+    - web and app development
+    - app development agency
+    - mobile app development
+    - social media agency
+    - social media marketing agency
+    - social media management
+    - seo agency
+    - seo company
+    - performance marketing agency
+    - influencer marketing agency
+    - content marketing agency
+    - video production house
+    - animation studio
+
+labels:
+  Customer: Client
+
+entities:
+  - name: Customer
+    label: Client
+    description: A brand or business the agency works for, with its billing and tax details and who approves work.
+    title_field: name
+    list_columns: [name, contactPerson, services, accountManager, status]
+    fields:
+      - { name: name, label: Client or brand name, type: string, required: true }
+      - { name: legalName, label: Legal name (as on GST), type: string }
+      - { name: contactPerson, label: Main contact, type: string }
+      - { name: approverName, label: Who approves work, type: string }
+      - { name: phone, label: Mobile / WhatsApp, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: gstin, label: GSTIN, type: string }
+      - { name: pan, label: PAN, type: string }
+      - { name: billingAddress, label: Billing address, type: text }
+      - { name: state, label: State (place of supply), type: string }
+      - { name: city, label: City, type: string }
+      - { name: country, label: Country, type: string }
+      - name: services
+        label: Main service
+        type: enum
+        options: [social-media, seo-content, performance-ads, website-app, branding-creative, video, mixed]
+      - { name: accountManager, label: Account manager, type: string }
+      - { name: paymentTermsDays, label: Payment terms (days), type: integer }
+      - name: source
+        label: Source
+        type: enum
+        options: [walk-in, phone, whatsapp, website, referral, other]
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [prospect, active, paused, work-stopped, former]
+      - { name: notes, label: Notes, type: text }
+  - name: Scope
+    label: Estimate or retainer
+    plural_label: Estimates and retainers
+    description: What the client agreed to pay for, with what is included, the rounds of changes and the payment terms.
+    title_field: scopeNumber
+    list_columns: [scopeNumber, client, kind, fee, status]
+    fields:
+      - { name: scopeNumber, label: Estimate or retainer number, type: string, required: true }
+      - { name: client, label: Client, type: string, required: true }
+      - name: kind
+        label: Kind
+        type: enum
+        required: true
+        options: [project-estimate, monthly-retainer, website-amc, change-order]
+      - { name: deliverables, label: What is included, type: text }
+      - { name: notIncluded, label: What is not included, type: text }
+      - { name: roundsIncluded, label: Rounds of changes included, type: integer }
+      - { name: fee, label: Fee before GST (monthly for a retainer), type: money }
+      - { name: paymentTerms, label: Payment terms (for example 50% advance), type: string }
+      - { name: poNumber, label: Client PO number, type: string }
+      - { name: clientApprovedBy, label: Approved by (client side), type: string }
+      - { name: clientApprovedOn, label: Client's written go-ahead on, type: date }
+      - { name: startDate, label: Start date, type: date }
+      - { name: endDate, label: End or renewal date, type: date }
+      - { name: adBudgetMonthly, label: Monthly ad budget (client's money), type: money }
+      - name: adsPaidBy
+        label: Ads paid by
+        type: enum
+        options: [client-card, agency-from-media-advance, no-ads]
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [draft, sent, approved, active, ended, cancelled]
+  - name: Deliverable
+    label: Deliverable
+    description: One piece of work for a client (a page, post, reel, video, ad, design, blog or report) with its rounds, hours and the client's OK.
+    title_field: title
+    list_columns: [title, client, kind, dueDate, status]
+    fields:
+      - { name: jobNumber, label: Job number, type: string }
+      - { name: client, label: Client, type: string, required: true }
+      - { name: title, label: Title, type: string, required: true }
+      - name: kind
+        label: Kind
+        type: enum
+        required: true
+        options: [website, web-page, design, post, reel, video, ad, ad-budget-change, blog, newsletter, report, other]
+      - { name: dueDate, label: Due date, type: date }
+      - { name: roundsIncluded, label: Rounds of changes included, type: integer }
+      - { name: roundsUsed, label: Rounds of changes used, type: integer }
+      - { name: hoursEstimated, label: Hours estimated, type: number }
+      - { name: hoursSpent, label: Hours spent, type: number }
+      - { name: paidPartnership, label: "Paid partnership (labelled #ad or #collab)", type: boolean }
+      - { name: clientApprovedBy, label: Approved by (client side), type: string }
+      - { name: clientApprovedOn, label: Client approved on, type: date }
+      - { name: scheduledFor, label: Goes live at, type: datetime }
+      - { name: liveLink, label: Live link, type: string }
+      - { name: licences, label: "Stock, font and music licences", type: text }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [in-progress, internal-review, with-client, changes-asked, cleared-to-publish, live, on-hold, cancelled]
+  - name: Invoice
+    label: Invoice
+    description: A GST invoice to a client, with the TDS the client deducted and when it was paid.
+    title_field: invoiceNumber
+    list_columns: [invoiceNumber, client, amount, dueDate, status]
+    fields:
+      - { name: invoiceNumber, label: Invoice number, type: string, required: true }
+      - { name: client, label: Client, type: string, required: true }
+      - { name: invoiceDate, label: Invoice date, type: date }
+      - { name: poNumber, label: Client PO number, type: string }
+      - { name: sacCode, label: SAC code, type: string }
+      - { name: amount, label: Amount before GST, type: money, required: true }
+      - { name: gst, label: GST, type: money }
+      - { name: underLut, label: Export under LUT (no GST), type: boolean }
+      - { name: tdsDeducted, label: TDS deducted by the client, type: money }
+      - { name: tdsCertificateReceived, label: TDS certificate received, type: boolean }
+      - { name: dueDate, label: Due date, type: date }
+      - { name: remindersSent, label: Reminders sent, type: integer }
+      - { name: paidOn, label: Paid on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [draft, sent, part-paid, paid, overdue, disputed, written-off]
+
+tools:
+  - name: clients.search
+    description: Search clients by name, contact, service, account manager or status.
+    uses: records.search
+    with: { entity: Customer }
+  - name: scopes.search
+    description: Search estimates, retainers, website AMCs and change orders by number, client or status.
+    uses: records.search
+    with: { entity: Scope }
+  - name: estimate.prepare
+    description: Prepare a draft estimate, retainer or change order. It is not sent or agreed until a person sends it and the client accepts in writing.
+    uses: records.create
+    with: { entity: Scope, data: { status: draft } }
+  - name: deliverables.search
+    description: Search deliverables by client, kind, due date or status.
+    uses: records.search
+    with: { entity: Deliverable }
+  - name: deliverable.add
+    description: Add a deliverable to a job with its due date, rounds included and estimated hours.
+    uses: records.create
+    with: { entity: Deliverable, data: { status: in-progress } }
+  - name: deliverable.clear_to_publish
+    description: Mark a post, page, ad or ad budget change as cleared to go live once the client's written OK is on record. The person who schedules, publishes or changes the budget acts only on this.
+    uses: records.update
+    with: { entity: Deliverable, patch: { status: cleared-to-publish } }
+  - name: invoices.search
+    description: Search client invoices by number, client, due date or status.
+    uses: records.search
+    with: { entity: Invoice }
+  - name: invoice.prepare
+    description: Prepare a draft GST invoice from the signed estimate or retainer for accounts to check and send.
+    uses: records.create
+    with: { entity: Invoice, data: { status: draft } }
+  - name: client.stop_work
+    description: Mark a client as work stopped over unpaid dues so the team pauses new work. Used only after the owner approves.
+    uses: records.update
+    with: { entity: Customer, patch: { status: work-stopped } }
+
+agents:
+  - role: client-servicing-desk
+    name: Client servicing desk
+    description: Turns briefs into estimates and timelines, checks every request against the signed estimate or retainer, drafts change orders, keeps clients updated, handles complaints, raises GST invoices, sends payment reminders and matches TDS.
+    instructions: "Nothing is agreed until the client accepts in writing and the advance is in; a yes on the phone is confirmed by email the same day. Never promise a price, discount, date or free work: the account director decides those. Stopping work or a legal notice over unpaid dues is the owner's decision. Never issue a backdated, inflated or no-GST bill."
+    autonomy: 3
+    tools: [clients.search, scopes.search, estimate.prepare, deliverables.search, invoices.search, invoice.prepare, client.stop_work, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, payment.request, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: content-studio
+    name: Content and creative desk
+    description: Writes first drafts of posts, captions, blogs, scripts, calendars and creative briefs, checks claims, offers and influencer labels, logs deliverables and rounds, sends work for the client's OK and hands design, video and scheduling to the team by phone.
+    instructions: "Every claim (best, No. 1, % off, health or money benefit) needs the client's written proof, and every paid partnership is labelled #ad or #collab upfront. Use only licensed images, fonts and music. Nothing is scheduled or published until the client's written OK is recorded and the account manager clears it."
+    autonomy: 3
+    tools: [clients.search, scopes.search, deliverables.search, deliverable.add, deliverable.clear_to_publish, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: web-ads-desk
+    name: Web and ads desk
+    description: Watches client sites and ad accounts, opens site-down and hacked-site jobs, gets the on-call developer working by phone, drafts the CERT-In report and client updates, runs launch checklists, and handles ad budget changes and ad problems with the media buyer.
+    instructions: "Start the CERT-In 6-hour clock from the moment anyone noticed a hack or leak, and never send the report yourself: the security lead approves it. Roll back first and find the cause after. Pausing or capping runaway ad spend never waits, but new spend goes live only after the client's written OK is recorded and the account manager clears it."
+    autonomy: 3
+    tools: [clients.search, scopes.search, deliverables.search, deliverable.add, deliverable.clear_to_publish, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+
+workflows:
+  - id: website-project
+    name: Website or app project
+    description: Turn the brief into an estimate and plan, get the build going with the team and run the client's review rounds.
+    keywords: [website, redesign, landing page, app development, ecommerce, shopify, wordpress, amc]
+    steps:
+      - key: plan
+        title: Estimate and plan
+        agent: client-servicing-desk
+        instructions: Draft the estimate with pages and features, rounds of changes included, timeline, payment milestones and what is not included, plus the sitemap and the list of content and logins the client must give by which date.
+      - key: build
+        title: Get the build going
+        agent: web-ads-desk
+        depends_on: [plan]
+        instructions: Once the client's written go-ahead and the advance are in, hand the design and build to the developer lead by phone with the sitemap, dates and test site, and test every page and form as it is ready.
+      - key: review-rounds
+        title: Run the client's review rounds
+        agent: client-servicing-desk
+        depends_on: [build]
+        instructions: Share the test site, record the client's feedback for each round, count the rounds used, and raise a change order for anything new or beyond the included rounds.
+  - id: campaign-production
+    name: Campaign or creative project
+    description: Turn the brief into a creative brief and estimate, make the work with the team and get it approved by the creative director and the client.
+    keywords: [campaign, branding, logo, brochure, packaging, ad film, video, shoot, influencer, retainer proposal]
+    steps:
+      - key: brief
+        title: Creative brief and estimate
+        agent: client-servicing-desk
+        instructions: Write the creative brief (objective, audience, deliverables, channels, launch date, approver) and the estimate with rounds included, and list the proofs needed for every claim.
+      - key: make
+        title: First ideas and production
+        agent: content-studio
+        depends_on: [brief]
+        instructions: Research the audience and competitors, draft copy and first ideas, and hand design, video and shoots to the creative lead by phone. Freelancers sign a copyright assignment before they start.
+      - key: approve
+        title: Checks and client approval
+        agent: content-studio
+        depends_on: [make]
+        instructions: Check claims, influencer labels, RERA numbers and licences, get the creative director's review, then send the work for the client's OK and track the rounds used.
+  - id: retainer-task-delivery
+    name: Retainer or AMC task
+    description: Draft the post, page change or AMC task, get the client's written OK and hand it to the person who schedules or publishes it.
+    keywords: [post, reel, story, calendar, blog, newsletter, banner, seo, website maintenance, plugin update]
+    steps:
+      - key: draft
+        title: Draft and check
+        agent: content-studio
+        instructions: Check the item is inside this month's retainer or AMC, draft the copy and caption, size the creative for each platform, and check offers, prices and labels against what the client confirmed in writing.
+      - key: client-ok
+        title: Get the client's OK
+        agent: content-studio
+        depends_on: [draft]
+        instructions: Send it to the client's approver, record who approved and when, and ask the account manager to clear it to go live.
+      - key: publish
+        title: Hand it over to go live
+        agent: content-studio
+        depends_on: [client-ok]
+        instructions: Hand the scheduling or site update to the social media executive or developer by phone with the go-live time, and add the live link to the deliverable.
+  - id: change-order
+    name: Scope or price change
+    description: Compare the request with the signed scope, draft the change order and start only after the client accepts it in writing.
+    keywords: [change request, change order, out of scope, extra round, discount, credit note, refund]
+    steps:
+      - key: compare
+        title: Compare with the signed scope
+        agent: client-servicing-desk
+        instructions: Find the signed estimate or retainer, count the rounds and items used, and list exactly what is new or extra.
+      - key: draft
+        title: Draft the change order
+        agent: client-servicing-desk
+        depends_on: [compare]
+        instructions: Draft the change order with cost before GST from the rate card and the new dates, or the discount, credit note or refund with its reason and invoice, for the account director to approve. Send it to the client once approved and start work only after the client accepts in writing.
+  - id: ad-budget-change
+    name: New ad spend or budget increase
+    description: Check the client's written OK and dues, hand the change to the media buyer with a cap and watch the pacing.
+    keywords: [ad budget, boost post, run ads, media plan, increase the budget]
+    steps:
+      - key: check
+        title: Check the OK, the cap and who pays
+        agent: web-ads-desk
+        instructions: Check the client's written OK with the total cap and dates, who pays the platform (the client's card, or our media advance already received), the client's unpaid invoices, and that the ad copy, offer and landing page are approved.
+      - key: change
+        title: Make the change and watch it
+        agent: web-ads-desk
+        depends_on: [check]
+        instructions: Once cleared, hand the change to the media buyer by phone with the cap, dates and daily limit, and check spend and results every day until the end date.
+  - id: ad-fix
+    name: Ad problem, pause or cut
+    description: Stop runaway spend, find what changed and fix it with the media buyer, and tell the client the same day.
+    keywords: [overspend, disapproved, leads dropped, cost per lead, pause, ad account]
+    steps:
+      - key: diagnose
+        title: Stop the damage and find the cause
+        agent: web-ads-desk
+        instructions: Ask the media buyer by phone to pause or cap runaway spend at once, then check pacing, disapproval reasons, tracking, landing page and recent changes against last week.
+      - key: fix
+        title: Fix and tell the client
+        agent: web-ads-desk
+        depends_on: [diagnose]
+        instructions: Hand the fix to the media buyer by phone, and draft a short note to the client on what happened, what we did and any money spent above the cap.
+  - id: site-down-response
+    name: Client site down
+    description: Confirm the outage, get the on-call developer restoring it and keep the client updated until it is back.
+    keywords: [site down, hosting, domain expired, ssl expired, "503", uptime]
+    steps:
+      - key: confirm
+        title: Confirm it and page the developer
+        agent: web-ads-desk
+        instructions: Confirm from outside that the site is down, check hosting, domain and SSL expiry and the last change or plugin update, and hand the restore to the on-call developer by phone. Tell the client within an hour.
+      - key: restore
+        title: Restore and report
+        agent: web-ads-desk
+        depends_on: [confirm]
+        instructions: Ask the tech lead to okay any rollback or restore, keep the client updated until it is back, and record when it went down and came back for the client report.
+  - id: hacked-site-response
+    name: Hacked site, page or data leak
+    description: Contain it, keep the evidence and get the CERT-In report and client notice ready for the security lead.
+    keywords: [hacked, defaced, malware, spam, phishing, leak, lost access, cert-in]
+    steps:
+      - key: contain
+        title: Start the clock and contain it
+        agent: web-ads-desk
+        instructions: Record when it was noticed, phone the security lead at once, and get the developer to put up a maintenance page, change passwords and keys and remove unknown admins. Keep logs and screenshots before anything is cleaned.
+      - key: report
+        title: Draft the CERT-In report and client notice
+        agent: web-ads-desk
+        depends_on: [contain]
+        instructions: Draft the CERT-In report to go within 6 hours of noticing it, agreeing with the client who files it, and the written notice to the client saying whether leads or other personal data may be involved, all for the security lead to approve.
+      - key: clean-up
+        title: Clean up and close the way in
+        agent: web-ads-desk
+        depends_on: [report]
+        instructions: Hand the clean-up, restore from a clean backup and the fix of the way in to the developer by phone, then draft the written incident report for the client.
+  - id: site-launch
+    name: Website or app launch
+    description: Run the launch checklist, get the client's written OK and hand the launch to the developer in the agreed window.
+    keywords: [launch, go live, migration, dns, ssl, hosting, play store]
+    steps:
+      - key: checklist
+        title: Run the launch checklist
+        agent: web-ads-desk
+        instructions: Check the client's written OK on the final site, the backup, SSL, speed, forms and payments, privacy notice, analytics and redirects from old pages, and that domain and hosting are in the client's name.
+      - key: launch
+        title: Launch and watch
+        agent: web-ads-desk
+        depends_on: [checklist]
+        instructions: Once the tech lead approves, hand the launch to the developer by phone with the window and rollback plan, then check the live site and watch for errors for the first hour.
+  - id: invoice-follow-up
+    name: Invoice and payment follow-up
+    description: Raise the GST invoice, send polite reminders, match payments and TDS, and pass stuck dues to the owner.
+    keywords: [invoice, overdue, payment reminder, tds, dues]
+    steps:
+      - key: invoice
+        title: Raise or fix the invoice
+        agent: client-servicing-desk
+        instructions: Prepare the GST invoice from the signed estimate or retainer with both GSTINs, the SAC code, the client's PO number and the due date, or correct it by credit note and a fresh invoice.
+      - key: follow-up
+        title: Remind, match and escalate
+        agent: client-servicing-desk
+        depends_on: [invoice]
+        instructions: Send polite reminders before and after the due date, match payments and TDS with the bank and 26AS, chase TDS certificates, and hand dues past 45 days to the accounts head by phone. Stopping work or a legal notice goes to the owner.
+  - id: complaint-handling
+    name: Client complaint
+    description: Take wrong live content down, check the facts and get the account director's reply and fix plan out the same day.
+    keywords: [complaint, escalation, unhappy, missed deadline, wrong price, posted without approval]
+    steps:
+      - key: facts
+        title: Take it down and check the facts
+        agent: client-servicing-desk
+        instructions: Ask the person who published it by phone to take down or correct any wrong live content at once, then gather the brief, approvals, emails and timeline, and draft a reply with a fix plan.
+      - key: reply
+        title: Get the account director to reply
+        agent: client-servicing-desk
+        depends_on: [facts]
+        instructions: Hand the complaint and the draft to the account director by phone, record what they promise, and tell the owner the same day about any legal notice or threat to end the contract.
+
+policies:
+  - id: client-ok-before-going-live
+    action: deliverable.clear_to_publish
+    require_approval: true
+    approver: account-manager
+    reason: Nothing goes live on a client's page, site or ad account, and no ad budget changes, until the account manager confirms the client's written OK is on record.
+  - id: stop-work-needs-owner
+    action: client.stop_work
+    require_approval: true
+    approver: owner
+    reason: Stopping work for a client over unpaid dues is the owner's decision.
+  - id: payment-request-accounts-check
+    action: payment.request
+    require_approval_above: { amount: 25000, currency: INR }
+    approver: finance-manager
+    reason: Payment requests above ₹25,000 are checked by the accounts head (GSTIN, SAC code, PO number and TDS) before they go to the client.
+
+routines:
+  - id: daily-work-report
+    name: Daily studio update
+    description: Each team lead reports what went to clients, what is late, ad accounts in trouble and what they need at the end of the working day.
+    mode: manual
+    days: [1, 2, 3, 4, 5, 6]
+    time: "18:30"
+    questions:
+      - { key: delivered, label: "Sent or live today", ask: "What did your team send to clients or put live today?", type: text }
+      - { key: waitingOnClient, label: "Waiting on clients", ask: "Which items are waiting for a client's approval, content or logins?", type: text, required: false }
+      - { key: late, label: "Late or at risk", ask: "Is any deliverable late or likely to miss its date?", type: text, flag: true }
+      - { key: adAccounts, label: "Ad accounts in trouble", ask: "Is any ad account overspending, rejected or not delivering?", type: text, flag: true }
+      - { key: hoursLogged, label: "Client hours logged", ask: "How many hours did your team log on client work today?", type: number, unit: hours }
+      - { key: needs, label: "Needs help", ask: "Do you need anything from the account director or the owner?", type: text, flag: true, required: false }
+
+lifecycle:
+  case: { label: Job, plural: Jobs, prefix: JOB }
+  stages:
+    request:
+      name: Brief or request received
+      description: A client brief, retainer task, change, ad budget request, complaint or alert (site down, ad overspend, invoice overdue) comes in by email, WhatsApp, the request form or a call, gets a job number and the sender gets a reply.
+    review:
+      name: Brief and scope check
+      description: The account manager and agents check the brief against the signed estimate or retainer, the client's details and unpaid invoices, and ask for anything missing before the job moves on.
+      checks:
+        - Brief has the goal, deliverables, channels or pages, deadline, budget and the client's approver
+        - Brand files, content, product facts and logins received, or a date set for them
+        - "Compared with the signed estimate or retainer: inside the scope, or a change order"
+        - "Client details for the estimate and GST invoice: legal name, address, state, GSTIN and PAN"
+        - Client's unpaid invoices noted before new work or new ad spend starts
+        - Not for an online money game, betting, tobacco or surrogate ads, cure claims, fake reviews or bought followers
+        - Claims and offers backed by the client's written proof; property ads carry the RERA number
+        - "Signs of a hacked site, page or account? Open a security incident at once: the CERT-In 6-hour clock is running"
+    classify:
+      name: Job type and priority
+      description: The job gets its type, priority, risk, amount and due dates, and an owning team (client servicing, creative, content and social, web and tech, performance marketing or accounts).
+    assign:
+      name: Assign team and deadline
+      description: The account manager, the lead and the makers (designers, writers, developers, media buyers or freelancers) are named, hours are budgeted against the estimate, and the deadline and the client's review dates are set.
+    approve:
+      name: Approval to start
+      description: When the rules ask, the named person approves before work starts (the owner for projects above ₹5 lakh, the account director for scope or price changes and new ad spend above ₹1 lakh, the tech lead for launches and live-site fixes, the security lead for hacked sites), and paid work also needs the client's written go-ahead.
+      checks:
+        - Client's written go-ahead (signed estimate, PO or email from the named approver) and the advance received for paid work
+        - "Amount within the approver's limit: owner above ₹5 lakh, account director for new ad spend above ₹1 lakh"
+        - The approver did not make the work or raise the change themselves
+    execute:
+      name: Production and revisions
+      description: Agents and the team make the work, check it in-house, share it with the client and track rounds of changes, hours, ad spend and deadlines, and nothing goes live on a client's page, site or ad account without the client's written OK.
+      checks:
+        - Work checked inside the agency before the client sees it
+        - Rounds of changes and hours counted against the estimate or retainer
+        - "Paid partnerships labelled upfront (#ad or #collab); stock, fonts and music licensed for brand use"
+        - Client's written OK recorded and cleared by the account manager before anything goes live
+        - Ad spend checked every day against the cap the client approved
+    close:
+      name: Client sign-off and handover
+      description: The client approves the final work in writing, the named person signs off, files, licences, logins and copyright are handed over, and the invoice goes out.
+      checks:
+        - Client's final approval in writing (email or WhatsApp from the named approver, or a signed delivery note)
+        - Final and source files, licences and logins handed over as agreed; domain, hosting, pages and ad accounts in the client's name
+        - "Copyright assigned to the client in writing once paid: the work, the rights, the period and the territory named"
+        - Hours and rounds used compared with the estimate; extra work raised as a change order
+        - GST invoice raised with the right SAC code and the client's PO number
+    report:
+      name: Reports and monthly review
+      description: Monthly client reports (reach, leads, sales, ad spend) go out, and the agency reviews on-time delivery, rounds of changes, hours over estimate, billable time, overdue invoices, complaints and repeat problems.
+      checks:
+        - On-time delivery, rounds of changes and hours over estimate per client
+        - Retainer items used against the plan; extra work raised with the client
+        - Overdue invoices and missing TDS certificates listed
+  priorities:
+    - { id: P1, name: "Urgent: client site down or hacked", respond_within_hours: 1, resolve_within_hours: 8 }
+    - { id: P2, name: "High: ad money, deadline or escalation", respond_within_hours: 2, resolve_within_hours: 24 }
+    - { id: P3, name: "Normal: retainer, change and billing work", respond_within_hours: 24, resolve_within_hours: 168 }
+    - { id: P4, name: "Planned: new projects and retainers", respond_within_hours: 24, resolve_within_hours: 1440 }
+  roles:
+    - { id: account-director, name: Account director (client servicing head), approves: "Every scope or price change (change orders, extra rounds, discounts, credit notes, refunds) and new ad spend above ₹1 lakh; signs off replies to client complaints" }
+    - { id: creative-director, name: Creative director, approves: "Signs off campaign, branding, content and video work before final handover: brief met, claims backed, influencer labels and licences in place" }
+    - { id: engineering-manager, name: Tech lead, approves: "Launches and changes on live client sites and apps, and fixes, restores or rollbacks while a site is down; signs off website and app projects, launches and outages" }
+    - { id: security-lead, name: Security lead (CERT-In contact), approves: "Containment of a hacked site, page or account, the CERT-In report and notices to clients about leaked data; often the tech lead in a small agency" }
+    - { id: account-manager, name: Account manager, approves: "Confirms the client's written OK is on record before any post, page, ad or ad budget change goes live on the client's behalf" }
+    - { id: finance-manager, name: Accounts head, approves: "Payment requests above ₹25,000 before they go to clients (GSTIN, SAC code, PO and TDS checked); issues credit notes and refunds once the account director has agreed them" }
+  # Bare "fire", "injury" and "accident" are left out: client briefs use them
+  # (fire safety products, injury clinics, accident cover). "Phishing" alone is
+  # left out too: banks and fintech clients order phishing-awareness posts.
+  urgent_keywords:
+    - hacked
+    - defaced
+    - site may be hacked
+    - data breach
+    - data leak
+    - data leaked
+    - leads leaked
+    - customer data exposed
+    - ransomware
+    - files encrypted
+    - ddos
+    - cyber attack
+    - unauthorised access
+    - unauthorized access
+    - account takeover
+    - laptop stolen
+    - stolen laptop
+    - down for everyone
+    - everything is down
+    - social media crisis
+    - pr crisis
+    - caught fire
+    - fire broke out
+    - fire in the office
+    - electric shock
+    - injured on set
+    - injured at the shoot
+    - injured during the shoot
+  categories:
+    - id: outage
+      name: Client site or app down
+      keywords:
+        - site down
+        - site is down
+        - site went down
+        - website down
+        - website is down
+        - website went down
+        - store is down
+        - shop is down
+        - app is down
+        - app down
+        - server down
+        - server is down
+        - hosting down
+        - hosting is down
+        - hosting suspended
+        - hosting account suspended
+        - hosting expired
+        - domain expired
+        - domain has expired
+        - ssl expired
+        - ssl certificate expired
+        - certificate expired
+        - your connection is not private
+        - site not loading
+        - website not loading
+        - site not opening
+        - website not opening
+        - site nahi khul raha
+        - website nahi chal rahi
+        - error establishing a database connection
+        - database connection error
+        - critical error on this website
+        - service unavailable
+        - bad gateway
+        - gateway timeout
+        - 503 error
+        - error 503
+        - 502 error
+        - error 502
+        - uptime alert
+        - site is offline
+        - down for everyone
+        - everything is down
+        - checkout down
+        - checkout not working
+        - payment gateway down
+        - payment gateway not working
+        - orders have stopped
+        - no orders since
+      priority: P1
+      risk: high
+      department: Web and tech (on call)
+      required_checks:
+        - "Confirmed from outside (uptime alert or two networks), not one person's internet"
+        - Hosting, domain and SSL expiry, and the last change or plugin update checked; roll back first if one lines up
+        - Client told within 1 hour and updated until the site is back
+        - "Spam pages, unknown admins or redirects? Open a security incident too: the CERT-In clock starts"
+        - Down and back-up times recorded for the client report
+      approval: { required: high_risk_or_p1, role: engineering-manager }
+      signoff: { required: true, role: engineering-manager }
+      workflow: site-down-response
+      execution: both
+    - id: security-incident
+      name: Hacked site, page or data leak
+      keywords:
+        - hacked
+        - hacker
+        - hack into
+        - hack my
+        - hack attempt
+        - been hacked
+        - got hacked
+        - site may be hacked
+        - defaced
+        - malware
+        - malicious code
+        - site infected
+        - infected with
+        - spam page
+        - japanese spam
+        - japanese keyword hack
+        - pharma hack
+        - spam links
+        - betting links
+        - casino links
+        - redirecting to another site
+        - redirects to a spam
+        - unknown admin
+        - phishing page
+        - phishing site
+        - phishing email
+        - phishing link
+        - fake login page
+        - fake page of our brand
+        - fake instagram page
+        - fake facebook page
+        - impersonating our brand
+        - suspicious login
+        - unauthorised access
+        - unauthorized access
+        - lost access
+        - account takeover
+        - account compromised
+        - been compromised
+        - data leak
+        - data leaked
+        - data breach
+        - leaked
+        - customer data exposed
+        - ransomware
+        - files encrypted
+        - ddos
+        - cyber attack
+        - brute force
+        - laptop stolen
+        - stolen laptop
+        - mass report
+        - cert in
+      priority: P1
+      risk: high
+      department: Web and tech (security)
+      required_checks:
+        - "Damage stopped first: maintenance page, passwords and keys changed, unknown admins removed, 2-step login turned on"
+        - Logs, screenshots and changed files kept as evidence before anything is cleaned
+        - Client told at once in writing, including whether leads or other personal data may be involved
+        - CERT-In report within 6 hours of noticing it, approved by the security lead; agree with the client who files it, and we file it if we host or run the server
+        - Way in found and closed; clean backup restored and tested
+        - Written incident report sent to the client
+      not_eligible:
+        - keywords:
+            - hack someone's
+            - hack someone else's
+            - hack into someone's
+            - hack into someone else's
+            - hack my ex's
+            - hack my competitor's
+            - hack our competitor's
+            - hack a competitor's
+            - hack into my competitor's
+            - hack into a competitor's
+            - mass report our competitor's
+            - mass report my competitor's
+            - mass report their page
+            - get their page banned
+            - get into someone else's account
+            - read someone else's messages
+          reason: We only protect sites, pages and accounts that belong to you or to a client who has asked us in writing. We never break into, take down or mass-report anyone else's account or page. If someone is misusing yours, report it on cybercrime.gov.in or call 1930.
+      approval: { required: always, role: security-lead }
+      signoff: { required: true, role: owner }
+      workflow: hacked-site-response
+      execution: both
+    - id: billing
+      name: Invoice, payment or TDS follow-up
+      keywords:
+        - invoice
+        - gst invoice
+        - tax invoice
+        - proforma invoice
+        - invoice copy
+        - retainer invoice
+        - e invoice
+        - overdue
+        - days overdue
+        - overdue invoice
+        - outstanding amount
+        - outstanding dues
+        - pending dues
+        - pending payment
+        - payment pending
+        - payment not received
+        - not paid
+        - unpaid
+        - payment reminder
+        - email reminder
+        - reminder sent
+        - past the due date
+        - tds
+        - tds certificate
+        - form 16a
+        - 26as
+        - gstin
+        - wrong gstin
+        - po number
+        - msme
+        - udyam
+        - delayed payment
+        - firc
+        - paid twice
+        - charged twice
+        - double payment
+        - duplicate payment
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_checks:
+        - Invoice matches the signed estimate, PO or retainer
+        - "GST invoice: both GSTINs, the client's state, the right SAC code (998361 advertising, 998314 web and app development, 998391 design) and 18% GST; a client abroad paying in foreign currency is billed under LUT without GST"
+        - TDS deducted on the amount before GST at the right rate and showing in our 26AS or AIS
+        - Paid within the agreed days; if we are a micro or small enterprise on Udyam, within 45 days at most
+        - Reminders polite and logged; stopping work or a legal notice only with the owner's approval
+        - A payment made twice is refunded only to the account that paid, after accounts sees both payments in the bank
+      not_eligible:
+        - keywords: [backdate, backdated, back date, back dated, inflate the invoice, inflated invoice, higher amount on the invoice, fake invoice, dummy invoice, bogus invoice, cash without bill, without a bill, kachcha bill, kaccha bill, kacha bill]
+          reason: We issue only proper GST tax invoices for work actually done, dated when it was done (CGST Act, 2017, section 31). We can't back-date, inflate or fake an invoice, or take payment without a bill.
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: invoice-follow-up
+      execution: agents
+    - id: change-release
+      name: Website or app launch, or live change
+      keywords:
+        - website launch
+        - site launch
+        - launch the website
+        - launch the new website
+        - launch the site
+        - launch the new site
+        - make the site live
+        - make the website live
+        - take the site live
+        - push the site live
+        - site go live
+        - website go live
+        - staging to live
+        - deploy
+        - deployment
+        - push to live
+        - push to production
+        - release to production
+        - production release
+        - hotfix
+        - website migration
+        - site migration
+        - server migration
+        - hosting migration
+        - change hosting
+        - move hosting
+        - domain transfer
+        - transfer the domain
+        - point the domain
+        - dns change
+        - change the dns
+        - nameserver
+        - mx record
+        - ssl renewal
+        - renew the ssl
+        - install ssl
+        - php upgrade
+        - planned downtime
+        - down for maintenance
+        - will be down for
+        - planned maintenance
+        - scheduled maintenance
+        - scheduled downtime
+        - maintenance window
+        - maintenance mode
+        - rollback
+        - roll back
+        - 301 redirect
+        - play store release
+        - app store release
+        - publish the app
+        - submit the app
+      priority: P3
+      risk: medium
+      department: Web and tech
+      required_details:
+        - { key: window, label: Launch or change date and time, kind: date }
+      required_checks:
+        - Client's written OK on the final site or app and on the launch date
+        - "Pre-launch check done: backup, SSL, speed, forms and payments tested, privacy notice, analytics and redirects from old pages"
+        - Domain, hosting, store and app store accounts in the client's name
+        - Rollback plan ready, and the window outside the client's busy hours and sale days
+        - Checked live by someone other than the developer who made the change
+      approval: { required: always, role: engineering-manager }
+      signoff: { required: true, role: engineering-manager }
+      workflow: site-launch
+      execution: team
+    - id: complaint
+      name: Client complaint or escalation
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - not happy
+        - unhappy
+        - very unhappy
+        - disappointed
+        - not satisfied
+        - escalate
+        - escalating
+        - escalation
+        - unacceptable
+        - missed deadline
+        - missed the deadline
+        - missed our deadline
+        - late again
+        - went out late
+        - delayed again
+        - third time
+        - poor quality
+        - bad quality
+        - unprofessional
+        - rude
+        - careless
+        - wrong price
+        - wrong phone number
+        - wrong offer
+        - posted without approval
+        - posted without our approval
+        - without our approval
+        - went live without approval
+        - no reply from your team
+        - no response from your team
+        - nobody replied
+        - no one is responding
+        - nobody called back
+        - no results
+        - waste of money
+        - pathetic
+        - worst service
+        - end the contract
+        - end the retainer
+        - stop the retainer
+        - cancel the retainer
+        - terminate the contract
+        - terminate the agreement
+        - legal notice
+        - consumer court
+        - shikayat
+      priority: P2
+      risk: medium
+      department: Client servicing
+      required_checks:
+        - Logged and acknowledged the same day, and the account manager calls the client
+        - "Facts checked: brief, approvals, emails, timeline and what went live"
+        - Wrong live content corrected or taken down at once
+        - Fix plan agreed with the client in writing
+        - Any refund, discount or credit note raised as a separate scope or price change
+        - A legal notice or a threat to end the contract goes to the owner the same day
+      approval: { required: never }
+      signoff: { required: true, role: account-director }
+      workflow: complaint-handling
+      execution: both
+    - id: web-project
+      name: Website, app or AMC project
+      keywords:
+        - new website
+        - need a website
+        - need a new website
+        - build a website
+        - make a website
+        - develop a website
+        - website development
+        - website design
+        - web design
+        - website redesign
+        - redesign the website
+        - redesign our website
+        - website revamp
+        - revamp the website
+        - revamp our website
+        - rebuild
+        - rebuilt
+        - landing page
+        - microsite
+        - web application development
+        - build a portal
+        - new portal
+        - app development
+        - mobile app development
+        - build an app
+        - build a mobile app
+        - develop an app
+        - need an app
+        - need a mobile app
+        - new app
+        - new mobile app
+        - e commerce website
+        - ecommerce website
+        - e commerce site
+        - online store
+        - online shop
+        - shopify store
+        - on shopify
+        - woocommerce
+        - wordpress website
+        - ui ux
+        - ux design
+        - wireframe
+        - figma
+        - sitemap
+        - website quote
+        - website proposal
+        - website estimate
+        - annual maintenance contract
+        - maintenance contract
+        - amc
+        - amc renewal
+        - renew the amc
+      priority: P4
+      risk: medium
+      department: Web and tech
+      required_details:
+        - { key: budget, label: Budget or estimate value, kind: amount }
+      required_checks:
+        - Brief has the goal, pages or features, deadline, budget and the client's approver
+        - "Content, logos, product data, domain and hosting: who gives what, and by when"
+        - "Written estimate: pages and features, rounds of changes included (usually two), timeline, payment milestones and what is not included"
+        - "Client details for the GST invoice: legal name, address, state, GSTIN and PAN"
+        - Client's written go-ahead (signed estimate, PO or email) and the advance received before work starts
+        - Domain, hosting and admin logins to stay in the client's name
+      not_eligible:
+        - &money-games
+          keywords:
+            - cash contest
+            - real money game
+            - real money gaming
+            - online money game
+            - money game
+            - win real cash
+            - deposit bonus
+            - rummy
+            - poker
+            - teen patti
+            - betting
+            - betting app
+            - sports betting
+            - satta
+            - matka
+            - casino
+            - colour prediction
+            - color prediction
+            - aviator game
+          reason: We don't build, advertise or promote online money games such as cash rummy, poker, fantasy contests with cash prizes, betting or casinos. The Promotion and Regulation of Online Gaming Act, 2025 bans them and their ads from 1 May 2026, with up to 2 years in jail or a ₹50 lakh fine for ads. Free-to-play games and e-sports are fine; tell us if that is what you meant.
+      approval: { required: above_amount, role: owner, amount_inr: 500000 }
+      signoff: { required: true, role: engineering-manager }
+      workflow: website-project
+      execution: both
+    - id: creative-project
+      name: Campaign, branding or new retainer
+      keywords:
+        - campaign
+        - campaign brief
+        - campaign idea
+        - launch campaign
+        - brand campaign
+        - integrated campaign
+        - 360 campaign
+        - brand identity
+        - branding
+        - rebranding
+        - rebrand
+        - logo design
+        - new logo
+        - brand book
+        - brand guidelines
+        - brand name
+        - naming
+        - tagline
+        - brochure
+        - catalogue
+        - company profile
+        - packaging
+        - packaging design
+        - label design
+        - ad film
+        - brand film
+        - corporate film
+        - corporate video
+        - brand video
+        - explainer video
+        - product video
+        - testimonial video
+        - video production
+        - photo shoot
+        - photoshoot
+        - product shoot
+        - key visual
+        - tvc
+        - jingle
+        - print ad
+        - newspaper ad
+        - hoarding
+        - outdoor
+        - radio spot
+        - influencer
+        - influencer campaign
+        - influencer marketing
+        - micro influencer
+        - creator
+        - ugc
+        - pitch
+        - rfp
+        - new retainer
+        - retainer proposal
+        - retainer quote
+        - social media management
+        - smm proposal
+        - seo proposal
+        - seo retainer
+        - marketing plan
+        - digital marketing plan
+        - go to market
+        - content strategy
+        - social media strategy
+      priority: P4
+      risk: medium
+      department: Creative
+      required_details:
+        - { key: budget, label: Budget or estimate value, kind: amount }
+      required_checks:
+        - Brief has the objective, audience, deliverables, channels, launch date, budget and the client's approver
+        - Brand book, logo files and product facts received
+        - Every claim (best, No. 1, % off, health or money benefit) backed by the client's written proof
+        - "Influencer posts labelled upfront (#ad or #collab); health creators qualified, and finance creators SEBI-registered"
+        - Property ads show the RERA registration number and website; political ads pre-certified by the election office's media committee (MCMC)
+        - Freelancers sign a copyright assignment before they start; stock images, fonts and music licensed for brand use
+        - Client's written go-ahead (signed estimate, PO or email) and the advance received before work starts
+      not_eligible:
+        - *money-games
+        - &tobacco-ads
+          keywords:
+            - surrogate ad
+            - surrogate advertising
+            - surrogate campaign
+            - cigarette
+            - bidi
+            - gutka
+            - gutkha
+            - chewing tobacco
+            - tobacco brand
+            - vape
+            - vaping
+            - e cigarette
+          reason: We don't make ads for tobacco, cigarettes, vapes or e-cigarettes, or surrogate ads that use another product to promote an alcohol or tobacco brand. The Cigarettes and Other Tobacco Products Act, 2003 (section 5) and the Prohibition of Electronic Cigarettes Act, 2019 ban these ads, and the CCPA 2022 guidelines ban surrogate ads.
+        - &cure-claims
+          keywords:
+            - cures diabetes
+            - cure diabetes
+            - cure for diabetes
+            - cures cancer
+            - cure cancer
+            - cure for cancer
+            - cures obesity
+            - cure obesity
+            - cures impotence
+            - cure impotence
+            - cures infertility
+            - permanent cure
+            - guaranteed cure
+            - 100 cure
+            - increase height
+          reason: We can't make posts or ads that claim to cure diseases such as diabetes, cancer, obesity, impotence or infertility. The Drugs and Magic Remedies (Objectionable Advertisements) Act, 1954 bans them. We are happy to make it without the cure claim, backed by the client's proof.
+      approval: { required: above_amount, role: owner, amount_inr: 500000 }
+      signoff: { required: true, role: creative-director }
+      workflow: campaign-production
+      execution: both
+    - id: retainer-task
+      name: Retainer or AMC task
+      keywords:
+        - content calendar
+        - social media calendar
+        - monthly calendar
+        - social media post
+        - instagram post
+        - facebook post
+        - linkedin post
+        - post for
+        - make a post
+        - create a post
+        - design a post
+        - write a post
+        - awareness post
+        - the post
+        - this post
+        - the reel
+        - this reel
+        - post go live
+        - post goes live
+        - creative for
+        - festival post
+        - festive post
+        - festival creative
+        - greeting post
+        - story
+        - story size
+        - post size
+        - square post
+        - reel
+        - reel for
+        - carousel
+        - caption
+        - hashtag
+        - blog
+        - blog post
+        - article
+        - seo report
+        - seo work
+        - keyword ranking
+        - backlink
+        - on page seo
+        - google business profile
+        - google my business
+        - gmb
+        - google reviews
+        - reply to reviews
+        - followers
+        - instagram followers
+        - newsletter
+        - mailer
+        - emailer
+        - email campaign
+        - whatsapp broadcast
+        - banner
+        - website banner
+        - homepage banner
+        - update the website
+        - update our website
+        - update the price list
+        - price list
+        - upload products
+        - monthly report
+        - under the retainer
+        - in the retainer
+        - as per the retainer
+        - website maintenance
+        - monthly maintenance
+        - under the amc
+        - under our amc
+        - in the amc
+        - plugin update
+        - update the plugins
+        - full backup
+      priority: P3
+      risk: low
+      department: Content and social
+      required_checks:
+        - "Inside this month's retainer or AMC: items or hours left (if not, raise a change order)"
+        - "Brief clear: what, format and sizes, platform, go-live date and time"
+        - Offers, prices and facts confirmed by the client in writing
+        - "Paid partner or influencer posts labelled upfront (#ad or #collab); music and images licensed for brand use"
+        - Site updates tried on a staging copy with a backup taken first
+        - Client's written OK on each post or site change, cleared by the account manager before it goes live
+      not_eligible:
+        - keywords:
+            - fake reviews
+            - buy reviews
+            - paid reviews
+            - reviews from fake accounts
+            - reviews from different accounts
+            - from different accounts
+            - from fake accounts
+            - post reviews
+            - write reviews
+            - post google reviews
+            - purchase followers
+            - write reviews for us
+            - post reviews for us
+            - five star reviews from
+            - 5 star reviews from
+            - buy followers
+            - buy instagram followers
+            - fake followers
+            - bot followers
+            - paid followers
+            - buy likes
+            - buy views
+            - fake likes
+            - negative reviews on our competitor
+            - negative reviews for our competitor
+          reason: We don't write fake or paid reviews, buy followers, likes or views, or post reviews against competitors. Fake reviews are an unfair trade practice under the Consumer Protection Act, 2019 and break Google and Meta rules, and the page can be penalised. We can run a genuine review request to your real customers instead.
+        - *cure-claims
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: retainer-task-delivery
+      execution: both
+    - id: change-request
+      name: Scope or price change
+      keywords:
+        - change request
+        - change order
+        - out of scope
+        - not in the scope
+        - outside the scope
+        - outside scope
+        - original scope
+        - scope change
+        - extra round
+        - another round
+        - third round
+        - fourth round
+        - fifth round
+        - 3rd round
+        - 4th round
+        - 5th round
+        - more revisions
+        - extra revisions
+        - more changes
+        - few more changes
+        - extra page
+        - more pages
+        - additional page
+        - add a page
+        - add a feature
+        - add one more
+        - extra work
+        - additional work
+        - extra posts
+        - extra reels
+        - revised quote
+        - revised estimate
+        - price change
+        - increase the fee
+        - reduce the fee
+        - discount
+        - discount on
+        - credit note
+        - refund
+        - waive
+        - waiver
+        - write off
+      priority: P3
+      risk: medium
+      department: Client servicing
+      required_details:
+        - key: whatChanges
+          label: What exactly should change (pages, items or amount)
+          kind: keywords
+          keywords: [add a, add the, remove the, replace the, change the, swap the, new page, extra page, more pages, additional page, careers page, contact page, about page, about us page, home page, homepage, product page, landing page, section, form, logo, colour, color, font, banner, menu, header, footer, button, slider, gallery, popup, image, photo, video, caption, headline, copy, text, content, brochure, flyer, post, reel, creative, design, list of changes, changes attached, feedback attached, marked up, discount, credit note, refund, waive, waiver, fee, invoice, hindi version, language]
+      required_checks:
+        - "Compared with the signed estimate or retainer: new work, or rounds beyond those included"
+        - Exact list of changes from the client
+        - Change order with cost before GST and new dates
+        - "Discounts, credit notes and refunds: reason and original invoice noted"
+        - Client's written acceptance before the extra work starts
+      approval: { required: always, role: account-director }
+      signoff: { required: false }
+      workflow: change-order
+      execution: both
+    - id: ad-budget
+      name: New ad spend or budget increase
+      keywords:
+        - ad budget
+        - ads budget
+        - google ads budget
+        - meta ads budget
+        - ad spend budget
+        - media budget
+        - increase the budget
+        - increase budget
+        - budget increase
+        - increase the spend
+        - increase spend
+        - raise the budget
+        - double the budget
+        - extend the campaign
+        - extend the ads
+        - boost post
+        - boost this post
+        - boost our post
+        - boosting
+        - run ads
+        - run google ads
+        - run meta ads
+        - run facebook ads
+        - run instagram ads
+        - run linkedin ads
+        - run youtube ads
+        - start ads
+        - start the ads
+        - start google ads
+        - start meta ads
+        - media plan
+        - media advance
+        - add funds
+        - top up the ad account
+        - recharge the ad account
+        - lifetime budget
+      priority: P2
+      risk: medium
+      department: Performance marketing
+      required_details:
+        - { key: amount, label: How much to spend (the total cap), kind: amount }
+      required_checks:
+        - Client's written OK for the new spend, with the total cap and dates
+        - "Who pays the platform: the client's own card (preferred), or us after the media advance is received"
+        - Client's unpaid invoices checked before we commit any money
+        - Ad copy, offer and landing page approved by the client; claims backed
+        - Property ads carry the RERA number; political ads are pre-certified by the election office's media committee (MCMC)
+        - Daily caps and spend alerts set on the platform
+      not_eligible:
+        - *money-games
+        - *tobacco-ads
+      approval: { required: above_amount, role: account-director, amount_inr: 100000 }
+      signoff: { required: false }
+      workflow: ad-budget-change
+      execution: both
+    - id: ad-problem
+      name: Ad problem, pause or budget cut
+      keywords:
+        - spend alert
+        - budget alert
+        - overspend
+        - overspent
+        - overspending
+        - spent more than
+        - spending too fast
+        - disapproved
+        - ad disapproved
+        - ads disapproved
+        - ad rejected
+        - ads rejected
+        - rejected by meta
+        - rejected by google
+        - policy violation
+        - ad account disabled
+        - ad account suspended
+        - ad account restricted
+        - ad account blocked
+        - business manager disabled
+        - ads not running
+        - ads not showing
+        - ads not working
+        - ads stopped
+        - not delivering
+        - learning limited
+        - leads dropped
+        - leads have dropped
+        - leads have stopped
+        - leads stopped
+        - leads are down
+        - no leads
+        - fewer leads
+        - junk leads
+        - lead quality
+        - cost per lead
+        - cpl
+        - cost per result
+        - roas
+        - conversions dropped
+        - conversion tracking
+        - meta pixel
+        - pixel not firing
+        - tag not firing
+        - pause the ads
+        - pause all ads
+        - pause the campaign
+        - stop the ads
+        - stop all ads
+        - reduce the budget
+        - cut the budget
+        - lower the budget
+        - decrease the budget
+      priority: P2
+      risk: medium
+      department: Performance marketing
+      required_checks:
+        - Spend, pacing and results checked against the approved cap and last week
+        - Runaway spend paused or capped at once; pausing never waits for approval
+        - Disapproval reason read and the ad fixed without changing the claims the client approved
+        - "Tracking checked: pixel, conversion API, lead form and landing page working"
+        - Client told the same day what changed, what we did and any spend above the cap
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: ad-fix
+      execution: both
+  examples:
+    - { request: "Uptime alert: kapoordental.in is down since 6.40 am and the hosting page says hosting account suspended", category: outage, priority: P1, approval: true }
+    - { request: "Error establishing a database connection on the Shree Ganesh Caterers site, no page opens", category: outage, priority: P1, approval: true }
+    - { request: "Checkout not working on our Shopify store since 11 am, no orders since then", category: outage, priority: P1, approval: true }
+    - { request: "Our Facebook page got hacked last night, someone removed us as admin and is posting from it", category: security-incident, priority: P1, approval: true }
+    - { request: "Search Console warns of a Japanese keyword hack on the Lotus Ayurveda site, thousands of spam pages indexed", category: security-incident, priority: P1, approval: true }
+    - { request: The leads sheet from the property site form was open to anyone with the link and phone numbers have leaked, category: security-incident, priority: P1, approval: true }
+    - { request: Please resend the September retainer invoice with our new GSTIN 27AABCK1234F1Z5, category: billing, priority: P3, approval: false }
+    - { request: "Bright Homes deducted TDS of ₹3,200 in July but it is not showing in our 26AS yet", category: billing, priority: P3, approval: false }
+    - { request: "Invoice 045 for ₹88,500 is 20 days past the due date, please send a polite payment reminder", category: billing, priority: P3, approval: false }
+    - { request: "The client approved the final staging links, please launch the website on Saturday at 10 pm", category: change-release, priority: P3, approval: true }
+    - { request: "Hosting migration for Arora Builders from GoDaddy to AWS this Sunday night, about 30 minutes of downtime", category: change-release, priority: P3, approval: true }
+    - { request: Point the domain to the new server and renew the SSL before 30 October, category: change-release, priority: P3, approval: true }
+    - { request: Your team posted the creative without our approval and it had the old logo. Very disappointed., category: complaint, priority: P2, approval: false }
+    - { request: Second month in a row the SEO report shows no results and no one is responding to my calls. I want to escalate this., category: complaint, priority: P2, approval: false }
+    - { request: "If the website is not ready by the 15th as promised, we will terminate the contract", category: complaint, priority: P2, approval: false }
+    - { request: "Need a new website for our CA firm with 8 pages and a WhatsApp enquiry button, budget around ₹80,000", category: web-project, priority: P4, approval: false }
+    - { request: "Proposal for an e-commerce website on WooCommerce for 500 sarees, budget ₹6.5 lakh", category: web-project, priority: P4, approval: true }
+    - { request: "Quote for an annual maintenance contract for our school website, about ₹40,000 a year", category: web-project, priority: P4, approval: false }
+    - { request: "Brand identity for a new millet snacks brand: name, logo design and packaging design for 6 SKUs, budget ₹3.8 lakh", category: creative-project, priority: P4, approval: false }
+    - { request: "RFP from a cement company: integrated campaign with a 45-second ad film and 20 regional influencers, budget ₹55 lakh", category: creative-project, priority: P4, approval: true }
+    - { request: "Social media management retainer for 4 gyms at ₹45,000 a month for 6 months, ₹2.7 lakh in all", category: creative-project, priority: P4, approval: false }
+    - { request: Please share the November content calendar for Mehra Opticals by the 25th, category: retainer-task, priority: P3, approval: false }
+    - { request: "Reel for the Onam offer on our Instagram, 30 seconds, Malayalam captions, live on 5 September", category: retainer-task, priority: P3, approval: false }
+    - { request: Under our AMC please run the plugin updates and take a full backup this week, category: retainer-task, priority: P3, approval: false }
+    - { request: "Client wants 10 more product pages on the site, the estimate had 25. Please make a revised quote", category: change-request, priority: P3, approval: true }
+    - { request: Sunrise Clinics wants a fifth round on the brochure; our estimate included two rounds, category: change-request, priority: P3, approval: true }
+    - { request: "Please give a 10% discount on this quarter's SEO fee, they have committed to 12 months", category: change-request, priority: P3, approval: true }
+    - { request: "Run Meta ads for the new Kochi showroom opening, ₹40,000 over 10 days from the client's card", category: ad-budget, priority: P2, approval: false }
+    - { request: "Double the budget on the admissions campaign to ₹2.5 lakh this month, the principal approved by email", category: ad-budget, priority: P2, approval: true }
+    - { request: "Boost post for the Diwali sale: ₹15,000 on Instagram over 3 days", category: ad-budget, priority: P2, approval: false }
+    - { request: "All three ads for Green Valley Resorts got disapproved overnight for misleading claims and leads have stopped", category: ad-problem, priority: P2, approval: false }
+    - { request: "Cost per lead on the IVF clinic campaign went from ₹450 to ₹1,200 this week, please check", category: ad-problem, priority: P2, approval: false }
+    - { request: Pause all ads for Mehta Furnishings till the 20th while their warehouse is shut for stock taking, category: ad-problem, priority: P2, approval: false }
+
+playbooks:
+  - id: brief-to-go-ahead
+    title: From brief to written go-ahead
+    source: Common Indian agency practice for estimates, retainers and change orders; Indian Contract Act, 1872 (terms agreed in writing)
+    body: |
+      1. Take every brief in writing: goal, audience, deliverables, channels or pages, deadline, budget and the client's approver. Ask for what is missing before you quote.
+      2. Send a written estimate: deliverables, rounds of changes included (usually two), timeline, payment milestones (for example 50% advance), what is not included and who owns the finished work.
+      3. For retainers and AMCs, list the items per month (posts, reels, blogs, hours or updates) and say whether unused items carry over.
+      4. Start only after the client's written go-ahead (signed estimate, PO or an email from the named approver) and the advance. A yes on the phone is confirmed by email the same day.
+      5. Anything new, or beyond the included rounds, is a change order with cost and dates, accepted by the client in writing before the work starts.
+      6. The owner approves new projects and retainers above ₹5 lakh (use the full contract value: monthly fee times months). The account director approves every change order, discount, credit note or refund.
+  - id: getting-paid
+    title: GST invoices, TDS and getting paid
+    source: CGST Act, 2017, section 31 and CGST Rules, rule 46; IGST Act, 2017, section 16 (export under LUT); CBDT Circular 23/2017 (TDS on the amount before GST); Income-tax Act, 2025, section 393 (from 1 April 2026; earlier sections 194C and 194J of the 1961 Act); MSMED Act, 2006, sections 15 to 18
+    body: |
+      1. Raise a GST tax invoice for every bill: our GSTIN and the client's, the client's state (place of supply), the right SAC code (998361 advertising, 998314 web and app development, 998391 design; confirm with your CA), 18% GST and the client's PO number.
+      2. A client abroad paying in foreign currency is billed as an export under a Letter of Undertaking (LUT), without GST. Keep the bank's foreign remittance proof (FIRC) for each payment.
+      3. Clients deduct TDS on the amount before GST when GST is shown separately: usually 2% on advertising and other contract work (1% if the agency is an individual or HUF), 10% on professional fees such as design or consulting, and 2% on technical services. From 1 April 2026 these rules sit in section 393 of the Income-tax Act, 2025. Match every deduction with our 26AS or AIS each quarter and chase missing TDS certificates.
+      4. Send a polite reminder 3 days before the due date, on the due date and every week after, and log each one. Correct a wrong invoice with a credit note and a fresh invoice, never by editing it.
+      5. If we are a micro or small enterprise registered on Udyam, business clients must pay within the agreed days and never later than 45 days after accepting the work. After that, compound interest at three times the RBI bank rate is due, and we can file a delayed-payment case with the MSE Facilitation Council.
+      6. Stopping work, a legal notice or an MSME case is the owner's decision. Never issue a backdated, inflated or no-GST cash bill.
+  - id: client-owned-work
+    title: Handing over work the client can own
+    source: Copyright Act, 1957, sections 17, 18 and 19; Meta music guidelines for branded content
+    body: |
+      1. Work our employees make in their job belongs to us. Copy, designs and code a freelancer makes stay theirs until they assign them in writing, so get a signed assignment before they start. Photos and films made for us for payment belong to us unless agreed otherwise, but put that in writing too.
+      2. Give the client a signed written assignment once they have paid in full. Name the work, the rights, the period and the territory: if the period is missing it is only 5 years, and if the territory is missing it is only India.
+      3. An assignment lapses if the rights are not used within a year, unless the agreement says otherwise, so write that it does not lapse.
+      4. Buy stock images, fonts and music on licences that cover the client's brand use, and hand over the licence records. Songs from the Instagram or YouTube library are not licensed for brand posts.
+      5. Keep domains, hosting, social pages, ad accounts and app store accounts in the client's name, with our access as a partner or admin, and hand over every login at the end.
+      6. Keep source files for the period agreed in the estimate and hand them over when the contract says so.
+  - id: honest-ads-and-influencers
+    title: Honest ads and influencer posts
+    source: Consumer Protection Act, 2019, sections 2(28) and 21; CCPA Guidelines for Prevention of Misleading Advertisements and Endorsements for Misleading Advertisements, 2022; ASCI Guidelines for Influencer Advertising in Digital Media (2021, with the 2023 health and finance additions); Promotion and Regulation of Online Gaming Act, 2025, sections 6 and 9 (in force 1 May 2026); Drugs and Magic Remedies (Objectionable Advertisements) Act, 1954; Cigarettes and Other Tobacco Products Act, 2003, section 5; Real Estate (Regulation and Development) Act, 2016, section 11(2)
+    body: |
+      1. Every claim needs the client's written proof: best, No. 1, % off, clinically proven, returns. A disclaimer cannot fix a misleading claim, and it must be in the same language and font as the claim. These rules bind advertising agencies as well as brands.
+      2. No ads for tobacco, vapes or online money games (cash rummy, poker, fantasy contests with cash prizes, betting, casinos), and no surrogate ads for alcohol or tobacco brands. Money-game ads carry up to 2 years in jail or a ₹50 lakh fine.
+      3. No post or ad may claim to cure diseases such as diabetes, cancer, obesity or infertility.
+      4. Influencer posts carry a clear label such as #ad, #sponsored or #collab, upfront and not hidden among other hashtags; in videos the label is shown on screen. Virtual influencers say they are not real people.
+      5. Health creators show their qualification, and only SEBI-registered creators may give investment advice.
+      6. Property ads show the RERA registration number and website. Political ads need pre-certification from the election office's media committee (MCMC).
+      7. Ads for children make no unproven health claims and use no film, sports or music stars for products that need a health warning or that children cannot buy.
+      8. Misleading ads can bring a penalty of up to ₹10 lakh (₹50 lakh for repeats), and endorsers can be barred for up to 1 year (3 years for repeats).
+  - id: ad-spend-on-client-money
+    title: Ad spend on the client's money
+    source: Common Indian performance-marketing practice; Meta and Google advertiser terms; CGST Rules, 2017, rule 33 (expenses as a pure agent)
+    body: |
+      1. Keep ad accounts in the client's name, paid by the client's own card or prepaid funds. We get partner or admin access, never the client's card details.
+      2. If we pay the platform for the client, take the media advance first and show media separately from our fee on the invoice. Ask the CA whether we bill it as a pure agent or charge GST on it.
+      3. Every new budget or increase needs the client's written OK with the total cap and dates. The account director also approves new spend above ₹1 lakh, after checking the client's unpaid invoices.
+      4. New ads go live only after the client approves the copy, offer and landing page, and the account manager clears it.
+      5. Set daily caps and spend alerts on every campaign. If spend runs past the cap, pause or cap it at once and tell the client the same day; pausing never waits for approval.
+      6. Each month, match spend with the platform invoices and send the client the report with our invoice.
+  - id: client-sites-launch-and-care
+    title: Launching and looking after client sites
+    source: CCPA Guidelines for Prevention and Regulation of Dark Patterns, 2023; Digital Personal Data Protection Act, 2023 and DPDP Rules, 2025 (notice, consent and breach duties from May 2027); CERT-In Directions of 28 April 2022
+    body: |
+      1. Build no dark patterns: no fake countdowns or "only 2 left", no items slipped into the cart, no shaming "No thanks" buttons, no charges shown only at checkout and no subscriptions that are hard to cancel. The CCPA lists 13 such tricks.
+      2. Before launch, get the client's written OK on the final site, then check the backup, SSL, speed, forms and payments, the privacy notice on every form, analytics and redirects from old pages.
+      3. Lead forms ask only for what is needed and say why. We handle the leads for the client, so we follow its instructions and delete them when the contract ends.
+      4. Under an AMC, update plugins and themes on a staging copy first, keep weekly backups away from the server, and keep server logs for 180 days in India.
+      5. If a site is down, check hosting, domain and SSL expiry and the last change, roll back first, and tell the client within an hour.
+      6. If a site or page is hacked, put up a maintenance page, change passwords and keys, remove unknown admins and keep the logs. Tell the client in writing and agree who reports to CERT-In within 6 hours (we do if we host it), then clean up, close the way in and send a written report.
+
+kpis:
+  - id: on-time-delivery
+    name: On-time delivery
+    description: Deliverables the client approved on or before the agreed date, as a share of all deliverables due this month.
+    unit: percent
+    direction: up
+    target: 90
+  - id: billable-time
+    name: Billable time
+    description: Hours logged on client work as a share of the delivery team's available working hours (designers, writers, developers and media buyers). Agencies average about 65%; aim for 70 to 80%.
+    unit: percent
+    direction: up
+    target: 70
+  - id: rounds-of-changes
+    name: Rounds of changes
+    description: Average rounds of client changes per deliverable approved this month; most estimates include two.
+    unit: count
+    direction: down
+    target: 2
+  - id: hours-over-estimate
+    name: Hours over estimate
+    description: Hours worked beyond the estimate on jobs closed this month, as a share of their estimated hours.
+    unit: percent
+    direction: down
+    target: 10
+  - id: overdue-invoices
+    name: Overdue invoices
+    description: Client invoices past their due date and still unpaid.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Invoice, where: { status: overdue } }
+  - id: retainers-renewed
+    name: Retainers renewed
+    description: Retainers and AMCs renewed or extended, as a share of those that came up for renewal this quarter.
+    unit: percent
+    direction: up
+    target: 85
+
+connectors: [gmail, whatsapp-business, razorpay]
