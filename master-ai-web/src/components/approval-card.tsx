@@ -67,7 +67,7 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
             <span aria-hidden>·</span>
             <span>{timeAgo(approval.createdAt)}</span>
           </div>
-          <h3 className="text-base font-semibold text-fg">{approval.summary}</h3>
+          <h3 className="text-base font-semibold text-fg [overflow-wrap:anywhere]">{approval.summary}</h3>
         </div>
         <StatusBadge status={approval.status} />
       </div>
@@ -95,13 +95,13 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
               {readableFields(approval.args).map((f) => (
                 <div key={f.label} className="contents">
                   <dt className="text-fg-muted">{f.label}</dt>
-                  <dd className="break-words text-fg">{f.value}</dd>
+                  <dd className="[overflow-wrap:anywhere] text-fg">{f.value}</dd>
                 </div>
               ))}
               {approval.evidence.map((e, i) => (
                 <div key={i} className="contents">
                   <dt className="text-fg-muted">{e.label}</dt>
-                  <dd className="break-words whitespace-pre-line text-fg">{e.value}</dd>
+                  <dd className="[overflow-wrap:anywhere] whitespace-pre-line text-fg">{e.value}</dd>
                 </div>
               ))}
               <dt className="text-fg-muted">AI cost so far</dt>

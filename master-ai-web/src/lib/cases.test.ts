@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Case } from '@onehuman/schemas';
-import { caseMatches, dotLabel, dotsFromCase, dotsFromStages, dueWords, GENERIC_STAGE_NAMES, homeBuckets, stageNames } from './cases';
+import type { Case, CaseStageStatus } from '@onehuman/schemas';
+import { caseMatches, dotLabel, dotsFromCase, dotsFromStages, dueWords, GENERIC_STAGE_NAMES, homeBuckets, listScope, showStageSummary, stageNames } from './cases';
 
 const base: Case = {
   id: 'c1', workspaceId: 'w1', number: 42, code: 'WO-0042', title: 'Boiler feed pump B vibration', source: 'staff',
@@ -81,5 +81,35 @@ describe('due times in words', () => {
     expect(dueWords('2026-10-13T10:20:00Z', now)).toEqual({ text: 'Due in less than an hour', late: false });
     expect(dueWords('2026-10-11T10:00:00Z', now)).toEqual({ text: 'Overdue by 2 days', late: true });
     expect(dueWords(null, now)).toBeNull();
+  });
+});
+
+describe('a refused approval', () => {
+  const stages = (['done', 'done', 'done', 'done', 'done', 'skipped', 'skipped', 'done'] as CaseStageStatus[]).map((status) => ({ status }));
+
+  it('shows the approval stage as stopped, not done', () => {
+    expect(dotsFromStages(stages, { approveDecision: 'rejected' })[4]).toBe('stopped');
+    expect(dotsFromStages(stages, { approveDecision: 'expired' })[4]).toBe('stopped');
+    expect(dotsFromStages(stages, { approveDecision: 'blocked' })[4]).toBe('stopped');
+    expect(dotsFromStages(stages, { approveDecision: 'approved' })[4]).toBe('done');
+  });
+});
+
+describe('the case file timeline', () => {
+  it('reads a finished stage from its sentences, and keeps the summary as the live line until then', () => {
+    expect(showStageSummary('done', 3)).toBe(false);
+    expect(showStageSummary('skipped', 1)).toBe(false);
+    expect(showStageSummary('done', 0)).toBe(true);
+    expect(showStageSummary('waiting', 2)).toBe(true);
+    expect(showStageSummary('stopped', 2)).toBe(true);
+  });
+});
+
+describe('which cases the list loads', () => {
+  it('loads every open case for the open and waiting tabs, and the newest cases otherwise', () => {
+    expect(listScope('open')).toBe('open');
+    expect(listScope('waiting')).toBe('open');
+    expect(listScope('closed')).toBe('all');
+    expect(listScope('')).toBe('all');
   });
 });

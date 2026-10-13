@@ -1,5 +1,5 @@
 import type { CaseReport, StageKey } from '@onehuman/schemas';
-import { dotLabel, type DotState } from '@/lib/cases';
+import { dotLabel, showStageSummary, type DotState } from '@/lib/cases';
 import { cn } from '@/lib/utils';
 
 const BADGE: Record<DotState, string> = {
@@ -56,7 +56,7 @@ export function CaseTimeline({
               <span className={cn('text-xs', WORDS[state])}>{dotLabel(state)}</span>
               {row.minutes !== null && state === 'done' && <span className="text-xs text-fg-muted tabular-nums">{took(row.minutes)}</span>}
             </div>
-            {row.summary && <p className="mt-1 text-sm text-fg-body [overflow-wrap:anywhere]">{row.summary}</p>}
+            {row.summary && showStageSummary(state, (lines[row.stage] ?? []).length) && <p className="mt-1 text-sm text-fg-body [overflow-wrap:anywhere]">{row.summary}</p>}
             {(lines[row.stage] ?? []).length > 0 && (
               <ul className="mt-2 space-y-1 text-sm text-fg-lead">
                 {lines[row.stage]!.map((line, j) => (

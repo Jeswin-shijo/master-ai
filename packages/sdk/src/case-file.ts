@@ -1,4 +1,4 @@
-import type { CaseFile, CaseSource, StageKey } from '@onehuman/schemas';
+import type { CaseFile, CaseSource, PriorityId, StageKey } from '@onehuman/schemas';
 
 const FROM: Record<CaseSource, string> = {
   owner: 'raised by the owner',
@@ -17,6 +17,8 @@ export interface CaseFileWords {
   roleName?: (id: string) => string;
   /** How a date and time reads. */
   when?: (iso: string) => string;
+  /** The organization's name for a priority, e.g. "Urgent" for P2. */
+  priorityName?: (id: PriorityId) => string | undefined;
 }
 
 /**
@@ -46,8 +48,9 @@ export function caseFileLines(file: CaseFile, words: CaseFileWords = {}): Partia
     out.review = lines;
   }
   if (classify) {
+    const named = words.priorityName?.(classify.priority);
     out.classify = [
-      `${classify.categoryName}, ${classify.priority}, ${classify.risk} risk, for ${classify.department}.`,
+      `${classify.categoryName}, ${named ? `${named} (${classify.priority})` : classify.priority}, ${classify.risk} risk, for ${classify.department}.`,
       `Respond by ${when(classify.respondBy)}; resolve by ${when(classify.resolveBy)}.`,
       ...(classify.amountInr !== null ? [`Amount: ${inr.format(classify.amountInr)}.`] : []),
       ...classify.reasons,

@@ -8,7 +8,7 @@ import { Chip } from '@/components/ui/chip';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
 import { Input, Select } from '@/components/ui/form';
 import { api } from '@/lib/api';
-import { caseMatches, dotsFromCase, dueWords, FINAL_STATUSES, priorityTone, stageNames, statusWords, WAITING_ON_PEOPLE, type CaseFilters } from '@/lib/cases';
+import { caseMatches, dotsFromCase, dueWords, FINAL_STATUSES, listScope, priorityTone, stageNames, statusWords, WAITING_ON_PEOPLE, type CaseFilters } from '@/lib/cases';
 import { useNewRequest } from '@/lib/new-request';
 import { cn } from '@/lib/utils';
 
@@ -85,7 +85,9 @@ export function CasesPage() {
       { replace: true },
     );
 
-  const cases = useQuery({ queryKey: ['cases', 'all'], queryFn: () => api.cases.list('all') });
+  // The open tabs load every open case; the rest load the newest 200 (the server's page size).
+  const scope = listScope(filters.status);
+  const cases = useQuery({ queryKey: ['cases', scope], queryFn: () => api.cases.list(scope) });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
   const lifecycle = workspaces.data?.[0]?.pack.lifecycle;
   const names = stageNames(lifecycle);
@@ -162,6 +164,9 @@ export function CasesPage() {
             <CaseRow key={c.id} c={c} names={names} now={now} />
           ))}
         </ul>
+      )}
+      {scope === 'all' && (cases.data?.length ?? 0) >= 200 && (
+        <p className="mt-4 text-sm text-fg-muted">Showing the newest 200 {plural.toLowerCase()}. Every open one is under Open.</p>
       )}
     </div>
   );

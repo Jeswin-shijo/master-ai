@@ -62,6 +62,13 @@ export function MemberCard({ member, roles, staff, me }: { member: Member; roles
     },
   });
   const remove = useMutation({ mutationFn: () => api.members.remove(member.id), onSuccess: refresh });
+  // Start every edit from what the person has now: an abandoned edit, or a change made elsewhere, never carries into a save.
+  const startEditing = () => {
+    setAccess(member.role === 'admin' ? 'admin' : 'member');
+    setApproverRoles(member.approverRoles);
+    setStaffId(member.staffId ?? '');
+    setEditing(true);
+  };
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? 'A role no longer in your setup';
   const linked = staff.find((s) => s.id === member.staffId);
 
@@ -123,7 +130,7 @@ export function MemberCard({ member, roles, staff, me }: { member: Member; roles
       ) : (
         canEditMember(me, member) && (
           <div className="mt-4 flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+            <Button variant="secondary" size="sm" onClick={startEditing}>
               Change
             </Button>
             {canRemoveMember(me, member) && (

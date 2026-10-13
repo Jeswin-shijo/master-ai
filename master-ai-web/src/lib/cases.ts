@@ -33,9 +33,17 @@ export function dotsFromCase(c: Pick<Case, 'stage' | 'status'>): DotState[] {
   return STAGE_KEYS.map((_, i) => (i < at ? 'done' : i === at ? current : 'todo'));
 }
 
-/** The exact state of each stage, from the case report's timeline. */
-export function dotsFromStages(stages: { status: CaseStageStatus }[]): DotState[] {
-  return stages.map(({ status }) => {
+const REFUSED = ['rejected', 'expired', 'blocked'];
+
+/**
+ * The exact state of each stage, from the case report's timeline. A refused,
+ * expired or disallowed approval ends its stage as "done" in the engine; here it
+ * shows as stopped, so a rejected case never looks like it went through.
+ */
+export function dotsFromStages(stages: { status: CaseStageStatus }[], opts: { approveDecision?: string } = {}): DotState[] {
+  const approveAt = STAGE_KEYS.indexOf('approve');
+  return stages.map(({ status }, i) => {
+    if (i === approveAt && status === 'done' && opts.approveDecision && REFUSED.includes(opts.approveDecision)) return 'stopped';
     switch (status) {
       case 'done':
         return 'done';
@@ -128,4 +136,14 @@ export function dueWords(resolveBy: string | null, now: Date): { text: string; l
   const hours = Math.round(Math.abs(ms) / 3_600_000);
   const span = hours < 1 ? 'less than an hour' : hours < 48 ? `${hours} hour${hours === 1 ? '' : 's'}` : `${Math.round(hours / 24)} days`;
   return ms >= 0 ? { text: `Due in ${span}`, late: false } : { text: `Overdue by ${span}`, late: true };
+}
+
+/** A finished stage reads from its case-file sentences; until then its one-line summary is the live status. */
+export function showStageSummary(state: DotState, lineCount: number): boolean {
+  return lineCount === 0 || !(state === 'done' || state === 'skipped');
+}
+
+/** The open and waiting tabs load every open case; the other tabs and searches load the newest cases. */
+export function listScope(status: CaseFilters['status']): 'open' | 'all' {
+  return status === 'open' || status === 'waiting' ? 'open' : 'all';
 }

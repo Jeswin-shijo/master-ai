@@ -69,3 +69,11 @@ describe('the case file in words', () => {
     expect(all).not.toMatch(/[{}[\]]|goalId|high-risk-permit|safety-officer/);
   });
 });
+
+describe('priority names', () => {
+  it('says the priority the way the organization names it', () => {
+    const lines = caseFileLines(file, { when, roleName, priorityName: (p) => (p === 'P2' ? 'Urgent' : undefined) });
+    expect(lines.classify?.[0]).toBe('High-risk permit, Urgent (P2), high risk, for Safety.');
+    expect(caseFileLines(file, { when, roleName, priorityName: () => undefined }).classify?.[0]).toBe('High-risk permit, P2, high risk, for Safety.');
+  });
+});

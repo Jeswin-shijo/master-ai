@@ -19,3 +19,18 @@ test('a member sees the work pages only, keeps New request, and has no kill swit
   await expect(page.getByRole('button', { name: 'Invite a person' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Change' })).toHaveCount(0);
 });
+
+test('an abandoned change to a person is forgotten, so a later save cannot drop their approval role', async ({ page }) => {
+  const org = await newOrganization('power-plant');
+  const invite = await org.api.invites.create({ name: 'Sunita Safety', email: uniqueEmail('sunita'), approverRoles: ['safety-officer'] });
+  await createClient({ baseUrl: API_URL }).invites.accept(org.tenant.id, invite.path.split('/').pop()!, { password: PASSWORD });
+  await signInAs(page, org);
+  await page.goto('/team');
+
+  const card = page.getByRole('article', { name: 'Sunita Safety' });
+  await card.getByRole('button', { name: 'Change' }).click();
+  await card.getByRole('checkbox', { name: /Safety officer/ }).uncheck();
+  await card.getByRole('button', { name: 'Cancel' }).click();
+  await card.getByRole('button', { name: 'Change' }).click();
+  await expect(card.getByRole('checkbox', { name: /Safety officer/ })).toBeChecked();
+});

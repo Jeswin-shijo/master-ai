@@ -182,9 +182,9 @@ export function CasePage() {
   const names = stageNames(lifecycle);
   const roleName = (rid: string) => (rid === 'owner' ? 'the owner' : (lifecycle?.roles.find((r) => r.id === rid)?.name ?? 'the right person'));
   const rows = STAGE_KEYS.map((k) => report.stages.find((s) => s.stage === k) ?? { stage: k, name: names[k], status: 'pending' as const, minutes: null, summary: null });
-  const states = dotsFromStages(rows);
+  const states = dotsFromStages(rows, { approveDecision: file.approve?.decision });
   const stageLabels = rows.map((r) => r.name || names[r.stage]);
-  const lines = caseFileLines(file, { roleName });
+  const lines = caseFileLines(file, { roleName, priorityName: (p) => lifecycle?.priorities.find((x) => x.id === p)?.name });
   const ended = FINAL_STATUSES.includes(c.status);
   const gate = approvals.find((a) => a.kind === 'case_gate' && a.status === 'pending');
   const canDecide = !!gate && (mine.data ?? []).some((a) => a.id === gate.id);

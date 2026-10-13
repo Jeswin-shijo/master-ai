@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { darkPalette } from '@onehuman/ui';
 import { newOrganization, sidewaysOverflow, signInAs, waitForCase, WELDING } from './helpers';
 
 test('long request text wraps and stays text', async ({ page }) => {
@@ -65,4 +66,25 @@ test('a customer raises a request through the public form, and it arrives as a c
 
   await page.goto(`/cases?q=${encodeURIComponent(code)}`);
   await expect(page.getByRole('link', { name: new RegExp(code) })).toBeVisible();
+});
+
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+
+test('chips keep their tone colours at 13px, and case rows light up on hover', async ({ page }) => {
+  const org = await newOrganization('power-plant');
+  const c = await org.api.cases.create({ text: 'Boiler feed pump B tripped on high vibration, unit load reduced' });
+  await waitForCase(org.api, c.id, (d) => d.case.priority === 'P1');
+  await signInAs(page, org);
+  await page.goto('/cases');
+
+  const chip = page.locator('.chip', { hasText: /^P1$/ }).first();
+  const style = await chip.evaluate((el) => ({ bg: getComputedStyle(el).backgroundColor, size: parseFloat(getComputedStyle(el).fontSize) }));
+  expect(style.bg).toBe(rgb(darkPalette.dangerSoft));
+  expect(style.size).toBeGreaterThanOrEqual(13);
+
+  const row = page.getByRole('link', { name: new RegExp(c.code) });
+  const ring = () => row.evaluate((el) => getComputedStyle(el).boxShadow);
+  const before = await ring();
+  await row.hover();
+  await expect.poll(ring).not.toBe(before);
 });
