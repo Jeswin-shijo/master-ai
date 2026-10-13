@@ -1,10 +1,11 @@
 import { BadRequestException, Controller, Get, Injectable, Query } from '@nestjs/common';
-import { desc, eq, gte, inArray, or } from 'drizzle-orm';
-import type { GoalReport, GoalStatus, ReportPeriod, ResolvedPack, StepNarrative, WorkReport } from '@onehuman/schemas';
-import { narrateStep, resolveTool } from '@onehuman/agent-kit';
+import { and, desc, eq, gte, inArray, isNull, or } from 'drizzle-orm';
+import type { CaseReport, GoalReport, GoalStatus, ReportPeriod, ResolvedPack, StepNarrative, WorkReport } from '@onehuman/schemas';
+import { lifecycleOf, narrateStep, normalizeSnapshot, resolveTool } from '@onehuman/agent-kit';
 import { CurrentSession, type Session } from '../common/auth';
 import { DbService, type Tx } from '../db/db.service';
-import { approvalRequests, calls, delegations, goals, records, staff, tasks, toolCalls, workspaces } from '../db/schema';
+import { approvalRequests, calls, caseStages, cases, delegations, goals, records, staff, tasks, toolCalls, workspaces } from '../db/schema';
+import { buildCaseReport, type CaseRow } from './case-report';
 
 type GoalRow = typeof goals.$inferSelect;
 type TaskRow = typeof tasks.$inferSelect;
@@ -119,13 +120,20 @@ export class ReportsService {
       const goalRows = await tx
         .select()
         .from(goals)
-        .where(from ? or(gte(goals.createdAt, from), gte(goals.completedAt, from)) : undefined)
+        .where(and(isNull(goals.caseId), from ? or(gte(goals.createdAt, from), gte(goals.completedAt, from)) : undefined))
         .orderBy(desc(goals.createdAt))
         .limit(200);
       const reports = await this.reportsFor(tx, goalRows);
+      const caseRows = await tx
+        .select()
+        .from(cases)
+        .where(from ? or(gte(cases.createdAt, from), gte(cases.closedAt, from)) : undefined)
+        .orderBy(desc(cases.createdAt))
+        .limit(200);
+      const caseReports = await this.caseReports(tx, caseRows);
       const totals = {
         goals: reports.length,
-        cases: 0,
+        cases: caseReports.length,
         finished: reports.filter((r) => FINISHED.has(r.status)).length,
         needYou: reports.filter((r) => r.attention.length > 0 || r.pending.some((p) => p.startsWith('Waiting for your approval'))).length,
         actions: reports.reduce((n, r) => n + r.counts.actions, 0),
@@ -133,7 +141,7 @@ export class ReportsService {
         calls: reports.reduce((n, r) => n + r.counts.calls, 0),
         costInr: Math.round(reports.reduce((n, r) => n + r.costInr, 0) * 100) / 100,
       };
-      return { period, from: from?.toISOString() ?? null, to: now.toISOString(), totals, goals: reports, cases: [] };
+      return { period, from: from?.toISOString() ?? null, to: now.toISOString(), totals, goals: reports, cases: caseReports };
     });
   }
 
@@ -143,6 +151,30 @@ export class ReportsService {
     const narratives = await this.narrate(tx, pack, callRows, approvals);
     const team = await this.team(tx, [goal.id]);
     return { narratives, report: this.goalReport(goal, pack, taskRows, callRows, narratives, approvals, team) };
+  }
+
+  /** One case's report, for the case page. */
+  async forCase(tx: Tx, row: CaseRow): Promise<CaseReport> {
+    const [report] = await this.caseReports(tx, [row]);
+    return report!;
+  }
+
+  private async caseReports(tx: Tx, rows: CaseRow[]): Promise<CaseReport[]> {
+    if (rows.length === 0) return [];
+    const ids = rows.map((r) => r.id);
+    const goalIds = rows.map((r) => r.goalId).filter((g): g is string => !!g);
+    const [stageRows, goalRows, wsRows] = await Promise.all([
+      tx.select().from(caseStages).where(inArray(caseStages.caseId, ids)),
+      goalIds.length ? tx.select().from(goals).where(inArray(goals.id, goalIds)) : Promise.resolve([]),
+      tx.select({ id: workspaces.id, pack: workspaces.pack }).from(workspaces).where(inArray(workspaces.id, [...new Set(rows.map((r) => r.workspaceId))])),
+    ]);
+    const work = new Map((await this.reportsFor(tx, goalRows)).map((g) => [g.goalId, g]));
+    const lifecycles = new Map(wsRows.map((w) => [w.id, lifecycleOf(normalizeSnapshot(w.pack))]));
+    return rows.flatMap((r) => {
+      const lc = lifecycles.get(r.workspaceId);
+      if (!lc) return [];
+      return [buildCaseReport(r, stageRows.filter((s) => s.caseId === r.id), r.goalId ? (work.get(r.goalId) ?? null) : null, lc)];
+    });
   }
 
   private async reportsFor(tx: Tx, goalRows: GoalRow[]): Promise<GoalReport[]> {
