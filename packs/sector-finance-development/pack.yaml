@@ -1,0 +1,376 @@
+# Sector base for finance and development: lenders, accounting and tax firms,
+# NGOs and trusts. Ready-made types extend it; typed-in types borrow the
+# closest ready-made type (other_org_types) or use it directly.
+id: sector-finance-development
+version: 1.0.0
+name: Finance & Development
+description: Customer requests, KYC, payments, filings, complaints and fraud alerts for lenders, accounting and tax firms, NGOs and other finance and development organizations.
+kind: base
+sector: finance-development
+extends: [crm-base]
+
+lifecycle:
+  case: { label: Case, plural: Cases, prefix: CS }
+  stages:
+    request:
+      name: Request received
+      description: A request, complaint, payment need, notice or system alert comes in from a customer, client, beneficiary, donor, staff member, regulator or partner, gets a case number and is acknowledged.
+    review:
+      name: Documents and KYC check
+      description: Staff and agents confirm who is asking, check their KYC, the documents and our authority to act, and ask for anything missing before the case moves on.
+      checks:
+        - "Who is asking is confirmed: customer, client or beneficiary ID, or a staff request from the right person"
+        - KYC on file and current, with PAN or Form 60 and Aadhaar (with consent, stored masked) or another valid ID
+        - New customers, clients and payees checked against the UN and Indian sanctions lists
+        - All documents for this request received and readable
+        - Notices and letters checked as genuine (reference number, sender) before anyone acts on them
+        - Not a repeat of a case that is already open, paid or answered
+    classify:
+      name: Type, risk and priority
+      description: The case gets its type, risk, priority (P1 to P4), due date and owning desk, which starts the response clock.
+    assign:
+      name: Assign officer and deadline
+      description: The branch or office head names the officer responsible and sets our own deadline a few days before any legal or regulator due date.
+    approve:
+      name: Approval or sanction
+      description: The person with the delegated power approves, sanctions or declines, never the person who prepared the work, and no money goes out before this step.
+    execute:
+      name: Process and track
+      description: The team and agents carry out the decision, whether a payment, filing, reply or document, and track the proof, the money and the deadlines.
+    close:
+      name: Final check and close
+      description: Someone other than the person who did the work checks the outcome, the named role signs off and the person who asked gets a written reply.
+      checks:
+        - Outcome matches what was approved (amount, payee, filing or reply)
+        - Money reached the right bank account, and the books, bank and receipts match
+        - Acknowledgement, receipt or filing proof saved with the case
+        - Written reply sent to the person who asked, in their language where possible
+        - A complaint that is not fully resolved is told where to escalate (ombudsman or regulator)
+    report:
+      name: Reports and review
+      description: Each month the team reviews complaints, delays, filings, frauds and repeat problems, sends the reports regulators, donors and partners need, and fixes the causes that keep coming back.
+  priorities:
+    - { id: P1, name: "Urgent: money or a person at risk", respond_within_hours: 1, resolve_within_hours: 48 }
+    - { id: P2, name: "High: legal or regulator deadline", respond_within_hours: 4, resolve_within_hours: 168 }
+    - { id: P3, name: Normal, respond_within_hours: 24, resolve_within_hours: 240 }
+    - { id: P4, name: Low, respond_within_hours: 48, resolve_within_hours: 360 }
+  roles:
+    - { id: finance-manager, name: Finance manager, approves: "Payments, fund releases and reimbursements; signs off that the money reached the right account" }
+    - { id: compliance-officer, name: Compliance officer, approves: "Regulatory filings, notice replies and the response to fraud alerts, including reports to FIU-IND, the police or the regulator" }
+    - { id: grievance-officer, name: Grievance officer, approves: Final replies to complaints and grievances }
+    - { id: internal-auditor, name: Internal auditor, approves: "Closing fraud and misconduct cases after checking the loss, the cause and the fix" }
+  urgent_keywords: [fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, robbery, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, threatening, harassment, harassed, abused, suicide, fire, injured, injury]
+  categories:
+    - id: service-request
+      name: Details change or service request
+      keywords:
+        - change of address
+        - address change
+        - change my address
+        - update my address
+        - new address
+        - change of mobile number
+        - change my mobile number
+        - update my mobile number
+        - new mobile number
+        - mobile number change
+        - change my bank account
+        - change of bank account
+        - update my bank details
+        - bank details change
+        - kyc update
+        - update my kyc
+        - re kyc
+        - rekyc
+        - name correction
+        - correct my name
+        - spelling of my name
+        - add nominee
+        - change nominee
+        - nominee change
+      priority: P4
+      risk: low
+      department: Customer service
+      required_checks:
+        - Request really comes from the account holder (OTP on the registered mobile or a signed request)
+        - New detail backed by a valid document and the KYC record updated
+        - Bank account or mobile changes confirmed by calling the old registered number, not only by email or WhatsApp
+      approval: { required: never }
+      signoff: { required: false }
+      execution: agents
+    - id: document-request
+      name: Document or certificate request
+      keywords:
+        - statement of account
+        - duplicate receipt
+        - receipt copy
+        - copy of receipt
+        - copy of the receipt
+        - copy of my receipt
+        - copy of agreement
+        - copy of the agreement
+        - copy of my agreement
+        - certified copy
+        - duplicate certificate
+        - copy of the certificate
+        - copy of my documents
+      priority: P4
+      risk: low
+      department: Operations
+      required_checks:
+        - Asked by the account holder or someone they authorised in writing
+        - Figures checked against the books before the document goes out
+        - Sent only to the registered email or address
+      not_eligible:
+        - keywords: [someone else's, another person's, other person's, my neighbour's, my neighbor's, my friend's]
+          reason: We share account papers only with the account holder or someone they have authorised in writing. Ask the account holder to request it.
+      approval: { required: never }
+      signoff: { required: false }
+      execution: agents
+    - id: payment
+      name: Payment or fund release
+      keywords:
+        - release payment
+        - release the payment
+        - payment release
+        - release funds
+        - release of funds
+        - fund release
+        - vendor payment
+        - supplier payment
+        - pay the vendor
+        - pay the supplier
+        - payment voucher
+        - approve payment
+        - approve the payment
+        - reimbursement
+        - reimburse
+        - petty cash
+        - imprest
+        - salary advance
+        - travel advance
+        - honorarium
+      priority: P3
+      risk: medium
+      department: Accounts and finance
+      required_details:
+        - { key: amount, label: Amount to pay, kind: amount }
+      required_checks:
+        - Bill or invoice matches the order and the goods or work received
+        - Payee's bank account verified before the first payment
+        - Budget or grant line has money left for it
+        - TDS deducted where due
+        - The person releasing the money is not the person who prepared the payment
+      not_eligible:
+        - keywords: [in cash, by cash, cash payment, pay cash, paid in cash, cash only]
+          amount_above_inr: 10000
+          reason: Payments above ₹10,000 to one person in a day must go by bank transfer, UPI or account-payee cheque, because income tax disallows bigger cash expenses. Raise it again with the payee's bank details.
+      approval: { required: always, role: finance-manager }
+      signoff: { required: true, role: finance-manager }
+      execution: both
+    - id: complaint
+      name: Complaint or grievance
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - grievance
+        - ombudsman
+        - not resolved
+        - no reply
+        - no response
+        - rude
+        - misbehaved
+        - misbehaviour
+        - hidden charges
+        - wrongly charged
+        - extra charges
+        - consumer forum
+        - consumer court
+        - poor service
+        - shikayat
+      priority: P2
+      risk: medium
+      department: Grievance cell
+      required_checks:
+        - Logged with a complaint number and acknowledged
+        - "Facts checked: records, receipts, call recordings and the staff member's side"
+        - Final written reply within 30 days
+        - A reply that does not fully resolve it says where the person can escalate
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: delegate-work
+      execution: both
+    - id: compliance-filing
+      name: Compliance filing or notice
+      keywords:
+        - show cause notice
+        - notice from the regulator
+        - letter from the regulator
+        - regulatory return
+        - regulatory filing
+        - statutory return
+        - statutory filing
+        - compliance filing
+        - roc filing
+        - mca filing
+        - aoc 4
+        - mgt 7
+        - registration renewal
+        - licence renewal
+        - license renewal
+        - rbi inspection
+        - rbi return
+        - inspection report
+        - fiu ind
+      priority: P2
+      risk: medium
+      department: Compliance
+      required_details:
+        - { key: dueDate, label: Due date, kind: date }
+      required_checks:
+        - Notice or letter attached and checked as genuine
+        - Figures match the books and the audited accounts
+        - Filed or answered before the due date, with the acknowledgement saved
+      approval: { required: always, role: compliance-officer }
+      signoff: { required: false }
+      execution: both
+    - id: fraud-alert
+      name: Fraud or misconduct alert
+      keywords:
+        - fraud
+        - fraudulent
+        - forged
+        - forgery
+        - fake document
+        - fake receipt
+        - fake bill
+        - fake signature
+        - identity theft
+        - impersonation
+        - impersonating
+        - misappropriation
+        - embezzlement
+        - siphoned
+        - bribe
+        - kickback
+        - cheated
+        - cheating
+        - scam
+        - phishing
+        - unauthorised transaction
+        - unauthorized transaction
+        - without receipt
+        - cash shortage
+        - hacked
+        - data leak
+        - harassment
+        - harassed
+        - threatened
+        - abused
+        - abusive
+        - misconduct
+      priority: P1
+      risk: high
+      department: Compliance
+      required_checks:
+        - "Loss stopped first: payment held, access blocked or the staff member taken off the work"
+        - Evidence kept (documents, call recordings, bank trail, visit logs)
+        - Police complaint filed where money is lost
+        - Compliance officer decides on a report to FIU-IND or the regulator within the time limit
+        - The person who raised it is protected and their name kept private
+      approval: { required: always, role: compliance-officer }
+      signoff: { required: true, role: internal-auditor }
+      workflow: delegate-work
+      execution: team
+  examples:
+    - { request: "Please update my new mobile number 98450 12345 in your records", category: service-request, priority: P4, approval: false }
+    - { request: My surname is spelt wrong in your records. Please do a name correction as per my PAN card, category: service-request, priority: P4, approval: false }
+    - { request: "Send me the statement of account from April to September, my bank has asked for it", category: document-request, priority: P4, approval: false }
+    - { request: "I lost the receipt for my last instalment, can you give me a duplicate receipt?", category: document-request, priority: P4, approval: false }
+    - { request: "Release payment of ₹38,000 to Sai Printers for printing the annual report, bill attached", category: payment, priority: P3, approval: true }
+    - { request: "Reimbursement of ₹6,450 for my field travel last month, bus tickets attached", category: payment, priority: P3, approval: true }
+    - { request: AOC-4 and MGT-7 for last year are due on the MCA portal by 29 November, category: compliance-filing, priority: P2, approval: true }
+    - { request: "Show cause notice from the regulator came today, reply needed within 15 days", category: compliance-filing, priority: P2, approval: true }
+    - { request: I complained two weeks ago about extra charges on my account and still have no reply, category: complaint, priority: P2, approval: false }
+    - { request: Your Nagpur office staff were rude to my mother and made her wait three hours, category: complaint, priority: P2, approval: false }
+    - { request: A customer says someone forged her signature on a withdrawal slip at our Hubli branch, category: fraud-alert, priority: P1, approval: true }
+    - { request: Field officer took repayment cash from five members in Kolar centre without receipt, category: fraud-alert, priority: P1, approval: true }
+
+playbooks:
+  - id: sector-kyc-aml
+    title: KYC and anti-money laundering basics
+    source: Prevention of Money-laundering Act, 2002 and PML (Maintenance of Records) Rules, 2005; RBI Master Direction on KYC, 2016 (as updated); Income-tax Act limits on cash; Digital Personal Data Protection Act, 2023
+    body: |
+      1. Before taking on a new customer, client, donor or payee, collect PAN (or Form 60) and Aadhaar or another officially valid document. Use Aadhaar only with consent and store it masked.
+      2. Check every new name against the UN and Indian sanctions lists. On a match, stop and tell the compliance officer the same day.
+      3. Grade each customer low, medium or high risk, and refresh KYC on time and whenever details change. RBI-regulated lenders refresh at least every 2, 8 and 10 years for high, medium and low risk.
+      4. Watch for money that does not fit the person: big cash, many deposits just under a limit, payments from unknown third parties, or someone who will not give ID. Tell the compliance officer, never the customer.
+      5. Lenders and other reporting entities under PMLA file a suspicious transaction report with FIU-IND within 7 working days of deciding it is suspicious, and a cash transaction report for cash above ₹10 lakh in a month by the 15th of the next month.
+      6. Keep to the cash limits: never accept ₹2 lakh or more in cash from one person in a day, never take or repay a loan or deposit of ₹20,000 or more in cash, and pay business expenses above ₹10,000 by bank.
+      7. Keep KYC and transaction records for at least 5 years after the relationship ends.
+  - id: sector-grievance-handling
+    title: Handling a complaint or grievance
+    source: RBI Integrated Ombudsman Scheme, 2021 and RBI internal ombudsman directions for regulated lenders; Consumer Protection Act, 2019; common practice in Indian finance and development organizations
+    body: |
+      1. Log every complaint from any channel (WhatsApp, phone, letter, office visit, social media) with a number and date, and acknowledge it the same day in the person's language.
+      2. Never ask the person to write again in a set format before you start.
+      3. Get the facts: account records, receipts, call recordings, visit logs and the staff member's side.
+      4. Fix what is wrong first (reverse a wrong charge, correct a record) and tell the person what you did.
+      5. Send a final written reply within 30 days. RBI-regulated lenders: if the complaint is rejected in full or in part, or not answered in 30 days, the reply names the RBI Ombudsman (cms.rbi.org.in, toll-free 14448).
+      6. The grievance officer signs off every final reply. Show the grievance officer's name, phone and email at every office and on the website.
+      7. Threats, harassment or fraud are not ordinary complaints. Raise them as a fraud or misconduct alert at once.
+      8. Each month, count complaints by cause and fix the cause that keeps coming back.
+  - id: sector-payment-release
+    title: Approving and releasing a payment
+    source: Common maker-checker practice in Indian finance offices; Income-tax Act rules on cash expenses and TDS; GST invoice rules
+    body: |
+      1. Raise a payment request with the bill or invoice, the purpose, the budget or grant line, and the payee's bank details.
+      2. Check the bill against the order or agreement and the goods or work received. Get three quotations for purchases above your organization's limit.
+      3. Verify the payee's bank account (cancelled cheque or a ₹1 test transfer) before the first payment. A change of bank details sent by email or WhatsApp is a common fraud, so confirm it by calling a number you already have.
+      4. Check the payee's GST number and deduct TDS where it is due.
+      5. The person who prepared the payment never approves it. The finance manager approves; amounts above their limit go to the owner or the board.
+      6. Pay by bank transfer, UPI or account-payee cheque. Cash above ₹10,000 to one person in a day is not allowed for business expenses.
+      7. File the voucher with the bill, the approval and the bank proof, and reconcile the bank account every month.
+
+kpis:
+  - id: complaints-in-30-days
+    name: Complaints answered within 30 days
+    description: Share of complaints this month that got a final written reply within 30 days.
+    unit: percent
+    direction: up
+    target: 100
+  - id: filings-on-time
+    name: Filings and returns on time
+    description: Share of statutory filings, returns and notice replies sent by their due date this month.
+    unit: percent
+    direction: up
+    target: 100
+  - id: payment-turnaround
+    name: Time to release a payment
+    description: Average hours from a payment request to the money reaching the payee.
+    unit: hours
+    direction: down
+  - id: kyc-overdue
+    name: KYC refresh overdue
+    description: Customers, clients and payees whose KYC is due for a refresh and not yet done.
+    unit: count
+    direction: down
+    target: 0
+
+other_org_types:
+  - { name: Microfinance institution, keywords: [microfinance, mfi, jlg lending, joint liability group, group lending], closest: lender }
+  - { name: Gold loan company, keywords: [gold loan, gold finance, pawn broker, pawnbroker, pawn shop], closest: lender }
+  - { name: Chit fund, keywords: [chit fund, chit company, chitty, kuri], closest: lender }
+  - { name: Credit society or co-operative, keywords: [credit society, credit cooperative, credit co-operative, cooperative credit society, co-operative credit society, pacs, thrift society], closest: lender }
+  - { name: Nidhi company, keywords: [nidhi, nidhi company, mutual benefit fund], closest: lender }
+  - { name: Vehicle or housing finance company, keywords: [housing finance, vehicle finance, auto finance, two wheeler finance, tractor finance, home loan company], closest: lender }
+  - { name: Payment company or fintech, keywords: [payment aggregator, payment gateway, fintech, wallet, prepaid card, upi app, money transfer, remittance], closest: lender }
+  - { name: Insurance broker or agent, keywords: [insurance broker, insurance agent, insurance agency, insurance advisor, corporate agent, posp], closest: lender }
+  - { name: Wealth or investment advisor, keywords: [wealth advisor, wealth management, investment advisor, financial planner, mutual fund distributor, ria], closest: accounting-firm }
+  - { name: Tax consultant, keywords: [tax consultant, tax practitioner, gst practitioner, income tax consultant, itr filing, tax return filing], closest: accounting-firm }
+  - { name: Company secretary or compliance firm, keywords: [company secretary, cs firm, secretarial, roc compliance, compliance consultant], closest: accounting-firm }
+  - { name: Payroll or bookkeeping service, keywords: [payroll, bookkeeping, book keeping, accounting outsourcing, virtual cfo, back office accounting], closest: accounting-firm }
+  - { name: CSR foundation, keywords: [csr foundation, corporate foundation, csr arm, csr implementing agency, foundation], closest: ngo }
+  - { name: Charitable or religious trust, keywords: [charitable trust, public trust, religious trust, temple trust, educational trust, endowment], closest: ngo }
+  - { name: Self-help group federation, keywords: [shg federation, self help group, self-help group federation, cluster level federation, village organisation, farmer producer organisation, fpo], closest: ngo }

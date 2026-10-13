@@ -1,0 +1,1135 @@
+# Ready-made pack: factories and manufacturing units (auto parts, cement,
+# steel, chemicals, food processing, plastics, textiles). Built from researched
+# Indian practice: the OSH Code 2020 and state OSH rules, IS 17893:2023 work
+# permits, the CPCB online monitoring protocol, ESI regulations, ISO 9001 and
+# IATF 16949, then checked by an operations and compliance expert.
+id: manufacturing-plant
+version: 1.0.0
+name: Manufacturing plant
+description: Breakdowns, maintenance under permit, accidents and near misses, pollution alarms, quality problems and CAPA, production orders and purchases for factories and manufacturing units.
+kind: industry
+sector: energy-heavy-industry
+extends: [sector-energy-heavy-industry, orders-base]
+match:
+  keywords:
+    - factory
+    - manufacturing unit
+    - manufacturing plant
+    - manufacturing company
+    - manufacturer
+    - msme manufacturer
+    - msme unit
+    - small scale industry
+    - ssi unit
+    - industrial unit
+    - production unit
+    - production plant
+    - processing plant
+    - auto parts
+    - auto components
+    - auto ancillary
+    - component manufacturer
+    - machine shop
+    - cnc machining
+    - press shop
+    - forging unit
+    - foundry
+    - casting unit
+    - steel plant
+    - rolling mill
+    - cement plant
+    - cement factory
+    - chemical plant
+    - chemical factory
+    - pharma manufacturing
+    - food processing unit
+    - dairy plant
+    - plastic moulding
+    - injection moulding
+    - textile mill
+    - spinning mill
+    - garment factory
+
+entities:
+  - name: Machine
+    label: Machine
+    plural_label: Machines
+    title_field: name
+    list_columns: [code, name, line, criticality, status, nextPmDue]
+    fields:
+      - { name: code, label: Machine code, type: string, required: true }
+      - { name: name, label: Machine name, type: string, required: true }
+      - { name: line, label: Line or section, type: string }
+      - name: criticality
+        label: Criticality (A stops the plant)
+        type: enum
+        options: [A, B, C]
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [running, stopped, under-maintenance, standby]
+      - { name: lastPmDate, label: Last preventive maintenance, type: date }
+      - { name: nextPmDue, label: Next PM due, type: date }
+      - { name: statutoryTestDue, label: "Next statutory test due (lifts, hoists, tackle, pressure vessels)", type: date }
+      - { name: lossPerHour, label: Loss per hour stopped, type: money }
+      - { name: notes, label: Notes, type: text }
+  - name: ProductionOrder
+    label: Production order
+    plural_label: Production orders
+    title_field: orderNo
+    list_columns: [orderNo, customer, partNo, quantity, dueDate, status]
+    fields:
+      - { name: orderNo, label: Order no., type: string, required: true }
+      - { name: customer, label: Customer, type: string }
+      - { name: partNo, label: Part or product, type: string, required: true }
+      - { name: drawingRev, label: Drawing or spec revision, type: string }
+      - { name: quantity, label: Quantity, type: integer, required: true }
+      - { name: dueDate, label: Due date, type: date, required: true }
+      - { name: line, label: Line, type: string }
+      - { name: producedQty, label: Produced, type: integer }
+      - { name: rejectedQty, label: Rejected, type: integer }
+      - { name: orderValue, label: Order value, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [planned, released, running, on-hold, completed, dispatched]
+  - name: QualityIssue
+    label: Quality issue
+    plural_label: Quality issues
+    title_field: partNo
+    list_columns: [partNo, lotNo, foundAt, qtyAffected, disposition, status]
+    fields:
+      - { name: partNo, label: Part or product, type: string, required: true }
+      - { name: lotNo, label: "Batch, lot or heat no.", type: string }
+      - { name: defect, label: Defect, type: text, required: true }
+      - { name: qtyAffected, label: Quantity affected, type: integer }
+      - name: foundAt
+        label: Found at
+        type: enum
+        options: [incoming, in-process, final-inspection, customer]
+      - { name: supplierOrCustomer, label: Supplier or customer, type: string }
+      - name: disposition
+        label: Decision
+        type: enum
+        options: [pending, sort, rework, scrap, use-as-is-concession, return-to-supplier]
+      - { name: decidedBy, label: Decided by, type: string }
+      - { name: rootCause, label: Root cause, type: text }
+      - { name: capaDue, label: CAPA due, type: date }
+      - { name: cost, label: "Cost (scrap, rework, sorting)", type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [open, contained, capa-open, closed]
+  - name: SafetyIncident
+    label: Safety incident
+    plural_label: Safety incidents
+    title_field: location
+    list_columns: [occurredAt, location, type, personName, status]
+    fields:
+      - { name: occurredAt, label: When, type: datetime, required: true }
+      - { name: location, label: Where, type: string, required: true }
+      - name: type
+        label: Type
+        type: enum
+        required: true
+        options: [injury, near-miss, unsafe-condition, fire, gas-leak, spill, dangerous-occurrence, pollution-alarm]
+      - { name: personName, label: Person involved, type: string }
+      - { name: contractWorker, label: Contract worker, type: boolean }
+      - { name: injury, label: Injury or damage, type: text }
+      - { name: daysLost, label: Days lost, type: integer }
+      - { name: permitInPlace, label: Permit and lock-out were in place, type: boolean }
+      - { name: reportable, label: Needs notice to the Inspector-cum-Facilitator, type: boolean }
+      - { name: noticeSentAt, label: Notice sent at, type: datetime }
+      - { name: esiReportSentAt, label: ESIC accident report sent at, type: datetime }
+      - { name: rootCause, label: Root cause, type: text }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [open, investigating, actions-open, closed]
+
+tools:
+  - name: machines.search
+    description: Search machines by code, name, line or status.
+    uses: records.search
+    with: { entity: Machine }
+  - name: machine.mark_under_repair
+    description: Mark a machine as under maintenance while a breakdown or job is being worked on. Only the shift in-charge puts it back into production.
+    uses: records.update
+    with: { entity: Machine, patch: { status: under-maintenance } }
+  - name: production_orders.search
+    description: Search production orders by order number, customer, part or status.
+    uses: records.search
+    with: { entity: ProductionOrder }
+  - name: production_order.plan
+    description: Create a production order in planned status with part, drawing revision, quantity and due date.
+    uses: records.create
+    with: { entity: ProductionOrder, data: { status: planned } }
+  - name: production_order.hold
+    description: Put a production order on hold while suspect material is contained.
+    uses: records.update
+    with: { entity: ProductionOrder, patch: { status: on-hold } }
+  - name: quality_issues.search
+    description: Search quality issues by part, lot, supplier, customer or status.
+    uses: records.search
+    with: { entity: QualityIssue }
+  - name: quality_issue.log
+    description: Record a quality problem with part, lot, quantity and where it was found. The quality head decides what happens to the material.
+    uses: records.create
+    with: { entity: QualityIssue, data: { status: open, disposition: pending } }
+  - name: incidents.search
+    description: Search accidents, emergencies, pollution alarms and near misses.
+    uses: records.search
+    with: { entity: SafetyIncident }
+    risk: { sensitivity: confidential }
+  - name: incident.log
+    description: Record an accident, emergency, pollution alarm or near miss with what happened, where, when and who was involved.
+    uses: records.create
+    with: { entity: SafetyIncident, data: { status: open } }
+    risk: { sensitivity: confidential }
+
+agents:
+  - role: maintenance-planner
+    name: Maintenance planner
+    description: Logs breakdowns and maintenance jobs against the machine, prepares the permit and lock-out request for the shift in-charge, checks spares, gets and compares quotes for spares and services, drafts the purchase order, and hands the work to the fitter, electrician or service vendor by phone.
+    instructions: Never tell anyone to start work and never mark a permit as signed; the shift in-charge signs permits and releases the machine. Refuse any request to remove or bypass a guard, light curtain, sensor or interlock. Quote the machine code in everything you write.
+    autonomy: 3
+    tools: [machines.search, machine.mark_under_repair, records.search, records.create, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: internal }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: quality-desk
+    name: Quality and production desk
+    description: Plans production orders against material and capacity, hands job cards to the supervisor, tracks output and rejections per shift, logs quality problems, traces the affected lots, drafts containment plans, 8D reports, customer replies and supplier debit notes, and chases CAPA owners.
+    instructions: Only the quality head decides what happens to rejected material. Never promise a customer a decision or a date the quality head has not approved, and never release a held lot.
+    autonomy: 3
+    tools: [production_orders.search, production_order.plan, production_order.hold, quality_issues.search, quality_issue.log, machines.search, records.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: safety-desk
+    name: Safety desk (EHS)
+    description: Records accidents, emergencies, pollution alarms and near misses, keeps the reporting clock, collects statements and photos, drafts the statutory notice, the ESIC accident report, notes to the pollution board and licence or consent renewals for the plant head, and follows each corrective action to closure.
+    instructions: Life and safety first. Never mark a notice as sent and never approve a restart; the plant head signs statutory notices and approves the restart. Never blame the person who reported a near miss.
+    autonomy: 2
+    tools: [incidents.search, incident.log, machines.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: breakdown-repair
+    name: Breakdown repair
+    description: Log the breakdown, prepare the lock-out and permit, and get the fitter or electrician repairing it.
+    keywords: [breakdown, stopped, tripped, jammed, not working, repair]
+    steps:
+      - key: log
+        title: Log the breakdown and prepare the permit
+        agent: maintenance-planner
+        instructions: Find the machine by code, mark it under repair, log the stop time and what happened, check spares in stores and prepare the lock-out and permit request for the shift in-charge.
+      - key: repair
+        title: Get the repair done
+        agent: maintenance-planner
+        depends_on: [log]
+        instructions: Hand the repair to the fitter or electrician on shift by phone with the machine, place, permit and target time. Call the service vendor if the plant team cannot fix it, and report the restart time and downtime.
+  - id: maintenance-job
+    name: Maintenance job under permit
+    description: Book the machine release, the right permit and the crew for a planned job or statutory test, and file the readings.
+    keywords: [pm, preventive, maintenance, overhaul, calibration, hot work, confined space, statutory test]
+    steps:
+      - key: book
+        title: Book the release, permit and spares
+        agent: maintenance-planner
+        instructions: Check the PM checklist or statutory test due, the spares and the right permit (cold work, hot work, height, confined space or electrical), and ask the shift in-charge for a time to release the machine.
+      - key: do
+        title: Hand the job to the crew
+        agent: maintenance-planner
+        depends_on: [book]
+        instructions: Hand the job to the maintenance crew or contractor by phone with the checklist, permit and date. Record the readings or test certificate and the next due date.
+  - id: spares-purchase
+    name: Spares and services purchase
+    description: Check stock, compare quotes and draft the purchase order for a person to send.
+    keywords: [indent, purchase, quote, quotation, vendor, spares, amc, po]
+    steps:
+      - key: compare
+        title: Check stock and compare quotes
+        agent: maintenance-planner
+        instructions: Check stock and open orders, collect three quotes or use the rate contract, check the vendor's GST number and bank details, and write a short comparison.
+      - key: order
+        title: Draft the purchase order
+        agent: maintenance-planner
+        depends_on: [compare]
+        instructions: Draft the purchase order and the message to the vendor for a person to send, follow up the delivery date, and remind stores to inspect the goods before the bill is passed.
+  - id: quality-containment
+    name: Quality containment
+    description: Log the problem, trace and hold the suspect lots, and get the sorting and the customer reply done.
+    keywords: [rejection, defect, complaint, hold, sorting, containment]
+    steps:
+      - key: contain
+        title: Log, trace and hold
+        agent: quality-desk
+        instructions: Log the quality issue with part, lot and quantity, trace where suspect stock is (line, stores, in transit, at the customer), put the related production order on hold and draft the containment plan for the quality head.
+      - key: sort
+        title: Get the sorting done and reply
+        agent: quality-desk
+        depends_on: [contain]
+        instructions: Hand the hold, sorting and re-inspection to the quality inspector in charge by phone and report the counts found good and bad. Draft the customer reply or the supplier debit note for a person to send.
+  - id: capa-8d
+    name: Root cause fix (CAPA or 8D)
+    description: Run the 8D or CAPA, chase each action and check that the fix worked.
+    keywords: [capa, 8d, root cause, repeat, audit finding, corrective action]
+    steps:
+      - key: analyse
+        title: Open the 8D and list the actions
+        agent: quality-desk
+        instructions: Open the 8D or CAPA document with the problem data, the containment and the why-why or fishbone findings the team gives, and list each action with an owner and a date.
+      - key: follow-up
+        title: Chase the actions and check the fix
+        agent: quality-desk
+        depends_on: [analyse]
+        instructions: Remind each action owner by phone before the due date, and check the next 3 lots for the problem before asking the quality head to close it.
+  - id: production-order-run
+    name: Production order
+    description: Plan the order against material and capacity, release the job card and track it to dispatch.
+    keywords: [schedule, production plan, customer order, job card, dispatch]
+    steps:
+      - key: plan
+        title: Plan the order
+        agent: quality-desk
+        instructions: Create the production order with part, drawing revision, quantity and due date. Check raw material and machine capacity against the date and warn early if it will slip.
+      - key: release
+        title: Release the job card and track output
+        agent: quality-desk
+        depends_on: [plan]
+        instructions: Hand the job card to the production supervisor by phone, track output and rejections each shift, and get the final inspection report from quality before dispatch.
+  - id: emergency-response
+    name: Accident or emergency response
+    description: Record the event, keep the reporting clock, draft the notices and follow up the corrective actions.
+    keywords: [accident, injury, fire, gas leak, spill, ocems, pollution, dangerous occurrence]
+    steps:
+      - key: record
+        title: Record it and start the clock
+        agent: safety-desk
+        instructions: Record what happened, where, when and who was hurt, and whether a permit and lock-out were in place. For a pollution alarm, record the reading, the limit and the stack or outlet. List the reporting deadlines.
+      - key: notice
+        title: Draft the notices
+        agent: safety-desk
+        depends_on: [record]
+        instructions: Draft the notice to the Inspector-cum-Facilitator, the ESIC accident report or the note to the pollution board, as the case needs, for the plant head to sign and send.
+      - key: follow-up
+        title: Follow up the investigation
+        agent: safety-desk
+        depends_on: [notice]
+        instructions: Hand the investigation and corrective actions to the safety officer by phone and report what was agreed, with owners and dates.
+  - id: statutory-filing
+    name: Statutory reply or renewal
+    description: List what a notice, licence or consent needs, and draft the reply or application for the plant head to sign before the due date.
+    keywords: [notice, licence, renewal, consent, noc, inspector, return]
+    steps:
+      - key: prepare
+        title: Prepare the reply or application
+        agent: safety-desk
+        instructions: Find the notice, licence or consent and its due date, list the papers, forms and fees it needs, and draft the reply or application for the plant head to sign. Never mark it as filed; a person files it and keeps the acknowledgement.
+  - id: near-miss-fix
+    name: Near miss fix
+    description: Record the near miss and get the spot made safe and fixed.
+    keywords: [near miss, unsafe, unsafe condition, slippery, guard missing]
+    steps:
+      - key: record-fix
+        title: Record it and get it fixed
+        agent: safety-desk
+        instructions: Record the near miss or unsafe condition without naming anyone to blame, hand the fix to the area in-charge by phone with a date, and chase it until the safety officer closes it.
+
+routines:
+  - id: daily-plant-report
+    name: Daily plant report
+    description: Before the morning meeting, the plant in-charge reports yesterday's output, rejections, breakdown hours, safety events and shortages for the daily MIS.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "08:30"
+    questions:
+      - { key: output, label: "Output yesterday", ask: "How much did the plant produce yesterday, against the plan?", type: text }
+      - { key: rejections, label: "Rejections", ask: "How many pieces or tonnes were rejected or sent for rework?", type: text }
+      - { key: breakdownHours, label: "Breakdown hours", ask: "How many hours were machines stopped for breakdowns?", type: number, unit: hours }
+      - { key: safetyEvents, label: "Accidents or near misses", ask: "Was there any accident, near miss or unsafe condition?", type: text, flag: true }
+      - { key: shortages, label: "Shortages", ask: "Is any raw material, spare or manpower short for today's plan?", type: text, flag: true, required: false }
+
+lifecycle:
+  case: { label: Work order, plural: Work orders, prefix: WO }
+  stages:
+    request:
+      name: Request or alarm raised
+      description: A worker, supervisor, customer, supplier, machine alarm or pollution monitor raises the work, and it is logged with time, line and shift.
+    review:
+      name: Details and safety check
+      description: The shift supervisor checks that the details, photos and papers are complete and the area is safe, and refuses any request to bypass a guard or safety rule.
+      checks:
+        - Who raised it and how to reach them
+        - Machine, product or area named, with line and shift
+        - What happened and when
+        - Batch, lot or heat number for quality problems
+        - Quote, customer PO or drawing attached when the work needs one
+        - Area made safe and people out of danger
+        - Not a repeat of an open work order
+        - Does not ask to remove or bypass a guard, light curtain, sensor or interlock
+    classify:
+      name: Priority and department
+      description: The work order gets its type, priority (P1 to P4), risk, target times and department, which starts the response clock.
+    assign:
+      name: Assign in-charge and deadline
+      description: A named in-charge (engineer, supervisor or contractor) and crew get the job with a deadline that fits the shift plan.
+      checks:
+        - Named in-charge with a phone number
+        - Contract workers have safety induction, gate pass and PPE
+    approve:
+      name: Permit or approval
+      description: Where the rules say so, the shift in-charge signs the permit and lock-out, the quality head decides on the material, or the plant head or owner approves before work starts.
+      checks:
+        - "Breakdown and maintenance jobs: shift in-charge releases the machine and signs the permit and lock-out"
+        - "Hot work, height and confined-space permits: countersigned by the safety officer"
+        - "Quality problems and CAPA plans: quality head"
+        - "Accidents, emergencies and pollution alarms: plant head approves the notice and the restart"
+        - "Statutory notices, licence and consent renewals: plant head signs the reply"
+        - "Purchases above ₹1,00,000 and any work order above ₹5,00,000: owner"
+    execute:
+      name: Job in progress
+      description: The crew or team does the job under the permit while downtime, spares, cost, photos and readings are logged and deadlines are watched shift by shift.
+      checks:
+        - Stop and restart times logged
+        - Spares and cost booked to the work order
+        - Before and after photos
+        - Permit renewed if the job runs into the next shift
+    close:
+      name: Verify and sign off
+      description: The result is checked with a trial run or re-inspection, the permit is closed, and the named role signs off before the work order closes.
+      checks:
+        - Trial run or re-inspection passed
+        - "Permit closed: locks and tags off, guards back, area clean"
+        - Root cause written, and a CAPA opened if the problem can come back
+        - Statutory notice, ESIC report or customer reply sent where required
+        - Spares, cost, downtime and photos recorded
+        - Person who raised it told the outcome
+    report:
+      name: MIS and improvement
+      description: The daily and monthly MIS shows OEE, downtime, rejections, accidents and near misses, open CAPAs and on-time delivery, flags repeat problems for root-cause work and keeps the record for inspectors and auditors.
+      checks:
+        - Daily MIS ready for the morning meeting
+        - Repeat problem flagged when the same machine or defect comes back 3 times in 30 days
+        - Open safety items taken to the monthly safety committee
+  priorities:
+    - { id: P1, name: Emergency or line stopped, respond_within_hours: 0.25, resolve_within_hours: 8 }
+    - { id: P2, name: Urgent, respond_within_hours: 1, resolve_within_hours: 24 }
+    - { id: P3, name: Normal, respond_within_hours: 8, resolve_within_hours: 168 }
+    - { id: P4, name: Planned, respond_within_hours: 24, resolve_within_hours: 720 }
+  roles:
+    - { id: plant-head, name: Plant head (factory manager), approves: "Statutory notices after an accident, dangerous occurrence or pollution alarm, replies to inspectors and the pollution board, and restarting the machine or area afterwards" }
+    - { id: shift-in-charge, name: Shift in-charge, approves: "Releases the machine and signs the permit and lock-out before any breakdown or maintenance job; accepts the machine back after the trial run" }
+    - { id: safety-officer, name: Safety officer (EHS), approves: "Countersigns hot work, height and confined-space permits; signs off accidents, emergencies and near misses once the investigation and fixes are done" }
+    - { id: quality-head, name: Quality head (QA/QC), approves: "Decides what happens to rejected material (rework, scrap, return, or use as is with the customer's concession) and approves CAPA plans; signs off quality problems, CAPAs and the final inspection before dispatch" }
+    - { id: maintenance-head, name: Maintenance in-charge, approves: "Signs off finished preventive maintenance checklists and statutory test certificates" }
+  urgent_keywords:
+    - caught fire
+    - fire broke out
+    - on fire
+    - fire in
+    - fire at
+    - fire near
+    - aag
+    - aag lagi
+    - flames
+    - smoke
+    - explosion
+    - gas leak
+    - gas leaking
+    - ammonia leak
+    - chlorine leak
+    - chemical spill
+    - acid spill
+    - electric shock
+    - got shock
+    - electrocuted
+    - current laga
+    - chot
+    - got trapped
+    - trapped inside
+    - collapsed
+    - fainted
+    - unconscious
+    - bleeding
+    - ambulance
+    - fatal
+    - died
+    - death
+  categories:
+    - id: accident
+      name: Accident or emergency
+      keywords:
+        - accident
+        - injured
+        - injury
+        - is injured
+        - got injured
+        - was injured
+        - badly injured
+        - hurt
+        - got hurt
+        - hand caught
+        - got caught
+        - caught in
+        - finger cut
+        - finger crushed
+        - hand crushed
+        - got crushed
+        - fell down
+        - fell from
+        - fall from height
+        - electric shock
+        - got shock
+        - got burns
+        - suffered burns
+        - burns on
+        - burn injury
+        - molten metal
+        - hot metal splash
+        - chot
+        - chot lagi
+        - caught fire
+        - fire broke out
+        - aag
+        - smoke
+        - explosion
+        - gas leak
+        - gas leaking
+        - ammonia leak
+        - chemical spill
+        - acid spill
+        - fainted
+        - unconscious
+        - first aid
+        - hospital
+        - ambulance
+        - dangerous occurrence
+        - ocems
+        - emission exceedance
+        - exceedance
+        - stack emission
+        - dust emission
+        - effluent overflow
+        - etp overflow
+        - pollution alert
+      priority: P1
+      risk: high
+      department: Safety (EHS)
+      required_details:
+        - key: place
+          label: Where it happened
+          kind: keywords
+          keywords: [shop, line, bay, press, machine, area, section, floor, yard, store, stores, gate, canteen, loading, dock, plant, kiln, furnace, mill, boiler, tank, reactor, stack, chimney, etp, outlet, warehouse, godown, road, room, cell, unit, conveyor, belt, crane, hoist, forklift, lathe, cnc, grinder, mixer, crusher, compressor, panel, ladder, scaffolding, roof, silo, hopper, booth, shed]
+      required_checks:
+        - Person cared for (first aid, hospital) and area made safe
+        - Name, time, place and what happened recorded
+        - Machine or area isolated and left as found for the investigation
+        - Witness statements, photos and CCTV collected
+        - "Notice decided and sent in time where the law needs one: death, 48 hours or more off work, dangerous occurrence or pollution exceedance"
+        - ESIC accident report sent within 24 hours for a worker covered by ESI
+        - Root cause found and a CAPA opened
+      approval: { required: always, role: plant-head }
+      signoff: { required: true, role: safety-officer }
+      workflow: emergency-response
+      execution: both
+    - id: breakdown
+      name: Machine breakdown
+      keywords:
+        - breakdown
+        - break down
+        - broke down
+        - broken down
+        - stopped
+        - stopped working
+        - not working
+        - not running
+        - not starting
+        - tripped
+        - trip
+        - tripping
+        - jammed
+        - jam
+        - band ho gaya
+        - band ho gayi
+        - band pada hai
+        - kharab
+        - kharab ho gaya
+        - kharab ho gayi
+        - chal nahi raha
+        - chal nahi rahi
+        - nahi chal raha
+        - overheating
+        - abnormal noise
+        - abnormal sound
+        - high vibration
+        - vibration
+        - spindle alarm
+        - servo alarm
+        - overload alarm
+        - machine alarm
+        - alarm showing
+        - fault
+        - error code
+        - leaking
+        - oil leak
+        - hydraulic leak
+        - air leak
+        - burnt
+        - seized
+        - belt torn
+        - belt cut
+        - snapped
+        - no feed
+        - line down
+        - production stopped
+      priority: P1
+      risk: high
+      department: Maintenance
+      required_details:
+        - key: machine
+          label: Which machine or line
+          kind: keywords
+          keywords: [machine no, machine number, m/c no, press, lathe, cnc, vmc, hmc, grinder, conveyor, belt, kiln, mill, furnace, ladle, caster, rolling, compressor, pump, motor, gearbox, boiler, crane, hoist, forklift, mixer, extruder, moulding, blower, fan, crusher, packer, filler, capper, labeller, oven, dryer, reactor, centrifuge, chiller, cooling tower, dg set, transformer, panel, robot, line, cell, silo, hopper, elevator, esp, bag filter, etp, pasteuriser, retort, loom, ring frame, stenter]
+      required_checks:
+        - Machine, line and location named
+        - What stopped and the time it stopped
+        - Machine isolated, locked and tagged (LOTO) before anyone works on it
+        - Hot work, height or confined-space permit if the repair needs one
+        - Spares checked in stores
+        - Trial run done and downtime recorded
+      not_eligible:
+        - keywords: [my bike, my scooter, my car, personal vehicle, own vehicle, at my house, at my home, at home, home ac, my residence, bungalow]
+          reason: Plant maintenance looks after the factory's machines and buildings only. Personal vehicles and home appliances go to an outside mechanic.
+      approval: { required: always, role: shift-in-charge }
+      signoff: { required: true, role: shift-in-charge }
+      workflow: breakdown-repair
+      execution: team
+    - id: quality-problem
+      name: Quality problem or complaint
+      keywords:
+        - quality problem
+        - quality issue
+        - rejection
+        - rejected
+        - reject
+        - defect
+        - defective
+        - not ok
+        - ng parts
+        - out of tolerance
+        - out of spec
+        - oversize
+        - undersize
+        - dimension
+        - burr
+        - cracked parts
+        - casting crack
+        - dent
+        - rust
+        - rusted
+        - porosity
+        - blow holes
+        - short fill
+        - wrong part
+        - mixed parts
+        - mix up
+        - customer complaint
+        - quality complaint
+        - field complaint
+        - warranty claim
+        - customer return
+        - line rejection
+        - ppm
+        - sorting
+        - on hold
+        - red tag
+        - rework
+        - failed test
+        - test failed
+        - bend test
+        - tensile test
+        - contamination
+        - contaminated
+        - foreign particle
+        - foreign matter
+        - containment
+        - ncr
+        - non conformance
+        - concession
+        - grinding burn
+        - burn mark
+        - at final inspection
+        - in final inspection
+        - incoming inspection
+        - pdi
+      priority: P2
+      risk: medium
+      department: Quality (QA/QC)
+      required_details:
+        - key: trace
+          label: Part, batch, lot, heat or invoice number
+          kind: keywords
+          keywords: [lot, lot no, batch, batch no, heat no, heat number, invoice, challan, grn, part no, part number, item code, coil no, drawing no]
+      required_checks:
+        - Part number, drawing or spec, and batch, lot or heat number
+        - Quantity affected and where it was found (incoming, in-process, final, customer)
+        - Photos or measurement report attached
+        - All suspect stock held and red-tagged, including stock in transit and at the customer
+        - "Decision by the quality head: rework, scrap, return to supplier, or use as is only with the customer's written concession"
+        - Reworked pieces re-inspected before release
+      not_eligible:
+        - keywords: [not our part, not our parts, not supplied by us, not made by us, not our make, not our product, competitor's part, other make]
+          reason: The part was not made or supplied by us. Ask the customer to check the part marking and trace it to the right supplier.
+      approval: { required: always, role: quality-head }
+      signoff: { required: true, role: quality-head }
+      workflow: quality-containment
+      execution: both
+    - id: near-miss
+      name: Near miss or unsafe condition
+      keywords:
+        - near miss
+        - nearmiss
+        - almost hit
+        - almost fell
+        - nearly hit
+        - nearly fell
+        - narrowly
+        - narrow escape
+        - could have
+        - unsafe
+        - unsafe condition
+        - unsafe act
+        - guard missing
+        - missing guard
+        - no guard
+        - without guard
+        - unguarded
+        - slippery
+        - oil on the floor
+        - oil on floor
+        - open pit
+        - open drain
+        - no helmet
+        - no harness
+        - without ppe
+        - without helmet
+        - blocked exit
+        - exit blocked
+        - extinguisher empty
+        - nobody hurt
+        - no one hurt
+        - nobody injured
+        - no one injured
+        - no injury
+        - escaped unhurt
+      priority: P3
+      risk: medium
+      department: Safety (EHS)
+      required_details:
+        - key: place
+          label: Where it happened
+          kind: keywords
+          keywords: [shop, line, bay, press, machine, area, section, floor, yard, store, stores, gate, canteen, loading, dock, walkway, stairs, ladder, mezzanine, roof, kiln, furnace, mill, boiler, tank, warehouse, godown, road, room, cell, conveyor, crane, hoist, forklift, lathe, cnc, grinder, rack, scaffolding, silo, hopper, booth, shed]
+      required_checks:
+        - Where, when and what nearly happened
+        - Spot made safe in the same shift
+        - Unsafe act or condition named, without blaming anyone
+        - Fix given an owner and a date
+        - Taken to the monthly safety committee
+      approval: { required: never }
+      signoff: { required: true, role: safety-officer }
+      workflow: near-miss-fix
+      execution: both
+    - id: planned-maintenance
+      name: Maintenance job under permit
+      keywords:
+        - preventive maintenance
+        - pm due
+        - pm check
+        - pm schedule
+        - pm plan
+        - pm job
+        - monthly pm
+        - quarterly pm
+        - scheduled maintenance
+        - maintenance due
+        - service due
+        - servicing
+        - overhaul
+        - annual shutdown
+        - shutdown job
+        - planned shutdown
+        - replacement
+        - alignment
+        - lubrication
+        - greasing
+        - oil change
+        - calibration
+        - light curtain
+        - guard
+        - sensor
+        - interlock
+        - limit switch
+        - hot work
+        - welding work
+        - welding job
+        - welding repair
+        - gas cutting
+        - work at height
+        - height work
+        - roof work
+        - scaffolding
+        - confined space
+        - tank cleaning
+        - hopper cleaning
+        - silo cleaning
+        - duct cleaning
+        - loto
+        - lockout
+        - work permit
+        - lift inspection
+        - hoist test
+        - load test
+        - lifting tackle
+        - pressure vessel test
+        - hydro test
+        - statutory test
+        - thermography
+      priority: P3
+      risk: medium
+      department: Maintenance
+      required_details:
+        - key: machine
+          label: Which machine or area
+          kind: keywords
+          keywords: [machine no, machine number, m/c no, press, lathe, cnc, vmc, hmc, grinder, conveyor, belt, kiln, mill, furnace, ladle, compressor, pump, motor, gearbox, boiler, crane, hoist, forklift, mixer, extruder, moulding, blower, fan, crusher, packer, filler, oven, dryer, reactor, chiller, cooling tower, dg set, transformer, panel, robot, line, cell, silo, hopper, tank, duct, cyclone, chimney, stack, roof, shed, esp, bag filter, etp, lift, receiver, vessel]
+      required_checks:
+        - Machine or area and the job named
+        - Isolation and lock-out points listed
+        - "Right permit chosen: cold work, hot work, height, confined space (written gas test) or electrical"
+        - Hot work, height and confined-space permits countersigned by the safety officer
+        - Contract workers inducted, with gate pass and PPE
+        - Statutory test dates kept (lifts and hoists, lifting tackle, pressure vessels) where the job is one of them
+      not_eligible:
+        - keywords: [bypass, bypassed, bypassing, by pass, jumper, jumpered, short the interlock, override the interlock, defeat the interlock, disable, disabled, deactivate, remove the guard, remove guard, removing the guard, remove the light curtain, remove light curtain, remove the sensor, remove the interlock, take off the guard, mute the light curtain, switch off the sensor, switch off the light curtain, run without guard, run without the guard, without light curtain, without sensor, for this shift, just for today, for today only, only for today, till we meet the target, to meet the target]
+          reason: It asks to remove or bypass a guard, light curtain, sensor or interlock to keep production going. The law forbids interfering with safety devices (OSH Code 2020; Factories Act 1948 s.111), so fix the device or stop the machine instead.
+      approval: { required: always, role: shift-in-charge }
+      signoff: { required: true, role: maintenance-head }
+      workflow: maintenance-job
+      execution: team
+    - id: production-order
+      name: Production order
+      keywords:
+        - production order
+        - production plan
+        - production schedule
+        - schedule
+        - monthly schedule
+        - weekly schedule
+        - delivery schedule
+        - dispatch schedule
+        - customer schedule
+        - revised schedule
+        - sales order
+        - customer order
+        - customer po
+        - po
+        - new order
+        - repeat order
+        - bulk order
+        - order on hold
+        - hold the order
+        - schedule on hold
+        - job card
+        - job order
+        - batch size
+        - drawing rev
+        - drawing revision
+        - rev
+        - dispatch plan
+        - rolling plan
+      priority: P3
+      risk: low
+      department: Production planning (PPC)
+      required_details:
+        - { key: dueDate, label: Due date, kind: date }
+        - key: quantity
+          label: Quantity
+          kind: keywords
+          keywords: [pcs, pieces, nos, numbers, units, sets, tonnes, tons, mt, kg, litres, bags, boxes, cartons, bottles, metres, quantity, qty]
+      required_checks:
+        - Customer order or schedule with part number, drawing revision, quantity and due dates
+        - Product is one we already make with an approved process (new parts go to development first)
+        - Raw material and consumables in stock or ordered
+        - Machine and manpower capacity checked against the due date
+        - First-piece approval and in-process checks planned
+        - Final inspection report or test certificate ready before dispatch
+      approval: { required: never }
+      signoff: { required: true, role: quality-head }
+      workflow: production-order-run
+      execution: both
+    - id: purchase
+      name: Purchase indent
+      keywords:
+        - indent
+        - purchase indent
+        - purchase requisition
+        - purchase
+        - purchase order
+        - raise po
+        - raise the po
+        - issue po
+        - issue the po
+        - send po
+        - send the po
+        - release po
+        - release the po
+        - quote
+        - quotation
+        - best quote
+        - rate contract
+        - vendor
+        - dealer
+        - authorised dealer
+        - buy
+        - procure
+        - spares
+        - spare parts
+        - spare
+        - amc
+        - annual maintenance contract
+        - service contract
+        - consumables
+      priority: P3
+      risk: low
+      department: Stores and purchase
+      required_details:
+        - { key: amount, label: Quoted or estimated cost, kind: amount }
+      required_checks:
+        - Item, specification, quantity and need-by date
+        - Stock checked first and not already on order
+        - At least 3 quotes, a rate contract or a written single-source reason
+        - Supplier on the approved vendor list with GST details
+        - "On receipt: incoming inspection passed and PO, goods receipt (GRN) and invoice match"
+      not_eligible:
+        - keywords: [personal use, for personal, for my house, for my home, for home use, home use, my family, my wife, my son, my daughter]
+          reason: The plant buys only for plant use. Personal purchases are paid privately, and GST input credit is blocked on goods for personal use (CGST Act s.17(5)(g)).
+      approval: { required: above_amount, role: owner, amount_inr: 100000 }
+      signoff: { required: false }
+      workflow: spares-purchase
+      execution: agents
+    - id: compliance
+      name: Statutory compliance
+      keywords:
+        - statutory
+        - inspector
+        - factory inspector
+        - inspector cum facilitator
+        - boiler inspector
+        - show cause notice
+        - show cause
+        - notice from
+        - closure notice
+        - closure direction
+        - licence renewal
+        - license renewal
+        - factory licence
+        - factory license
+        - fire noc
+        - noc renewal
+        - consent to operate
+        - cto renewal
+        - consent to establish
+        - pollution control board
+        - spcb
+        - hazardous waste return
+        - environment statement
+        - ibr certificate
+        - boiler certificate
+        - legal metrology
+        - factories act
+        - osh code
+        - labour inspection
+        - esi inspection
+        - pf inspection
+        - compliance audit
+        - half yearly return
+        - annual return
+      priority: P2
+      risk: medium
+      department: Compliance
+      required_details:
+        - { key: dueDate, label: Due date or expiry date, kind: date }
+      required_checks:
+        - Notice, licence or letter attached
+        - Papers, forms and fees for the reply or renewal listed
+        - Reply or application signed by the plant head before the due date
+        - Acknowledgement or receipt kept for the next inspection
+      approval: { required: always, role: plant-head }
+      signoff: { required: false }
+      workflow: statutory-filing
+      execution: agents
+    - id: capa
+      name: Root cause fix (CAPA)
+      keywords:
+        - capa
+        - root cause
+        - root cause analysis
+        - why why
+        - 5 why
+        - fishbone
+        - 8d
+        - 8d report
+        - repeat
+        - repeated
+        - repeating
+        - recurring
+        - again and again
+        - third time
+        - second time
+        - back again
+        - permanent fix
+        - permanent solution
+        - corrective action
+        - preventive action
+        - audit finding
+        - audit nc
+        - major nc
+        - minor nc
+        - iatf audit
+        - iso audit
+        - customer audit
+        - surveillance audit
+        - poka yoke
+        - mistake proofing
+      priority: P4
+      risk: low
+      department: Quality (QA/QC)
+      required_checks:
+        - "Problem described with data: how many, how often, where"
+        - Containment already in place
+        - Root cause found with why-why or fishbone and checked with data
+        - Actions with owners and dates
+        - Any change to process, material or supplier approved, and the customer told where the contract needs it
+        - Effectiveness checked on the next 3 lots or 90 days, and work instructions and FMEA updated
+      approval: { required: always, role: quality-head }
+      signoff: { required: true, role: quality-head }
+      workflow: capa-8d
+      execution: both
+  examples:
+    - { request: "Loader Suresh's foot got crushed under a falling die in the tool room, he is at the ESIC hospital", category: accident, priority: P1, approval: true }
+    - { request: "OCEMS alert from the board: kiln stack dust 92 mg/Nm3 against a limit of 30 since 6 am", category: accident, priority: P1, approval: true }
+    - { request: Ammonia leak near the cold room compressor in the dairy plant and two workers fainted, category: accident, priority: P1, approval: true }
+    - { request: "Injection moulding machine 4 heater band burnt, machine not running since 11 am", category: breakdown, priority: P1, approval: true }
+    - { request: EOT crane in bay 2 not working after the long travel motor tripped, category: breakdown, priority: P1, approval: true }
+    - { request: Filler on the bottling line jammed and bottles are piling up at the capper, category: breakdown, priority: P1, approval: true }
+    - { request: "Incoming MS sheets lot 7712 are undersize in thickness, 8 tonnes kept on hold", category: quality-problem, priority: P2, approval: true }
+    - { request: "Customer complaint from the Pune plant: 60 housings with blow holes in invoice 2231", category: quality-problem, priority: P2, approval: true }
+    - { request: Loose sheet slipped off the rack in the press shop store and fell next to a helper; nobody hurt, category: near-miss, priority: P3, approval: false }
+    - { request: Guard missing on the bench grinder in the tool room for two days, category: near-miss, priority: P3, approval: false }
+    - { request: Coolant all over the walkway near CNC cell 3 and it is very slippery, category: near-miss, priority: P3, approval: false }
+    - { request: "Quarterly PM due on the 250 T power press: clutch and brake check and lubrication", category: planned-maintenance, priority: P3, approval: true }
+    - { request: Six-monthly load test of the 5 T EOT crane hoist is due on 15 November, category: planned-maintenance, priority: P3, approval: true }
+    - { request: Welding repair of the cyclone duct on Sunday needs a hot work permit, category: planned-maintenance, priority: P3, approval: true }
+    - { request: "Sales order from Shree Agro: 40 tonnes of cattle feed pellets, dispatch by 5 December", category: production-order, priority: P3, approval: false }
+    - { request: "Job card for 2,500 bottles of 1 litre floor cleaner, batch size 500, due Friday", category: production-order, priority: P3, approval: false }
+    - { request: "Indent for 20 grinding wheels for the cylindrical grinder at ₹18,500 from the rate contract vendor", category: purchase, priority: P3, approval: false }
+    - { request: "Quotation from the Kirloskar dealer for a 30 HP motor is ₹1.45 lakh, please raise the PO", category: purchase, priority: P3, approval: true }
+    - { request: Buy 10 full-body harnesses for the roofing contractor, category: purchase, priority: P3, approval: true }
+    - { request: Consent to operate from the SPCB expires on 31 March; start the renewal now, category: compliance, priority: P2, approval: true }
+    - { request: "Fire NOC for the new finished goods godown has to be renewed by 15 January", category: compliance, priority: P2, approval: true }
+    - { request: Show cause notice from the pollution control board about dust from the clinker yard; reply within 15 days, category: compliance, priority: P2, approval: true }
+    - { request: Send the 8D to the customer for the thread damage complaint on the axle nuts, category: capa, priority: P4, approval: true }
+    - { request: ISO surveillance audit raised a minor NC on calibration records; close it with the root cause, category: capa, priority: P4, approval: true }
+    - { request: Weld spatter on the frame line is back again after last month's fix; open a CAPA with a why-why, category: capa, priority: P4, approval: true }
+
+playbooks:
+  - id: accident-first-hours
+    title: "Accident or dangerous occurrence: the first hours"
+    source: OSH Code 2020 ss.10 and 11; OSH (Central) Rules 2026 and the state OSH rules (Gujarat OSH Rules 2025, Form 6 within 12 hours); ESI (General) Regulations 1950, Reg 68
+    body: |
+      1. Stop the machine, isolate the supply, give first aid and get the injured person to hospital (the ESIC hospital or dispensary if they are covered by ESI). Leave the spot as it was for the investigation.
+      2. Phone the plant head, the owner and the safety officer at once, and tell the family.
+      3. A death, an injury that may keep someone off work 48 hours or more, or a dangerous occurrence (fire, explosion, gas leak, crane, hoist or scaffold failure) needs a notice to the Inspector-cum-Facilitator: phone at once, then send the written notice in the form and time your state's OSH rules set (Gujarat: Form 6 within 12 hours).
+      4. For a worker covered by ESI, send the accident report to the ESIC branch office within 24 hours. For others, keep the papers for an Employee's Compensation claim.
+      5. Collect photos, CCTV, witness statements and the permit and lock-out record before the shift ends.
+      6. Restart only after the plant head approves, then open a CAPA work order for the root cause and track each action to closure.
+  - id: work-permit-lockout
+    title: Work permit and lock-out before any job
+    source: IS 17893:2023 Work Permit System, Code of Practice; OSH Code 2020 ss.13(e) and 15; Factories Act 1948 ss.21, 36 and 111; Safe in India, CRUSHED 2026
+    body: |
+      1. Nobody works on a machine until production has released it, every energy source (electrical, hydraulic, air, gravity, stored pressure) is switched off, locked, tagged and tested dead, and the shift in-charge has signed the permit.
+      2. Pick the right permit: cold work, hot work (welding, gas cutting, grinding), work at height, confined space or electrical. The safety officer countersigns hot work, height and confined-space permits.
+      3. Confined space: a competent person tests the air and certifies it in writing, and one person stays outside with a rope and a way to call for help.
+      4. Contract workers need a safety induction, a gate pass and PPE before they start.
+      5. Never remove, bypass or jumper a guard, light curtain, sensor or interlock to keep production going; refuse and tell the plant head.
+      6. Close the permit with the shift in-charge: locks off by the people who put them on, guards back, trial run done, area clean. Renew the permit if the job runs into the next shift.
+  - id: quality-containment
+    title: "Quality problem: contain fast, then fix the cause"
+    source: ISO 9001:2015 clauses 8.7 and 10.2; IATF 16949:2016 clause 10.2.3
+    body: |
+      1. Hold and red-tag every suspect piece: on the line, in stores, in transit and at the customer.
+      2. Record the part number, the batch, lot or heat number, the quantity, photos and the last good lot.
+      3. Only the quality head decides: rework, scrap, return to supplier, or use as is with the customer's written concession. Record who decided and why.
+      4. Re-inspect every reworked piece before it moves on, and mark the lots that are cleared.
+      5. Send the customer a containment plan within 24 hours. A repeat problem becomes a CAPA with a root cause and a check on the next lots.
+  - id: ocems-pollution-alarm
+    title: Pollution alarm from the online monitor (OCEMS)
+    source: CPCB protocol for online continuous emission and effluent monitoring, with automated alerts (13 March 2018); Air Act 1981 s.31A; Water Act 1974 s.33A
+    body: |
+      1. Treat a CPCB or SPCB SMS alert like a notice from the board and raise an emergency work order at once.
+      2. Check the bag filter, ESP or effluent plant and the analyser. Cut the feed or stop the section if the control equipment has failed.
+      3. Write down the cause and the action taken within 24 hours, and keep the log and the analyser calibration record for inspections.
+      4. If the reading went high during start-up, shutdown or analyser calibration, log it and send a note to the board within 24 hours.
+      5. Repeated alerts lead to show-cause notices and closure directions; the plant head approves every reply to the board.
+  - id: near-miss-reporting
+    title: Near miss and unsafe condition reports
+    source: OSH Code 2020 ss.13(d), 14 and 22
+    body: |
+      1. Every worker, contract workers included, can report an unsafe act, an unsafe condition or a near miss. Thank the person and never blame.
+      2. Make the spot safe in the same shift: barricade, clean, cover or stop the job.
+      3. Give each fix an owner and a date, and close it with the safety officer.
+      4. If someone sees imminent danger, stop the work, fix it at once and report the action to the Inspector-cum-Facilitator.
+      5. Review near misses and open fixes in the monthly safety committee. More reports is a good sign: people trust the system.
+
+kpis:
+  - id: oee
+    name: Machine efficiency (OEE)
+    description: Availability × performance × quality for the key machines or lines, per month.
+    unit: percent
+    direction: up
+    target: 75
+  - id: mean-time-to-repair
+    name: Average repair time (MTTR)
+    description: Total breakdown time from machine stop to restart, divided by the number of breakdowns, per month.
+    unit: hours
+    direction: down
+    target: 2
+  - id: rejection-rate
+    name: Rejection rate
+    description: Pieces or tonnes rejected or reworked, in the plant and at customers, as a share of everything produced this month.
+    unit: percent
+    direction: down
+    target: 1
+  - id: otif
+    name: On-time in-full delivery (OTIF)
+    description: Customer order lines delivered complete by the promised date, as a share of all order lines due this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: near-misses-reported
+    name: Near misses reported
+    description: Near misses and unsafe conditions reported this month. More reports mean people trust the system and the next accident is caught early.
+    unit: count
+    direction: up
+  - id: open-quality-issues
+    name: Open quality issues
+    description: Quality issues still open, waiting for containment or a decision.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: QualityIssue, where: { status: open } }

@@ -1,0 +1,232 @@
+# Sector base for trade, logistics and tourism: transporters, couriers, warehouses,
+# distributors, shops, e-commerce sellers, travel agencies, hotels and tour
+# operators. Ready-made types extend it; typed-in types borrow the closest
+# ready-made type (other_org_types) or use it directly.
+id: sector-trade-logistics-tourism
+version: 1.0.0
+name: Trade, Logistics & Tourism
+description: Orders, bookings, deliveries and trips, refunds, customer dues, supplier bills and complaints for transporters, traders, shops and travel businesses.
+kind: base
+sector: trade-logistics-tourism
+extends: [crm-base]
+
+lifecycle:
+  case: { label: Job, plural: Jobs, prefix: JOB }
+  stages:
+    request:
+      name: Request comes in
+      description: An order, booking, delivery or trip problem, payment query, supplier bill or complaint comes in by WhatsApp, phone, email, the website, a branch or a system alert.
+    review:
+      name: Check details and papers
+      description: The desk checks who is asking, which order, consignment or booking it is about, the amounts and dates, and the papers the job needs, and asks for anything missing before it moves on.
+      checks:
+        - Who is asking and how to reach them
+        - Order, LR, booking or bill number given where there is one
+        - Amount and dates given
+        - GST bill, e-way bill, tickets or ID papers attached where the job needs them
+        - Not a repeat of a job that is already open
+    classify:
+      name: Set type and urgency
+      description: The job gets its type, priority (P1 to P4), risk and owning desk, which starts the reply and finish clock.
+    assign:
+      name: Assign person and deadline
+      description: A person at sales, operations, accounts or customer care is named with a deadline, and the driver, supplier or partner involved is told.
+    approve:
+      name: Approval if needed
+      description: When the rules ask for it, the named manager or the owner approves before money goes out or a risky promise is made.
+    execute:
+      name: Carry out and track
+      description: The team and agents dispatch, book, refund, pay or reply, while location, cost, proof and the deadline are tracked and the customer is kept informed.
+    close:
+      name: Confirm and close
+      description: The result is checked against proof, the named person signs off where the rules ask for it, the customer is told and the job is closed.
+      checks:
+        - "Proof saved: signed POD or delivery photo, ticket or voucher, payment or refund reference"
+        - Bills, credit notes and e-way bills match what was actually done
+        - Customer told the outcome and agrees it is sorted
+        - Stock, seat or vehicle records updated
+    report:
+      name: Weekly review
+      description: Each week the owner sees late jobs, refunds, overdue dues, complaints and repeat problems by customer, route or supplier, and fixes the causes that keep coming back.
+  priorities:
+    - { id: P1, name: Emergency, respond_within_hours: 0.5, resolve_within_hours: 24 }
+    - { id: P2, name: Urgent, respond_within_hours: 2, resolve_within_hours: 48 }
+    - { id: P3, name: Normal, respond_within_hours: 4, resolve_within_hours: 120 }
+    - { id: P4, name: Routine, respond_within_hours: 24, resolve_within_hours: 240 }
+  roles:
+    - { id: operations-manager, name: Operations manager, approves: "Delays and breakdowns on the way that are P1 or high risk, such as an injured driver or goods stuck after a crash" }
+    - { id: accounts-manager, name: Accounts manager, approves: "Refunds above ₹10,000 and supplier bills above ₹50,000; signs off every refund once it is paid" }
+    - { id: grievance-officer, name: Grievance officer (customer care head), approves: Signs off the final reply to every customer complaint }
+  urgent_keywords: [emergency, fire, smoke, explosion, accident, collision, overturned, injured, injury, ambulance, unconscious, fatal, death, passed away, theft, stolen, robbery, robbed, looted, hijacked, fraud, seized, gas leak, chemical spill, food poisoning]
+  categories:
+    - id: customer-order
+      name: Customer order or booking
+      keywords: [new order, place an order, fresh order, bulk order, repeat order, confirm the order, new booking, want to book, wish to book, like to book, need a quote, quotation, rate enquiry, price enquiry, maal chahiye, maal bhej do]
+      priority: P3
+      risk: low
+      department: Sales
+      required_details:
+        - { key: neededBy, label: When it is needed, kind: date }
+      required_checks: ["Stock, vehicle or seats available for the date", Price and payment terms agreed with the customer, Customer's GSTIN checked when they want a business bill]
+      not_eligible:
+        - { keywords: [without bill, bina bill, kachha bill, without gst bill, no gst bill needed, skip the gst], reason: "We do not sell, carry or book anything without a proper GST bill." }
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: delegate-work
+      execution: both
+    - id: transit-delay
+      name: Delay or breakdown on the way
+      keywords: [not delivered, not yet delivered, delivery delayed, delayed delivery, late delivery, shipment delayed, consignment delayed, pickup delayed, goods not reached, truck not reached, parcel not reached, goods not arrived, parcel not arrived, cab not arrived, bus not arrived, running late, driver late, cab late, driver did not come, driver didn't come, cab did not come, vehicle not placed, broke down, vehicle breakdown, truck breakdown, bus breakdown, puncture, tyre burst, stuck in traffic, held up at, checkpost, route diverted, where is my order, where is my parcel, where is my shipment, where is the truck]
+      priority: P2
+      risk: medium
+      department: Operations
+      required_details:
+        - key: reference
+          label: Which order, consignment or vehicle
+          kind: keywords
+          keywords: [order, lr, docket, awb, tracking, consignment, shipment, parcel, booking, pnr, invoice, truck, lorry, tempo, vehicle, container, bus, coach, cab, taxi, driver]
+      required_checks: [Driver or partner reached and the reason found, Customer told of the delay and the new time, Extra cost agreed before it is spent]
+      not_eligible:
+        - { keywords: [not booked with us, booked elsewhere, another transporter, other transporter, another courier company, other courier company, booked through another agent, booked with another agent, not our consignment, not our booking], reason: "The order or trip was not booked with us; the customer should contact the company that took the booking." }
+      approval: { required: high_risk_or_p1, role: operations-manager }
+      signoff: { required: false }
+      workflow: delegate-work
+      execution: team
+    - id: return-refund
+      name: Return, refund or cancellation
+      keywords: [refund, money back, paisa wapas, want to return, return the goods, return the order, sent back, want to exchange, exchange the, cancel my order, cancel the order, cancel my booking, cancel the booking, cancelled my order, cancelled the order, cancelled my booking, cancelled the booking, cancellation, credit note, wrong item, wrong product]
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_details:
+        - key: reference
+          label: Which order, booking or bill
+          kind: keywords
+          keywords: [order, booking, bill, invoice, receipt, pnr, ticket, voucher, lr, booking id, order id]
+      required_checks: [Goods received back and checked or the cancellation confirmed with the supplier, Refund worked out under the terms agreed at sale or booking, Refund goes back to the original payment method]
+      not_eligible:
+        - { keywords: [return period is over, after the return period, past the return window, used for months, already consumed], reason: "Returns are taken only within the agreed return period and for unused goods; explain the policy to the customer politely." }
+      approval: { required: above_amount, role: accounts-manager, amount_inr: 10000 }
+      signoff: { required: true, role: accounts-manager }
+      execution: both
+    - id: supplier-payment
+      name: Supplier bill or payment
+      keywords: [supplier, vendor, supplier bill, vendor bill, purchase bill, supplier payment, vendor payment, supplier invoice, vendor invoice, release payment, release the payment, payment release, transporter bill, hotel bill, msme, udyam]
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_details:
+        - { key: amount, label: Bill amount, kind: amount }
+      required_checks: ["Goods or service received as billed (GRN, POD or service confirmation)", Bill matches the agreed rate and GST details, Bank details confirmed by a call before a first or changed payment]
+      approval: { required: above_amount, role: accounts-manager, amount_inr: 50000 }
+      signoff: { required: false }
+      execution: both
+    - id: dues-statement
+      name: Customer dues and statements
+      keywords: [outstanding, overdue, pending dues, old dues, clear the dues, balance due, payment reminder, statement of account, account statement, ledger, khata, hisaab, baki, udhaar, payment not reflecting, payment not showing]
+      priority: P4
+      risk: low
+      department: Accounts
+      required_checks: [Amount matches our books and the customer's ledger, Payments already received are marked before any reminder goes out]
+      approval: { required: never }
+      signoff: { required: false }
+      execution: agents
+    - id: complaint
+      name: Customer complaint
+      keywords: [complaint, complain, book a complaint, register a complaint, lodge a complaint, not happy, unhappy, disappointed, poor service, bad service, rude, misbehaved, overcharged, cheated, worst, pathetic, consumer forum, consumer court, legal notice, bad review, shikayat]
+      priority: P2
+      risk: medium
+      department: Customer care
+      required_checks: [Complaint acknowledged within 48 hours, "Facts checked with the staff, driver or supplier involved", Reply and any fix agreed with the customer in writing]
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: delegate-work
+      execution: both
+  examples:
+    - { request: "Place an order for 60 cartons of Marie biscuits, deliver to our Aluva shop by Thursday", category: customer-order, priority: P3, approval: false }
+    - { request: "We want to book a 32-seater coach and rooms in Munnar for our staff trip on 18 January, 60 people, budget ₹6.5 lakh", category: customer-order, priority: P3, approval: true }
+    - { request: "Truck MH12 AB 4521 broke down near Nashik with our consignment for Surat", category: transit-delay, priority: P2, approval: false }
+    - { request: "Driver called, the tyre burst near Hosur and he is injured, the medicine load is stuck on the highway", category: transit-delay, priority: P1, approval: true }
+    - { request: "Customer wants to return 2 mixer grinders that stopped working, bill no. 4471, refund ₹6,800", category: return-refund, priority: P3, approval: false }
+    - { request: Please cancel my booking for the Goa trip on 14 December and refund the advance of ₹48000, category: return-refund, priority: P3, approval: true }
+    - { request: "Ganesh Roadlines sent their transporter bill of ₹38,500 for September trips, please release payment", category: supplier-payment, priority: P3, approval: false }
+    - { request: Supplier bill from Hotel Sea Pearl for ₹1.6 lakh for the October group is pending, category: supplier-payment, priority: P3, approval: true }
+    - { request: Send the statement of account for Lakshmi Stores from April to September, category: dues-statement, priority: P4, approval: false }
+    - { request: Remind Patel Agencies that ₹1.85 lakh has been overdue for over 60 days, category: dues-statement, priority: P4, approval: false }
+    - { request: "Very unhappy, the delivery boy was rude to my mother and threw the parcel at the gate", category: complaint, priority: P2, approval: false }
+    - { request: "You overcharged us ₹3,000 on the Shimla package and nobody replies, I will go to the consumer forum", category: complaint, priority: P2, approval: false }
+
+playbooks:
+  - id: sector-gst-invoice-eway-bill
+    title: GST invoices and e-way bills
+    source: CGST Act, 2017 (sections 31, 34 and 129); CGST Rules, 2017 (rules 46 and 138); e-way bill portal FAQ (NIC); Notification 10/2023-Central Tax (e-invoicing above ₹5 crore)
+    body: |
+      1. Raise a GST tax invoice for every sale with the buyer's name, GSTIN for business buyers, HSN code, rate, tax and place of supply. Never send goods on a "kachha" bill.
+      2. If your yearly turnover is above ₹5 crore, generate the e-invoice (IRN and QR code) before the goods leave.
+      3. A consignment worth more than ₹50,000 needs an e-way bill before it moves: Part A with the invoice details, Part B with the vehicle number. Some states set their own limit for movement inside the state, so check yours.
+      4. The e-way bill is valid one day for every 200 km (20 km for over-dimensional cargo). If the truck will be late, extend it on the portal between 8 hours before and 8 hours after it expires, and update Part B whenever the vehicle changes.
+      5. Cancel a wrong e-way bill within 24 hours if the goods have not moved. Correct a wrong invoice with a credit or debit note, never by editing the bill already issued.
+      6. Keep the invoice and e-way bill with the driver. Goods moving without them can be detained, with a penalty of up to 200% of the tax.
+  - id: sector-refunds-cancellations
+    title: Returns, refunds and cancellations
+    source: Consumer Protection Act, 2019; Consumer Protection (E-Commerce) Rules, 2020; CGST Act, 2017 (section 34, credit notes)
+    body: |
+      1. Log the request with the order, booking or bill number, what is being returned or cancelled, and why.
+      2. Read the terms the customer was given at sale or booking: return period, cancellation charges, and the supplier's or airline's rules. Never charge anything the customer was not told about.
+      3. For goods, take them back and inspect them. Defective, damaged or wrong items are always taken back. For bookings, cancel with the supplier first and get their confirmation and refund amount in writing.
+      4. Work out the refund and get approval above the limit (the accounts manager above ₹10,000; the owner above ₹5 lakh).
+      5. Pay back to the original payment method, by the date promised, and send the customer the UTR or reference. Aim to pay within 14 days of the cancellation.
+      6. Issue a GST credit note for returned goods and adjust stock. Credit notes for a financial year must be issued by 30 November of the next year.
+  - id: sector-customer-complaints
+    title: Customer complaints
+    source: Consumer Protection Act, 2019; Consumer Protection (E-Commerce) Rules, 2020, rule 4 (grievance officer, 48-hour acknowledgement, one-month resolution); National Consumer Helpline (1915)
+    body: |
+      1. Acknowledge every complaint within 48 hours with a job number and the name of the person handling it.
+      2. Get the facts: the order or booking, what went wrong, photos, and the account of the staff, driver or supplier involved.
+      3. Offer a fix that fits the problem (redo, replace, refund or a goodwill gesture) within the agreed terms, and confirm it with the customer in writing.
+      4. Send the final written reply within one month. The grievance officer reads and signs off every reply.
+      5. If the customer mentions the consumer commission, the National Consumer Helpline or a legal notice, tell the owner the same day.
+      6. Note the cause of every complaint and look at repeats in the weekly review.
+
+kpis:
+  - id: on-time-delivery
+    name: Delivered on time
+    description: Share of orders, deliveries and trips completed by the date promised to the customer this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: refunds-on-time
+    name: Refunds paid on time
+    description: Share of agreed refunds paid back to the customer within 14 days this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: overdue-dues
+    name: Overdue customer dues
+    description: Share of customer dues that are past the agreed credit days at month end.
+    unit: percent
+    direction: down
+    target: 10
+  - id: complaints-closed-in-month
+    name: Complaints closed within a month
+    description: Share of complaints given a final written reply within one month of receipt.
+    unit: percent
+    direction: up
+    target: 100
+
+other_org_types:
+  - { name: Cold storage, keywords: [cold storage, cold chain, reefer, frozen storage, ripening chamber], closest: logistics }
+  - { name: Courier and parcel service, keywords: [courier, parcel service, express delivery, last mile delivery, delivery partner], closest: logistics }
+  - { name: Freight forwarder or customs broker, keywords: [freight forwarder, freight forwarding, customs broker, customs clearance, cha, clearing agent, shipping agent, nvocc], closest: logistics }
+  - { name: Warehouse or 3PL, keywords: [warehouse, warehousing, godown, 3pl, fulfilment centre, fulfillment center], closest: logistics }
+  - { name: Packers and movers, keywords: [packers and movers, packers movers, relocation, house shifting, office shifting], closest: logistics }
+  - { name: Distributor or stockist, keywords: [distributor, distributorship, stockist, super stockist, dealer, wholesaler], closest: wholesale-retail }
+  - { name: "Shop, supermarket or showroom", keywords: [supermarket, kirana, grocery, provision store, departmental store, hypermarket, mini mart, showroom, retail store, electronics store, mobile store, garment store, hardware store, furniture store, jewellery store, footwear store], closest: wholesale-retail }
+  - { name: E-commerce seller, keywords: [e-commerce, ecommerce, online store, online seller, amazon seller, flipkart seller, d2c brand], closest: wholesale-retail }
+  - { name: Pharmacy or medical store, keywords: [pharmacy, medical store, chemist, druggist, pharma distributor], closest: wholesale-retail }
+  - { name: Import-export trader, keywords: [exporter, importer, export house, import export, trading company], closest: wholesale-retail }
+  - { name: Hotel or resort, keywords: [hotel, resort, lodge, service apartment, boutique hotel], closest: travel-agency }
+  - { name: Homestay or guest house, keywords: [homestay, home stay, guest house, bed and breakfast, hostel, farm stay], closest: travel-agency }
+  - { name: Tour guide or activity operator, keywords: [tour guide, guide service, adventure sports, trekking, rafting, safari, activity operator], closest: travel-agency }
+  - { name: "Bus, taxi or car rental", keywords: [bus operator, bus service, taxi, cab service, car rental, self drive, tempo traveller], closest: travel-agency }
+  - { name: Event venue or banquet hall, keywords: [event venue, banquet hall, marriage hall, wedding venue, convention centre, kalyana mandapam], closest: travel-agency }

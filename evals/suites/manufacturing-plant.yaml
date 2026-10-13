@@ -1,0 +1,106 @@
+# Manufacturing plant: realistic requests from the shop floor, machine alarms,
+# customers, suppliers and the owner, with what the stages should decide.
+pack: manufacturing-plant
+cases:
+  - id: press-hand-injury
+    request: "Press shop: operator Ramesh Kumar's left hand got caught in power press no. 3 at 10:40 am, two fingers crushed. First aid given, he's been sent to the ESIC hospital in the company van. Press is switched off and locked."
+    source: staff
+    expect:
+      category: accident
+      priority: P1
+      review: complete
+      approval: { required: true, role: plant-head }
+      signoff: { required: true, role: safety-officer }
+    why: A hand caught and fingers crushed at a press, with person, place and time given, is an accident (P1). He will likely be off work 48 hours or more, so a notice is due; the plant head always approves the notice and the restart, and the safety officer signs off.
+  - id: kiln-drive-trip
+    request: "ALARM 03:12 LINE-1 KILN MAIN DRIVE MOTOR TRIPPED - HIGH WINDING TEMP. KILN FEED STOPPED."
+    source: system
+    expect:
+      category: breakdown
+      priority: P1
+      review: complete
+      approval: { required: true, role: shift-in-charge }
+      signoff: { required: true, role: shift-in-charge }
+    why: Tripped and stopped mark a breakdown, and the alarm names the line, machine and time. Breakdowns are P1 because the line is down. The shift in-charge always signs the permit and lock-out, and accepts the drive back after the trial run.
+  - id: machine-band
+    request: "Sir machine band ho gayi hai, jaldi kisi ko bhejo"
+    source: staff
+    expect:
+      category: breakdown
+      priority: P1
+      review: needs_info
+      approval: { required: true, role: shift-in-charge }
+      signoff: { required: true, role: shift-in-charge }
+    why: Machine band ho gayi means a stopped machine, so breakdown, P1. It does not say which machine or line, so review asks for it. The gate rule is still the shift in-charge's permit.
+  - id: customer-rejection-brackets
+    request: "From ABC Auto quality: 140 of 2,000 brake brackets (part BB-2231, your invoice 4471, lot 0925-B) have hole position out of tolerance. Parts are on hold at our end. Arrange sorting and send your containment plan today."
+    source: customer
+    expect:
+      category: quality-problem
+      priority: P2
+      review: complete
+      approval: { required: true, role: quality-head }
+      signoff: { required: true, role: quality-head }
+    why: A customer rejection with part, invoice, lot and quantity is a quality problem (P2, contain within 24 hours). The quality head always decides what happens to the parts and signs off.
+  - id: forklift-near-miss
+    request: "Near miss at dispatch bay, 4:15 pm today: forklift FL-02 reversed with its reverse horn dead and almost hit a loader. Nobody was hit. Please get the horn fixed and remind all drivers."
+    source: staff
+    expect:
+      category: near-miss
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: safety-officer }
+    why: Nobody was hurt and the place, time and cause are given, so it is a near miss (P3). Near misses need no approval; the safety officer signs off once the horn is fixed and the drivers are briefed.
+  - id: light-curtain-removal
+    request: "Light curtain on press 5 keeps cutting the stroke and we're behind target. Tell maintenance to remove it for this shift, we'll refit it tomorrow."
+    source: staff
+    expect:
+      category: planned-maintenance
+      priority: P3
+      review: not_eligible
+      approval: { required: true, role: shift-in-charge }
+      signoff: { required: true, role: maintenance-head }
+    why: It asks maintenance to take a light curtain off for the shift to keep output up. The law forbids interfering with safety devices (OSH Code 2020; Factories Act s.111), so review refuses it. The gates show the maintenance-job rule, but the work order stops at review.
+  - id: gear-blank-schedule
+    request: "November schedule: gear blank 55210, drawing rev C, 8,000 pcs - 4,000 by 14 Nov and 4,000 by 28 Nov. PO 7781 attached."
+    source: customer
+    expect:
+      category: production-order
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: quality-head }
+    why: A customer schedule with part, drawing revision, quantities and dates is a production order (P3). It needs no approval and gives no order value above ₹5 lakh; the quality head signs off the final inspection before dispatch.
+  - id: mill-gearbox-bearings
+    request: "Indent: 2 sets spherical roller bearing 23148 with seals for raw mill gearbox. Best of 3 quotes is ₹1,84,000 from the authorised dealer. Needed before Sunday shutdown."
+    source: staff
+    amount_inr: 184000
+    expect:
+      category: purchase
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: An indent with item, quotes, amount and need-by date is a purchase indent (P3). ₹1,84,000 is above the ₹1,00,000 limit, so the owner approves; it closes on the PO, GRN and invoice match without a sign-off.
+  - id: compressor-amc-kit
+    request: "As per our AMC rate contract, the 4,000-hour service kit for compressor no. 2 is ₹38,400 incl. GST. Please send the PO so our engineer can come on Saturday."
+    source: partner
+    amount_inr: 38400
+    expect:
+      category: purchase
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A vendor asking for a PO under a rate contract is a purchase indent (P3). ₹38,400 is under the ₹1,00,000 limit, so no approval. The service visit itself becomes a separate maintenance work order with its own permit.
+  - id: shaft-burr-capa
+    request: "Burr problem on the shaft line keeps repeating, third time this month. Do a proper root cause analysis and a permanent fix (CAPA), not just sorting."
+    source: owner
+    expect:
+      category: capa
+      priority: P4
+      review: complete
+      approval: { required: true, role: quality-head }
+      signoff: { required: true, role: quality-head }
+    why: A repeat defect that needs a root cause and a permanent fix is a CAPA (P4, 30 days). The quality head always approves the action plan and signs off once the next lots show it worked.

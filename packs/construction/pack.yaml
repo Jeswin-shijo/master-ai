@@ -1,0 +1,701 @@
+# Ready-made pack: construction and infrastructure (builders and real estate
+# developers, EPC contractors, road, bridge and civil works). Built from
+# researched Indian practice: the Labour Codes (OSH Code 2020, Code on Wages
+# 2019, Code on Social Security 2020) and state BOCW rules where a state has not
+# yet notified its own, RERA 2016, IS 456:2000 and the Manual for Procurement of
+# Works 2025. Labour rules are in transition: check each site's state rules.
+id: construction
+version: 1.0.0
+name: Construction & infrastructure
+description: Accidents, site hold-ups, quality problems, drawing queries, change orders, material indents, labour and wages, and snags and handover for builders, EPC contractors and road and civil works.
+kind: industry
+sector: energy-heavy-industry
+extends: [sector-energy-heavy-industry, projects-base]
+match:
+  keywords:
+    - construction
+    - construction company
+    - building construction
+    - civil construction
+    - civil contractor
+    - civil works
+    - building contractor
+    - pwd contractor
+    - builder
+    - builders and developers
+    - real estate developer
+    - property developer
+    - township developer
+    - housing project
+    - apartment builder
+    - villa projects
+    - epc contractor
+    - epc company
+    - infrastructure projects
+    - infrastructure contractor
+    - road contractor
+    - road construction
+    - highway contractor
+    - bridge contractor
+
+labels:
+  Customer: Client
+
+entities:
+  - name: Project
+    label: Project (site)
+    plural_label: Projects (sites)
+    title_field: name
+    list_columns: [projectCode, name, clientName, status, dueDate]
+    fields:
+      - { name: name, label: Project name, type: string, required: true }
+      - { name: projectCode, label: Project code, type: string }
+      - name: projectType
+        label: Type
+        type: enum
+        options: [housing, villas-and-plots, commercial, road-or-highway, bridge-or-flyover, industrial, water-and-sewerage, institutional, other]
+      - { name: clientName, label: Client or authority, type: string }
+      - { name: clientEmail, label: Client email, type: email }
+      - { name: siteAddress, label: Site address or stretch, type: text }
+      - { name: reraNumber, label: RERA registration number, type: string }
+      - { name: labourRegistration, label: Site labour registration number, type: string }
+      - { name: budget, label: Contract value or project cost, type: money }
+      - { name: startDate, label: Start date, type: date }
+      - { name: dueDate, label: Planned completion, type: date }
+      - { name: workersOnSite, label: Workers on site, type: integer }
+      - { name: ocReceivedOn, label: Occupancy or completion certificate received on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [proposed, active, on-hold, completed, cancelled]
+  - name: Worker
+    label: Worker
+    title_field: fullName
+    list_columns: [fullName, trade, contractor, bocwNumber, status]
+    fields:
+      - { name: fullName, label: Full name, type: string, required: true }
+      - { name: mobile, label: Mobile, type: phone }
+      - { name: dateOfBirth, label: Date of birth, type: date }
+      - name: trade
+        label: Trade
+        type: enum
+        options: [mason, carpenter, bar-bender, helper, electrician, plumber, welder, painter, operator, rigger, other]
+      - { name: contractor, label: Labour contractor, type: string }
+      - { name: homeState, label: Home state, type: string }
+      - { name: bocwNumber, label: Welfare board (BOCW) registration number, type: string }
+      - { name: uan, label: UAN or e-Shram number, type: string }
+      - { name: dailyWage, label: Daily wage, type: money }
+      - { name: joinedOn, label: Joined this site on, type: date }
+      - { name: daysWorked12Months, label: Days of construction work in the last 12 months, type: integer }
+      - { name: healthCheckDueOn, label: Next yearly health check (age 40 and over), type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [working, on-leave, left]
+  - name: Contractor
+    label: Contractor or supplier
+    plural_label: Contractors and suppliers
+    title_field: name
+    list_columns: [name, kind, work, workersOnSite, wagesPaidUpTo]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - name: kind
+        label: Type
+        type: enum
+        required: true
+        options: [labour-contractor, subcontractor, supplier, consultant, machine-hire]
+      - { name: work, label: Work or supply, type: string }
+      - { name: phone, label: Phone, type: phone }
+      - { name: gstin, label: GSTIN, type: string }
+      - { name: pan, label: PAN, type: string }
+      - { name: labourLicenceNo, label: Labour licence number, type: string }
+      - { name: licenceValidTill, label: Licence valid till, type: date }
+      - { name: workersOnSite, label: Workers on site, type: integer }
+      - { name: wagesPaidUpTo, label: Wages paid up to, type: date }
+      - { name: securityDeposit, label: Security deposit held, type: money }
+      - { name: retentionHeld, label: Retention held, type: money }
+      - name: rating
+        label: Rating
+        type: enum
+        options: [good, average, poor]
+  - name: Unit
+    label: Flat or unit
+    plural_label: Flats and units
+    title_field: unitNumber
+    list_columns: [unitNumber, tower, buyerName, status, possessionDate]
+    fields:
+      - { name: unitNumber, label: Flat or unit number, type: string, required: true }
+      - { name: tower, label: Tower or block, type: string }
+      - { name: project, label: Project, type: string }
+      - { name: buyerName, label: Buyer name, type: string }
+      - { name: buyerMobile, label: Buyer mobile, type: phone }
+      - { name: buyerEmail, label: Buyer email, type: email }
+      - { name: agreementDate, label: Agreement for sale date, type: date }
+      - { name: carpetAreaSqm, label: Carpet area (sq m), type: number }
+      - { name: possessionDate, label: Possession given on, type: date }
+      - { name: defectPeriodEndsOn, label: Free defect repair ends on (5 years), type: date }
+      - { name: duesCleared, label: All dues cleared, type: boolean }
+      - { name: openSnags, label: Open snags, type: integer }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [unsold, booked, agreement-signed, ready-for-possession, possession-given]
+
+tools:
+  - name: projects.search
+    description: Search projects and sites by name, code, client or status.
+    uses: records.search
+    with: { entity: Project }
+  - name: workers.search
+    description: Search the worker register by name, trade, contractor or welfare board number.
+    uses: records.search
+    with: { entity: Worker }
+  - name: worker.add
+    description: Add a worker to the site worker register.
+    uses: records.create
+    with: { entity: Worker }
+  - name: contractors.search
+    description: Search labour contractors, subcontractors, suppliers and consultants.
+    uses: records.search
+    with: { entity: Contractor }
+  - name: units.search
+    description: Search flats and units by number, tower, buyer or status.
+    uses: records.search
+    with: { entity: Unit }
+  - name: letter.draft
+    description: Draft a letter to the client, engineer, consultant or authority (hindrance notice, request for more time, drawing query, variation). Nothing is sent until a person signs it.
+    uses: document.generate
+    with: { kind: letter }
+  - name: quote.draft
+    description: Draft the price for a change or extra item from contract rates, for the QS to check. Nothing is sent.
+    uses: document.generate
+    with: { kind: quote }
+
+agents:
+  - role: site-desk
+    name: Site desk
+    description: Logs hold-ups in the hindrance register, drawing queries, quality problems and change requests against the project; drafts letters to the client, engineer and consultants; prices changes from contract rates for the QS; checks stock and budget for indents and gets quotes; and hands site work to the engineer in charge by phone.
+    instructions: Quote the project, the exact place (tower, floor, grid or chainage) and the drawing number in everything you write. Never tell anyone to start change work before the written instruction or the buyer's signed request is in hand, and never place a purchase order yourself.
+    autonomy: 3
+    tools: [projects.search, contractors.search, records.search, records.create, records.update, knowledge.search, letter.draft, quote.draft, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: internal }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: safety-labour-desk
+    name: Safety and labour desk
+    description: Records accidents, near misses and unsafe conditions, keeps the reporting clock and drafts the accident reports; follows up hospital care and compensation; keeps the worker register, chases contractors for proof of wages, prepares welfare board registrations and drafts replies to labour inspectors.
+    instructions: Life and safety first. Never mark a statutory report as sent or wages as paid; people sign and send reports and approve payments. Never ask an injured worker to come back to work.
+    autonomy: 2
+    tools: [workers.search, worker.add, contractors.search, projects.search, records.search, knowledge.search, letter.draft, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: crm-desk
+    name: CRM and handover desk
+    description: Registers snags and defects with the flat number, checks the possession date and the 5-year repair period, books joint inspections, sends each snag to the right trade by phone, keeps buyers updated, and logs buyers' change requests for the site desk to price.
+    instructions: Give every buyer a complaint number and an expected date. Never promise a structural change, or a free repair after the 5-year period; a person decides. Structural cracks go to QA/QC and the structural consultant.
+    autonomy: 3
+    tools: [units.search, projects.search, records.search, records.update, knowledge.search, schedule.create, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: accident-response
+    name: Accident response
+    description: Record the accident or unsafe condition, make the area safe, keep the reporting clock and follow up the corrective actions.
+    keywords: [accident, injury, near miss, unsafe, fell, collapse, hospital]
+    steps:
+      - key: record
+        title: Record it and draft the report
+        agent: safety-labour-desk
+        instructions: Record what happened, where (tower, floor or chainage), when, who was hurt and how badly, their contractor and whether they are registered with the welfare board. Draft the accident report and list the reporting deadlines for this state.
+      - key: make-safe
+        title: Make the area safe
+        agent: safety-labour-desk
+        depends_on: [record]
+        instructions: Hand the make-safe work to the site engineer in charge by phone. Work stays stopped in the area, it is barricaded and the scene is kept as it is except for rescue, until the safety officer clears it.
+      - key: follow-up
+        title: Follow up the investigation and care
+        agent: safety-labour-desk
+        depends_on: [make-safe]
+        instructions: Hand the investigation and corrective actions to the safety officer by phone, and track hospital care, the family and the compensation papers until the case closes.
+  - id: hindrance-record
+    name: Hold-up record and letter
+    description: Record the hold-up in the hindrance register, write to the client and keep crews busy elsewhere.
+    keywords: [hold-up, hindrance, idle, work stopped, front, delay]
+    steps:
+      - key: log
+        title: Log the hold-up and draft the letter
+        agent: site-desk
+        instructions: Log the hold-up with project, place, start date and time, cause, whose side it is, and the crews and machines standing idle. Draft the letter to the client or Authority Engineer with the likely duration and, if it is not our fault, a request for more time.
+      - key: clear
+        title: Get it signed and keep crews busy
+        agent: site-desk
+        depends_on: [log]
+        instructions: Hand the letter for signature to the project manager by phone, ask the site engineer to move idle crews and machines to other fronts, and record idle hours every day until work restarts.
+  - id: quality-ncr
+    name: Quality problem (NCR)
+    description: Raise the non-conformance report, pull the test records and get the fix decided before anything is covered or loaded.
+    keywords: [quality, ncr, cube, test failed, honeycomb, rework]
+    steps:
+      - key: log
+        title: Raise the NCR and pull the records
+        agent: site-desk
+        instructions: Raise the NCR with a number, the element, floor, grid and drawing reference. Pull the pour card, cube register, mix design and material test certificates, and note what must not be covered up or loaded.
+      - key: investigate
+        title: Get the cause and the fix
+        agent: site-desk
+        depends_on: [log]
+        instructions: Hand the investigation to the QA/QC engineer by phone. For structural parts, ask for the structural consultant's written opinion before any repair, demolition or more load, and track core tests and the fix to closure.
+  - id: rfi-handling
+    name: Drawing query (RFI)
+    description: Number the query, send it to the right consultant and get the written answer to site before it is needed.
+    keywords: [rfi, drawing, clarification, gfc, revision]
+    steps:
+      - key: log
+        title: Log the query and draft the RFI
+        agent: site-desk
+        instructions: Number the query, quote the drawing numbers and revisions, add the sketch or photo and the date the answer is needed, and check that a later revision has not already answered it. Draft the RFI to the architect or consultant.
+      - key: chase
+        title: Chase and share the answer
+        agent: site-desk
+        depends_on: [log]
+        instructions: Chase the answer before the needed-by date. Share the written answer and the revised GFC drawings with the site and subcontractors, and tell the site engineer by phone. If the answer adds cost or time, raise a change order.
+  - id: change-order-pricing
+    name: Change order
+    description: Price the change from contract rates, get it approved and signed by the client or buyer, then start the work.
+    keywords: [change order, variation, extra work, extra item, change request]
+    steps:
+      - key: price
+        title: Log and price the change
+        agent: site-desk
+        instructions: Log the change with the written instruction or the buyer's request. Draft the price from BOQ rates, with a rate analysis for new items and the effect on time, for the QS to check.
+      - key: sign
+        title: Get it signed and start
+        agent: site-desk
+        depends_on: [price]
+        instructions: Draft the variation letter or the buyer's change form for signature. Once signed, hand the work to the site engineer by phone and enter it in the variation register.
+  - id: material-indent
+    name: Material indent and order
+    description: Check stock and budget, get the rate, prepare the purchase order and get the material checked at the gate.
+    keywords: [indent, material, purchase order, cement, steel, quotation]
+    steps:
+      - key: check
+        title: Check stock, budget and rates
+        agent: site-desk
+        instructions: Check site stock, open orders and the BOQ or budget balance. Use the rate contract or get three quotes, and prepare the purchase order for approval (above ₹2,00,000 it waits for the owner).
+      - key: deliver
+        title: Order and receive
+        agent: site-desk
+        depends_on: [check]
+        instructions: Once approved, hand the order and delivery date to the purchase executive by phone, and ask the storekeeper to check quantity, GST invoice, e-way bill, ISI mark and test certificates at the gate.
+  - id: labour-wages-welfare
+    name: Labour, wages and welfare board
+    description: Check the workers and their contractor, get wages paid on time and prepare welfare board and inspector paperwork.
+    keywords: [wages, labour, welfare board, bocw, labour inspector, contractor]
+    steps:
+      - key: check
+        title: Check the register and the contractor
+        agent: safety-labour-desk
+        instructions: Find the workers and their contractor in the worker register, check the wages-paid-up-to date and the labour licence, and ask the contractor for bank proof of wages. Prepare the list of workers and the amounts due.
+      - key: settle
+        title: Settle wages and file papers
+        agent: safety-labour-desk
+        depends_on: [check]
+        instructions: If the contractor has not paid by the deadline, hand the payment list to the HR manager by phone to approve paying the workers directly and recovering it from the contractor's bill. Prepare welfare board registrations or the reply to the inspector as needed.
+  - id: snag-repair
+    name: Snags and defects
+    description: Register the snag or defect, check the repair period, send it to the right trade and keep the buyer updated until they accept the fix.
+    keywords: [snag, defect, seepage, leakage, crack, handover, punch list]
+    steps:
+      - key: register
+        title: Register and book the inspection
+        agent: crm-desk
+        instructions: Register the snag or defect with the unit, buyer, possession date and photos, check the 5-year repair period, book a joint inspection, and text the buyer the complaint number and expected date.
+      - key: fix
+        title: Get it fixed and accepted
+        agent: crm-desk
+        depends_on: [register]
+        instructions: Hand each snag to the trade in charge (civil, plumbing, electrical, waterproofing) by phone with a date inside 30 days, send structural cracks to QA/QC, update the buyer and record their acceptance.
+
+lifecycle:
+  case: { label: Site request, plural: Site requests, prefix: SR }
+  stages:
+    request:
+      name: Site request raised
+      description: A request, report or alert comes in from site staff, a home buyer, the client or its consultant, a subcontractor or a system (lab result, stock alert, government order), gets a number and is acknowledged.
+    review:
+      name: Check details and papers
+      description: The site team checks that the request names the project, the exact place and the drawing, has photos and the papers it needs, and is ours to handle; anything missing is asked for before it moves on.
+      checks:
+        - "Project, tower or chainage, floor and grid given, with photos"
+        - Drawing number and revision quoted for drawing, quality and change requests
+        - Quantity checked against the BOQ and the budget balance
+        - "Papers attached as needed: written instruction, test report, invoice, worker list or buyer agreement"
+        - "Ours to handle: inside the contract scope, or inside the buyer's 5-year defect period"
+        - Repeat or duplicate requests linked
+    classify:
+      name: Set type, risk and priority
+      description: The request gets its type, risk, priority, due date and owning department (safety, projects, quality, design, contracts, purchase, HR or customer care), which starts the response clock.
+    assign:
+      name: Assign in-charge and deadline
+      description: The project names the person responsible (site engineer, safety officer, QS, storekeeper, labour officer or CRM executive), sets the deadline and tells the subcontractor if their crew is involved.
+    approve:
+      name: Approval before work
+      description: Where the type needs it, the named person approves before money is committed or work starts or restarts. The project manager clears accident reports, restarts and quality fixes, the owner clears big purchases and changes, and the HR manager clears labour filings and wages paid on a contractor's behalf.
+      checks:
+        - Safety officer has cleared the area before work restarts after an accident
+        - Written instruction or the buyer's signed request in hand before change work
+        - "Amount within the approver's limit"
+    execute:
+      name: Site work and progress
+      description: The team and agents do the work and track it daily with photos, measurements, test results, costs and dates; hold-ups go into the hindrance register and changes into the variation register.
+      checks:
+        - Hold-ups entered in the hindrance register the same day
+        - Pour card signed and cubes taken for every concrete pour
+        - No work covered up before it is inspected and measured
+        - Delays reported before the deadline runs out
+    close:
+      name: Inspect and sign off
+      description: Someone other than the person who did the work inspects it, the client or buyer accepts it in writing where needed, and the named role signs off.
+      checks:
+        - Joint inspection done, with before and after photos
+        - Test results, checklists and pour cards filed
+        - Work measured and entered in the measurement book, signed by both sides
+        - Client or buyer acceptance in writing where needed
+        - "Registers updated: accident register, hindrance register, variation register, snag list"
+    report:
+      name: Monthly review and lessons
+      description: Weekly and monthly reports track progress against plan, accidents, quality problems, open drawing queries, change orders, material use and buyer defects; statutory returns go out on time and repeat problems get a lasting fix.
+      checks:
+        - Accidents and near misses reviewed in the monthly safety committee
+        - Repeat quality problems on the same work or crew flagged
+        - Hindrance and variation registers up to date for time and cost claims
+  priorities:
+    - { id: P1, name: Life or structure at risk, respond_within_hours: 0.25, resolve_within_hours: 48 }
+    - { id: P2, name: Work stopped or legal duty due, respond_within_hours: 1, resolve_within_hours: 72 }
+    - { id: P3, name: Normal, respond_within_hours: 8, resolve_within_hours: 168 }
+    - { id: P4, name: Low or planned, respond_within_hours: 24, resolve_within_hours: 720 }
+  roles:
+    - id: project-manager
+      name: Project manager (site in-charge)
+      approves: "Accident reports to the authorities and the restart of work once the safety officer clears it; the fix for a quality problem and its cost; signs off hold-ups once work restarts"
+    - id: safety-officer
+      name: Safety officer (safety in-charge on smaller sites)
+      approves: "Closes accident, near miss and unsafe-condition cases once the corrective actions are checked, and can stop unsafe work. Sites with 250 or more workers need a qualified safety officer."
+    - id: quality-head
+      name: QA/QC manager
+      approves: Signs off quality problems after checking the repaired work and the new test results
+    - id: contracts-manager
+      name: Contracts and billing manager (QS)
+      approves: Signs off change orders once the client or buyer has signed and the work is measured and billed
+    - id: hr-manager
+      name: HR and labour compliance manager
+      approves: "Labour registrations and filings, replies to labour inspectors, and wages paid directly to workers when a contractor fails to pay"
+    - id: crm-head
+      name: CRM head (customer care)
+      approves: "Signs off snag lists, possession handovers and replies to buyers' defect complaints. Contractors without home buyers give this to the project manager."
+    - id: maintenance-head
+      name: P&M in-charge (plant and machinery)
+      approves: "Breakdown repairs and servicing of cranes, hoists, batching plants and other site machines"
+    - id: plant-head
+      name: Projects head (GM or director)
+      approves: "Replies to statutory notices, licence renewals and consents for the company's sites"
+  urgent_keywords: [fire, caught fire, explosion, injured, injury, accident, electrocuted, electric shock, shock, collapse, collapsed, caved in, fell from, fall from height, fatal, died, death, unconscious, trapped, buried, gas leak, smoke, crane toppled]
+  categories:
+    - id: accident
+      name: Accident or unsafe site
+      keywords: [accident, injured, injury, hurt, fell from, fall from height, fell down, collapsed, collapse, caved in, electric shock, electrocuted, caught fire, fire broke out, died, death, fatal, unconscious, taken to hospital, ambulance, crane toppled, hoist failure, near miss, dangerous occurrence, unsafe, no railing, no edge protection, without harness, no safety net, without helmet, snake bite, heat stroke, durghatna, chot lagi]
+      priority: P1
+      risk: high
+      department: Safety
+      required_details:
+        - key: place
+          label: Where on site it happened
+          kind: keywords
+          keywords: [tower, block, wing, floor, slab, site, chainage, km, pier, span, basement, excavation, trench, scaffolding, lift shaft, staircase, terrace, labour camp, camp, batching plant, yard, store, gate, culvert, bridge, road, villa, plot, phase]
+      required_checks:
+        - "Work stopped in the area, first aid given and the injured taken to hospital; photos taken and the scene left as it is except for rescue"
+        - "A death: the labour authority, police, District Magistrate or SDO and the family told at once"
+        - "Serious injury (off work 48 hours or more) or a dangerous occurrence (collapse, crane or hoist failure, fire, falling objects): written report within the time the state's rules set"
+        - Worker from another state on a site with 10 or more such workers reported to both states and the next of kin
+        - "Worker's welfare board registration, ESI and insurance checked for compensation"
+        - Safety officer has cleared the area and the crew had a toolbox talk before work restarts
+      approval: { required: always, role: project-manager }
+      signoff: { required: true, role: safety-officer }
+      workflow: accident-response
+      execution: both
+    - id: site-hold-up
+      name: Site hold-up or hindrance
+      keywords: [work stopped, stopped work, stop work, work stoppage, stop construction, construction ban, grap, hindrance, hold up, held up, on hold, idle, standing idle, no front, front not available, site not handed over, land not handed over, right of way, encroachment, utility shifting, forest clearance, tree cutting permission, no power, power cut, no water, waterlogged, flooded, heavy rain, neighbour complaint, police stopped, villagers stopped, locals stopped, stay order, kaam band]
+      priority: P2
+      risk: medium
+      department: Projects (planning)
+      required_details:
+        - key: location
+          label: Which project and place
+          kind: keywords
+          keywords: [km, chainage, package, stretch, front, tower, block, floor, site, pier, span, ramp, culvert, bridge, basement, villa, plot, phase]
+        - { key: since, label: Since when (date and time), kind: date }
+      required_checks:
+        - "Start date and time, cause, place and affected work recorded in the hindrance register"
+        - "Whose side it is: client or authority, weather or force majeure, or our own"
+        - Idle men and machines counted every day, with photos
+        - Client or engineer told in writing at once, with the likely duration and a request for more time if it is not our fault
+        - Other work fronts found to keep crews and machines busy
+      approval: { required: never }
+      signoff: { required: true, role: project-manager }
+      workflow: hindrance-record
+      execution: both
+    - id: quality-problem
+      name: Quality problem or failed test
+      keywords: [cube, cube test, cube result, cube failed, low strength, core test, honeycomb, honeycombing, slump, cover block, cover not maintained, out of plumb, not in level, not as per drawing, ncr, non conformance, rework, substandard, poor quality, test failed, failed test, material rejected, segregation, bulged, bulging, cold joint, structural crack]
+      priority: P2
+      risk: medium
+      department: Quality (QA/QC)
+      required_details:
+        - key: element
+          label: Which element and where
+          kind: keywords
+          keywords: [slab, column, beam, footing, raft, wall, pile, pier, girder, deck, culvert, lintel, staircase, plaster, flooring, brickwork, blockwork, waterproofing, pavement, embankment, kerb, drain, tiles, road]
+      required_checks:
+        - "Element, floor, grid and drawing reference noted, with photos"
+        - Concrete accepted or rejected on its 28-day cube results (IS 456); 7-day results are only an early warning
+        - Non-conformance report (NCR) raised with a number
+        - "Cause found: material, mix, workmanship, curing or design"
+        - "Doubtful concrete: at least 3 cores; it passes if their average is at least 85% of the grade strength and none is below 75%"
+        - "Structural parts: the structural consultant's written opinion before any repair, demolition or more load"
+        - Nothing covered up or built over until the fix is approved
+      approval: { required: always, role: project-manager }
+      signoff: { required: true, role: quality-head }
+      workflow: quality-ncr
+      execution: both
+    - id: drawing-query
+      name: Drawing query (RFI)
+      keywords: [rfi, drawing, drawing query, technical query, gfc, clarification, clarify, not clear, mismatch, clash, conflict, which one, revision, detail missing, no details]
+      priority: P3
+      risk: low
+      department: Design and planning
+      required_details:
+        - key: drawingRef
+          label: Drawing number and revision
+          kind: keywords
+          keywords: [rev, revision, drawing no, drawing number, dwg, sheet no, gfc, r0, r1, r2, r3]
+        - { key: neededBy, label: Date the answer is needed, kind: date }
+      required_checks:
+        - Drawing numbers and revisions quoted
+        - Question clear, with a sketch or photo and a suggested answer
+        - Not already answered in a later revision
+        - "Answer in writing from the architect or consultant; revised drawings issued as Good for Construction (GFC) and old copies marked superseded"
+        - If the answer changes cost or time, a change order is raised
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: rfi-handling
+      execution: both
+    - id: change-order
+      name: Change order or extra work
+      keywords: [change order, variation, variation order, extra work, extra item, additional work, change of scope, scope change, customisation, customization, modification, alteration, deviation, extra cost, change request]
+      priority: P3
+      risk: medium
+      department: Contracts and billing
+      required_details:
+        - key: writtenBasis
+          label: Written instruction from the client or engineer, or the buyer's own request with their flat number
+          kind: keywords
+          keywords: [site instruction, written instruction, instruction no, letter, email, mail, signed, work order, variation order, minutes of meeting, mom, attached, flat, villa, unit no, booked, booking, allotment]
+      required_checks:
+        - "Written, numbered instruction from the client or engineer, or the buyer's signed request, before any work"
+        - "Priced at contract (BOQ) rates where they fit, otherwise built from them, with a rate analysis for new items"
+        - Effect on time worked out and asked for
+        - "Home buyers: minor, non-structural change to their own flat only; plan or common-area changes need two-thirds of buyers (RERA)"
+        - Entered in the variation register, savings included
+      not_eligible:
+        - keywords: [remove column, shift column, cut beam, cut the beam, break the slab, cut the slab, shear wall, rcc wall, load bearing wall, extra floor, terrace room, room on the terrace, extend the balcony, enclose the balcony]
+          reason: "This is a structural change or a change to the sanctioned plan. It cannot be done for one buyer: RERA does not allow structural changes as minor alterations, and plan changes need the written consent of two-thirds of the buyers and a revised sanction."
+      approval: { required: above_amount, role: owner, amount_inr: 200000 }
+      signoff: { required: true, role: contracts-manager }
+      workflow: change-order-pricing
+      execution: both
+    - id: purchase
+      name: Material request (indent)
+      keywords: [indent, material request, material required, requisition, purchase order, purchase, quotation, rate contract, supplier, vendor, cement, cement bags, tmt, steel, sand, m sand, aggregate, bricks, fly ash bricks, aac blocks, rmc, ready mix, shuttering plates, diesel, on hire, hire charges, reorder, reorder level, stock alert, stock low, low stock, maal chahiye]
+      priority: P3
+      risk: low
+      department: Purchase and stores
+      required_details:
+        - key: quantity
+          label: Quantity with its unit
+          kind: keywords
+          keywords: [bags, bag, mt, tonne, ton, kg, cum, cu m, cft, brass, nos, numbers, pieces, trucks, truck loads, loads, sqm, sq m, sqft, rmt, litres, ltrs, kl, days, hours]
+      required_checks:
+        - "Item, grade or size, quantity, place and needed-by date given"
+        - Quantity within the BOQ or budget balance; site stock checked first
+        - Approved vendor or rate contract, otherwise three quotes
+        - Purchase order issued before delivery
+        - "On delivery: quantity counted, GST invoice and e-way bill where needed, ISI mark and test certificate for cement and steel, cement week of manufacture noted"
+        - Goods receipt matches the order and the invoice before payment
+      not_eligible:
+        - keywords: [personal use, my house, own house, sir's house, farmhouse, home use, not for site, not for the project]
+          reason: Material for personal or non-project use is not bought on a project indent. Raise it separately with the owner.
+      approval: { required: above_amount, role: owner, amount_inr: 200000 }
+      signoff: { required: false }
+      workflow: material-indent
+      execution: both
+    - id: labour-bocw
+      name: Labour, wages or welfare board
+      keywords: [wages, wages not paid, unpaid wages, wages pending, salary not paid, salary pending, mazdoori, payment nahi mila, labour card, bocw, welfare board, e shram, labour contractor, contract labour, labour licence, labour license, labour cess, esi, pf, labour inspector, labour department, labour camp, appointment letter, overtime, child labour, underage, muster roll, workers strike]
+      priority: P2
+      risk: medium
+      department: HR and labour compliance
+      required_checks:
+        - Site registered with the labour department and the start and end of work notified
+        - Contractor with 50 or more contract workers holds a labour licence
+        - Every worker has an appointment letter and ID; no one under 18 on site
+        - "Wages on time: daily at the end of the shift, weekly before the weekly holiday, monthly before the 7th; paid by bank transfer with proof shared with us"
+        - "If a contractor fails to pay or pays short, we pay the workers and recover it from the contractor's bill"
+        - Workers aged 18 to 60 with 90 days of construction work in the last 12 months registered with the state welfare board
+        - Construction cess of 1% of the cost of construction paid
+        - "Yearly health check for workers aged 40 and over; housing, drinking water, toilets and a creche as the rules require"
+      approval: { required: always, role: hr-manager }
+      signoff: { required: false }
+      workflow: labour-wages-welfare
+      execution: both
+    - id: snag-handover
+      name: Snags, defects or handover
+      keywords: [snag, snag list, punch list, joint inspection, defect, defect liability, warranty, seepage, dampness, leakage, water leakage, bathroom leakage, roof leaking, terrace leaking, leaking from ceiling, crack, hollow tiles, tiles cracked, took possession, after possession, possession letter, handover documents, taking over, keys handover]
+      priority: P3
+      risk: low
+      department: Customer care (CRM)
+      required_details:
+        - key: unit
+          label: Which flat, unit or building
+          kind: keywords
+          keywords: [flat, unit, villa, apartment, shop, office, house, tower, block, wing, building, plot, school, hostel, warehouse]
+      required_checks:
+        - "Unit, buyer, possession date and agreement for sale checked"
+        - Occupancy certificate received before any possession is given
+        - Joint inspection with the buyer or client; snag list signed by both
+        - "Defects reported within 5 years of possession fixed free within 30 days (RERA)"
+        - "Possession: dues cleared, possession letter signed; keys, meter readings, warranty cards and manuals handed over"
+      not_eligible:
+        - keywords: [more than 5 years, more than five years, over 5 years, over five years, 6 years ago, 7 years ago, 8 years ago, 10 years ago, six years ago, seven years ago, eight years ago, ten years ago, "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020"]
+          reason: "Possession was given more than 5 years ago, so the free defect repair period under RERA has ended. Reply politely in writing and offer a paid repair."
+        - keywords: [our interior work, own interior work, our interior contractor, our carpenter, our own plumber, own plumber, own electrician, after our renovation, we broke the wall, we changed the flooring]
+          reason: The damage comes from the buyer's own interior or alteration work, which the free defect repair does not cover. Reply politely in writing and offer a paid repair.
+      approval: { required: never }
+      signoff: { required: true, role: crm-head }
+      workflow: snag-repair
+      execution: both
+  examples:
+    - { request: "Bar bender slipped off the 7th floor slab edge in Tower D and broke his wrist; taken to the city hospital", category: accident, priority: P1, approval: true }
+    - { request: "Trench wall caved in on the sewer line at Km 12.4; nobody was inside but two helpers were at the edge", category: accident, priority: P1, approval: true }
+    - { request: No edge protection around the lift shaft openings on the Block B 5th floor and helpers are working right next to them, category: accident, priority: P1, approval: true }
+    - { request: "Villagers stopped work at the Km 18 culvert over a drainage dispute; excavator and 12 workers idle since 9 am today", category: site-hold-up, priority: P2, approval: false }
+    - { request: GRAP stage 3 construction ban from tomorrow; all excavation and concreting at the Gurugram site must stop, category: site-hold-up, priority: P2, approval: false }
+    - { request: "The client has not handed over the land for the ramp at chainage 2+300; piling rig standing idle since 3 November", category: site-hold-up, priority: P2, approval: false }
+    - { request: "7-day cube results for the raft (M30) are only 14 N/mm2; check the batching plant records", category: quality-problem, priority: P2, approval: true }
+    - { request: Columns C5 to C9 on the 3rd floor of Tower A are out of plumb by 25 mm after deshuttering, category: quality-problem, priority: P2, approval: true }
+    - { request: Honeycombing at the bottom of the retaining wall near grid 4 in the basement, category: quality-problem, priority: P2, approval: true }
+    - { request: "Plumbing contractor: toilet layout A-301 rev 1 puts the floor trap on top of a beam; please clarify before we sleeve the slab on Friday", category: drawing-query, priority: P3, approval: false }
+    - { request: "GFC set for Block C has no reinforcement details for the staircase waist slab, we need them by Monday", category: drawing-query, priority: P3, approval: false }
+    - { request: "Client's site instruction SI-14: add a 150 mm RCC kerb along the boundary wall, about 220 m; price it at BOQ rates", category: change-order, priority: P3, approval: true }
+    - { request: "Change request from the buyer of villa 23: Italian marble in the living room instead of vitrified tiles, extra cost quoted ₹1.35 lakh", category: change-order, priority: P3, approval: false }
+    - { request: "Authority Engineer's letter asks for an extra item: 600 m of crash barrier on the curve at Km 31, estimated ₹38 lakh", category: change-order, priority: P3, approval: true }
+    - { request: "Indent for 300 bags of OPC 53 cement for the Phase 2 villas, needed by Thursday, about ₹1.1 lakh", category: purchase, priority: P3, approval: false }
+    - { request: "Raise the purchase order for 25 MT of 16 mm TMT at the rate contract price, ₹14.6 lakh", category: purchase, priority: P3, approval: true }
+    - { request: "Diesel at the road site store is down to 400 litres; reorder 4,000 litres, about ₹3.6 lakh", category: purchase, priority: P3, approval: true }
+    - { request: Labour inspector visited the Hinjewadi site and wants the contract labour licence and muster rolls by Friday, category: labour-bocw, priority: P2, approval: true }
+    - { request: Register the 35 new masons and helpers from Bihar with the state welfare board, category: labour-bocw, priority: P2, approval: true }
+    - { request: Gang of 18 helpers under Shiva Labour Supply says their wages are pending for three weeks, category: labour-bocw, priority: P2, approval: true }
+    - { request: "Buyer of flat 804 reports hollow tiles in the living room and a crack above the bedroom door; possession was in April 2025", category: snag-handover, priority: P3, approval: false }
+    - { request: "Joint inspection with the school client on Friday; close the punch list and get the handover documents ready", category: snag-handover, priority: P3, approval: false }
+    - { request: Water leakage from the bathroom ceiling of 1203 since the monsoon; we moved in last year, category: snag-handover, priority: P3, approval: false }
+
+playbooks:
+  - id: site-accident-reporting
+    title: Accidents and dangerous occurrences on site
+    source: "Occupational Safety, Health and Working Conditions Code, 2020 (sections 10, 11, 22 and 59-60); OSH (Central) Rules, 2026 (notified 8 May 2026) as summarised by SCC Online. States are notifying their own OSH rules; until a state does, its BOCW rules apply. Check your state's rules."
+    body: |
+      1. Stop work in the area, give first aid and get the injured person to hospital. Leave the scene as it is, except for rescue, and take photos.
+      2. Phone the safety officer and the project manager at once. For a death or serious injury, also tell the owner and the family.
+      3. A death: tell the labour authority (Inspector-cum-Facilitator), the police station and the District Magistrate or SDO at once, as the state's rules require.
+      4. An injury that keeps a worker off work 48 hours or more, or a dangerous occurrence even with no one hurt (collapse of a structure, scaffold or shuttering, crane or hoist failure, fire, falling objects, electric flash): send the written report in the time the rules set. The OSH Central Rules give 12 hours.
+      5. If a worker from another state is killed or badly hurt, and the site has 10 or more such workers, report it to both states and the next of kin.
+      6. Check the worker's welfare board registration, ESI and insurance, and start the compensation papers. The owner decides any ex gratia help to the family.
+      7. The safety officer finds the cause. Work restarts only after the safety officer clears the area and the project manager approves, with a toolbox talk for the crew.
+      8. Sites with 250 or more workers need a qualified safety officer; smaller sites name a safety in-charge.
+  - id: labour-wages-welfare
+    title: Labour, wages and the welfare board
+    source: "OSH Code, 2020 (sections 3, 5, 6, 24, 45 and 55); Code on Wages, 2019 (section 17); Code on Social Security, 2020 (sections 100 and 106); MoLE notification S.O. 2322(E), 8 May 2026; PIB release on the Labour Codes, 21 Nov 2025. The Codes replaced the BOCW and Contract Labour Acts, but states are still notifying their rules."
+    body: |
+      1. Register each site online within 60 days of starting, tell the authority when work starts and ends, and give every worker an appointment letter and ID.
+      2. Check that each labour contractor with 50 or more contract workers holds a labour licence, and keep the worker list, attendance and wage records for every gang.
+      3. Make sure wages are paid on time: daily wages at the end of the shift, weekly wages before the weekly holiday, monthly wages before the 7th of the next month. Contractors pay by bank transfer and send us the proof.
+      4. If a contractor does not pay or pays short, pay the workers in full ourselves (the HR manager approves) and recover it from the contractor's bill.
+      5. Register workers aged 18 to 60 who did 90 days of construction work in the last 12 months with the state welfare board, and pay the construction cess of 1% of the cost of construction.
+      6. No one under 18 works on site. Give a free yearly health check to workers aged 40 and over, and provide housing at or near the site, drinking water, toilets, first aid and a creche as the rules require.
+      7. Until your state notifies its rules under the Codes, follow its existing BOCW rules.
+  - id: concrete-testing-curing
+    title: "Concrete: cubes, curing and formwork"
+    source: "IS 456:2000 Plain and Reinforced Concrete, Code of Practice (clauses 11.3, 13.5.1, 15 and 17.4); later amendments changed the strength acceptance table, so check the current text"
+    body: |
+      1. Take cube samples from every grade poured: 1 sample up to 5 cu m, 2 for 6 to 15, 3 for 16 to 30, 4 for 31 to 50, and one more for each further 50 cu m; at least one sample per shift and 3 cubes per sample.
+      2. Accept or reject concrete only on its 28-day cube results; 7-day results are an early warning.
+      3. Keep concrete wet for at least 7 days, or at least 10 days with blended cement or in hot, dry weather.
+      4. Do not strip formwork early (ordinary cement, 15 °C or warmer): sides 16 to 24 hours; slab bottoms 3 days and beam bottoms 7 days with props left under; slab props 7 days (14 if the span is over 4.5 m); beam props 14 days (21 if over 6 m).
+      5. If strength is in doubt, test at least 3 cores. The concrete passes if their average is at least 85% of the grade strength and none is below 75%; otherwise load test or repair as the structural consultant decides.
+      6. Raise an NCR for every failed test, and cover or load nothing until the fix is approved.
+  - id: changes-and-hold-ups
+    title: Changes and hold-ups in writing
+    source: "Manual for Procurement of Works, 2nd edition 2025, Department of Expenditure (paras 3.2.2, 5.2, 7.2.2, 7.3.2, 7.4.3 and 7.4.6), binding on Central Government works and good practice elsewhere; private clients follow their own contract"
+    body: |
+      1. Start no change work without a written, numbered instruction from the client or engineer (a phone call is not enough), or the buyer's signed request.
+      2. Price changes at contract (BOQ) rates where they fit, build new rates from them where they do not, and work out the effect on time. Keep a variation register that records savings as well as extras.
+      3. Quantities that go past the deviation limit in the contract are paid at new rates; check the clause in your contract.
+      4. When something holds up work, write to the client the same day with the cause, the likely duration and, if it is not our fault, a request for more time. Keep the hindrance register daily with idle men and machines; never leave time-extension claims to the end.
+      5. Record work in the measurement book, signed by both sides, before it is covered up.
+      6. Government clients are expected to pay at least 75% of a running bill within 10 working days and the rest within 28 working days; chase late bills in writing.
+  - id: home-handover-defects
+    title: Possession, snags and defects for home buyers
+    source: "Real Estate (Regulation and Development) Act, 2016 (sections 11(4), 14(2), 14(3), 17 and 19(10)). Contractors without home buyers follow the defect liability period and taking-over terms in their contract."
+    body: |
+      1. Give possession only after the occupancy certificate. Buyers must take possession within 2 months of it.
+      2. Do a joint inspection with the buyer before handover, sign the snag list together and fix the snags on a fixed date.
+      3. Hand over keys, the possession letter, meter readings, warranty cards and manuals once dues are cleared.
+      4. Fix any structural or workmanship defect the buyer reports within 5 years of possession, free, within 30 days.
+      5. After 5 years, or for damage from the buyer's own interior or alteration work, reply politely in writing and offer a paid repair.
+      6. Change a buyer's flat only with that buyer's consent, and never make a structural change; plan or common-area changes need the written consent of two-thirds of the buyers.
+      7. Where local law is silent, hand the common areas and documents to the buyers' association within 30 days of the occupancy certificate, and register the conveyance within 3 months.
+
+kpis:
+  - id: progress-vs-plan
+    name: Work done vs plan
+    description: Value of work done this month (from measurements) as a share of the value planned for the month in the approved work programme.
+    unit: percent
+    direction: up
+    target: 95
+  - id: ncr-closed-on-time
+    name: Quality problems closed on time
+    description: Quality problems (NCRs) closed by their due date, as a share of all that fell due this month.
+    unit: percent
+    direction: up
+    target: 90
+  - id: buyer-defects-in-30-days
+    name: Buyer defects fixed in 30 days
+    description: Defects reported by buyers within 5 years of possession and fixed within 30 days, as a share of all such defects that fell due this month.
+    unit: percent
+    direction: up
+    target: 100
+  - id: material-wastage
+    name: Steel and cement wastage
+    description: Steel and cement used beyond what the measured work should have used, as a share of what it should have used, from the monthly stock reconciliation.
+    unit: percent
+    direction: down
+    target: 3
+  - id: workers-registered
+    name: Workers registered with the welfare board
+    description: Eligible workers on site (aged 18 to 60, 90 days of construction work in the last 12 months) who hold a valid welfare board registration, as a share of all eligible workers.
+    unit: percent
+    direction: up
+    target: 100

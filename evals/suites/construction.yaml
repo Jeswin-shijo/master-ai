@@ -1,0 +1,103 @@
+# Construction & infrastructure: realistic requests from site staff, the owner,
+# subcontractors, home buyers and site systems, with what the stages should decide.
+pack: construction
+cases:
+  - id: scaffold-fall
+    request: "Tower C site: helper Ramesh Oraon (from Jharkhand) fell from the 4th floor scaffolding at 11:30 today. Head injury, he is conscious and was taken to hospital in our Bolero. Plastering on that face is stopped."
+    source: staff
+    expect:
+      category: accident
+      priority: P1
+      review: complete
+      approval: { required: true, role: project-manager }
+      signoff: { required: true, role: safety-officer }
+    why: Fell from, injury and taken to hospital mark an accident (P1); the place is given. The project manager approves the report and the restart once the safety officer clears the area; the safety officer closes the investigation.
+  - id: low-cubes-owner
+    request: "Cubes for Tower A 6th floor slab came 21 and 22 N/mm2, it was M25. The client's audit is next week. Don't stop anything, cast the 7th floor slab on Saturday as planned, we will sort this out later."
+    source: owner
+    expect:
+      category: quality-problem
+      priority: P2
+      review: complete
+      approval: { required: true, role: project-manager }
+      signoff: { required: true, role: quality-head }
+    why: Low cube results are a quality problem (P2) on a named slab. They need an NCR, cores and the structural consultant's opinion before more load; the owner's instruction does not skip the project manager's approval of the fix, and the QA/QC manager signs off.
+  - id: forest-clearance-front
+    request: "NH-752 package 2: forest clearance for Km 42 to 45 is still pending and the Authority hasn't given us that front. One grader, one paver and 18 workers idle since 6 October. Please record the hindrance and write to the Authority Engineer."
+    source: staff
+    expect:
+      category: site-hold-up
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: project-manager }
+    why: Forest clearance, idle and hindrance mark a hold-up (P2); place and start date are given. It is on the Authority's side, so it goes in the hindrance register with a request for more time now. No approval; the project manager signs off when the front is handed over.
+  - id: beam-duct-rfi
+    request: "RFI from Volt Electricals: beam B14 on the 3rd floor is 300x600 in structural drawing S-205 rev 2, but the architect's ceiling drawing A-104 rev 3 shows a 450 mm drop for the duct. Which one holds? Slab casting is planned for 18 October."
+    source: partner
+    expect:
+      category: drawing-query
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: RFI, drawing and which one mark a drawing query (P3). Drawing numbers, revisions and the needed-by date are given. It goes to the consultants for a written answer; no approval or sign-off.
+  - id: parapet-on-call
+    request: "PMC sir called and asked us to raise the Block A terrace parapet from 0.9 m to 1.2 m as extra work. He wants it done before waterproofing starts next week. Nothing in writing yet."
+    source: staff
+    expect:
+      category: change-order
+      priority: P3
+      review: needs_info
+    why: Extra work marks a change order. A phone call is not a written, numbered instruction, so review asks for it before anything is priced or built.
+  - id: tmt-indent
+    request: "Indent for Tower B 9th floor slab: 12 mm TMT 14 MT and 8 mm TMT 4 MT, needed at site by 20 Oct. BOQ balance is enough. Rate contract with Sri Balaji Steels at Rs 58,500 per MT, total Rs 10,53,000."
+    source: staff
+    amount_inr: 1053000
+    expect:
+      category: purchase
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: Indent and TMT mark a material request (P3) with quantities given. ₹10.53 lakh is above the ₹2 lakh limit, so the owner approves the purchase order; no sign-off.
+  - id: cement-reorder
+    request: "Stock alert, Green Villas site store: PPC cement down to 38 bags, reorder level 100. Usual reorder: 150 bags from Laxmi Traders at Rs 365 a bag (Rs 54,750)."
+    source: system
+    amount_inr: 54750
+    expect:
+      category: purchase
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Cement and reorder level mark a material request (P3). ₹54,750 is under the ₹2 lakh limit, so the order goes to the usual dealer without approval; no sign-off.
+  - id: unpaid-shuttering-gang
+    request: "23 shuttering workers of Raju Constructions say their September wages are not paid and the contractor is not picking up calls. About Rs 3.4 lakh is due. They say they will leave for their village if not paid by Friday."
+    source: staff
+    amount_inr: 340000
+    expect:
+      category: labour-bocw
+      priority: P2
+      review: complete
+      approval: { required: true, role: hr-manager }
+      signoff: { required: false }
+    why: Unpaid wages are a labour case (P2); monthly wages were due before 7 October. If the contractor still does not pay, we pay the workers and recover it from his bill, which the HR manager approves. No sign-off.
+  - id: old-seepage
+    request: "Seepage in the master bedroom wall of flat 502, Lake View Residency, after this monsoon. We took possession in March 2019. Please send someone to fix it free of cost."
+    source: customer
+    expect:
+      category: snag-handover
+      priority: P3
+      review: not_eligible
+    why: Seepage after possession is a defect, but possession was in March 2019, more than 5 years ago, so the free repair duty under RERA has ended. The buyer gets a polite written reply with a paid-repair offer.
+  - id: buyer-power-points
+    request: "We booked flat 1104 in Tower B. Before you start plastering, please add two power points in the master bedroom and move the wash basin to the balcony. We will pay the extra cost."
+    source: customer
+    expect:
+      category: change-order
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: contracts-manager }
+    why: The buyer's own minor, non-structural change (extra cost) is a change order. It is not priced yet, and the change rule asks the owner when no amount is given; the QS signs off once it is done and billed.
