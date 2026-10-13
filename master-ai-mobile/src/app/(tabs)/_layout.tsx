@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme';
 
 export default function TabsLayout() {
   const { c } = useTheme();
-  const pending = useQuery({ queryKey: ['approvals', 'pending'], queryFn: () => api.approvals.list('pending') });
+  const pending = useQuery({ queryKey: ['approvals', 'pending'], queryFn: () => api.approvals.list('pending', { mine: true }) });
   const count = pending.data?.length ?? 0;
 
   return (

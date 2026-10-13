@@ -6,14 +6,18 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
 import { signDecision } from '@/lib/device-key';
+import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 const LOW_RISK = 60;
 
 export function ApprovalsPage() {
   const queryClient = useQueryClient();
+  const role = useSession((s) => s.user?.role);
   const [tab, setTab] = useState<'pending' | 'all'>('pending');
-  const list = useQuery({ queryKey: ['approvals', tab], queryFn: () => api.approvals.list(tab) });
+  // Everyone sees the approvals they can decide; the owner and admins can widen it.
+  const [mine, setMine] = useState(true);
+  const list = useQuery({ queryKey: ['approvals', tab, mine], queryFn: () => api.approvals.list(tab, { mine }) });
   // Only agent actions can be approved in a batch; case steps are read and decided one by one.
   const lowRisk = (list.data ?? []).filter((a) => a.kind === 'action' && a.status === 'pending' && a.riskScore < LOW_RISK);
 
@@ -54,6 +58,12 @@ export function ApprovalsPage() {
           </button>
         ))}
       </div>
+      {role !== 'member' && (
+        <label className="mb-4 flex items-center gap-2 text-sm text-fg-muted">
+          <input type="checkbox" checked={!mine} onChange={(e) => setMine(!e.target.checked)} />
+          Show everyone's approvals, not only the ones for me
+        </label>
+      )}
       <ErrorNote error={list.error ?? batch.error} className="mb-4" />
       {list.isLoading ? (
         <Spinner />

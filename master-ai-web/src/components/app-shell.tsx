@@ -17,6 +17,7 @@ import {
   Settings,
   Users,
   Workflow,
+  type LucideIcon,
 } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { NavLink, useLocation, useOutlet } from 'react-router';
@@ -28,7 +29,16 @@ import { useRealtimeConnection } from '@/lib/realtime';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
-const NAV = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  end?: boolean;
+  /** Hidden from members: only the owner and admins change these. */
+  managersOnly?: boolean;
+}
+
+const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: 'Work',
     items: [
@@ -52,9 +62,9 @@ const NAV = [
   {
     section: 'Admin',
     items: [
-      { to: '/pack', label: 'Industry pack', icon: Package },
+      { to: '/pack', label: 'Industry pack', icon: Package, managersOnly: true },
       { to: '/audit', label: 'Audit', icon: ScrollText },
-      { to: '/settings', label: 'Settings', icon: Settings },
+      { to: '/settings', label: 'Settings', icon: Settings, managersOnly: true },
     ],
   },
 ];
@@ -83,7 +93,7 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const tenant = useQuery({ queryKey: ['tenant'], queryFn: api.tenant.get });
-  const approvals = useQuery({ queryKey: ['approvals', 'pending'], queryFn: () => api.approvals.list('pending') });
+  const approvals = useQuery({ queryKey: ['approvals', 'pending', true], queryFn: () => api.approvals.list('pending', { mine: true }) });
   useBrandColor(tenant.data?.settings.brandColor);
   useEffect(() => {
     if (tenant.data) setTenant(tenant.data);
@@ -109,7 +119,7 @@ export function AppShell() {
         <div key={section}>
           <p className="mb-1.5 px-2.5 text-[11px] font-semibold tracking-wider text-fg-muted/80 uppercase">{section}</p>
           <div className="space-y-0.5">
-            {items.map(({ to, label, icon: Icon, end }) => (
+            {items.filter((i) => !i.managersOnly || user?.role !== 'member').map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -179,18 +189,20 @@ export function AppShell() {
               </>
             )}
           </p>
-          <Button
-            variant={paused ? 'success' : 'secondary'}
-            size="sm"
-            onClick={() => {
-              if (paused || window.confirm('Pause every agent in the company? Running tasks stop at their next step.')) killSwitch.mutate();
-            }}
-            loading={killSwitch.isPending}
-            title="Company-wide kill switch"
-          >
-            <Power className={paused ? '' : 'text-danger'} />
-            {paused ? 'Resume all agents' : 'Pause all agents'}
-          </Button>
+          {user?.role !== 'member' && (
+            <Button
+              variant={paused ? 'success' : 'secondary'}
+              size="sm"
+              onClick={() => {
+                if (paused || window.confirm('Pause every agent in the company? Running tasks stop at their next step.')) killSwitch.mutate();
+              }}
+              loading={killSwitch.isPending}
+              title="Company-wide kill switch"
+            >
+              <Power className={paused ? '' : 'text-danger'} />
+              {paused ? 'Resume all agents' : 'Pause all agents'}
+            </Button>
+          )}
         </header>
         {paused && (
           <div className="border-b border-warning/30 bg-warning-soft px-6 py-2 text-sm text-warning print:hidden" role="status">

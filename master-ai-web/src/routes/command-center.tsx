@@ -89,7 +89,7 @@ function GoalRow({ goal }: { goal: Goal }) {
 export function CommandCenterPage() {
   const overview = useQuery({ queryKey: ['ops', 'overview'], queryFn: api.ops.overview, refetchInterval: 60_000 });
   const goals = useQuery({ queryKey: ['goals'], queryFn: api.goals.list });
-  const approvals = useQuery({ queryKey: ['approvals', 'pending'], queryFn: () => api.approvals.list('pending') });
+  const approvals = useQuery({ queryKey: ['approvals', 'pending', true], queryFn: () => api.approvals.list('pending', { mine: true }) });
   const delegations = useQuery({ queryKey: ['delegations', 'all'], queryFn: () => api.delegations.list() });
   const routines = useQuery({ queryKey: ['routines'], queryFn: api.routines.list });
   const activeRoutines = (routines.data ?? []).filter((r) => r.status === 'active');

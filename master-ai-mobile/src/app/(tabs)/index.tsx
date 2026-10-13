@@ -21,7 +21,7 @@ export default function ApprovalsScreen() {
     queryKey: ['approvals', 'pending'],
     queryFn: async () => {
       try {
-        const list = await api.approvals.list('pending');
+        const list = await api.approvals.list('pending', { mine: true });
         setOffline(false);
         await cacheApprovals(list);
         return list;

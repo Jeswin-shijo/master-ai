@@ -9,6 +9,7 @@ import { AgentsPage } from '@/routes/agents';
 import { ApprovalsPage } from '@/routes/approvals';
 import { AuditPage } from '@/routes/audit';
 import { LoginPage, SignupPage } from '@/routes/auth';
+import { InvitePage } from '@/routes/invite';
 import { CommandCenterPage } from '@/routes/command-center';
 import { GoalDetailPage } from '@/routes/goal-detail';
 import { KnowledgePage } from '@/routes/knowledge';
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
+  { path: '/invite/:tenantId/:token', element: <InvitePage /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
