@@ -27,7 +27,7 @@ import {
 } from '@onehuman/schemas';
 import { lifecycleOf, normalizeSnapshot } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
-import { CurrentSession, Public, requireManager, type Session } from '../common/auth';
+import { CurrentSession, ManagersOnly, Public, requireManager, type Session } from '../common/auth';
 import { sha256 } from '../common/crypto';
 import { RateLimiter } from '../common/rate-limit';
 import { ZodPipe } from '../common/zod';
@@ -198,16 +198,19 @@ export class IntakeService {
 export class IntakeController {
   constructor(private readonly intake: IntakeService) {}
 
+  @ManagersOnly()
   @Get('intake-keys')
   list(@CurrentSession() s: Session) {
     return this.intake.listKeys(s);
   }
 
+  @ManagersOnly()
   @Post('intake-keys')
   create(@CurrentSession() s: Session, @Body(new ZodPipe(CreateIntakeKeyInputSchema)) body: z.output<typeof CreateIntakeKeyInputSchema>) {
     return this.intake.createKey(s, body);
   }
 
+  @ManagersOnly()
   @Post('intake-keys/:id/revoke')
   revoke(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.intake.revokeKey(s, id);

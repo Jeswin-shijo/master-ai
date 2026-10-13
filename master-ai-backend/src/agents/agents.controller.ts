@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { AutonomyOverrideInputSchema, UpdateAgentInputSchema, type AutonomyOverrideInput, type UpdateAgentInput } from '@onehuman/schemas';
-import { CurrentSession, type Session } from '../common/auth';
+import { CurrentSession, ManagersOnly, type Session } from '../common/auth';
 import { ZodPipe } from '../common/zod';
 import { AgentsService } from './agents.service';
 
@@ -23,21 +23,25 @@ export class AgentsController {
     return this.agents.get(s.tenantId, id);
   }
 
+  @ManagersOnly()
   @Patch(':id')
   update(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(UpdateAgentInputSchema)) body: UpdateAgentInput) {
     return this.agents.update(s, id, body);
   }
 
+  @ManagersOnly()
   @Post(':id/pause')
   pause(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.agents.setPaused(s, id, true);
   }
 
+  @ManagersOnly()
   @Post(':id/resume')
   resume(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.agents.setPaused(s, id, false);
   }
 
+  @ManagersOnly()
   @Post(':id/overrides')
   addOverride(
     @CurrentSession() s: Session,
@@ -47,6 +51,7 @@ export class AgentsController {
     return this.agents.addOverride(s, id, body);
   }
 
+  @ManagersOnly()
   @Delete(':id/overrides/:overrideId')
   removeOverride(
     @CurrentSession() s: Session,

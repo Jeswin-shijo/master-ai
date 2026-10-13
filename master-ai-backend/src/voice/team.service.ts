@@ -9,7 +9,7 @@ import {
 } from '@onehuman/schemas';
 import type { z } from 'zod';
 import { AuditService, type Actor } from '../audit/audit.service';
-import { CurrentSession, type Session } from '../common/auth';
+import { CurrentSession, ManagersOnly, type Session } from '../common/auth';
 import { ZodPipe } from '../common/zod';
 import { DbService, type Tx } from '../db/db.service';
 import { calls, delegations, staff } from '../db/schema';
@@ -168,11 +168,13 @@ export class TeamController {
     return this.team.list(s.tenantId);
   }
 
+  @ManagersOnly()
   @Post()
   create(@CurrentSession() s: Session, @Body(new ZodPipe(CreateStaffInputSchema)) body: CreateStaffInput) {
     return this.team.create(s, body as z.output<typeof CreateStaffInputSchema>);
   }
 
+  @ManagersOnly()
   @Patch(':id')
   update(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(UpdateStaffInputSchema)) body: UpdateStaffInput) {
     return this.team.update(s, id, body as z.output<typeof UpdateStaffInputSchema>);

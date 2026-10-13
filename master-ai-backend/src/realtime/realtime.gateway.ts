@@ -1,9 +1,12 @@
 import type { Server as HttpServer, IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { BeforeApplicationShutdown, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { RealtimeEvent } from '@onehuman/schemas';
 import { readToken } from '../common/auth';
+import { DbService } from '../db/db.service';
+import { principals } from '../db/schema';
 import { BusService, subjects } from '../events/bus.service';
 
 /**
@@ -19,7 +22,10 @@ export class RealtimeGateway implements OnModuleDestroy, BeforeApplicationShutdo
   private unsubscribe: (() => void) | null = null;
   private server: HttpServer | null = null;
 
-  constructor(private readonly bus: BusService) {}
+  constructor(
+    private readonly bus: BusService,
+    private readonly db: DbService,
+  ) {}
 
   attach(server: HttpServer) {
     this.server = server;
@@ -32,7 +38,17 @@ export class RealtimeGateway implements OnModuleDestroy, BeforeApplicationShutdo
         socket.destroy();
         return;
       }
-      this.wss.handleUpgrade(req, socket, head, (ws) => this.register(session.tenantId, ws));
+      void this.db
+        .tenant(session.tenantId, (tx) => tx.select({ status: principals.status }).from(principals).where(eq(principals.id, session.principalId)))
+        .then(([p]) => {
+          if (p?.status !== 'active') {
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+          }
+          this.wss.handleUpgrade(req, socket, head, (ws) => this.register(session.tenantId, ws));
+        })
+        .catch(() => socket.destroy());
     });
 
     this.unsubscribe = this.bus.subscribe<RealtimeEvent>(subjects.allEvents, (event, subject) => {

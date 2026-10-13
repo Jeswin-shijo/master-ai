@@ -7,7 +7,7 @@ import {
   type PackPreviewInput,
   type TenantSettingsInput,
 } from '@onehuman/schemas';
-import { CurrentSession, type Session } from '../common/auth';
+import { CurrentSession, ManagersOnly, type Session } from '../common/auth';
 import { ZodPipe } from '../common/zod';
 import { PackRegistry } from '../packs/registry.service';
 import { OnboardingService } from './onboarding.service';
@@ -21,11 +21,13 @@ export class TenancyController {
     private readonly registry: PackRegistry,
   ) {}
 
+  @ManagersOnly()
   @Post('onboarding/preview')
   preview(@CurrentSession() s: Session, @Body(new ZodPipe(PackPreviewInputSchema)) body: PackPreviewInput) {
     return this.onboarding.preview(s, body);
   }
 
+  @ManagersOnly()
   @Post('onboarding/install')
   install(@CurrentSession() s: Session, @Body(new ZodPipe(PackInstallInputSchema)) body: PackInstallInput) {
     return this.onboarding.install(s, body.draftId, body.sampleData ?? false);
@@ -41,16 +43,19 @@ export class TenancyController {
     return this.tenancy.get(s.tenantId);
   }
 
+  @ManagersOnly()
   @Patch('tenant/settings')
   settings(@CurrentSession() s: Session, @Body(new ZodPipe(TenantSettingsInputSchema)) body: TenantSettingsInput) {
     return this.tenancy.updateSettings(s, body);
   }
 
+  @ManagersOnly()
   @Post('tenant/pause')
   pauseTenant(@CurrentSession() s: Session) {
     return this.tenancy.setTenantPaused(s, true);
   }
 
+  @ManagersOnly()
   @Post('tenant/resume')
   resumeTenant(@CurrentSession() s: Session) {
     return this.tenancy.setTenantPaused(s, false);
@@ -76,16 +81,19 @@ export class TenancyController {
     return this.onboarding.updates(s.tenantId, id);
   }
 
+  @ManagersOnly()
   @Post('workspaces/:id/updates')
   applyUpdates(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.onboarding.applyUpdates(s, id);
   }
 
+  @ManagersOnly()
   @Post('workspaces/:id/pause')
   pauseWorkspace(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.tenancy.setWorkspacePaused(s, id, true);
   }
 
+  @ManagersOnly()
   @Post('workspaces/:id/resume')
   resumeWorkspace(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.tenancy.setWorkspacePaused(s, id, false);
