@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, Moon, Monitor, Sun } from 'lucide-react';
+import { RequestKeysCard } from '@/components/request-keys';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
@@ -144,6 +145,8 @@ export function SettingsPage() {
           ))}
         </CardBody>
       </Card>
+
+      <RequestKeysCard />
 
       <PhoneCallSettings />
 

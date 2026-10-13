@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Bot, CreditCard, Database, FileText, Mail, Phone, Search, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router';
 import type { ResolvedPack, WorkflowDef } from '@onehuman/schemas';
 import { Spinner, EmptyState } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
+import { useNewRequest } from '@/lib/new-request';
 import { cn } from '@/lib/utils';
 
 /** What a workflow's agents can do, shown as node icons like n8n template cards. */
@@ -27,10 +27,14 @@ function capabilityIcons(wf: WorkflowDef, pack: ResolvedPack): { icon: LucideIco
  * installed industry pack ships, ready to run as a goal.
  */
 export function WorkflowsPage() {
-  const navigate = useNavigate();
+  const showNewRequest = useNewRequest((s) => s.show);
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
   const pack = workspaces.data?.[0]?.pack;
   const [query, setQuery] = useState('');
+  const start = (wf: { id: string; name: string }) => {
+    const category = pack?.lifecycle?.categories.find((c) => c.workflow === wf.id)?.id;
+    showNewRequest(category ? { category } : { text: wf.name });
+  };
   const [category, setCategory] = useState<string>('All');
 
   const categories = useMemo(() => ['All', ...new Set((pack?.workflows ?? []).map((w) => w.category ?? 'Other'))], [pack]);
@@ -110,11 +114,8 @@ export function WorkflowsPage() {
               </ol>
               <div className="mt-auto flex items-center justify-between pt-5">
                 <span className="text-xs text-fg-muted">{wf.category ?? 'Other'}</span>
-                <button
-                  onClick={() => navigate(`/?goal=${encodeURIComponent(wf.name)}`)}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                >
-                  Use workflow <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                <button onClick={() => start(wf)} className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline">
+                  Start <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
                 </button>
               </div>
             </article>

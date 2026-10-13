@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorNote, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
+import { useNewRequest } from '@/lib/new-request';
 import { cn, timeAgo } from '@/lib/utils';
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -414,7 +415,7 @@ function ScheduleEditor({ routine }: { routine: Routine }) {
 /** One routine, live: who has reported, who the AI is calling right now, and what they said. */
 export function RoutineBoardPage() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
+  const showNewRequest = useNewRequest((s) => s.show);
   const queryClient = useQueryClient();
   const [date, setDate] = useState<string | undefined>(undefined);
   const [form, setForm] = useState<{ staffId: string | null; values?: Record<string, CheckinValue> } | null>(null);
@@ -425,10 +426,6 @@ export function RoutineBoardPage() {
   });
   const update = useUpdateRoutine(id);
   const run = useMutation({ mutationFn: () => api.routines.run(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['routine', id] }) });
-  const toGoal = useMutation({
-    mutationFn: (text: string) => api.goals.create({ text }),
-    onSuccess: (g) => navigate(`/goals/${g.id}`),
-  });
 
   if (day.isLoading) return <Spinner />;
   if (day.error || !day.data) return <ErrorNote error={day.error ?? new Error('Routine not found')} />;
@@ -517,8 +514,8 @@ export function RoutineBoardPage() {
               {summary.flags.map((f) => (
                 <li key={f} className="flex flex-wrap items-center gap-3 py-2 text-sm text-fg">
                   <span className="min-w-0 flex-1">{f}</span>
-                  <Button size="sm" variant="warning" onClick={() => toGoal.mutate(`Sort this out: ${f}`)} loading={toGoal.isPending && toGoal.variables === `Sort this out: ${f}`}>
-                    <Flag /> Make it a goal
+                  <Button size="sm" variant="warning" onClick={() => showNewRequest({ text: `Sort this out: ${f}` })}>
+                    <Flag /> Raise a request
                   </Button>
                 </li>
               ))}
@@ -526,7 +523,6 @@ export function RoutineBoardPage() {
           </motion.section>
         )}
       </AnimatePresence>
-      <ErrorNote error={toGoal.error} />
 
       {entries.length === 0 ? (
         <EmptyState icon={<Users />} title="Nobody reports to this routine yet">Pick who reports above.</EmptyState>
