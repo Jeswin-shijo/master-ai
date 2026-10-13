@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import type { PackAgent, PackDraft, PackUpdates, ResolvedPack, Workspace } from '@onehuman/schemas';
-import { applyPackUpdates, countPackUpdates, emptyPackUpdates, packUpdates, validatePackRefs } from '@onehuman/agent-kit';
+import { applyPackUpdates, countPackUpdates, emptyPackUpdates, normalizeSnapshot, packUpdates, validatePackRefs } from '@onehuman/agent-kit';
 import { PolicyEngine } from '@onehuman/policy';
 import { AuditService } from '../audit/audit.service';
 import type { Session } from '../common/auth';
@@ -102,7 +102,7 @@ export class OnboardingService {
     return this.db.tenant(tenantId, async (tx) => {
       const [ws] = await tx.select().from(workspaces).where(eq(workspaces.id, workspaceId));
       if (!ws) throw new NotFoundException('Workspace not found');
-      return this.updatesFor(ws.pack);
+      return this.updatesFor(normalizeSnapshot(ws.pack));
     });
   }
 
@@ -112,9 +112,10 @@ export class OnboardingService {
       // Locked so two clicks cannot add the same agent twice.
       const [ws] = await tx.select().from(workspaces).where(eq(workspaces.id, workspaceId)).for('update');
       if (!ws) throw new NotFoundException('Workspace not found');
-      const updates = this.updatesFor(ws.pack);
+      const installed = normalizeSnapshot(ws.pack);
+      const updates = this.updatesFor(installed);
       if (countPackUpdates(updates) === 0) return toWorkspace(ws);
-      const pack = applyPackUpdates(ws.pack, updates);
+      const pack = applyPackUpdates(installed, updates);
       const issues = validatePackRefs(pack);
       if (issues.length) throw new BadRequestException(`Update does not fit this workspace: ${issues.join('; ')}`);
       const actor = { id: session.principalId, kind: 'human' as const };

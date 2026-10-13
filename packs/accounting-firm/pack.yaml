@@ -670,7 +670,7 @@ lifecycle:
       execution: both
     - id: books-payroll
       name: Books and payroll
-      keywords: [tally, zoho books, books of accounts, book keeping, bookkeeping, update my accounts, update the accounts, accounts update, accounting entries, entries, bank statement, bank reconciliation, brs, ledger, voucher, purchase bills, sales bills, payroll, salary sheet, salary register, pf, epf, pf challan, esic, esi, professional tax, mis]
+      keywords: [tally, zoho books, books of accounts, book keeping, bookkeeping, update my accounts, update the accounts, accounts update, accounting entries, entries, bank statement, bank reconciliation, brs, ledger, voucher, purchase bills, sales bills, payroll, salary sheet, salary register, mis]
       priority: P3
       risk: low
       department: Accounting
@@ -687,6 +687,26 @@ lifecycle:
       signoff: { required: false }
       workflow: books-and-payroll
       execution: agents
+    - id: labour-filing
+      name: PF, ESI and professional tax returns
+      # Statutory filings under the client's login; late or wrong ones cost interest and damages, so they are reviewed like GST returns.
+      keywords: [pf return, pf challan, ecr, pf ecr, epfo, epf return, esi return, esic return, esic challan, esi challan, professional tax return, professional tax, pt return, pt challan, labour welfare fund, lwf]
+      priority: P2
+      risk: medium
+      department: Payroll compliance
+      required_details:
+        - key: period
+          label: Month or period
+          kind: keywords
+          keywords: [january, february, march, april, may, june, july, august, september, october, november, december, jan, feb, mar, apr, jun, jul, aug, sep, sept, oct, nov, dec, month, quarter, fy, financial year, this year, last year]
+      required_checks:
+        - Wage and attendance data confirmed by the client for the month
+        - "Joiners and leavers updated (UAN, IP number) before the return"
+        - Challan paid from the client's account before the due date
+      approval: { required: always, role: review-manager }
+      signoff: { required: false }
+      workflow: books-and-payroll
+      execution: both
     - id: fee-concession
       name: Fee discount or write-off
       keywords: [discount, a discount, discount of, fee discount, discount on fees, discount on the fees, give a discount, any discount, reduce the fees, reduce our fees, reduce my fees, lower the fees, fee reduction, reduction in fees, concession, waive the fees, waive our fees, fee waiver, write off, written off, bad debt, issue a credit note, issue credit note, credit note to the client, revised invoice]
@@ -723,6 +743,8 @@ lifecycle:
       workflow: fee-invoicing
       execution: agents
   examples:
+    - { request: "Please prepare the ESIC challan and return for Mehta Garments for September", category: labour-filing, priority: P2, approval: true }
+    - { request: "Professional tax return for the quarter is due, file it for Rao Engineering", category: labour-filing, priority: P2, approval: true }
     - { request: "A pharmacy owner in Thane wants us to take over his GST and income tax from his old CA. Please send our KYC list and a fee quote.", category: new-client, priority: P3, approval: true }
     - { request: "Bhatia Logistics LLP wants to appoint us as auditor from this year. Write to the previous auditor and draft the engagement letter.", category: new-client, priority: P3, approval: true }
     - { request: "Upload the November GSTR-1 for Khanna Garments; all sales invoices are in the shared folder.", category: gst-return, priority: P2, approval: true }

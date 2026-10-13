@@ -105,3 +105,21 @@ cases:
       approval: { required: false }
       signoff: { required: false }
     why: Payment reminders with ledgers are routine (P4) and never need approval or sign-off.
+  - id: raid-spray-order
+    request: "Order 50 cartons of Raid mosquito spray and 20 boxes of Good Knight for Sharma Stores"
+    source: customer
+    expect:
+      category: customer-order
+      priority: P3
+      review: complete
+      approval: { required: false }
+    why: Raid is a brand of mosquito spray, not a tax raid; a plain order with no value needs no approval.
+  - id: flood-lights-order
+    request: "Need 40 nos LED flood lights and 10 nos fire extinguishers for the new contractor order"
+    source: customer
+    expect:
+      category: customer-order
+      priority: P3
+      review: complete
+      approval: { required: false }
+    why: Flood lights and fire extinguishers are goods being ordered, not an emergency.

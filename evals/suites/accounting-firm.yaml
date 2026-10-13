@@ -97,3 +97,13 @@ cases:
       approval: { required: true, role: engagement-partner }
       signoff: { required: true, role: engagement-partner }
     why: A net worth certificate for a visa is a CA certificate (P2). The purpose and the papers, including a registered valuer's report for the flat, are given, so review is complete. The partner approves, signs and generates the UDIN.
+  - id: pf-esic-return
+    request: "File the PF ECR and ESIC return for October for Sharma Textiles"
+    source: staff
+    expect:
+      category: labour-filing
+      priority: P2
+      review: complete
+      approval: { required: true, role: review-manager }
+      signoff: { required: false }
+    why: PF, ESI and professional tax returns are statutory filings under the client's login, with interest and damages if they are late or wrong, so the review manager approves them like GST returns.

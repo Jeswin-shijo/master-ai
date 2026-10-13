@@ -59,6 +59,8 @@ describe('ready-made packs now win for common types', () => {
     ['NBFC giving gold loans', 'lender'],
     ['Transport company with 40 trucks', 'logistics'],
     ['Thermal power station', 'power-plant'],
+    ['Section 8 company running skill programmes', 'ngo'],
+    ['We are an IT services company in Pune', 'it-services'],
   ])('%s → %s', (text, id) => {
     expect(matchIndustry(text, industry)?.pack.id).toBe(id);
   });
@@ -69,12 +71,33 @@ describe('ready-made packs now win for common types', () => {
   });
 });
 
+describe('signup words that must not pick a pack', () => {
+  const industry = all.filter((p) => p.kind === 'industry');
+  it.each([
+    'Travel company, my wife runs it',
+    'Small bakery, we bake it fresh daily',
+    'We make it easy to rent bikes',
+    'Veterinary hospital',
+    'Pet hospital',
+    'Animal hospital and pet clinic',
+    'Government veterinary dispensary',
+  ])('%s → no IT or human hospital pack', (text) => {
+    expect(['it-services', 'hospital']).not.toContain(matchIndustry(text, industry)?.pack.id);
+  });
+
+  it('a vet hospital typed under public services does not borrow the human hospital pack', () => {
+    expect(composeForSector('Veterinary hospital', 'public-services', all).basedOn).not.toBe('hospital');
+  });
+});
+
 describe('typed-in types', () => {
   it.each([
     ['Cement plant in Andhra', 'energy-heavy-industry', 'manufacturing-plant'],
     ['Solar park operator', 'energy-heavy-industry', 'power-plant'],
     ['Cold storage chain', 'trade-logistics-tourism', 'logistics'],
-    ['Insurance broker', 'finance-development', null],
+    ['Insurance broker', 'finance-development', 'sector-finance-development'],
+    ['Banquet hall and wedding venue', 'trade-logistics-tourism', 'sector-trade-logistics-tourism'],
+    ['Edtech app, we built it for NEET students', 'technology-innovation', 'software-saas'],
     ['Diagnostic lab', 'public-services', 'hospital'],
   ] as const)('%s in %s builds on %s', (text, sector, expected) => {
     const c = composeForSector(text, sector, all);

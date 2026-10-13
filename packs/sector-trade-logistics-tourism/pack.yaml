@@ -228,5 +228,3 @@ other_org_types:
   - { name: Hotel or resort, keywords: [hotel, resort, lodge, service apartment, boutique hotel], closest: travel-agency }
   - { name: Homestay or guest house, keywords: [homestay, home stay, guest house, bed and breakfast, hostel, farm stay], closest: travel-agency }
   - { name: Tour guide or activity operator, keywords: [tour guide, guide service, adventure sports, trekking, rafting, safari, activity operator], closest: travel-agency }
-  - { name: "Bus, taxi or car rental", keywords: [bus operator, bus service, taxi, cab service, car rental, self drive, tempo traveller], closest: travel-agency }
-  - { name: Event venue or banquet hall, keywords: [event venue, banquet hall, marriage hall, wedding venue, convention centre, kalyana mandapam], closest: travel-agency }

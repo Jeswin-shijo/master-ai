@@ -13,6 +13,8 @@ kind: industry
 sector: public-services
 extends: [sector-public-services, bookings-base]
 match:
+  # Animal care is not human health care: vets get the sector defaults, not PM-JAY or PCPNDT.
+  exclude: [veterinary, vet clinic, vet hospital, animal, animals, pet clinic, pet hospital, pet care, pets, cattle, livestock, poultry]
   keywords:
     - hospital
     - multispeciality

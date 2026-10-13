@@ -398,11 +398,11 @@ lifecycle:
     - { id: accounts-manager, name: Accounts manager, approves: "Every correction to a GST invoice, credit note or e-way bill (and signs it off once filed); returns, refunds and credit notes above ₹10,000" }
     - { id: purchase-manager, name: Purchase manager, approves: "Purchase orders to suppliers above ₹1,00,000, or with no value given" }
     - { id: godown-in-charge, name: Godown or store in-charge, approves: "Signs off goods received against a purchase order: count, damage, batch and expiry dates (GRN)" }
-  urgent_keywords: [emergency, fire, caught fire, smoke, short circuit, explosion, gas leak, flood, flooded, accident, collision, overturned, injured, injury, ambulance, unconscious, fatal, death, theft, stolen, chori, robbery, robbed, burglary, looted, hijacked, fraud, seized, detained, raid, food poisoning]
+  urgent_keywords: [emergency, caught fire, smoke, short circuit, explosion, gas leak, flooded, accident, collision, overturned, injured, injury, ambulance, unconscious, fatal, death, theft, stolen, chori, robbery, robbed, burglary, looted, hijacked, fraud, seized, detained, food poisoning, fire in, fire at, on fire, flood water, water entered, raided, gst raid, income tax raid]
   categories:
     - id: customer-order
       name: Customer order
-      keywords: [new order, fresh order, bulk order, repeat order, place an order, requirement, our requirement, please supply, kindly supply, supply us, send, send us, bhej do, bhejo, bhej dena, bhejna, bhej dijiye, bhijwa do, maal chahiye, maal bhejo, same rate, same as last time, as per last rate, our po, po attached, purchase order attached, quotation for, rate list, price list, rate enquiry, price enquiry, need a quote, deliver to our, deliver by, bina bill, kachha bill]
+      keywords: [new order, fresh order, bulk order, repeat order, place an order, order cartons, cartons of, cases of, boxes of, bags of, for our order, contractor order, order for, requirement, our requirement, please supply, kindly supply, supply us, send, send us, bhej do, bhejo, bhej dena, bhejna, bhej dijiye, bhijwa do, maal chahiye, maal bhejo, same rate, same as last time, as per last rate, our po, po attached, purchase order attached, quotation for, rate list, price list, rate enquiry, price enquiry, need a quote, deliver to our, deliver by, bina bill, kachha bill]
       priority: P3
       risk: low
       department: Sales
@@ -559,7 +559,7 @@ lifecycle:
       execution: agents
     - id: urgent-incident
       name: Urgent incident
-      keywords: [gst squad, mobile squad, flying squad, squad stopped, gaadi rok di, gaadi pakad li, truck stopped, vehicle detained, goods detained, detained, detain, detention, seized, seizure, gst raid, raid, theft, stolen, chori, chori ho gaya, robbery, burglary, break-in, shutter broken, lock broken, fire, caught fire, short circuit, flood, flooded, water entered, paani bhar gaya, pani bhar gaya, recall, product recall, stop sale, failed lab test, lab test failed, unsafe, food poisoning, fell sick after eating, cold room, fridge failed, freezer not working, compressor failed, fake product, spurious, counterfeit, duplicate product, accident]
+      keywords: [gst squad, mobile squad, flying squad, squad stopped, gaadi rok di, gaadi pakad li, truck stopped, vehicle detained, goods detained, detained, detain, detention, seized, seizure, gst raid, theft, stolen, chori, chori ho gaya, robbery, burglary, break-in, shutter broken, lock broken, caught fire, short circuit, flooded, water entered, paani bhar gaya, pani bhar gaya, recall, product recall, stop sale, failed lab test, lab test failed, unsafe, food poisoning, fell sick after eating, fridge failed, freezer not working, compressor failed, fake product, spurious, counterfeit, duplicate product, accident, raided, fire in, fire at, on fire, flood water, cold room not working, cold room failed, cold room temperature]
       priority: P1
       risk: high
       department: Operations

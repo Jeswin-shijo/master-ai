@@ -531,19 +531,35 @@ lifecycle:
       execution: both
     - id: service-request
       name: Account service request
-      keywords: [loan statement, account statement, statement of my loan, emi receipt, payment receipt, repayment receipt, receipt for my emi, receipt for my last emi, receipt of my emi, receipt for the emi, receipt for my payment, interest certificate, provisional interest certificate, repayment schedule, emi schedule, amortisation schedule, amortization schedule, welcome letter, copy of my loan agreement, loan agreement copy, copy of sanction letter, sanction letter copy, kyc update, update my kyc, re kyc, rekyc, periodic kyc, change of address, address change, update my address, new address, change of mobile number, change my mobile number, update my mobile number, mobile number change, new mobile number, change my email, emi date change, change emi date, change my emi date, mandate change, change of mandate, new mandate, change my bank account, change of bank account, bank account change, name correction, correct my name]
+      keywords: [loan statement, account statement, statement of my loan, emi receipt, payment receipt, repayment receipt, receipt for my emi, receipt for my last emi, receipt of my emi, receipt for the emi, receipt for my payment, interest certificate, provisional interest certificate, repayment schedule, emi schedule, amortisation schedule, amortization schedule, welcome letter, copy of my loan agreement, loan agreement copy, copy of sanction letter, sanction letter copy, kyc update, update my kyc, re kyc, rekyc, periodic kyc, change of address, address change, update my address, new address, emi date change, change emi date, change my emi date, name correction, correct my name]
       priority: P4
       risk: low
       department: Operations
       required_checks:
         - "Request really from the borrower: OTP on the registered mobile or a signed request"
-        - "Address, mobile or bank change: valid document checked and CKYC updated within 7 days"
-        - Mobile or bank account change confirmed by calling the old registered number
+        - "Address change: valid document checked and CKYC updated within 7 days"
         - Statements and certificates sent only to the registered email or address
       approval: { required: never }
       signoff: { required: false }
       workflow: account-service
       execution: agents
+    - id: detail-change
+      name: Mobile, email, bank account or mandate change
+      # Where OTPs and money go: a SIM-swap or account-takeover route, so the branch manager always approves.
+      keywords: [change of mobile number, change my mobile number, update my mobile number, new mobile number, mobile number change, change my registered mobile, change the registered mobile, registered mobile number change, change registered mobile, new sim, lost my phone, lost my old phone, change my email, change of email, update my email, change my bank account, change of bank account, update my bank details, bank details change, bank account change, change the bank account, new bank account, mandate change, change of mandate, new mandate, emi from a different account, debit from a new account, change my nach]
+      priority: P2
+      risk: high
+      department: Operations
+      required_checks:
+        - "Identity checked in person at the branch or by video KYC; an OTP on the new number alone is not enough"
+        - Old registered mobile called before the change, and an SMS sent to it after
+        - "New bank account in the borrower's own name, verified by penny-drop or a cancelled cheque; new NACH mandate registered"
+        - No refund or disbursal to the new account for 24 hours unless the branch manager says so
+        - CKYC updated within 7 days
+      approval: { required: always, role: branch-manager }
+      signoff: { required: true, role: operations-manager }
+      workflow: account-service
+      execution: both
     - id: complaint
       name: Customer complaint
       keywords: [complaint, complain, complained, complaining, grievance, shikayat, ombudsman, rbi ombudsman, internal ombudsman, no reply, no response, not resolved, nobody replied, escalate, wrongly charged, extra charges, hidden charges, extra interest, rude, misbehaved, misbehaviour, misbehavior, poor service, consumer forum, consumer court, cibil, cibil score, cibil report, credit score, credit report, crif, experian, equifax, your recovery agent, your collection agent, your agent, your field officer, your staff, your collection boy, came to my house, came to my home, came to my office, calling my office, called my office, called my relatives, calling my relatives, called my employer, late night, at night, midnight, odd hours, shouted, shouting, abused, abusive, abuse, gaali, insulted, humiliated, in front of the neighbours, in front of neighbours, harassment, harassed, harassing, stop harassing, stop calling, keep calling, calling my parents, called my parents, calling my family, called my family, repeated calls, too many calls, morphed, my contacts, contact list, threatened, threatening, dhamki, goons, without informing, without telling me, without my consent, without asking, without notice, without any notice, interest rate increased, emi increased, emi went up, forced insurance]
@@ -580,6 +596,9 @@ lifecycle:
       workflow: fraud-response
       execution: both
   examples:
+    - { request: "My salary account moved to HDFC; please change my NACH mandate to the new account from next month", category: detail-change, priority: P2, approval: true }
+    - { request: "I lost my phone, please update my registered mobile number to the new one", category: detail-change, priority: P2, approval: true }
+    - { request: "Please change my email for loan statements to the new office id", category: detail-change, priority: P2, approval: true }
     - { request: "Need a gold loan on my 32 gram necklace, will come to the Madurai branch with Aadhaar tomorrow", category: small-loan, priority: P3, approval: true }
     - { request: "Raichur field officer: new JLG of 5 women, Rs 35,000 each, CGT done and KYC uploaded", category: small-loan, priority: P3, approval: true }
     - { request: "Two-wheeler loan for an Activa, on-road price Rs 92,000, PAN and Aadhaar attached", category: small-loan, priority: P3, approval: true }

@@ -271,7 +271,13 @@ export const PackSchema = z.object({
   /** The 8-stage case lifecycle, partial; merged down the `extends` chain. */
   lifecycle: LifecycleSchema.optional(),
   /** Words used to match an owner's free-text industry to this pack. */
-  match: z.object({ keywords: z.array(z.string()).default([]) }).optional(),
+  match: z
+    .object({
+      keywords: z.array(z.string()).default([]),
+      /** Words that rule this pack out, e.g. "veterinary" for a human hospital. */
+      exclude: z.array(z.string()).default([]),
+    })
+    .optional(),
   extends: z.array(SlugSchema).default([]),
   /** Term overrides, e.g. `{ Customer: Patient }`, applied to entity labels. */
   labels: z.record(z.string(), z.string()).default({}),

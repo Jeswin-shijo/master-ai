@@ -62,22 +62,13 @@ lifecycle:
   urgent_keywords: [fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, robbery, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, threatening, harassment, harassed, harassing, abused, abusive, suicide, fire, injured, injury]
   categories:
     - id: service-request
-      name: Details change or service request
+      name: Address, KYC or name change, or service request
       keywords:
         - change of address
         - address change
         - change my address
         - update my address
         - new address
-        - change of mobile number
-        - change my mobile number
-        - update my mobile number
-        - new mobile number
-        - mobile number change
-        - change my bank account
-        - change of bank account
-        - update my bank details
-        - bank details change
         - kyc update
         - update my kyc
         - re kyc
@@ -94,10 +85,24 @@ lifecycle:
       required_checks:
         - Request really comes from the account holder (OTP on the registered mobile or a signed request)
         - New detail backed by a valid document and the KYC record updated
-        - Bank account or mobile changes confirmed by calling the old registered number, not only by email or WhatsApp
       approval: { required: never }
       signoff: { required: false }
       execution: agents
+    - id: detail-change
+      name: Contact or bank detail change
+      # Changing where money or OTPs go is the classic account-takeover route: never automatic.
+      keywords: [change of mobile number, change my mobile number, update my mobile number, new mobile number, mobile number change, change my registered mobile, change the registered mobile, registered mobile number change, change registered mobile, new sim, lost my phone, lost my old phone, change my email, change of email, update my email, change my bank account, change of bank account, update my bank details, bank details change, bank account change, change the bank account, new bank account, mandate change, change of mandate, new mandate]
+      priority: P2
+      risk: high
+      department: Customer service
+      required_checks:
+        - "Identity checked in person, by video KYC or with an OTP on the old registered mobile; never on email or WhatsApp alone"
+        - Old registered number called back before the change, and told after it
+        - "New bank account verified in the person's own name (cancelled cheque or penny-drop), never a third party's"
+        - No refund or payment released to the new details for 24 hours unless the approver says so
+      approval: { required: always, role: finance-manager }
+      signoff: { required: true, role: finance-manager }
+      execution: both
     - id: document-request
       name: Document or certificate request
       keywords:
@@ -299,6 +304,8 @@ lifecycle:
       workflow: delegate-work
       execution: team
   examples:
+    - { request: "I have a new SBI account now, please update my bank details for future payments", category: detail-change, priority: P2, approval: true }
+    - { request: "My old SIM is gone; change my registered mobile to the new Jio number", category: detail-change, priority: P2, approval: true }
     - { request: "Please update my new mobile number 98450 12345 in your records", category: service-request, priority: P4, approval: false }
     - { request: My surname is spelt wrong in your records. Please do a name correction as per my PAN card, category: service-request, priority: P4, approval: false }
     - { request: "Send me the statement of account from April to September, my bank has asked for it", category: document-request, priority: P4, approval: false }
@@ -381,8 +388,6 @@ other_org_types:
   - { name: Credit society or co-operative, keywords: [credit society, credit cooperative, credit co-operative, cooperative credit society, co-operative credit society, pacs, thrift society], closest: lender }
   - { name: Nidhi company, keywords: [nidhi, nidhi company, mutual benefit fund], closest: lender }
   - { name: Vehicle or housing finance company, keywords: [housing finance, vehicle finance, auto finance, two wheeler finance, tractor finance, home loan company], closest: lender }
-  - { name: Payment company or fintech, keywords: [payment aggregator, payment gateway, fintech, wallet, prepaid card, upi app, money transfer, remittance], closest: lender }
-  - { name: Insurance broker or agent, keywords: [insurance broker, insurance agent, insurance agency, insurance advisor, corporate agent, posp], closest: lender }
   - { name: Wealth or investment advisor, keywords: [wealth advisor, wealth management, investment advisor, financial planner, mutual fund distributor, ria], closest: accounting-firm }
   - { name: Tax consultant, keywords: [tax consultant, tax practitioner, gst practitioner, income tax consultant, itr filing, tax return filing], closest: accounting-firm }
   - { name: Company secretary or compliance firm, keywords: [company secretary, cs firm, secretarial, roc compliance, compliance consultant], closest: accounting-firm }

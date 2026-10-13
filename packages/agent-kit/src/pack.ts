@@ -169,6 +169,20 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
   };
 }
 
+/**
+ * A workspace's stored pack snapshot, with list fields added since it was
+ * saved filled in as empty. Snapshots are stored as JSON and never re-parsed,
+ * so read them through this before using newer fields.
+ */
+export function normalizeSnapshot(pack: ResolvedPack): ResolvedPack {
+  return {
+    ...pack,
+    routines: pack.routines ?? [],
+    playbooks: pack.playbooks ?? [],
+    other_org_types: pack.other_org_types ?? [],
+  };
+}
+
 /** Agents that do goal work. The case coordinator only runs case stages, so planners never pick it. */
 export function workAgents(pack: Pick<ResolvedPack, 'agents'>): ResolvedPack['agents'] {
   return pack.agents.filter((a) => a.role !== CASE_COORDINATOR_ROLE);

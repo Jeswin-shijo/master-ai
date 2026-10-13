@@ -7,7 +7,7 @@ import { PackError } from './pack';
  */
 
 const STOPWORDS = new Set(
-  'a an and the in at of for to we our my run running own business company firm small medium shop based services service india pvt ltd limited private llp co'.split(
+  'a an and the in at of for to we our my run running own business company firm small medium shop based services service india pvt ltd limited private llp co it'.split(
     ' ',
   ),
 );
@@ -20,8 +20,22 @@ export function normalizeIndustry(text: string): string {
     .trim();
 }
 
-function tokens(text: string): string[] {
-  return normalizeIndustry(text)
+/** Words that make a lowercase "it" mean information technology: "it services", "it company". */
+const IT_WORDS = 'services|service|company|companies|firm|solutions|support|consultancy|consulting|consultants?|infrastructure|networking|hardware|managed|park|outsourcing|enabled';
+
+/**
+ * "IT" means information technology only when written in capitals or followed
+ * by an IT word; the pronoun "it" ("my wife runs it") is noise. In pack
+ * keywords, which are written in lowercase, "it" always means IT.
+ */
+function markIt(text: string, keyword: boolean): string {
+  let t = text.replace(/\bIT\b/g, ' infotech ');
+  t = t.replace(new RegExp(`\\bit\\s+(?=(${IT_WORDS})\\b)`, 'gi'), ' infotech ');
+  return keyword ? t.replace(/\bit\b/gi, ' infotech ') : t;
+}
+
+function tokens(text: string, keyword = false): string[] {
+  return normalizeIndustry(markIt(text, keyword))
     .split(/[\s-]+/)
     // Single digits count ("Section 8"); other one-letter tokens are noise.
     .filter((t) => (t.length > 1 || /^\d$/.test(t)) && !STOPWORDS.has(t))
@@ -36,7 +50,7 @@ function stem(t: string): string {
 
 function containsPhrase(haystack: string, phrase: string): boolean {
   const h = ` ${tokens(haystack).join(' ')} `;
-  const p = tokens(phrase).join(' ');
+  const p = tokens(phrase, true).join(' ');
   return p.length > 0 && h.includes(` ${p} `);
 }
 
@@ -47,18 +61,24 @@ export interface PackMatch {
 }
 
 /** Best industry pack for the text, or null when nothing fits well enough. */
+/** A pack's `match.exclude` words rule it out ("veterinary" for a human hospital). */
+function excluded(pack: Pack | undefined, text: string): boolean {
+  return (pack?.match?.exclude ?? []).some((x) => containsPhrase(text, x));
+}
+
 export function matchIndustry(text: string, packs: Pack[], threshold = 0.6): PackMatch | null {
   const inputTokens = new Set(tokens(text));
   if (inputTokens.size === 0) return null;
   let best: PackMatch | null = null;
 
   for (const pack of packs) {
+    if (excluded(pack, text)) continue;
     if (pack.kind !== 'industry') continue;
     const keywords = [pack.name, pack.id.replace(/-/g, ' '), ...(pack.match?.keywords ?? [])];
     let score = 0;
     let matchedKeyword: string | null = null;
     for (const kw of keywords) {
-      const kwTokens = tokens(kw);
+      const kwTokens = tokens(kw, true);
       if (kwTokens.length === 0) continue;
       let s: number;
       if (containsPhrase(text, kw)) {
@@ -185,7 +205,7 @@ export function composeOfflinePack(industry: string): Pack {
     name: title,
     description: `Everyday operations for ${industry.trim()}: the AI team, records and rules most businesses like yours need.`,
     kind: 'industry',
-    match: { keywords: [industry.trim()] },
+    match: { keywords: [industry.trim()], exclude: [] },
     extends: familyDef?.extends ?? ['crm-base'],
     labels,
     entities: [],
@@ -243,8 +263,8 @@ export function composeForSector(industry: string, sector: SectorId, packs: Pack
   } else {
     let best: { closest: string; score: number } | null = null;
     for (const t of base.other_org_types) {
-      if (!available.has(t.closest)) continue;
-      const score = Math.max(0, ...t.keywords.filter((k) => containsPhrase(industry, k)).map((k) => tokens(k).length));
+      if (!available.has(t.closest) || excluded(inSector.find((p) => p.id === t.closest), industry)) continue;
+      const score = Math.max(0, ...t.keywords.filter((k) => containsPhrase(industry, k)).map((k) => tokens(k, true).length));
       if (score > 0 && (!best || score > best.score)) best = { closest: t.closest, score };
     }
     if (best) {

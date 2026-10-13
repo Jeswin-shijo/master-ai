@@ -108,3 +108,13 @@ cases:
       approval: { required: false }
       signoff: { required: true, role: programme-manager }
     why: MIS alert and attendance mark a field check (P3). Internal monitoring needs no approval; M&E visits the centres, finds the causes and agrees fixes, and the programme manager signs off the findings.
+  - id: stipend-bank-change
+    request: "Please change my bank account for the stipend payments to my new Canara Bank account, the old account is closed"
+    source: customer
+    expect:
+      category: detail-change
+      priority: P2
+      review: complete
+      approval: { required: true, role: finance-manager }
+      signoff: { required: true, role: finance-manager }
+    why: Changing where a beneficiary's money goes always needs the finance manager after the person is verified; otherwise a fraudster can divert stipends.

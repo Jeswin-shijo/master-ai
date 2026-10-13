@@ -104,3 +104,23 @@ cases:
       approval: { required: true, role: credit-committee }
       signoff: { required: true, role: collections-head }
     why: NPA and repossess mark recovery (P2). Repossession always needs the credit committee; the notice in the agreement goes first, with no night-time or forced pickup. The collections head signs off.
+  - id: refund-bank-change
+    request: "Please change my bank account for the refund to SBI 1234567890 IFSC SBIN0001234"
+    source: customer
+    expect:
+      category: detail-change
+      priority: P2
+      review: complete
+      approval: { required: true, role: branch-manager }
+      signoff: { required: true, role: operations-manager }
+    why: Changing where money goes is the classic account-takeover route, so it is its own case type that always needs the branch manager after a call to the old registered number.
+  - id: lost-phone-mobile-change
+    request: "Change my registered mobile number to 9876543210, I lost my old phone"
+    source: customer
+    expect:
+      category: detail-change
+      priority: P2
+      review: complete
+      approval: { required: true, role: branch-manager }
+      signoff: { required: true, role: operations-manager }
+    why: A new registered mobile receives every OTP from now on (SIM-swap risk), so the branch manager approves it after checking identity in person or by video KYC.

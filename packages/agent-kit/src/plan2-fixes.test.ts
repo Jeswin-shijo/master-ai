@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LifecycleSchema } from '@onehuman/schemas';
-import { matchIndustry, mergeLifecycles, parsePack } from './index';
+import { LifecycleSchema, type ResolvedPack } from '@onehuman/schemas';
+import { matchIndustry, mergeLifecycles, normalizeSnapshot, parsePack } from './index';
 
 /** Fixes found while writing the sector content (Plan 2). */
 
@@ -54,5 +54,21 @@ describe('signup matching keeps numbers', () => {
 
   it('still matches text that contains other numbers', () => {
     expect(matchIndustry('Transport company with 40 trucks', [ngo, transport])?.pack.id).toBe('transport-test');
+  });
+});
+
+describe('workspace snapshots stored before Plan 2', () => {
+  it('get the list fields they are missing when read', () => {
+    const old = { id: 'travel-agency', version: '1.2.0', name: 'Travel', description: 'x', kind: 'industry', extends: [], labels: {}, entities: [], agents: [], tools: [], workflows: [], policies: [], kpis: [], connectors: [], lineage: ['travel-agency'], source: 'registry' } as unknown as ResolvedPack;
+    const snap = normalizeSnapshot(old);
+    expect(snap.playbooks).toEqual([]);
+    expect(snap.other_org_types).toEqual([]);
+    expect(snap.routines).toEqual([]);
+    expect(snap.id).toBe('travel-agency');
+  });
+
+  it('leaves complete snapshots alone', () => {
+    const full = { playbooks: [{ id: 'p', title: 'P', body: 'x'.repeat(90) }], other_org_types: [], routines: [] } as unknown as ResolvedPack;
+    expect(normalizeSnapshot(full).playbooks).toHaveLength(1);
   });
 });
