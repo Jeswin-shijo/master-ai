@@ -1,0 +1,430 @@
+# Sector base for essential public and service organizations: hospitals and
+# clinics, schools, colleges and coaching, and municipal and citizen services.
+# Ready-made types extend it; typed-in types borrow the closest ready-made type
+# (other_org_types) or use it directly.
+id: sector-public-services
+version: 1.0.0
+name: Essential Public & Service
+description: Emergencies, repairs, certificates, fees and refunds, staff leave and complaints for hospitals and clinics, schools, colleges and coaching centres, and municipal and citizen service offices.
+kind: base
+sector: public-services
+extends: [crm-base]
+
+lifecycle:
+  case: { label: Request, plural: Requests, prefix: REQ }
+  stages:
+    request:
+      name: Request received
+      description: A patient, parent, student, citizen, staff member or system raises a request, complaint or alert at the counter, by phone, WhatsApp, letter or a portal, and it gets a request number and an acknowledgement.
+    review:
+      name: Documents and eligibility check
+      description: Staff and agents check who is asking, whether this service is theirs to give and whether the papers it needs are attached, and ask for anything missing; emergencies skip this and go straight to the people on duty.
+      checks:
+        - "Who is asking is confirmed: the person, a parent or guardian, or someone they authorised in writing"
+        - This office gives this service to this person (our patient, our student or a resident of our area)
+        - Papers the service needs are attached and readable (ID, form, receipt, earlier reports)
+        - Aadhaar used only with consent and stored masked
+        - Life or safety at risk? Send it to the people on duty at once and mark it P1; emergencies never wait for papers
+        - Not a repeat of a request that is already open or done
+    classify:
+      name: Urgency and department
+      description: The request gets its type, priority (P1 to P4), risk and department, which starts the clock for its service time limit.
+    assign:
+      name: Assign in-charge and deadline
+      description: The department head names the person in charge and sets a deadline inside the notified service time limit, so the person who asked knows who is handling it.
+    approve:
+      name: Approval by authority
+      description: The officer with the power to decide approves or rejects in writing, never the person who prepared the work, and no money is paid out before this step.
+    execute:
+      name: Service and follow-up
+      description: The team and agents give the service, keep the person who asked updated, and track progress, cost and papers against the deadline.
+    close:
+      name: Verify and sign off
+      description: Someone other than the person who did the work checks the result, the named role signs off and the person who asked gets a written reply.
+      checks:
+        - Service given as asked, or the reason it could not be given written down
+        - Certificates and record copies checked against the register and signed by the authorised signatory
+        - Refunds paid into the payer's own account, with the receipt and ledger updated
+        - Report sent to the police or the authority where the law needs one
+        - Written reply sent to the person who asked, saying where to appeal if they are not satisfied
+    report:
+      name: Reports and review
+      description: Each month the team reviews requests that missed their time limit, complaints, emergencies and repeat problems, sends the reports the department, board or regulator needs, and fixes the causes that keep coming back.
+  priorities:
+    - { id: P1, name: "Emergency: life or safety at risk", respond_within_hours: 0.25, resolve_within_hours: 24 }
+    - { id: P2, name: "Urgent: service stopped or deadline close", respond_within_hours: 2, resolve_within_hours: 72 }
+    - { id: P3, name: "Normal: within the service time limit", respond_within_hours: 24, resolve_within_hours: 168 }
+    - { id: P4, name: Routine, respond_within_hours: 48, resolve_within_hours: 360 }
+  roles:
+    - { id: head-of-institution, name: Head of institution, approves: "Staff leave, and refunds, waivers and concessions above ₹10,000 (the medical superintendent, principal or ward officer)" }
+    - { id: safety-officer, name: Safety officer, approves: "Signs off emergencies and safety incidents once the place is safe, the injured are cared for and the police or authority are told" }
+    - { id: grievance-officer, name: Grievance officer, approves: "Signs off the written reply to every complaint and grievance (public grievance officer, patient relations or student grievance committee)" }
+    - { id: accounts-head, name: Accounts head, approves: "Signs off refunds and fee or bill corrections once the money has reached the payer's own account and the ledger matches" }
+    - { id: records-officer, name: Records officer, approves: "Signs certificates and record copies after checking them against the register (medical records in-charge, school office superintendent or registrar)" }
+    - { id: estate-officer, name: Estate and maintenance officer, approves: Signs off repairs and building services once the work is checked and the bills match }
+  urgent_keywords: [caught fire, on fire, fire broke out, fire accident, smoke coming, short circuit, electric shock, electrocuted, live wire, gas leak, collapse, collapsed, unconscious, not breathing, heart attack, chest pain, heavy bleeding, convulsions, snake bite, dog bite, poisoning, drowning, drowned, injured, head injury, road accident, bus accident, met with an accident, child missing, missing child, went missing, not reached home, assaulted, attacked, beaten up, violence, sexual assault, molested, rape, pocso, suicide, self harm, bomb threat, stampede, threat to life]
+  categories:
+    - id: emergency
+      name: Emergency or safety incident
+      keywords:
+        - emergency
+        - ambulance
+        - unconscious
+        - fainted
+        - not breathing
+        - collapsed
+        - collapse
+        - chest pain
+        - heart attack
+        - heavy bleeding
+        - had a seizure
+        - having a seizure
+        - convulsions
+        - snake bite
+        - dog bite
+        - poisoning
+        - caught fire
+        - on fire
+        - fire broke out
+        - fire accident
+        - smoke coming
+        - short circuit
+        - electric shock
+        - electrocuted
+        - live wire
+        - gas leak
+        - injured
+        - head injury
+        - fracture
+        - road accident
+        - bus accident
+        - met with an accident
+        - child missing
+        - missing child
+        - went missing
+        - not reached home
+        - assaulted
+        - attacked
+        - beaten up
+        - violence
+        - sexual assault
+        - molested
+        - bomb threat
+        - stampede
+        - drowning
+        - suicide
+        - self harm
+        - safety incident
+      priority: P1
+      risk: high
+      department: Emergency and safety
+      required_checks:
+        - "Life first: first aid given and 112 or 108 called, or treatment started at once without asking for a deposit or papers"
+        - Place made safe (power or gas off, area cleared and cordoned off)
+        - Family or guardian told
+        - Police told where the law needs it (accident, assault, poisoning, burns, missing person, any suspicion of child sexual abuse)
+        - CCTV, registers and photos kept as evidence
+      approval: { required: never }
+      signoff: { required: true, role: safety-officer }
+      workflow: delegate-work
+      execution: team
+    - id: facility
+      name: Repair or facility service
+      keywords:
+        - repair
+        - broken
+        - not working
+        - stopped working
+        - leaking
+        - leakage
+        - seepage
+        - plumber
+        - electrician
+        - carpenter
+        - lift
+        - elevator
+        - generator
+        - power cut
+        - no power
+        - toilet
+        - washroom
+        - not cleaned
+        - needs cleaning
+        - housekeeping
+        - pest control
+        - fire extinguisher
+        - refilling
+        - maintenance
+        - furniture
+      priority: P3
+      risk: low
+      department: Maintenance and estate
+      required_details:
+        - key: location
+          label: Where it is (room, ward, floor or block)
+          kind: keywords
+          keywords: [room, ward, floor, block, wing, building, classroom, class, lab, laboratory, office, hostel, corridor, toilet, washroom, kitchen, canteen, gate, campus, ground, opd, icu, theatre, library, hall, quarters, school, college, clinic, branch, centre, center, zone, road, street, market, park]
+      required_checks:
+        - Area made safe if anyone could get hurt (cordoned off, power off)
+        - Spend above ₹25,000 approved by the head of institution before work starts
+        - Work checked and bills matched before the request is closed
+      approval: { required: never }
+      signoff: { required: true, role: estate-officer }
+      workflow: delegate-work
+      execution: team
+    - id: certificate
+      name: Certificate or record request
+      keywords:
+        - certificate
+        - certified copy
+        - birth certificate
+        - death certificate
+        - transfer certificate
+        - tc
+        - leaving certificate
+        - bonafide
+        - bonafide certificate
+        - character certificate
+        - migration certificate
+        - marksheet
+        - mark sheet
+        - duplicate marksheet
+        - transcript
+        - medical records
+        - discharge summary
+        - case sheet
+        - record copy
+        - copy of records
+        - residence certificate
+        - income certificate
+        - caste certificate
+      priority: P3
+      risk: low
+      department: Records office
+      required_checks:
+        - Asked by the person themselves, a parent or guardian of a minor, someone they authorised in writing, or by a police or court order
+        - Details checked against the register before signing (name spelling, dates, parents' names)
+        - Handed over against signature or sent only to the registered email or address
+      not_eligible:
+        - keywords: [someone else's, another person's, other person's, my neighbour's, my neighbor's, my friend's, my colleague's]
+          reason: We give certificates and records only to the person they are about, a parent or guardian of a minor, someone they have authorised in writing, or on a police or court order. Ask that person to request it.
+      approval: { required: never }
+      signoff: { required: true, role: records-officer }
+      execution: both
+    - id: billing
+      name: Fee, bill or refund
+      keywords:
+        - refund
+        - money back
+        - paisa wapas
+        - overcharged
+        - charged twice
+        - paid twice
+        - double payment
+        - excess payment
+        - excess amount
+        - fee concession
+        - concession
+        - fee waiver
+        - waive
+        - waiver
+        - discount
+        - late fee
+        - penalty waiver
+        - bill
+        - wrong bill
+        - final bill
+        - property tax
+        - water bill
+        - water charges
+        - instalment
+        - installment
+        - caution deposit
+        - security deposit
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_checks:
+        - Payment and amount found in the ledger or bank statement with its receipt
+        - Concession or waiver allowed by the written fee or tax policy
+        - Refund goes to the account the money came from, or the payer's own bank account
+      not_eligible:
+        - keywords: [someone else's account, another person's account, third party account, my friend's account, my relative's account]
+          reason: Refunds go only to the account the money came from or to the payer's own bank account. Ask the payer to share their own account details.
+      approval: { required: above_amount, role: head-of-institution, amount_inr: 10000 }
+      signoff: { required: true, role: accounts-head }
+      execution: both
+    - id: staff-leave
+      name: Staff leave or HR request
+      keywords:
+        - casual leave
+        - sick leave
+        - medical leave
+        - earned leave
+        - maternity leave
+        - paternity leave
+        - child care leave
+        - emergency leave
+        - leave application
+        - leave request
+        - apply for leave
+        - need leave
+        - take leave
+        - days leave
+        - days of leave
+        - half day leave
+        - leave without pay
+        - compensatory off
+        - comp off
+        - duty swap
+        - shift swap
+        - duty roster
+        - salary slip
+        - salary not credited
+        - resignation
+        - relieving letter
+        - chutti chahiye
+      priority: P2
+      risk: low
+      department: Staff office
+      required_details:
+        - { key: dates, label: Leave dates, kind: date }
+      required_checks:
+        - Leave balance checked
+        - Duty or class covered by a named person for every day away
+      approval: { required: always, role: head-of-institution }
+      signoff: { required: false }
+      execution: agents
+    - id: complaint
+      name: Complaint or grievance
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - grievance
+        - shikayat
+        - rude
+        - misbehaved
+        - misbehaviour
+        - misbehavior
+        - no response
+        - no reply
+        - not resolved
+        - not attended
+        - nobody attended
+        - negligence
+        - careless
+        - kept waiting
+        - long wait
+        - bribe
+        - cpgrams
+        - pg portal
+        - ombudsman
+        - consumer court
+        - consumer forum
+        - legal notice
+        - poor service
+      priority: P3
+      risk: medium
+      department: Grievance cell
+      required_checks:
+        - Logged with a number and acknowledged the same day
+        - Nobody named in the complaint handles it
+        - "Facts checked: registers, CCTV, bills and the staff member's side"
+        - Final written reply within the time limit, saying what will change and where to appeal
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: delegate-work
+      execution: both
+  examples:
+    - { request: "A Class 4 student fainted during the assembly and is not responding, we have called an ambulance", category: emergency, priority: P1, approval: false }
+    - { request: "Part of the old market building collapsed near the ward 9 office, two people are injured", category: emergency, priority: P1, approval: false }
+    - { request: The lift in B block has stopped working since yesterday, category: facility, priority: P3, approval: false }
+    - { request: Water is leaking from the ceiling of the second floor staff room, category: facility, priority: P3, approval: false }
+    - { request: "Please issue a transfer certificate for my daughter Ananya of Class 8, we are moving to Pune", category: certificate, priority: P3, approval: false }
+    - { request: I need a certified copy of my late father's medical records for the insurance claim, category: certificate, priority: P3, approval: false }
+    - { request: "We paid the term fee of ₹18,500 twice by mistake, please refund one payment", category: billing, priority: P3, approval: true }
+    - { request: "Please waive the late fee of ₹300 on my water bill, I paid one day after the due date", category: billing, priority: P3, approval: false }
+    - { request: Requesting casual leave on 14 and 15 November for my sister's wedding, category: staff-leave, priority: P2, approval: true }
+    - { request: Staff nurse Rekha needs maternity leave from 1 December for 26 weeks, category: staff-leave, priority: P2, approval: true }
+    - { request: Staff at the OPD registration counter were rude to my mother and made her wait four hours, category: complaint, priority: P3, approval: false }
+    - { request: I complained on the CPGRAMS portal a month ago about the delay and there is still no reply, category: complaint, priority: P3, approval: false }
+
+playbooks:
+  - id: sector-grievance-time-limit
+    title: Handling a grievance within the time limit
+    source: State Right to Public Services Acts (for example the Madhya Pradesh Lok Sewaon Ke Pradan Ki Guarantee Adhiniyam, 2010 and the Karnataka Sakala Services Act, 2011); DARPG comprehensive guidelines for handling public grievances on CPGRAMS, 2024; Charter of Patients' Rights and Responsibilities, 2021; UGC (Redressal of Grievances of Students) Regulations, 2023
+    body: |
+      1. Log every complaint from any channel (counter, phone, WhatsApp, letter, CPGRAMS or the state grievance portal) with a number and date, and acknowledge it the same day in the person's language.
+      2. Never ask the person to write it again in a set format before you start. Nobody named in the complaint handles it.
+      3. Get the facts: registers, CCTV, bills, call records and the staff member's side.
+      4. Fix what can be fixed now (correct a bill, issue the delayed certificate, repair the fault) and tell the person what you did.
+      5. Send a final written reply within the time limit: the days notified for that service under your state's Right to Services Act, 21 days for a CPGRAMS grievance, 15 working days for a college grievance committee, or your own published limit (many hospitals use 7 days).
+      6. The reply says what was done, what will change and where to appeal: the first appellate officer under the Right to Services Act, the district registering authority for a clinic, or the Ombudsperson for a college. Officers who miss the notified time without good reason can be fined under most state acts.
+      7. Complaints about safety, abuse of a child or a patient, or a bribe are not ordinary complaints. Raise them as an emergency or report them to the police or the vigilance officer the same day.
+      8. The grievance officer signs off every final reply. Each month, count complaints by cause and fix the cause that keeps coming back.
+  - id: sector-emergency-safety
+    title: Emergencies and safety incidents
+    source: Supreme Court, Parmanand Katara v. Union of India (1989); Motor Vehicles Act, 1988, section 134A (Good Samaritans); POCSO Act, 2012, sections 19 and 21; Disaster Management Act, 2005; National Building Code of India, 2016, Part 4 (fire and life safety); NDMA School Safety Policy Guidelines, 2016
+    body: |
+      1. Life first. Call 112 (or 108 for an ambulance and 101 for fire) and give first aid. A hospital treats an emergency patient at once; a deposit, papers or police formalities never come first.
+      2. Make the place safe: switch off power or gas, move people out by the fire exits (never by the lift), and cordon off the area.
+      3. Tell the head of institution and the family or guardian at once.
+      4. Tell the police when the law needs it: accidents, assaults, burns, poisoning and missing persons. Anyone who suspects sexual abuse of a child must tell the police or the Special Juvenile Police Unit at once; not reporting is a crime, and the head of an institution faces up to 1 year in jail for staff under them.
+      5. A person who brings a road accident victim is free to go and is never made to pay or give their details.
+      6. Keep the evidence: CCTV, registers, photos and the names of witnesses. Do not clean up the spot until the police say so.
+      7. Report to the department, district authority or regulator within the time its rules set, and record near misses the same day even when nobody was hurt.
+      8. Within 7 days find the cause, give each fix to a named person with a date, and check it worked. Run a fire and evacuation drill at least twice a year and keep fire extinguishers and the fire NOC current.
+  - id: sector-certificates-records
+    title: Issuing certificates and records with consent and privacy
+    source: Registration of Births and Deaths Act, 1969 (as amended in 2023); Indian Medical Council (Professional Conduct, Etiquette and Ethics) Regulations, 2002, regulation 1.3.2; Right to Information Act, 2005; Digital Personal Data Protection Act, 2023; Aadhaar Act, 2016; state Right to Public Services Acts
+    body: |
+      1. Confirm who is asking: the person the record is about, a parent or guardian of a minor, someone with a signed authority letter, or a police or court order. Check an ID; if you take Aadhaar, use it only with consent and keep it masked (last four digits).
+      2. Records about a person go only to that person or someone they authorised. Never read them out to an unknown caller; hand them over against signature or send them only to the registered email or address.
+      3. Check every detail against the register before signing: name spelling, date of birth, parents' names, dates of admission or treatment. A correction needs a supporting document and a dated note in the register; never overwrite the original entry.
+      4. Issue on time: medical record copies within 72 hours of the request; births and deaths registered within 21 days of the event; a school transfer certificate promptly and never held back for unpaid fees; services notified under your state's Right to Services Act within the notified days.
+      5. Public offices answer requests under the Right to Information Act within 30 days, or 48 hours where someone's life or liberty is at stake. Treat these separately from service requests.
+      6. The authorised signatory (records officer, registrar, principal or medical superintendent) signs. Keep a copy and an entry in the issue register: who asked, what was given, when and why.
+
+kpis:
+  - id: requests-within-time-limit
+    name: Requests done within the time limit
+    description: Share of requests this month closed within their service time limit.
+    unit: percent
+    direction: up
+    target: 95
+  - id: emergency-response-minutes
+    name: Time to respond to an emergency
+    description: Average minutes from an emergency or safety incident being raised to the first person on duty reaching it.
+    unit: minutes
+    direction: down
+    target: 15
+  - id: complaints-on-time
+    name: Complaints answered on time
+    description: Share of complaints this month that got a final written reply within the time limit.
+    unit: percent
+    direction: up
+    target: 100
+  - id: certificates-on-time
+    name: Certificates issued on time
+    description: Share of certificates and record copies this month issued within the notified number of days.
+    unit: percent
+    direction: up
+    target: 95
+
+other_org_types:
+  - { name: Diagnostic lab, keywords: [diagnostic lab, diagnostic centre, diagnostic center, pathology lab, path lab, blood test lab, scan centre, imaging centre, radiology centre, sample collection centre], closest: hospital }
+  - { name: Nursing or maternity home, keywords: [nursing home, maternity home, maternity centre, small hospital, polyclinic], closest: hospital }
+  - { name: Dental clinic, keywords: [dental clinic, dental chain, dentist, orthodontist, dental care], closest: hospital }
+  - { name: Physiotherapy or rehab centre, keywords: [physiotherapy, physio clinic, rehabilitation centre, rehab centre, de-addiction centre, deaddiction centre], closest: hospital }
+  - { name: AYUSH clinic, keywords: [ayush, ayurveda, ayurvedic clinic, homeopathy, homoeopathy, siddha, unani, panchakarma, naturopathy], closest: hospital }
+  - { name: Ambulance service, keywords: [ambulance service, ambulance operator, patient transport, emergency medical service], closest: hospital }
+  - { name: Old age or care home, keywords: [old age home, elder care, senior care home, assisted living, home nursing, palliative care, hospice], closest: hospital }
+  - { name: Preschool or daycare, keywords: [preschool, play school, playschool, daycare, day care centre, creche, kindergarten, anganwadi], closest: education }
+  - { name: University or college, keywords: [university, deemed university, engineering college, degree college, arts and science college, polytechnic, autonomous college], closest: education }
+  - { name: Training or skill institute, keywords: [training institute, skill centre, skill development centre, vocational training, iti, computer institute, language institute, driving school], closest: education }
+  - { name: Gram panchayat or block office, keywords: [panchayat, gram panchayat, village panchayat, zilla parishad, block office, block development office, taluk office, tehsil office], closest: municipal }
+  - { name: Water board or utility, keywords: [water board, water supply board, jal board, sewerage board, water authority, water works], closest: municipal }
+  - { name: Citizen service centre, keywords: [citizen service centre, common service centre, csc, seva kendra, e seva, mee seva, jan seva kendra, aaple sarkar, citizen facilitation centre], closest: municipal }
+  - { name: Police or fire station office, keywords: [police station, fire station, traffic police, home guards, civil defence], closest: municipal }
+  - { name: Shelter or welfare home, keywords: [shelter home, night shelter, children's home, orphanage, women's shelter, rescue home, welfare hostel], closest: municipal }
