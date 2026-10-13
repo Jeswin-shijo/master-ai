@@ -60,7 +60,7 @@ function Section({ title, icon, lines, tone }: { title: string; icon: React.Reac
 export function GoalReportCard({ report, linked, actions = true }: { report: GoalReport; linked?: boolean; actions?: boolean }) {
   const empty = report.done.length + report.pending.length + report.attention.length === 0;
   return (
-    <article className="overflow-hidden rounded-xl border border-border bg-surface break-inside-avoid print:border-black/20">
+    <article className="overflow-hidden glass rounded-lg break-inside-avoid print:border-black/20">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="min-w-0">
           <h2 className="font-semibold text-fg">

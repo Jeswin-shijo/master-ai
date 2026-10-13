@@ -24,7 +24,8 @@ export function AuditPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={goalId ? 'Goal replay' : 'Audit log'}
+        lead={goalId ? 'Step by step,' : 'Everything that happened,'}
+        title={goalId ? 'replayed.' : 'on the record.'}
         description="Append-only and hash-chained: each event's hash covers the one before it, so any change to history is detectable."
         action={
           <Button variant="secondary" onClick={() => verify.mutate()} loading={verify.isPending}>
@@ -44,9 +45,9 @@ export function AuditPage() {
       <ErrorNote error={events.error ?? verify.error} />
       {goalId && (
         <p className="text-sm">
-          <Link to={`/goals/${goalId}`} className="text-primary hover:underline">Open goal</Link>
+          <Link to={`/goals/${goalId}`} className="text-accent hover:underline">Open goal</Link>
           <span className="text-fg-muted"> · </span>
-          <button className="text-primary hover:underline" onClick={() => setParams({})}>Show all events</button>
+          <button className="text-accent hover:underline" onClick={() => setParams({})}>Show all events</button>
         </p>
       )}
       <Card>
@@ -55,7 +56,7 @@ export function AuditPage() {
         ) : events.data?.length === 0 ? (
           <EmptyState title="No events yet" />
         ) : (
-          <ol className="divide-y divide-border">
+          <ol className="divide-y divide-line-10">
             {events.data?.map((e) => (
               <li key={e.id} className="px-5 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -64,7 +65,7 @@ export function AuditPage() {
                   <span className="min-w-0 flex-1 truncate text-sm text-fg">{summarizeEvent(e.type as AuditEventType, e.payload)}</span>
                   <span className="text-xs text-fg-muted">{e.actorKind} · {formatDateTime(e.createdAt)}</span>
                   {!goalId && e.goalId && (
-                    <button className="text-xs text-primary hover:underline" onClick={() => setParams({ goal: e.goalId! })}>
+                    <button className="text-xs text-accent hover:underline" onClick={() => setParams({ goal: e.goalId! })}>
                       replay goal
                     </button>
                   )}

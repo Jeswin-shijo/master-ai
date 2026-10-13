@@ -123,7 +123,8 @@ export function AgentsPage() {
   return (
     <div>
       <PageHeader
-        title="Agents"
+        lead="Your AI"
+        title="team."
         description="Your AI team. Each assistant has its own job, what it may do on its own, and a spending limit. Pause any of them instantly."
       />
       {agents.isLoading && <Spinner />}

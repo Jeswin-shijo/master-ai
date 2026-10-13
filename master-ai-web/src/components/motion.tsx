@@ -32,7 +32,7 @@ export const item = {
 /** A card that rises a little under the pointer. */
 export function LiftCard({ children, className, ...props }: React.ComponentProps<typeof motion.div>) {
   return (
-    <motion.div variants={item} whileHover={{ y: -3 }} transition={spring} className={cn('rounded-xl border border-border bg-surface', className)} {...props}>
+    <motion.div variants={item} whileHover={{ y: -3 }} transition={spring} className={cn('glass rounded-lg', className)} {...props}>
       {children}
     </motion.div>
   );

@@ -120,11 +120,11 @@ export function PhoneSimulator() {
   // Ringing card
   if (!current) {
     return (
-      <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="dialog" aria-label="Incoming call">
+      <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden glass rounded-lg" role="dialog" aria-label="Incoming call">
         <div className="hero-glow px-5 pt-5 pb-4">
           <p className="text-xs font-medium tracking-wide text-fg-muted uppercase">Simulated call · {STAGE_LABEL[call.stage]}</p>
           <div className="mt-3 flex items-center gap-3">
-            <span className="ringing grid size-11 place-items-center rounded-full bg-success text-white">
+            <span className="ringing grid size-11 place-items-center rounded-full bg-success-soft text-success">
               <Phone className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
@@ -150,9 +150,9 @@ export function PhoneSimulator() {
 
   // In-call conversation
   return (
-    <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 flex max-h-[min(36rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="dialog" aria-label={`Call with ${current.staffName}`}>
+    <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 flex max-h-[min(36rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden glass rounded-lg" role="dialog" aria-label={`Call with ${current.staffName}`}>
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className={cn('grid size-9 place-items-center rounded-full text-white', ended ? 'bg-fg-muted' : 'bg-success')}>
+        <span className={cn('grid size-9 place-items-center rounded-full', ended ? 'bg-line-10 text-fg-muted' : 'bg-success-soft text-success')}>
           <Phone className="size-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -233,9 +233,9 @@ function LiveCall({ call }: { call: CallRecord }) {
   if (hidden === call.id) return null;
   const ringing = call.status === 'ringing';
   return (
-    <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 flex max-h-[min(32rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40" role="status" aria-label={`Phone call with ${call.staffName}`}>
+    <motion.div initial={{ opacity: 0, y: 40, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 26 }} className="fixed right-4 bottom-4 z-50 flex max-h-[min(32rem,calc(100vh-2rem))] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden glass rounded-lg" role="status" aria-label={`Phone call with ${call.staffName}`}>
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className={cn('grid size-9 place-items-center rounded-full bg-success text-white', ringing && 'ringing')}>
+        <span className={cn('grid size-9 place-items-center rounded-full bg-success-soft text-success', ringing && 'ringing')}>
           <Phone className="size-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">

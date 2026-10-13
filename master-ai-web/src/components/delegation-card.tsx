@@ -56,7 +56,7 @@ export function CallRow({ call, defaultOpen = false }: { call: CallRecord; defau
           {call.transcript.map((l, i) => (
             <div key={i} className={cn('flex', l.speaker === 'person' ? 'justify-end' : 'justify-start')}>
               <p className={cn('max-w-[85%] rounded-2xl px-3 py-1.5 text-sm', l.speaker === 'person' ? 'rounded-br-sm bg-muted text-fg' : 'rounded-bl-sm bg-accent-soft text-fg')}>
-                <span className="mb-0.5 block text-[10px] font-semibold tracking-wide text-fg-muted uppercase">{l.speaker === 'ai' ? 'AI assistant' : call.staffName}</span>
+                <span className="mb-0.5 block text-xs font-semibold tracking-wide text-fg-muted uppercase">{l.speaker === 'ai' ? 'AI assistant' : call.staffName}</span>
                 {l.text}
               </p>
             </div>
@@ -71,7 +71,7 @@ export function CallRow({ call, defaultOpen = false }: { call: CallRecord; defau
 export function DelegationCard({ delegation }: { delegation: Delegation }) {
   const d = delegation;
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    <div className="glass rounded-lg">
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4">
         <div className="min-w-0">
           <p className="text-xs text-fg-muted">
@@ -102,7 +102,7 @@ export function DelegationCard({ delegation }: { delegation: Delegation }) {
         })}
       </ol>
       {d.outcome && <p className="mx-5 mt-3 rounded-lg bg-muted px-3 py-2 text-sm text-fg">{d.outcome.summary}</p>}
-      <ul className="mt-2 divide-y divide-border px-5 pb-2">
+      <ul className="mt-2 divide-y divide-line-10 px-5 pb-2">
         {d.calls.map((c, i) => (
           <CallRow key={c.id} call={c} defaultOpen={i === d.calls.length - 1} />
         ))}

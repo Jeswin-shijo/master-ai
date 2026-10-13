@@ -114,7 +114,7 @@ function TaskCard({ task, calls, children }: { task: Task; calls: ToolCall[]; ch
           </p>
         )}
         {children}
-        {calls.length > 0 && <ul className="divide-y divide-border">{calls.map((c) => <ToolCallRow key={c.id} call={c} />)}</ul>}
+        {calls.length > 0 && <ul className="divide-y divide-line-10">{calls.map((c) => <ToolCallRow key={c.id} call={c} />)}</ul>}
         {task.output && <p className="rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm whitespace-pre-line text-fg">{task.output.summary}</p>}
       </CardBody>
     </Card>
@@ -222,7 +222,7 @@ export function GoalDetailPage() {
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <StatusBadge status={goal.status} />
-          <Link to={`/audit?goal=${goal.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+          <Link to={`/audit?goal=${goal.id}`} className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
             <ScrollText className="size-4" /> Audit trail
           </Link>
         </div>

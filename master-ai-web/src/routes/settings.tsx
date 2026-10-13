@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, Moon, Monitor, Sun } from 'lucide-react';
+import { darkPalette } from '@onehuman/ui';
 import { RequestKeysCard } from '@/components/request-keys';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -112,7 +113,7 @@ export function SettingsPage() {
   const tenant = useQuery({ queryKey: ['tenant'], queryFn: api.tenant.get });
   const keys = useQuery({ queryKey: ['device-keys'], queryFn: api.auth.deviceKeys });
   const [brand, setBrand] = useState<string | null>(null);
-  const brandColor = brand ?? tenant.data?.settings.brandColor ?? '#ea4b71';
+  const brandColor = brand ?? tenant.data?.settings.brandColor ?? darkPalette.primary;
 
   const [theme, setTheme] = useTheme();
   const save = useMutation({
@@ -129,7 +130,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" />
+      <PageHeader lead="Your" title="settings." />
       <Card>
         <CardHeader title="Appearance" description="Dark is the default, n8n style." />
         <CardBody className="flex flex-wrap gap-2">
@@ -195,7 +196,7 @@ export function SettingsPage() {
             </Button>
           }
         />
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-line-10">
           {keys.data?.map((k) => (
             <li key={k.id} className="flex items-center justify-between px-5 py-3 text-sm">
               <span className="text-fg">{k.label}</span>

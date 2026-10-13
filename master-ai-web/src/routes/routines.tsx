@@ -107,7 +107,7 @@ function RoutineCard({ routine }: { routine: Routine }) {
               {routine.people.slice(0, 6).map((p) => {
                 const s = routine.todayStatus[p.id] ?? 'pending';
                 return (
-                  <span key={p.id} title={`${p.name}: ${s}`} className="relative grid size-8 place-items-center rounded-full border-2 border-surface bg-accent-soft text-[11px] font-semibold text-accent">
+                  <span key={p.id} title={`${p.name}: ${s}`} className="relative grid size-8 place-items-center rounded-full border-2 border-surface bg-accent-soft text-xs font-semibold text-accent">
                     {initials(p.name)}
                     {s === 'calling' && <RingPulse />}
                     <span className={cn('absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-surface', STATUS_DOT[s])} />
@@ -127,7 +127,7 @@ function RoutineCard({ routine }: { routine: Routine }) {
         <Button size="sm" onClick={() => run.mutate()} loading={run.isPending} disabled={paused}>
           <Phone /> {routine.mode === 'automatic' ? 'Call now' : 'Chase now'}
         </Button>
-        <Link to={`/routines/${routine.id}`} className="ml-auto inline-flex items-center gap-1 text-sm text-primary hover:underline">
+        <Link to={`/routines/${routine.id}`} className="ml-auto inline-flex items-center gap-1 text-sm text-accent hover:underline">
           Open board <ArrowRight className="size-4" />
         </Link>
       </div>
@@ -175,7 +175,7 @@ export function RoutinesPage() {
       {noTeam && (
         <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-fg">
           <Users className="size-4 text-warning" aria-hidden /> Add the people in charge to your team first, so there is someone to call.
-          <Link to="/team" className="ml-auto text-primary hover:underline">Team</Link>
+          <Link to="/team" className="ml-auto text-accent hover:underline">Team</Link>
         </div>
       )}
 
@@ -355,7 +355,7 @@ function ScheduleEditor({ routine }: { routine: Routine }) {
     if (next.length) update.mutate({ staffIds: next });
   };
   return (
-    <div className="grid gap-4 rounded-xl border border-border bg-surface p-4 md:grid-cols-[auto_auto_1fr]">
+    <div className="grid gap-4 glass rounded-lg p-4 md:grid-cols-[auto_auto_1fr]">
       <label className="space-y-1.5">
         <span className="block text-xs text-fg-muted">{routine.mode === 'automatic' ? 'Calls at' : 'Due by'}</span>
         <input
@@ -480,21 +480,21 @@ export function RoutineBoardPage() {
       </div>
 
       <Stagger className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <motion.div variants={item} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
+        <motion.div variants={item} className="flex items-center gap-3 glass rounded-lg p-4">
           <ProgressRing value={summary.reported} max={summary.expected} size={56} />
           <div>
             <p className="text-xs text-fg-muted">Reported</p>
             <p className="text-sm text-fg">{summary.missed ? `${summary.missed} missed` : summary.reported === summary.expected ? 'Everyone' : `${summary.expected - summary.reported} to go`}</p>
           </div>
         </motion.div>
-        <motion.div variants={item} className="rounded-xl border border-border bg-surface p-4">
+        <motion.div variants={item} className="glass rounded-lg p-4">
           <p className="text-xs text-fg-muted">AI calling now</p>
           <p className={cn('mt-1 text-2xl font-semibold', summary.calling ? 'text-primary' : 'text-fg')}>
             <AnimatedNumber value={summary.calling} />
           </p>
         </motion.div>
         {summary.totals.map((t) => (
-          <motion.div key={t.key} variants={item} className="rounded-xl border border-border bg-surface p-4">
+          <motion.div key={t.key} variants={item} className="glass rounded-lg p-4">
             <p className="text-xs text-fg-muted">{t.label}</p>
             <p className="mt-1 text-2xl font-semibold text-fg">
               <AnimatedNumber value={t.value} suffix={t.unit === '%' ? '%' : ''} />

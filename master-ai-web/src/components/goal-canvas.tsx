@@ -77,9 +77,9 @@ const TONE_RING: Record<Tone, string> = {
 };
 
 function StatusDot({ tone }: { tone: Tone }) {
-  if (tone === 'done') return <span className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-success text-white"><Check className="size-3" strokeWidth={3} /></span>;
-  if (tone === 'waiting') return <span className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-warning text-black"><Clock className="size-3" strokeWidth={3} /></span>;
-  if (tone === 'failed' || tone === 'blocked') return <span className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-danger text-white"><X className="size-3" strokeWidth={3} /></span>;
+  if (tone === 'done') return <span className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-success-soft text-success shadow-[inset_0_0_0_1px_var(--oh-success)]"><Check className="size-3" strokeWidth={3} /></span>;
+  if (tone === 'waiting') return <span className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-warning-soft text-warning shadow-[inset_0_0_0_1px_var(--oh-warning)]"><Clock className="size-3" strokeWidth={3} /></span>;
+  if (tone === 'failed' || tone === 'blocked') return <span className="absolute -top-2 -right-2 grid size-5 place-items-center rounded-full bg-danger-soft text-danger shadow-[inset_0_0_0_1px_var(--oh-danger)]"><X className="size-3" strokeWidth={3} /></span>;
   return null;
 }
 
@@ -89,17 +89,17 @@ function StepNode({ data }: NodeProps<Node<StepData>>) {
     <div className="relative flex w-36 flex-col items-center pb-1">
       <div
         className={cn(
-          'relative grid size-[88px] place-items-center border-2 bg-surface shadow-lg shadow-black/20 transition-colors',
+          'relative grid size-[88px] place-items-center border-2 bg-node transition-colors',
           data.trigger ? 'rounded-l-[44px] rounded-r-xl' : 'rounded-xl',
           TONE_RING[data.tone],
-          data.selected && 'ring-2 ring-primary ring-offset-2 ring-offset-canvas',
+          data.selected && 'ring-2 ring-accent ring-offset-2 ring-offset-canvas',
         )}
       >
         {data.tone === 'running' && <span className="absolute inset-[-5px] animate-pulse rounded-[inherit] border-2 border-info/40" aria-hidden />}
         <Icon className={cn('size-8', data.trigger ? 'text-primary' : 'text-fg')} strokeWidth={1.6} aria-hidden />
         <StatusDot tone={data.tone} />
         {data.badge && (
-          <span className="absolute -top-2 -left-2 grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[10px] leading-5 font-semibold text-white" title="Actions taken">
+          <span className="absolute -top-2 -left-2 grid min-w-5 place-items-center rounded-full bg-accent-soft px-1 text-xs leading-5 font-semibold text-accent" title="Actions taken">
             {data.badge}
           </span>
         )}
@@ -107,7 +107,7 @@ function StepNode({ data }: NodeProps<Node<StepData>>) {
         <Handle type="source" position={Position.Right} />
       </div>
       <p className="mt-2 line-clamp-2 text-center text-xs font-medium text-fg">{data.label}</p>
-      {data.sub && <p className="line-clamp-1 text-center text-[11px] text-fg-muted">{data.sub}</p>}
+      {data.sub && <p className="line-clamp-1 text-center text-xs text-fg-muted">{data.sub}</p>}
       {/* Sub-node connector leaves below the label so the dashed line never crosses text. */}
       <Handle id="sub" type="source" position={Position.Bottom} />
     </div>
@@ -131,15 +131,15 @@ function SubNode({ data }: NodeProps<Node<SubData>>) {
         className={cn(
           'relative grid size-14 place-items-center rounded-full border-2 bg-surface',
           TONE_RING[data.tone],
-          data.selected && 'ring-2 ring-primary ring-offset-2 ring-offset-canvas',
+          data.selected && 'ring-2 ring-accent ring-offset-2 ring-offset-canvas',
         )}
       >
         <Icon className="size-6 text-fg" strokeWidth={1.6} aria-hidden />
         <StatusDot tone={data.tone} />
         <Handle type="target" position={Position.Top} />
       </div>
-      <p className="mt-1.5 line-clamp-2 text-center text-[11px] font-medium text-fg">{data.label}</p>
-      {data.level && <p className="text-[10px] text-fg-muted">L{data.level}</p>}
+      <p className="mt-1.5 line-clamp-2 text-center text-xs font-medium text-fg">{data.label}</p>
+      {data.level && <p className="text-xs text-fg-muted">L{data.level}</p>}
       {data.stages && (
         <div className="mt-1 flex gap-1" aria-label="Call stages">
           {data.stages.map((s) => (
@@ -294,7 +294,7 @@ export function GoalCanvas({
   }, [detail, delegations, selected]);
 
   return (
-    <div className="h-[460px] overflow-hidden rounded-xl border border-border bg-canvas">
+    <div className="h-[460px] overflow-hidden glass rounded-lg">
       <ReactFlow
         nodes={nodes}
         edges={edges}

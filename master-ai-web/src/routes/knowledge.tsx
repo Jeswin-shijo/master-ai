@@ -24,7 +24,7 @@ export function KnowledgePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Knowledge" description="SOPs, policies, price lists and FAQs. Agents search this before acting, so they don't make things up." />
+      <PageHeader lead="What your agents" title="know." description="SOPs, policies, price lists and FAQs. Agents search this before acting, so they don't make things up." />
       <Card>
         <CardHeader title="Add a document" />
         <CardBody>
@@ -55,7 +55,7 @@ export function KnowledgePage() {
         ) : docs.data?.length === 0 ? (
           <EmptyState icon={<BookOpen />} title="No documents yet" />
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-line-10">
             {docs.data?.map((d) => (
               <li key={d.id} className="flex items-center justify-between px-5 py-3 text-sm">
                 <span className="font-medium text-fg">{d.title}</span>

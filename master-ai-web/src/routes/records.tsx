@@ -104,7 +104,7 @@ export function RecordsPage() {
 
   return (
     <div>
-      <PageHeader title="Records" description="Your business data, shaped by your industry pack. Agents read and write these through tools." />
+      <PageHeader lead="Your business" title="records." description="Your business data, shaped by your industry pack. Agents read and write these through tools." />
       <div className="mb-4 flex flex-wrap gap-1.5">
         {entities.map((e) => (
           <button
@@ -157,7 +157,7 @@ export function RecordsPage() {
                       <th className="px-5 py-2 font-medium">Updated</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-line-10">
                     {records.data?.map((r) => (
                       <tr key={r.id} className="hover:bg-muted/50">
                         {columns.map((c) => <td key={c.name} className="max-w-xs truncate px-5 py-2.5 text-fg">{cell(c, r.data[c.name])}</td>)}

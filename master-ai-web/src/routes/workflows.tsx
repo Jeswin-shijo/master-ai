@@ -13,12 +13,12 @@ function capabilityIcons(wf: WorkflowDef, pack: ResolvedPack): { icon: LucideIco
   const primitives = [...stepTools].map((t) => pack.tools.find((x) => x.name === t)?.uses ?? t);
   const has = (prefix: string) => primitives.some((t) => t.startsWith(prefix));
   const out: { icon: LucideIcon; label: string; tone: string }[] = [];
-  if (has('staff.delegate')) out.push({ icon: Phone, label: 'Phone calls to staff', tone: 'bg-primary text-primary-fg' });
-  if (has('records')) out.push({ icon: Database, label: 'Records', tone: 'bg-accent text-white' });
-  if (has('message')) out.push({ icon: Mail, label: 'Messages', tone: 'bg-info text-white' });
-  if (has('payment') || has('refund')) out.push({ icon: CreditCard, label: 'Payments', tone: 'bg-warning text-black' });
-  if (has('document')) out.push({ icon: FileText, label: 'Documents', tone: 'bg-success text-black' });
-  if (pack.policies.some((p) => stepTools.has(p.action))) out.push({ icon: ShieldCheck, label: 'Owner approval', tone: 'bg-muted text-fg' });
+  if (has('staff.delegate')) out.push({ icon: Phone, label: 'Phone calls to staff', tone: 'bg-warning-soft text-warning' });
+  if (has('records')) out.push({ icon: Database, label: 'Records', tone: 'bg-accent-soft text-accent' });
+  if (has('message')) out.push({ icon: Mail, label: 'Messages', tone: 'bg-info-soft text-info' });
+  if (has('payment') || has('refund')) out.push({ icon: CreditCard, label: 'Payments', tone: 'bg-warning-soft text-warning' });
+  if (has('document')) out.push({ icon: FileText, label: 'Documents', tone: 'bg-success-soft text-success' });
+  if (pack.policies.some((p) => stepTools.has(p.action))) out.push({ icon: ShieldCheck, label: 'Owner approval', tone: 'bg-node text-fg' });
   return out.slice(0, 5);
 }
 
@@ -63,7 +63,7 @@ export function WorkflowsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search workflows: refund, follow-up, inspection…"
-            className="h-11 w-full rounded-xl border border-border bg-surface pr-4 pl-10 text-sm text-fg placeholder:text-fg-muted/70 focus:border-primary focus:outline-none"
+            className="h-11 w-full glass rounded-lg pr-4 pl-10 text-sm text-fg placeholder:text-fg-muted/70 focus:border-primary focus:outline-none"
             aria-label="Search workflows"
           />
         </div>
@@ -91,7 +91,7 @@ export function WorkflowsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
           {list.map((wf) => (
-            <article key={wf.id} className="group flex flex-col rounded-xl border border-border bg-surface p-5 transition-colors hover:border-primary/60">
+            <article key={wf.id} className="group flex flex-col glass rounded-lg p-5 transition-colors duration-300 hover:bg-line-5">
               <div className="flex -space-x-1.5">
                 {capabilityIcons(wf, pack).map(({ icon: Icon, label, tone }) => (
                   <span key={label} title={label} className={cn('grid size-9 place-items-center rounded-lg ring-2 ring-surface', tone)}>
@@ -99,7 +99,7 @@ export function WorkflowsPage() {
                   </span>
                 ))}
                 {capabilityIcons(wf, pack).length === 0 && (
-                  <span className="grid size-9 place-items-center rounded-lg bg-muted text-fg"><Bot className="size-4" aria-hidden /></span>
+                  <span className="grid size-9 place-items-center rounded-lg bg-node text-fg"><Bot className="size-4" aria-hidden /></span>
                 )}
               </div>
               <h2 className="mt-4 font-semibold text-fg">{wf.name}</h2>
@@ -107,7 +107,7 @@ export function WorkflowsPage() {
               <ol className="mt-3 space-y-1 text-xs text-fg-muted">
                 {wf.steps.slice(0, 3).map((s, i) => (
                   <li key={s.key} className="flex items-center gap-2">
-                    <span className="grid size-4 place-items-center rounded-full bg-muted text-[10px]">{i + 1}</span>
+                    <span className="grid size-5 place-items-center rounded-full bg-node text-xs">{i + 1}</span>
                     <span className="truncate">{s.title}</span>
                   </li>
                 ))}

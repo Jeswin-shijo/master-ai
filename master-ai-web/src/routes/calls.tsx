@@ -16,7 +16,8 @@ export function CallsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Calls"
+        lead="Calls with"
+        title="your team."
         description={
           <>
             Work delegated to the team by phone: assign → follow up → confirm.{' '}
@@ -25,7 +26,7 @@ export function CallsPage() {
               : calls?.simulatorMode === 'interactive'
                 ? 'Simulator: calls ring in this app; answer as the staff member to try it.'
                 : 'Simulator: simulated staff answer automatically.'}{' '}
-            <Link to="/settings" className="text-primary hover:underline">Call settings</Link>
+            <Link to="/settings" className="text-accent hover:underline">Call settings</Link>
           </>
         }
       />

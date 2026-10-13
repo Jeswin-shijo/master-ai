@@ -26,6 +26,7 @@ export function PackPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        lead="Industry setup:"
         title={ws.pack.name}
         description={ws.pack.description}
         action={
@@ -48,7 +49,7 @@ export function PackPage() {
 
       <PackSummary pack={ws.pack} />
 
-      <details className="group rounded-lg border border-border bg-surface">
+      <details className="group glass rounded-lg">
         <summary className="cursor-pointer px-5 py-4 text-sm text-fg-muted select-none hover:text-fg">
           Technical details for your IT team: the exact rule code checked before every step (version {policy.data?.version ?? '…'})
         </summary>

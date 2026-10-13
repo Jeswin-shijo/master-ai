@@ -177,7 +177,7 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
             <Clock className="size-3.5" aria-hidden /> expires {new Date(approval.expiresAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
           </span>
           {compact && approval.goalId && (
-            <Link to={`/goals/${approval.goalId}`} className="text-xs text-primary hover:underline">
+            <Link to={`/goals/${approval.goalId}`} className="text-xs text-accent hover:underline">
               View goal
             </Link>
           )}
