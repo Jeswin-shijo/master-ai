@@ -1,0 +1,31 @@
+appId: host.exp.exponent
+name: A member sees nobody else's approvals and no kill switch, and can read the cases
+---
+- runFlow: common/open.yaml
+- runFlow:
+    file: common/sign-in.yaml
+    env:
+      EMAIL: ${MANOJ_EMAIL}
+- tapOn:
+    id: "tab-approvals"
+- extendedWaitUntil:
+    visible: "Nothing needs you"
+    timeout: 20000
+- assertNotVisible: ".*${OVERHAUL_CODE}.*"
+- tapOn:
+    id: "tab-settings"
+- assertNotVisible: "Kill switch"
+- assertVisible: "Nothing yet\\. The owner gives approval roles from Team on the web\\."
+- tapOn:
+    id: "tab-cases"
+- tapOn:
+    id: "case-${OVERHAUL_CODE}"
+- extendedWaitUntil:
+    visible: "The owner decides this\\."
+    timeout: 20000
+# The stages sit below the fold.
+- scrollUntilVisible:
+    element: "5\\. Permit & clearance: Waiting for a person"
+    timeout: 20000
+- back
+- runFlow: common/sign-out.yaml

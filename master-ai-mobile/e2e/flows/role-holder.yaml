@@ -1,0 +1,47 @@
+appId: host.exp.exponent
+name: A role holder sees only their approvals and approves with the phone's signed key
+---
+- runFlow: common/open.yaml
+- runFlow:
+    file: common/sign-in.yaml
+    env:
+      EMAIL: ${SUNITA_EMAIL}
+# Only the safety officer's job is here; the overhaul waits for the owner.
+- tapOn:
+    id: "tab-approvals"
+- extendedWaitUntil:
+    visible: ".*${HOT_WORK_CODE}.*"
+    timeout: 30000
+- assertNotVisible: ".*${OVERHAUL_CODE}.*"
+- tapOn: ".*${HOT_WORK_CODE}.*"
+# The question in words, from its stage. No tool names.
+- extendedWaitUntil:
+    visible: "Approve high-risk work permit\\?"
+    timeout: 20000
+- assertVisible: "From the Permit & clearance stage.*"
+- assertNotVisible: ".*case\\.proceed.*"
+# The title holds a 70-letter word; Approve is still within reach.
+- scrollUntilVisible:
+    element:
+      id: "approve"
+- tapOn:
+    id: "approve"
+# The approval leaves the inbox. (Its sign-off may already have arrived for the same job.)
+- extendedWaitUntil:
+    notVisible: "Approve high-risk work permit for ${HOT_WORK_CODE}.*"
+    timeout: 20000
+# The job moved past its permit: read it in Cases.
+- tapOn:
+    id: "tab-cases"
+- tapOn:
+    id: "case-${HOT_WORK_CODE}"
+# The stages sit below the fold: down to the permit, then back up to the first stage.
+- scrollUntilVisible:
+    element: "5\\. Permit & clearance: Done"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "1\\. Job raised: Done"
+    direction: UP
+    timeout: 30000
+- back
+- runFlow: common/sign-out.yaml

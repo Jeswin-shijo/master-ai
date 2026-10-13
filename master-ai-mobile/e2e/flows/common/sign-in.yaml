@@ -1,0 +1,16 @@
+appId: host.exp.exponent
+---
+- tapOn:
+    id: "email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "sign-in"
+# Signed in: the tab bar is up (the app opens on Cases, the first tab).
+- extendedWaitUntil:
+    visible:
+      id: "tab-settings"
+    timeout: 30000

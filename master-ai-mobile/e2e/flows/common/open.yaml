@@ -1,0 +1,29 @@
+appId: host.exp.exponent
+---
+# Start clean: a flow that failed part-way may have left a pushed screen open.
+- stopApp
+# A link sent to a stopped Expo Go can be dropped on its cold start, so start it first.
+- launchApp:
+    stopApp: false
+- openLink: exp://127.0.0.1:8082
+# A first launch of Expo Go shows a welcome sheet and a developer-menu tip.
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+      # Continue leaves Expo Go's developer menu open; Back closes it.
+      - back
+# Signed out shows Sign in; signed in always shows the Settings tab, whatever screen was left open.
+- extendedWaitUntil:
+    visible: "Sign in|Settings"
+    timeout: 180000
+- runFlow:
+    when:
+      visible: "Got it"
+    commands:
+      - tapOn: "Got it"
+- runFlow:
+    when:
+      notVisible: "Sign in"
+    file: sign-out.yaml

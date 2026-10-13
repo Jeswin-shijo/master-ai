@@ -9,6 +9,7 @@ Read `README.md` first. The spec is `docs/architecture-plan.md`; decisions are i
 - `pnpm turbo run build typecheck test` — must stay green
 - `pnpm smoke` — end-to-end against a running API + worker (offline LLM mode); it switches the tenant's calls to auto mode
 - `pnpm e2e` — browser tests (Playwright, Chromium) against a running `pnpm dev`: the signup-to-report journey at desktop width, plus a 390px phone project
+- `pnpm e2e:mobile` — Maestro flows in Expo Go on the Android emulator (role holder, member, New request). Needs `pnpm dev`, Metro on 8082, the emulator with Expo Go, and Maestro 2.10.0 in `~/.maestro` (`export MAESTRO_VERSION=2.10.0; curl -Ls "https://get.maestro.mobile.dev" | bash`)
 - Run only one `pnpm dev`. A second one fights the first over :3000 and keeps crashing the API (its web lands on :5174).
 - New migration: edit `master-ai-backend/src/db/schema.ts`, then `pnpm --filter @onehuman/backend db:generate`
 
@@ -35,3 +36,6 @@ Read `README.md` first. The spec is `docs/architecture-plan.md`; decisions are i
 - `CI=1 expo start` disables Metro's file watching. Restart with `--clear` to see code changes.
 - In Expo Go on Android, evaluating `expo-notifications` throws (push removed in SDK 53). `src/lib/push.ts` requires it lazily; keep it that way.
 - Android emulator: run `adb reverse tcp:3000 tcp:3000` and open `exp://127.0.0.1:8082` so the app reaches the API.
+- Weights are font families (`font.semibold`, …), never `fontWeight`: Android drops a custom font when `fontWeight` is set. `tests/tokens.test.ts` enforces it, along with no hex or named colours.
+- New routes need fresh typed routes: keep Metro running until `.expo/types/router.d.ts` regenerates, then typecheck.
+- The Maestro flows run with Android's animations off (`run.mts` restores them): a screen that never stops animating (the live stage) can't be read by UI Automator.

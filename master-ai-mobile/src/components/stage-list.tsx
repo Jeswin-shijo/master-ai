@@ -55,8 +55,9 @@ function StageRow({ n, row, state, lines, last, requestText }: { n: number; row:
 
   return (
     <View style={{ flexDirection: 'row', gap: space.md }} testID={`stage-${row.stage}`}>
-      <View style={{ alignItems: 'center', width: 36 }} accessible accessibilityLabel={`${n}. ${row.name}: ${dotLabel(state)}`}>
-        <View style={{ width: 34, height: 34 }}>
+      <View style={{ alignItems: 'center', width: 36 }}>
+        {/* The node carries the stage's state in words, for screen readers and the phone tests. */}
+        <View style={{ width: 34, height: 34 }} accessible accessibilityLabel={`${n}. ${row.name}: ${dotLabel(state)}`}>
           {(state === 'live' || state === 'waiting') && (
             // The halo pulses while the stage works or waits; with reduced motion it is a still ring.
             <Animated.View style={[styles.halo, { borderColor: state === 'waiting' ? c.warning : c.glow }, pulses ? halo : styles.still]} />

@@ -1,0 +1,12 @@
+appId: host.exp.exponent
+---
+- tapOn:
+    id: "tab-settings"
+- scrollUntilVisible:
+    element:
+      id: "sign-out"
+- tapOn:
+    id: "sign-out"
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 20000

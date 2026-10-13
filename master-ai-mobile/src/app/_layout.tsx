@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { LogBox } from 'react-native';
 import { queryClient } from '@/lib/api';
 import { startQueueSync } from '@/lib/offline';
 import { registerForPush } from '@/lib/push';
@@ -13,6 +14,9 @@ import { useSession } from '@/lib/session';
 import { font, useTheme } from '@/lib/theme';
 
 void SplashScreen.preventAutoHideAsync();
+// The live stage handles reduced motion itself (a still ring), so Reanimated's development notice
+// about the setting only covers the tab bar.
+LogBox.ignoreLogs(['[Reanimated] Reduced motion setting is enabled']);
 
 function SignedInEffects() {
   useRealtime();

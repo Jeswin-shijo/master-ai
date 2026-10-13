@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { useMyApprovals } from '@/lib/approvals';
 import { font, fontSize, useTheme } from '@/lib/theme';
 
-/** Cases, Approvals, Calls, Pulse, Settings. The app opens on Approvals (the index route). */
+/** Cases, Approvals, Calls, Pulse, Settings, in the spec's order. The app opens on the first tab; Approvals carries the badge. */
 export default function TabsLayout() {
   const { c } = useTheme();
   const count = useMyApprovals().data?.list.length ?? 0;

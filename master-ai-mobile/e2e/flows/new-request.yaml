@@ -1,0 +1,23 @@
+appId: host.exp.exponent
+name: The owner raises a request from the phone and watches it start
+---
+- runFlow: common/open.yaml
+- runFlow:
+    file: common/sign-in.yaml
+    env:
+      EMAIL: ${OWNER_EMAIL}
+- tapOn:
+    id: "tab-cases"
+- tapOn:
+    id: "new-request"
+- tapOn:
+    id: "request-text"
+- inputText: "Boiler feed pump B tripped on high vibration, unit load reduced"
+- hideKeyboard
+- tapOn:
+    id: "raise-request"
+- scrollUntilVisible:
+    element: "1\\. Job raised: Done"
+    timeout: 60000
+- back
+- runFlow: common/sign-out.yaml
