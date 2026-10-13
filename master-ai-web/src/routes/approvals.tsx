@@ -14,7 +14,8 @@ export function ApprovalsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<'pending' | 'all'>('pending');
   const list = useQuery({ queryKey: ['approvals', tab], queryFn: () => api.approvals.list(tab) });
-  const lowRisk = (list.data ?? []).filter((a) => a.status === 'pending' && a.riskScore < LOW_RISK);
+  // Only agent actions can be approved in a batch; case steps are read and decided one by one.
+  const lowRisk = (list.data ?? []).filter((a) => a.kind === 'action' && a.status === 'pending' && a.riskScore < LOW_RISK);
 
   // Review many low-risk requests as one list; each decision is still signed individually.
   const batch = useMutation({

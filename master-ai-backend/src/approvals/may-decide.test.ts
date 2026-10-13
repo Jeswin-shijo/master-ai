@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mayDecide, routeApprover } from './may-decide';
+import { batchRefusal, mayDecide, routeApprover } from './may-decide';
 
 describe('who may decide an approval', () => {
   it('lets the owner decide anything', () => {
@@ -38,5 +38,12 @@ describe('routing a gate', () => {
 
   it('keeps owner approvals with the owner', () => {
     expect(routeApprover('owner', 0, 'Owner')).toEqual({ approver: 'owner', note: null });
+  });
+});
+
+describe('batch approval', () => {
+  it('takes agent actions but never a case step', () => {
+    expect(batchRefusal('action')).toBeNull();
+    expect(batchRefusal('case_gate')).toMatch(/on its own/);
   });
 });

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { parseTrustProxy } from './common/proxy';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
@@ -23,6 +24,8 @@ const EnvSchema = z.object({
   LLM_MODEL_SMALL: z.string().default('claude-haiku-5-5'),
   USD_INR_RATE: z.coerce.number().positive().default(88),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  /** Behind a reverse proxy or tunnel: hop count, true, or trusted addresses (see common/proxy.ts). */
+  TRUST_PROXY: z.string().optional(),
   // Real phone calls (Twilio). PUBLIC_URL is where Twilio reaches this API (a tunnel in development).
   PUBLIC_URL: z.preprocess((v) => v || undefined, z.url().optional()).transform((u) => u?.replace(/\/+$/, '')),
   TWILIO_ACCOUNT_SID: z.string().optional(),
@@ -45,6 +48,7 @@ export const config = {
   ...env,
   packsDir: resolve(process.cwd(), env.PACKS_DIR),
   corsOrigins: env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
+  trustProxy: parseTrustProxy(env.TRUST_PROXY),
   llmOffline:
     env.LLM_OFFLINE === 'always' ||
     (env.LLM_OFFLINE === 'auto' && !env.ANTHROPIC_API_KEY && !env.ANTHROPIC_AUTH_TOKEN),

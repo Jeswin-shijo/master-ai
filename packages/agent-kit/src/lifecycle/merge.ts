@@ -35,6 +35,7 @@ export function mergeReview(lc: ResolvedLifecycle, request: RequestPart, model: 
 }
 
 const PRIORITY_RANK = { P1: 0, P2: 1, P3: 2, P4: 3 } as const;
+const RISK_RANK = { low: 0, medium: 1, high: 2 } as const;
 
 export function mergeClassify(
   lc: ResolvedLifecycle,
@@ -49,8 +50,10 @@ export function mergeClassify(
   if (!category) return offline;
 
   const reasons = model.reasons.filter((r) => r.trim().length > 0);
-  let priority = model.priority;
-  let risk = model.risk;
+  // The case type's floor: the model may raise priority and risk, never lower them below the type's own,
+  // because approval rules (high_risk_or_p1) key on them.
+  let priority = PRIORITY_RANK[model.priority] > PRIORITY_RANK[category.priority] ? category.priority : model.priority;
+  let risk = RISK_RANK[model.risk] < RISK_RANK[category.risk] ? category.risk : model.risk;
   const urgent = lc.urgent_keywords.filter((k) => phraseIn(request.text, k));
   // The urgent-word floor: a model can never make a fire or an injury routine.
   if (urgent.length && PRIORITY_RANK[priority] > PRIORITY_RANK.P1) {
@@ -61,7 +64,13 @@ export function mergeClassify(
 
   const extracted = extractAmountInr(request.text);
   const readAmounts = [model.amount_inr, extracted].filter((n): n is number => n !== null);
-  const amountInr = request.amountInr ?? (readAmounts.length ? Math.max(...readAmounts) : null);
+  // A trusted person's stated amount wins. From outside, a stated amount may raise the gate amount but never lower it.
+  const amountInr =
+    request.amountInr !== undefined && !isUntrusted(request.source)
+      ? request.amountInr
+      : [request.amountInr, ...readAmounts].some((n) => n !== undefined)
+        ? Math.max(...[request.amountInr, ...readAmounts].filter((n): n is number => n !== undefined))
+        : null;
 
   const p = lc.priorities.find((x) => x.id === priority)!;
   const at = (hours: number) => new Date(now.getTime() + hours * 3_600_000).toISOString();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StageKey } from '@onehuman/schemas';
-import { advance, startFlow, type FlowState, type StageResult } from './case-flow';
+import { advance, stageFailed, startFlow, type FlowState, type StageResult } from './case-flow';
 
 /** Run the flow with scripted stage results; unscripted stages finish "done". */
 function run(script: Partial<Record<string, StageResult[]>> = {}): { steps: string[]; state: FlowState } {
@@ -57,5 +57,14 @@ describe('case flow', () => {
   it('escalates an expired approval and cancels a request nobody completed', () => {
     expect(run({ approve: [{ outcome: 'expired' }] }).state.ending).toBe('escalated');
     expect(run({ review: [{ outcome: 'timed_out' }] }).state.ending).toBe('cancelled');
+  });
+});
+
+describe('a stage that breaks', () => {
+  it('hands the case to a person and still reports it', () => {
+    const { steps, state } = run({ classify: [stageFailed('classify')] });
+    expect(steps.slice(-2)).toEqual(['classify#1', 'report#1']);
+    expect(state.ending).toBe('escalated');
+    expect(state.reason).toMatch(/went wrong/);
   });
 });

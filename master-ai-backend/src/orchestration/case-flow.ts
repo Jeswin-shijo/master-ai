@@ -63,3 +63,8 @@ export function advance(state: FlowState, stage: StageKey, result: StageResult):
   if (stage === 'close') return { ...state, ending: 'closed', next: 'report' };
   return { ...state, next: MAIN[MAIN.indexOf(stage) + 1] ?? 'report' };
 }
+
+/** A stage workflow that failed (a bug, or the database away too long): a person takes over, and the case is still reported. */
+export function stageFailed(stage: StageKey): StageResult {
+  return { outcome: 'escalated', reason: `Something went wrong at the ${stage} stage, so a person needs to take over.` };
+}

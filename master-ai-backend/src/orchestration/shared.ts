@@ -127,4 +127,9 @@ export type GateName = 'proceed' | 'close';
 export type StageRunResult = { outcome: 'done' } | { outcome: 'needs_info'; waitMs: number } | { outcome: 'not_eligible'; reason: string };
 
 /** What opening a gate found: nothing to approve, not allowed, or an approval to wait for. */
-export type GateOpened = { status: 'not_required' } | { status: 'blocked'; reason: string } | { status: 'waiting'; approvalId: string; ttlMs: number };
+export type GateOpened =
+  | { status: 'not_required' }
+  | { status: 'blocked'; reason: string }
+  | { status: 'waiting'; approvalId: string; ttlMs: number }
+  /** A kill switch is on: hold and ask again after resume. */
+  | { status: 'paused' };

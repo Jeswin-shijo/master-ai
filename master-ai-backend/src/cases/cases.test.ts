@@ -3,7 +3,7 @@ import type { CaseFile, ResolvedPack } from '@onehuman/schemas';
 import { GENERIC_LIFECYCLE } from '@onehuman/agent-kit';
 import { isUniqueViolation } from '../db/errors';
 import { stageWorkflowId } from '../orchestration/shared';
-import { appendInfo, caseReadiness } from './case-context';
+import { appendInfo, caseReadiness, pauseRefusal } from './case-context';
 
 describe('opening cases', () => {
   it('explains that an old workspace needs the update', () => {
@@ -33,5 +33,22 @@ describe('opening cases', () => {
 
   it('names stage workflows by case, stage and attempt', () => {
     expect(stageWorkflowId('c1', 'execute', 2)).toBe('case-c1-execute-2');
+  });
+});
+
+describe('kill switch and new requests', () => {
+  it('refuses people in the app, who can resume it themselves', () => {
+    expect(pauseRefusal('owner', { tenant: true, workspace: false })).toMatch(/kill switch/);
+    expect(pauseRefusal('staff', { tenant: false, workspace: true })).toMatch(/paused/);
+  });
+
+  it('keeps requests from outside, which wait until the company resumes', () => {
+    for (const source of ['customer', 'system', 'partner'] as const) {
+      expect(pauseRefusal(source, { tenant: true, workspace: true })).toBeNull();
+    }
+  });
+
+  it('refuses nobody while nothing is paused', () => {
+    expect(pauseRefusal('owner', { tenant: false, workspace: false })).toBeNull();
   });
 });

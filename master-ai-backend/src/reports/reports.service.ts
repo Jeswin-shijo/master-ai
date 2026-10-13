@@ -5,7 +5,7 @@ import { lifecycleOf, narrateStep, normalizeSnapshot, resolveTool } from '@onehu
 import { CurrentSession, type Session } from '../common/auth';
 import { DbService, type Tx } from '../db/db.service';
 import { approvalRequests, calls, caseStages, cases, delegations, goals, records, staff, tasks, toolCalls, workspaces } from '../db/schema';
-import { buildCaseReport, type CaseRow } from './case-report';
+import { buildCaseReport, workTotals, type CaseRow } from './case-report';
 
 type GoalRow = typeof goals.$inferSelect;
 type TaskRow = typeof tasks.$inferSelect;
@@ -24,7 +24,6 @@ const READS = new Set(['records.search', 'records.get', 'knowledge.search']);
 const MESSAGES = new Set(['message.send', 'message.draft']);
 const CHANGES = new Set(['records.create', 'records.update']);
 const TEAM_PROBLEM = new Set(['declined', 'blocked', 'not_done', 'unreachable']);
-const FINISHED = new Set(['completed', 'partially_completed', 'failed', 'cancelled']);
 const IST_OFFSET_MS = 5.5 * 3_600_000;
 
 /**
@@ -131,16 +130,7 @@ export class ReportsService {
         .orderBy(desc(cases.createdAt))
         .limit(200);
       const caseReports = await this.caseReports(tx, caseRows);
-      const totals = {
-        goals: reports.length,
-        cases: caseReports.length,
-        finished: reports.filter((r) => FINISHED.has(r.status)).length,
-        needYou: reports.filter((r) => r.attention.length > 0 || r.pending.some((p) => p.startsWith('Waiting for your approval'))).length,
-        actions: reports.reduce((n, r) => n + r.counts.actions, 0),
-        messages: reports.reduce((n, r) => n + r.counts.messages, 0),
-        calls: reports.reduce((n, r) => n + r.counts.calls, 0),
-        costInr: Math.round(reports.reduce((n, r) => n + r.costInr, 0) * 100) / 100,
-      };
+      const totals = workTotals(reports, caseReports);
       return { period, from: from?.toISOString() ?? null, to: now.toISOString(), totals, goals: reports, cases: caseReports };
     });
   }

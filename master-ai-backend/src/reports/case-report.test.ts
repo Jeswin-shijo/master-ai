@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { LifecycleSchema } from '@onehuman/schemas';
+import { LifecycleSchema, type GoalReport } from '@onehuman/schemas';
 import { mergeLifecycles } from '@onehuman/agent-kit';
-import { buildCaseReport, type CaseRow, type StageRow } from './case-report';
+import { buildCaseReport, workTotals, type CaseRow, type StageRow } from './case-report';
 
 const lc = mergeLifecycles([LifecycleSchema.parse({ stages: { approve: { name: 'Permit & Isolation Approval' } } })]);
 const t = (min: number) => new Date(Date.UTC(2026, 9, 13, 4, min));
@@ -41,5 +41,19 @@ describe('case report', () => {
     expect(report.text).toContain('was resolved in 1 h 30 min');
     expect(report.slaMet).toBe(true);
     expect(report.closedAt).toBe(t(90).toISOString());
+  });
+});
+
+describe('period totals', () => {
+  const work = (over: Partial<GoalReport>): GoalReport => ({
+    goalId: 'g', text: 'x', status: 'completed', createdAt: t(0).toISOString(), completedAt: null, done: [], pending: [], attention: [], people: [],
+    counts: { actions: 3, messages: 1, calls: 2, recordsChanged: 1, approvals: 0 }, costInr: 4.5, ...over,
+  });
+
+  it('counts the work done inside cases, and cases waiting on people', () => {
+    const closed = buildCaseReport(caseRow({ status: 'closed', closedAt: t(30) }), [], work({}), lc);
+    const waiting = buildCaseReport(caseRow({ id: 'c2', status: 'waiting_approval' }), [], null, lc);
+    const totals = workTotals([work({ goalId: 'g0', costInr: 1 })], [closed, waiting]);
+    expect(totals).toMatchObject({ goals: 1, cases: 2, finished: 2, needYou: 1, actions: 6, messages: 2, calls: 4, costInr: 5.5 });
   });
 });

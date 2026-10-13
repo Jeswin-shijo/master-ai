@@ -36,7 +36,7 @@ import { caseWorkflowId } from '../orchestration/shared';
 import { TemporalService } from '../orchestration/temporal.service';
 import { RecordsService } from '../records/records.service';
 import { ReportsService } from '../reports/reports.service';
-import { appendInfo, caseReadiness, OPEN_CASE_STATUSES } from './case-context';
+import { appendInfo, caseReadiness, OPEN_CASE_STATUSES, pauseRefusal } from './case-context';
 
 type CaseRow = typeof cases.$inferSelect;
 
@@ -119,9 +119,9 @@ export class CasesService {
       if (existing) return { row: existing, duplicate: true };
     }
     const [tenant] = await tx.select({ status: tenants.status }).from(tenants).where(eq(tenants.id, tenantId));
-    if (tenant?.status === 'paused') throw new ConflictException('The company-wide kill switch is on. Resume to take new requests.');
     const ws = await this.records.activeWorkspace(tx, input.workspaceId);
-    if (ws.status === 'paused') throw new ConflictException('This workspace is paused.');
+    const refused = pauseRefusal(input.source, { tenant: tenant?.status === 'paused', workspace: ws.status === 'paused' });
+    if (refused) throw new ConflictException(refused);
     const pack = normalizeSnapshot(ws.pack);
     const notReady = caseReadiness(pack);
     if (notReady) throw new ConflictException(notReady);

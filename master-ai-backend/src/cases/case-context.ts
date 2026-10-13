@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import type { CaseFile, CaseStatus, ResolvedPack } from '@onehuman/schemas';
+import type { CaseFile, CaseSource, CaseStatus, ResolvedPack } from '@onehuman/schemas';
 import { CASE_COORDINATOR_ROLE, lifecycleOf, normalizeSnapshot } from '@onehuman/agent-kit';
 import { DEFAULT_TENANT_SETTINGS } from '../common/mappers';
 import type { Tx } from '../db/db.service';
@@ -11,6 +11,18 @@ export const OPEN_CASE_STATUSES: readonly CaseStatus[] = ['open', 'needs_info', 
 export function caseReadiness(pack: ResolvedPack): string | null {
   if (pack.lifecycle && pack.agents.some((a) => a.role === CASE_COORDINATOR_ROLE)) return null;
   return 'This workspace was set up before requests ran as cases. Add the platform update on the Industry pack page, then try again.';
+}
+
+/**
+ * While a kill switch is on, people in the app are refused (they can resume
+ * it). Requests from outside (form, systems, partners) are kept: the case waits
+ * at its first stage until resume, so nothing is lost and no agent acts.
+ */
+export function pauseRefusal(source: CaseSource, paused: { tenant: boolean; workspace: boolean }): string | null {
+  if (source !== 'owner' && source !== 'staff') return null;
+  if (paused.tenant) return 'The company-wide kill switch is on. Resume to take new requests.';
+  if (paused.workspace) return 'This workspace is paused.';
+  return null;
 }
 
 /** The request words with more details added at the end. */

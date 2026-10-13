@@ -207,14 +207,21 @@ async function caseChecks(power: Awaited<ReturnType<typeof sectorRun>>, lender: 
   // Kill switch: new cases are refused, and an approved case waits before its work starts.
   const bearings = await api.cases.create({ text: suiteCase('power-plant', 'fan-bearings').request, amountInr: 380_000 });
   const bearingsGate = await driveCase(api, seed, keyId, bearings.id, (d) => d.approvals.some((a) => a.status === 'pending' && a.stage === 'approve'));
+  const lobby = await api.intakeKeys.create({ kind: 'form', label: 'Consumer form' });
   await api.tenant.pause();
   await expectStatus(api.cases.create({ text: 'Lube oil top-up for ID fan 2B' }), 409, 'Kill switch refuses new cases');
+  // Requests from outside are kept while paused; they wait at stage 1 until resume.
+  const queued = await api.intake.submitForm(power.org.auth.tenant.id, lobby.key, { name: 'Ramesh', phone: '9846001122', text: 'Street light pole 14 in Sector 4 is sparking after the rain' });
+  const queuedId = (await api.cases.list('all')).find((x) => x.code === queued.code)!.id;
+  log('Kill switch keeps a customer request waiting', queued.code);
   await signedDecision(api, seed, keyId, bearingsGate.approvals.find((a) => a.status === 'pending')!.id, 'approved', 'Quotes checked');
   await new Promise((r) => setTimeout(r, 4000));
   const held = await api.cases.get(bearings.id);
   if (held.case.stage !== 'execute' || held.case.goalId) throw new Error(`kill switch did not hold the work: stage ${held.case.stage}, goal ${held.case.goalId}`);
   log('Kill switch holds an approved case before its work');
   await api.tenant.resume();
+  await driveCase(api, seed, keyId, queuedId, (d) => d.report.stages[1]!.status !== 'pending');
+  log('The waiting request moved on after resume');
   await driveCase(api, seed, keyId, bearings.id, (d) => FINAL.includes(d.case.status) && d.report.stages[7]!.status === 'done', { approve: true });
   log('Resumed case finished', (await api.cases.get(bearings.id)).case.status);
 

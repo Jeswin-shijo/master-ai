@@ -7,7 +7,7 @@ import { verifyEd25519 } from '../common/crypto';
 import { toApproval } from '../common/mappers';
 import { DbService } from '../db/db.service';
 import { agents, approvalRequests, caseStages, deviceKeys, principals, toolCalls } from '../db/schema';
-import { mayDecide } from './may-decide';
+import { batchRefusal, mayDecide } from './may-decide';
 import { addFeedback } from '../orchestration/context';
 import { TemporalService } from '../orchestration/temporal.service';
 
@@ -53,7 +53,7 @@ export class ApprovalsService {
    * workflow for an action, the stage workflow for a case gate. The signature
    * proves which registered device (and person) decided what.
    */
-  async decide(session: Session, approvalId: string, input: ApprovalDecisionInput): Promise<ApprovalRequest> {
+  async decide(session: Session, approvalId: string, input: ApprovalDecisionInput, opts: { batch?: boolean } = {}): Promise<ApprovalRequest> {
     const { view, stageWorkflowId } = await this.db.tenant(session.tenantId, async (tx) => {
       const [approval] = await tx.select().from(approvalRequests).where(eq(approvalRequests.id, approvalId)).for('update');
       if (!approval) throw new NotFoundException('Approval not found');
@@ -63,6 +63,8 @@ export class ApprovalsService {
       if (!mayDecide({ role: session.role, approverRoles: me?.approverRoles ?? [] }, approval.approver)) {
         throw new ForbiddenException(`This approval is for the ${approval.approver.replace(/-/g, ' ')}.`);
       }
+      const refused = opts.batch ? batchRefusal(approval.kind) : null;
+      if (refused) throw new BadRequestException(refused);
       if (approval.kind === 'case_gate' && input.decision === 'edited') {
         throw new BadRequestException('Approve or reject this step. Only agent actions can be edited.');
       }
@@ -171,7 +173,7 @@ export class ApprovalsService {
     const results = [];
     for (const d of input.decisions) {
       try {
-        await this.decide(session, d.approvalId, d);
+        await this.decide(session, d.approvalId, d, { batch: true });
         results.push({ approvalId: d.approvalId, ok: true });
       } catch (err) {
         results.push({ approvalId: d.approvalId, ok: false, error: (err as Error).message });

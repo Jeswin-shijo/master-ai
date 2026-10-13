@@ -54,6 +54,11 @@ export function bearerKey(header: string | undefined): string | null {
 }
 
 const MINUTE = 60_000;
+
+/** Rate-limit windows for public routes, per company: one noisy caller cannot block every company. */
+export function publicBuckets(kind: 'form' | 'api', tenantId: string, ip: string) {
+  return { ip: `${kind}-ip:${tenantId}:${ip}` };
+}
 const LIMITS = { formPerIp: 10, formPerKey: 60, apiPerKey: 120 };
 
 function toKey(k: KeyRow): IntakeKey {
@@ -118,7 +123,7 @@ export class IntakeService {
 
   /** Public: the form's heading. */
   async form(tenantId: string, key: string, ip: string): Promise<PublicForm> {
-    this.limit(`form-ip:${ip}`, LIMITS.formPerIp * 3);
+    this.limit(publicBuckets('form', tenantId, ip).ip, LIMITS.formPerIp * 3);
     return this.db.tenant(tenantId, async (tx) => {
       const k = await this.findKey(tx, key, 'form');
       if (!k) throw new NotFoundException('This request form link is not active.');
@@ -133,7 +138,7 @@ export class IntakeService {
 
   /** Public: a customer's request through the form. Opened as untrusted. */
   async submitForm(tenantId: string, key: string, input: z.output<typeof PublicFormInputSchema>, ip: string): Promise<{ code: string }> {
-    this.limit(`form-ip:${ip}`, LIMITS.formPerIp);
+    this.limit(publicBuckets('form', tenantId, ip).ip, LIMITS.formPerIp);
     const k = await this.db.tenant(tenantId, (tx) => this.findKey(tx, key, 'form'));
     if (!k) throw new NotFoundException('This request form link is not active.');
     this.limit(`form-key:${k.id}`, LIMITS.formPerKey);
@@ -153,7 +158,7 @@ export class IntakeService {
   async submit(tenantId: string, authorization: string | undefined, input: z.output<typeof IntakeCaseInputSchema>, ip: string) {
     const key = bearerKey(authorization);
     if (!key) throw new UnauthorizedException('Send the intake key as "Authorization: Bearer <key>".');
-    this.limit(`api-ip:${ip}`, LIMITS.apiPerKey * 2);
+    this.limit(publicBuckets('api', tenantId, ip).ip, LIMITS.apiPerKey * 2);
     const k = await this.db.tenant(tenantId, (tx) => this.findKey(tx, key, 'api'));
     if (!k) throw new UnauthorizedException('Unknown or revoked intake key.');
     this.limit(`api-key:${k.id}`, LIMITS.apiPerKey);

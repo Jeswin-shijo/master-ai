@@ -1,5 +1,6 @@
 import {
   CancellationScope,
+  ChildWorkflowFailure,
   ChildWorkflowCancellationType,
   condition,
   defineSignal,
@@ -9,7 +10,7 @@ import {
   setHandler,
 } from '@temporalio/workflow';
 import type { Activities } from './activities';
-import { advance, startFlow, type StageResult } from './case-flow';
+import { advance, stageFailed, startFlow, type StageResult } from './case-flow';
 import {
   SIGNALS,
   stageWorkflowId,
@@ -60,11 +61,18 @@ export async function caseWorkflow(input: CaseWorkflowInput): Promise<{ ending: 
     }
     if (stage === 'report') await db.finishCase({ ...input, ending: state.ending ?? 'closed', reason: state.reason });
     const attempt = state.attempts[stage] ?? 1;
-    const result = await executeChild(stageWorkflow, {
-      workflowId: stageWorkflowId(input.caseId, stage, attempt),
-      args: [{ ...input, stage, attempt, ...(stage === 'execute' && state.reworkNote ? { reworkNote: state.reworkNote } : {}) }],
-      parentClosePolicy: ParentClosePolicy.TERMINATE,
-    });
+    let result: StageResult;
+    try {
+      result = await executeChild(stageWorkflow, {
+        workflowId: stageWorkflowId(input.caseId, stage, attempt),
+        args: [{ ...input, stage, attempt, ...(stage === 'execute' && state.reworkNote ? { reworkNote: state.reworkNote } : {}) }],
+        parentClosePolicy: ParentClosePolicy.TERMINATE,
+      });
+    } catch (err) {
+      // A broken stage must not strand the case: a person takes over and the report still runs.
+      if (!(err instanceof ChildWorkflowFailure)) throw err;
+      result = stageFailed(stage);
+    }
     state = advance(state, stage, result);
   }
   return { ending: state.ending };
@@ -124,6 +132,13 @@ export async function stageWorkflow(input: StageWorkflowInput): Promise<StageRes
 
   const gate = async (which: GateName): Promise<StageResult> => {
     const g = await db.openGate({ ...input, gate: which });
+    if (g.status === 'paused') {
+      // A kill switch went on during this stage: wait for resume, then ask again.
+      paused = true;
+      await hold();
+      if (cancelled) return stop();
+      return gate(which);
+    }
     if (g.status === 'not_required') return { outcome: 'done' };
     if (g.status === 'blocked') return { outcome: which === 'proceed' ? 'blocked' : 'escalated', reason: g.reason };
     const decided = await condition(() => decisions.has(g.approvalId) || cancelled, g.ttlMs);

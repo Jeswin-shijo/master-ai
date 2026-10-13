@@ -25,6 +25,25 @@ describe('merging model answers with the rules', () => {
     expect(merged.reasons.join(' ')).toContain('fire');
   });
 
+  it('never lowers priority or risk below the case type the model chose', () => {
+    const hotLc = mergeLifecycles([
+      LifecycleSchema.parse({
+        urgent_keywords: ['fire'],
+        categories: [{ id: 'gas-leak', name: 'Gas leak', keywords: ['gas smell', 'gas leak'], priority: 'P1', risk: 'high', department: 'Safety' }],
+      }),
+    ]);
+    const r = request('Slight gas smell near the meter room, probably nothing');
+    const merged = mergeClassify(hotLc, r, now, { category: 'gas-leak', priority: 'P4', risk: 'low', amount_inr: null, reasons: ['Sounds minor.'] }, offlineClassify(hotLc, r, now));
+    expect(merged.priority).toBe('P1');
+    expect(merged.risk).toBe('high');
+  });
+
+  it('an outside sender cannot lower the amount the gates see', () => {
+    const r = request('Please disburse ₹45 lakh to the dealer today', { source: 'partner', amountInr: 1 });
+    const merged = mergeClassify(lc, r, now, { category: 'purchase', priority: 'P3', risk: 'medium', amount_inr: 4_500_000, reasons: ['A purchase.'] }, offlineClassify(lc, r, now));
+    expect(merged.amountInr).toBe(4_500_000);
+  });
+
   it('an unknown category falls back to the rule-based answer', () => {
     const r = request('Pump B tripped twice');
     const offline = offlineClassify(lc, r, now);

@@ -1,4 +1,4 @@
-import type { HumanRole } from '@onehuman/schemas';
+import type { ApprovalKind, HumanRole } from '@onehuman/schemas';
 
 /**
  * Who may decide an approval routed to `approver` (a lifecycle role id such
@@ -23,4 +23,12 @@ export function mayDecide(person: { role: HumanRole; approverRoles: string[] }, 
 export function routeApprover(role: string, holders: number, roleLabel: string): { approver: string; note: string | null } {
   if (role === 'owner' || holders > 0) return { approver: role, note: null };
   return { approver: 'owner', note: `Nobody holds the ${roleLabel} role yet, so it came to the owner.` };
+}
+
+/**
+ * Batch approval ("Approve N low-risk") is for agent actions only. A case step
+ * (an approval or sign-off) is decided on its own, after reading it.
+ */
+export function batchRefusal(kind: ApprovalKind): string | null {
+  return kind === 'case_gate' ? 'A case step is approved on its own, after reading it, not in a batch.' : null;
 }

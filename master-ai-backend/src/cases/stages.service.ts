@@ -31,6 +31,7 @@ import { PolicyService } from '../policy/policy.service';
 import { ReportsService } from '../reports/reports.service';
 import { TeamService } from '../voice/team.service';
 import { loadCaseContext, type CaseContext } from './case-context';
+import { gateStep } from './gate-step';
 import { StageModel } from './stage-model';
 
 const COORDINATOR = 'Case coordinator';
@@ -308,6 +309,8 @@ export class CaseStagesService {
         .from(approvalRequests)
         .where(and(eq(approvalRequests.caseId, c.id), eq(approvalRequests.stage, i.stage), eq(approvalRequests.status, 'pending')));
       if (pending) return { opened: { status: 'waiting', approvalId: pending.id, ttlMs: Math.max(0, pending.expiresAt.getTime() - Date.now()) }, notify: null };
+      // Checked in the same transaction as the decision: a pause must hold the case, not reject it.
+      if (pausedNow(ctx)) return { opened: { status: 'paused' }, notify: null };
 
       const toolName = i.gate === 'proceed' ? 'case.proceed' : 'case.close';
       const tool = resolveTool(ctx.pack, toolName);
@@ -331,11 +334,12 @@ export class CaseStagesService {
         payload: { tool: toolName, code: c.code, level: decision.level, riskScore: decision.riskScore, reasons: decision.reasons, policyVersion: decision.policyVersion },
       });
 
-      if (decision.level <= 3) {
+      const step = gateStep(false, decision.level);
+      if (step === 'not_required') {
         await this.recordGate(tx, ctx, i, { required: false, decision: 'not_required' });
         return { opened: { status: 'not_required' }, notify: null };
       }
-      if (decision.level === 5) {
+      if (step === 'blocked') {
         const reason = decision.reasons.join('; ') || 'The rules do not allow it';
         await this.recordGate(tx, ctx, i, { required: true, decision: 'blocked', notes: reason });
         return { opened: { status: 'blocked', reason }, notify: null };

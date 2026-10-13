@@ -39,7 +39,8 @@ export default function ApprovalsScreen() {
 
   const queuedIds = new Set(queued.data?.map((q) => q.approvalId));
   const visible = (approvals.data ?? []).filter((a) => !queuedIds.has(a.id));
-  const lowRisk = visible.filter((a) => a.riskScore < LOW_RISK);
+  // Only agent actions can be approved in a batch; case steps are read and decided one by one.
+  const lowRisk = visible.filter((a) => a.kind === 'action' && a.riskScore < LOW_RISK);
 
   // One biometric check approves the whole low-risk batch; each decision is still signed separately.
   const approveBatch = async () => {

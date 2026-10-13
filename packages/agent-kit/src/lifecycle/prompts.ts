@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CaseRiskSchema, PriorityIdSchema, type CaseFile, type ModelTier, type ResolvedLifecycle, type StageKey } from '@onehuman/schemas';
-import { requesterWords } from './text';
+import { isUntrusted, requesterWords } from './text';
 
 /**
  * Model calls for the stages that need judgement. The system prompt is stable
@@ -131,13 +131,10 @@ export interface StageUserInput {
 export function stageUserPrompt(stage: ModelStage, input: StageUserInput): string {
   const { file } = input;
   const r = file.request!;
-  const lines = [
-    `Today: ${input.now.slice(0, 10)}`,
-    `Title: ${r.title}`,
-    `From: ${r.requester.name} (${r.source})`,
-    'Request:',
-    requesterWords(r),
-  ];
+  // From outside, requesterWords carries the title and name inside the untrusted block.
+  const lines = isUntrusted(r.source)
+    ? [`Today: ${input.now.slice(0, 10)}`, `Request from an outside ${r.source}:`, requesterWords(r)]
+    : [`Today: ${input.now.slice(0, 10)}`, `Title: ${r.title}`, `From: ${r.requester.name} (${r.source})`, 'Request:', requesterWords(r)];
   if (r.amountInr !== undefined) lines.push(`Amount given with the request: ₹${r.amountInr.toLocaleString('en-IN')}`);
   if (stage !== 'review' && file.review) {
     lines.push(`Review: ${file.review.outcome}${file.review.missing.length ? `; missing ${file.review.missing.map((m) => m.label).join(', ')}` : ''}`);

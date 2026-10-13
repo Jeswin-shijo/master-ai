@@ -19,9 +19,14 @@ export function wrapUntrusted(text: string): string {
   return `<untrusted_data>\n${safe}\n</untrusted_data>`;
 }
 
-/** The requester's words as a prompt or goal should carry them. */
+/**
+ * The requester's words as a prompt or goal should carry them. From outside,
+ * the title and name are theirs too (the title is their first sentence), so
+ * all three go inside the untrusted block and nowhere else.
+ */
 export function requesterWords(request: RequestPart): string {
-  return isUntrusted(request.source) ? wrapUntrusted(request.text) : request.text;
+  if (!isUntrusted(request.source)) return request.text;
+  return wrapUntrusted(`Title: ${request.title}\nFrom: ${request.requester.name}\n\n${request.text}`);
 }
 
 /** e.g. WO-0042. */
@@ -125,9 +130,11 @@ export function caseGoalText(input: CaseGoalTextInput): string {
   const c = file.classify;
   const a = file.assign;
   const category = c ? lc.categories.find((x) => x.id === c.category) : undefined;
-  const lines = [`${input.code} · ${r.title}`];
+  const outside = isUntrusted(r.source);
+  // From outside, the title and name are the sender's words: they appear only inside the untrusted block.
+  const lines = [outside ? `${input.code} · ${input.label}${FROM[r.source]}` : `${input.code} · ${r.title}`];
   if (c) lines.push(`${input.label}: ${c.categoryName} (${c.priority}, ${c.risk} risk) for ${c.department}.`);
-  lines.push(`Request from ${r.requester.name}${FROM[r.source]}:`, requesterWords(r));
+  lines.push(outside ? `Request${FROM[r.source]}:` : `Request from ${r.requester.name}:`, requesterWords(r));
   if (c?.amountInr != null) lines.push(`Amount: ${inr(c.amountInr)}.`);
   if (file.review?.toConfirm.length) lines.push(`Check before acting: ${file.review.toConfirm.join('; ')}.`);
   if (a) {
