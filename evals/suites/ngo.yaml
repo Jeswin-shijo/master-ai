@@ -1,0 +1,110 @@
+# NGO & development programme: realistic requests from beneficiaries, donors,
+# CSR partners, field staff, the compliance calendar and the owner, with what
+# the stages should decide.
+pack: ngo
+cases:
+  - id: goat-unit-widow
+    request: "Namaste, I am Sunita Bai from Kukshi block, Dhar. I am a widow with two children in school and I want the goat unit under your livelihood programme. My voter ID, ration card and bank passbook photos are attached."
+    source: customer
+    expect:
+      category: beneficiary-application
+      priority: P3
+      review: complete
+      approval: { required: true, role: programme-manager }
+      signoff: { required: true, role: me-officer }
+    why: Goat unit and livelihood mark a beneficiary application (P3). The block and an ID are given, so the home visit can be booked. The programme manager selects; the M&E officer signs off once the receipt or transfer proof is on file.
+  - id: csr-smart-classrooms
+    request: "This is Meera from the CSR team at Sahyadri Auto Components, Pune. Our committee liked your concept note for 20 smart classrooms in Nandurbar zilla parishad schools, about Rs 48 lakh over two years. Please send the full proposal, budget and your CSR-1 number by 25 October so we can sign the CSR agreement in November."
+    source: partner
+    amount_inr: 4800000
+    expect:
+      category: grant-partnership
+      priority: P2
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: finance-manager }
+    why: Concept note, proposal and CSR agreement mark a new grant or CSR project (P2), and the deadline is given. The chief functionary (owner) approves and signs; the finance manager signs off when the first instalment reaches our local account under its own grant code.
+  - id: volunteer-messages-child
+    request: "Teacher, Bhopal learning centre: a girl's mother told me today that our volunteer Rakesh is harassing her 13-year-old daughter, sending messages late at night and asking her to meet him alone. The girl is scared to come to class."
+    source: staff
+    expect:
+      category: safeguarding-alert
+      priority: P1
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: board-chair }
+    why: Harassing a 13-year-old and asking her to meet him alone is a safeguarding alert (P1). The volunteer is kept away from children and the fear of sexual abuse is reported to the police or SJPU at once (POCSO sections 19 and 21), without waiting for approval. The owner approves action against the volunteer; the board chair signs off the closing.
+  - id: donation-80g-no-pan
+    request: "I donated Rs 15,000 by UPI on 2 October for your flood relief kits. Please send the 80G receipt, I need it for income tax. - Arvind Kulkarni, Nagpur"
+    source: customer
+    amount_inr: 15000
+    expect:
+      category: donation
+      priority: P4
+      review: needs_info
+      approval: { required: false }
+      signoff: { required: false }
+    why: Donated and 80G receipt mark a donation (P4). His PAN or other ID is missing, and the donation statement and his tax certificate need it, so review asks for it.
+  - id: sewing-machines-payment
+    request: "Please pay Shree Ganesh Traders, Dhar Rs 1,85,000 for 50 sewing machines for the tailoring batch under the Sahyadri CSR grant. Three quotations, the GST invoice and the stock entry are attached."
+    source: staff
+    amount_inr: 185000
+    expect:
+      category: payment
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: finance-manager }
+    why: Please pay, quotations and GST invoice mark a payment (P3). ₹1,85,000 is above the ₹50,000 limit and below ₹5 lakh, so the owner approves; the finance manager signs off the voucher and grant coding.
+  - id: dowry-help
+    request: "Sir, my sister's marriage is fixed for February and the boy's family is asking Rs 1.5 lakh as dahej. We are very poor. Can your trust give some madad for the dowry money?"
+    source: customer
+    expect:
+      category: beneficiary-application
+      priority: P3
+      review: not_eligible
+      approval: { required: true, role: programme-manager }
+      signoff: { required: true, role: me-officer }
+    why: Madad marks a request for support (beneficiary application, P3), but paying dowry is an offence under the Dowry Prohibition Act, 1961, so no programme can fund it. The family is told kindly, given the women's helpline 181, and offered support that does not involve dowry.
+  - id: fcra-to-partner
+    request: "Transfer Rs 4 lakh from the German grant in our FCRA account to Jan Vikas Samiti in Gumla for their health camps, the way we used to before 2020. They are our oldest partner."
+    source: owner
+    amount_inr: 400000
+    expect:
+      category: partner-grant
+      priority: P3
+      review: not_eligible
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: finance-manager }
+    why: Money for a partner samiti is a partner grant (P3). Since the 2020 amendment, foreign money cannot be passed to another organisation (FCRA section 7), so it is not eligible even on the owner's word. The team can run the camps itself or support the partner from local money.
+  - id: fc4-due
+    request: "Compliance calendar: the FCRA annual return (FC-4) for 2025-26 is due on 31 December 2026. Audited FCRA accounts and the CA certificate with UDIN are uploaded."
+    source: system
+    expect:
+      category: compliance-filing
+      priority: P2
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: FC-4 and annual return mark an FCRA, tax or registration filing (P2) with its due date. The owner signs and files as chief functionary; the saved acknowledgement closes it.
+  - id: gfr-uc-shelter-home
+    request: "Ministry of Women and Child Development: submit the utilisation certificate in GFR 12-A for the Rs 18 lakh grant released in 2025-26 for the Ujjain shelter home, with the CA-certified receipts and payments account. Show the interest earned on the grant."
+    source: partner
+    amount_inr: 1800000
+    expect:
+      category: donor-report
+      priority: P2
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: Utilisation certificate and GFR 12-A mark a donor report (P2), and the grant is named. Finance prepares it from the books with unspent money and interest shown, a CA certifies it, and the owner signs before it goes.
+  - id: mis-low-attendance
+    request: "MIS alert: attendance at 6 of the 14 learning centres in Barwani has stayed below 60% for three weeks in a row. Centre-wise attendance sheet attached."
+    source: system
+    expect:
+      category: field-monitoring
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: programme-manager }
+    why: MIS alert and attendance mark a field check (P3). Internal monitoring needs no approval; M&E visits the centres, finds the causes and agrees fixes, and the programme manager signs off the findings.

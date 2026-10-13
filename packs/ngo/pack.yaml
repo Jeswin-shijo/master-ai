@@ -1,0 +1,1087 @@
+# Ready-made pack: NGOs and development programmes (charitable trusts,
+# registered societies and Section 8 companies running programmes with CSR,
+# government and foreign money). Built from researched Indian practice: FCRA 2010
+# as amended in 2020 and its 2025 and 2026 rules, the Companies (CSR Policy)
+# Rules 2014, the Income-tax Act 2025 (in force 1 April 2026), GFR 2017,
+# POCSO 2012, the POSH Act 2013 and the DPDP Act 2023. The 2026 FCRA rules and
+# the new income-tax section and form numbers were read from practitioner
+# summaries, not the gazette: check them before relying on a date or form number.
+id: ngo
+version: 1.0.0
+name: NGO & development programme
+description: Beneficiary applications, field checks, new grants and CSR projects, donor reports and utilisation certificates, donations and 80G receipts, FCRA and tax filings, payments, partner grants, and fraud and safeguarding alerts for NGOs, trusts, societies and Section 8 companies.
+kind: industry
+sector: finance-development
+extends: [sector-finance-development, projects-base]
+match:
+  keywords:
+    - ngo
+    - non-profit
+    - nonprofit
+    - non profit organisation
+    - not-for-profit
+    - voluntary organisation
+    - charitable trust
+    - public charitable trust
+    - welfare trust
+    - charitable society
+    - welfare society
+    - registered society
+    - section 8 company
+    - section 25 company
+    - foundation
+    - charity
+    - charitable organisation
+    - development organisation
+    - development programme
+    - rural development
+    - community based organisation
+    - civil society organisation
+    - social welfare organisation
+    - grassroots organisation
+
+labels:
+  Customer: Donor
+  Client: Donor
+
+entities:
+  - name: Beneficiary
+    label: Beneficiary
+    plural_label: Beneficiaries
+    title_field: fullName
+    list_columns: [fullName, village, programme, status, lastVisitOn]
+    fields:
+      - { name: fullName, label: Full name, type: string, required: true }
+      - { name: guardianName, label: Parent or guardian (if under 18), type: string }
+      - name: gender
+        label: Gender
+        type: enum
+        options: [female, male, transgender, other]
+      - { name: dateOfBirth, label: Date of birth, type: date }
+      - { name: mobile, label: Mobile, type: phone }
+      - { name: village, label: Village or ward, type: string, required: true }
+      - { name: blockDistrict, label: Block and district, type: string }
+      - { name: state, label: State, type: string }
+      - name: idType
+        label: ID seen
+        type: enum
+        options: [aadhaar-masked, voter-id, ration-card, job-card, birth-certificate, disability-certificate, other]
+      - { name: idLast4, label: Last 4 digits of the ID, type: string }
+      - { name: householdIncome, label: Yearly household income, type: money }
+      - { name: consentOn, label: Consent given on, type: date }
+      - { name: programme, label: Programme, type: string }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [applied, verified, selected, served, not-eligible, exited]
+      - { name: lastVisitOn, label: Last home visit, type: date }
+  - name: Grant
+    label: Grant or CSR project
+    plural_label: Grants and CSR projects
+    title_field: grantCode
+    list_columns: [grantCode, donorName, donorType, endDate, nextReportDue, status]
+    fields:
+      - { name: grantCode, label: Grant code, type: string, required: true }
+      - { name: donorName, label: Donor or funder, type: string, required: true }
+      - name: donorType
+        label: Donor type
+        type: enum
+        required: true
+        options: [foreign, csr, government, indian-foundation, individual]
+      - { name: isForeign, label: Foreign money (FCRA), type: boolean }
+      - { name: fcraPurposeStates, label: FCRA purposes and states it covers, type: text }
+      - { name: amountAgreed, label: Amount agreed, type: money }
+      - { name: receivedToDate, label: Received so far, type: money }
+      - { name: spentToDate, label: Spent so far, type: money }
+      - { name: adminSpent, label: Admin costs spent, type: money }
+      - { name: startDate, label: Start date, type: date }
+      - { name: endDate, label: End date, type: date }
+      - { name: nextReportDue, label: Next report due, type: date }
+      - { name: bankAccount, label: Bank account (FCRA or local), type: string }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [proposal, signed, active, closing, closed]
+  - name: Voucher
+    label: Payment voucher
+    plural_label: Payment vouchers
+    title_field: voucherNumber
+    list_columns: [voucherNumber, payee, amount, grantCode, status]
+    fields:
+      - { name: voucherNumber, label: Voucher number, type: string, required: true }
+      - { name: grantCode, label: Grant code, type: string }
+      - { name: budgetLine, label: Budget line, type: string }
+      - { name: payee, label: Paid to, type: string, required: true }
+      - { name: amount, label: Amount, type: money, required: true }
+      - name: mode
+        label: Mode
+        type: enum
+        options: [bank-transfer, upi, cheque, petty-cash]
+      - name: paidFrom
+        label: Paid from
+        type: enum
+        options: [fcra-utilisation-account, local-account]
+      - { name: isAdminCost, label: Admin cost, type: boolean }
+      - { name: quotations, label: Quotations taken, type: integer }
+      - { name: tdsDeducted, label: TDS deducted, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [prepared, approved, paid, on-hold, rejected]
+      - { name: paidOn, label: Paid on, type: date }
+      - { name: approvedBy, label: Approved by, type: string }
+  - name: Donation
+    label: Donation
+    title_field: receiptNumber
+    list_columns: [receiptNumber, donorName, amount, receivedOn, mode]
+    fields:
+      - { name: receiptNumber, label: Receipt number, type: string, required: true }
+      - { name: donorName, label: Donor name, type: string, required: true }
+      - { name: panOrId, label: PAN or other ID, type: string }
+      - { name: email, label: Email, type: email }
+      - { name: mobile, label: Mobile, type: phone }
+      - { name: address, label: Address, type: text }
+      - { name: amount, label: Amount, type: money, required: true }
+      - { name: receivedOn, label: Received on, type: date }
+      - name: mode
+        label: Mode
+        type: enum
+        options: [upi, bank-transfer, cheque, card, cash]
+      - { name: isForeignSource, label: "Foreign source (foreign citizen, OCI card holder, foreign company or trust)", type: boolean }
+      - { name: purpose, label: Purpose or appeal, type: string }
+      - { name: certificateSentOn, label: Tax certificate sent on, type: date }
+
+tools:
+  - name: beneficiaries.search
+    description: Search beneficiaries by name, village, programme or status, for duplicate checks and home visits.
+    uses: records.search
+    with: { entity: Beneficiary }
+  - name: beneficiary.register
+    description: Register a new applicant as applied. Selection is decided by the programme manager, never by an agent.
+    uses: records.create
+    with: { entity: Beneficiary, data: { status: applied } }
+  - name: grants.search
+    description: Search grants and CSR projects by code, donor, report date or status.
+    uses: records.search
+    with: { entity: Grant }
+  - name: voucher.prepare
+    description: Prepare a payment voucher for the finance team. No money moves; people approve and release it from the bank.
+    uses: records.create
+    with: { entity: Voucher, data: { status: prepared } }
+  - name: voucher.hold
+    description: Put a payment voucher on hold while a fraud or safeguarding alert is looked into.
+    uses: records.update
+    with: { entity: Voucher, patch: { status: on-hold } }
+  - name: donations.search
+    description: Search donations by donor, receipt number, date or amount.
+    uses: records.search
+    with: { entity: Donation }
+  - name: donation.record
+    description: Record a donation that has been matched in the bank statement.
+    uses: records.create
+    with: { entity: Donation }
+
+agents:
+  - role: programme-desk
+    name: Programme desk
+    description: Registers beneficiary applications, checks documents and duplicates, books home visits and field checks with field workers by phone, flags indicators that are off track, drafts selection notes and visit reports, and raises the first alarm on safeguarding concerns.
+    instructions: Never select or turn away an applicant yourself; the programme manager decides. Collect only the details the programme needs, with consent in the person's language. Store Aadhaar masked. Never name or show a child without a guardian's consent. If anyone may be at risk, call the safeguarding focal person at once.
+    autonomy: 3
+    tools: [beneficiaries.search, beneficiary.register, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, schedule.create, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: grants-desk
+    name: Grants and compliance desk
+    description: Finds funding calls, drafts concept notes, proposals, budgets and due diligence packs, drafts donor reports and utilisation certificates from the books and the MIS, keeps the FCRA, tax and registration calendar, and drafts partner agreements.
+    instructions: Take every figure from the books and the MIS, never estimate. Never sign, submit or file anything; the chief functionary signs and files. Foreign money is never passed on to another organisation.
+    autonomy: 2
+    tools: [grants.search, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, schedule.create, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 200000, money_per_task_inr: 0, max_steps: 40 }
+  - role: accounts-desk
+    name: Accounts desk
+    description: Checks budget lines, fund source and papers for payments, prepares vouchers, matches donations in the bank statement and sends receipts and tax certificates, and holds linked vouchers when a fraud or safeguarding alert comes in.
+    instructions: Prepare, never pay; people release money from the bank. Foreign money comes in only to the FCRA account and is paid only from FCRA accounts. Cash payments above ₹10,000 to one person in a day are not allowed.
+    autonomy: 2
+    tools: [voucher.prepare, voucher.hold, donations.search, donation.record, grants.search, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+
+workflows:
+  - id: beneficiary-intake
+    name: Beneficiary intake and selection
+    description: Register the application, check it against the written criteria, get the home visit done and prepare the selection note.
+    keywords: [application, apply, enrol, scholarship, beneficiary, selection, home visit]
+    steps:
+      - key: register
+        title: Register and check the application
+        agent: programme-desk
+        instructions: Register the applicant, check the ID, the place and the programme's written criteria, look for an earlier or duplicate entry, and note any missing paper in plain words for the applicant.
+      - key: home-visit
+        title: Get the home visit done
+        agent: programme-desk
+        depends_on: [register]
+        instructions: Hand the home visit to the field worker for that village by phone with the applicant's details and the checklist, and record their notes and consent.
+      - key: selection-note
+        title: Prepare the selection note
+        agent: programme-desk
+        depends_on: [home-visit]
+        instructions: Draft a short selection note for the programme manager with the criteria met or not met, and once decided, tell the applicant the outcome in their language with the reason and where else to ask.
+  - id: field-check
+    name: Field check or survey
+    description: Plan the visit or survey, compare what is found with our records and get the fixes agreed.
+    keywords: [field visit, spot check, survey, monitoring, mis, attendance, evaluation]
+    steps:
+      - key: plan
+        title: Plan the visit and pull the records
+        agent: programme-desk
+        instructions: Prepare the route, checklist or survey form in the local language and pull the beneficiary lists, receipts, stock and MIS figures to compare.
+      - key: visit
+        title: Get the visit done and draft the report
+        agent: programme-desk
+        depends_on: [plan]
+        instructions: Hand the visit to the M&E officer or field team by phone, then draft the visit report within 48 hours with each fix, its owner and its date.
+  - id: proposal-and-agreement
+    name: Proposal and grant agreement
+    description: Draft the concept note or proposal, budget and due diligence pack, and set the grant up once signed.
+    keywords: [proposal, concept note, csr, grant agreement, mou, due diligence]
+    steps:
+      - key: draft
+        title: Draft the proposal and due diligence pack
+        agent: grants-desk
+        instructions: Check the fit with our registered aims and, for foreign money, our FCRA registration. Draft the concept note or proposal, the budget within the admin limits, and the due diligence pack, and track the deadline.
+      - key: set-up
+        title: Set up the grant
+        agent: grants-desk
+        depends_on: [draft]
+        instructions: After the chief functionary signs, create the grant record with its code, budget, bank account and report dates, and ask the finance manager by phone to confirm the first instalment reached the right account.
+  - id: donor-reporting
+    name: Donor report or utilisation certificate
+    description: Draft the report or certificate from the books and the MIS, get it checked and send it once signed.
+    keywords: [donor report, progress report, utilisation certificate, uc, case study]
+    steps:
+      - key: draft
+        title: Draft the report from the books
+        agent: grants-desk
+        instructions: Pull spending by budget line from the books and results from the MIS, show unspent money and interest earned, and draft the report or certificate in the donor's format with consented photos and stories.
+      - key: check
+        title: Get the figures checked
+        agent: grants-desk
+        depends_on: [draft]
+        instructions: Ask the finance manager and the M&E officer by phone to check every figure, and the CA to certify where needed. Log the donor's acknowledgement and questions once it is sent.
+  - id: donation-receipt
+    name: Donation receipt
+    description: Match the money, check the source, record the donor and send thanks and the receipt.
+    keywords: [donation, 80g, receipt, 10be, donor]
+    steps:
+      - key: receipt
+        title: Match, record and thank
+        agent: accounts-desk
+        instructions: Match the money in the bank statement, check whether the donor is a foreign source, record the donor's PAN or other ID, and send thanks and the receipt with our 80G details. Raise any foreign gift that reached a local account with the finance manager.
+  - id: compliance-calendar
+    name: Statutory filing
+    description: Open the filing ahead of its due date, collect the figures and draft the forms for the chief functionary.
+    keywords: [fcra, fc-4, itr-7, audit report, 12a, 80g, renewal, notice]
+    steps:
+      - key: prepare
+        title: Collect the figures and draft the filing
+        agent: grants-desk
+        instructions: Collect the figures from the audited accounts, draft the form or reply, list what the CA must certify, and set reminders well before the due date.
+      - key: chase
+        title: Chase the papers
+        agent: grants-desk
+        depends_on: [prepare]
+        instructions: Ask the finance manager by phone for the CA's certificate and any missing paper, then save the acknowledgement once the chief functionary has filed and set the next due date.
+  - id: payment-voucher
+    name: Payment voucher
+    description: Check the budget line, fund source and papers, prepare the voucher and hand it to the finance manager to release.
+    keywords: [payment, pay, invoice, voucher, reimbursement, honorarium, budget change]
+    steps:
+      - key: prepare
+        title: Check and prepare the voucher
+        agent: accounts-desk
+        instructions: Check the bill against the order and the work received, the grant and budget line, the fund source (FCRA or local), quotations, the payee's bank details and TDS, then prepare the voucher.
+      - key: release
+        title: Hand it over for release
+        agent: accounts-desk
+        depends_on: [prepare]
+        instructions: Hand the approved voucher to the finance manager by phone to release from the right bank account, and file the bank proof with the voucher.
+  - id: partner-grant
+    name: Grant to a partner organisation
+    description: Check the partner, draft the MoU and prepare each instalment from local or CSR money.
+    keywords: [partner ngo, sub grant, partner organisation, samiti, sanstha, mou]
+    steps:
+      - key: check-partner
+        title: Check the partner and draft the MoU
+        agent: grants-desk
+        instructions: Check the partner's registration, PAN, bank account and past work, confirm the money is local or CSR money the CSR agreement lets us pass on, and draft the MoU with the budget, reports and instalments.
+      - key: instalment
+        title: Prepare the instalment
+        agent: accounts-desk
+        depends_on: [check-partner]
+        instructions: Prepare the voucher for the instalment and hand it to the finance manager by phone to release once the MoU is signed.
+  - id: fraud-response
+    name: Fraud response
+    description: Stop the loss, keep the evidence and get the right people acting.
+    keywords: [fraud, fake bills, bribe, cut money, theft, hacked]
+    steps:
+      - key: contain
+        title: Hold payments and keep the evidence
+        agent: accounts-desk
+        instructions: Put linked vouchers on hold, save copies of the records, bills and bank trail, and call the chief functionary and the finance manager at once. Keep the name of whoever raised it private.
+      - key: follow-up
+        title: Follow up the police complaint and donor notice
+        agent: accounts-desk
+        depends_on: [contain]
+        instructions: Draft the facts for the police complaint and the note to affected donors for the chief functionary, and track the recovery and the fixes until the board reviews the case.
+  - id: safeguarding-response
+    name: Safeguarding response
+    description: Make sure the person is safe, the report is made and the facts are kept private.
+    keywords: [pocso, abuse, harassment, child, missing, safeguarding]
+    steps:
+      - key: alert
+        title: Alert the focal person
+        agent: programme-desk
+        instructions: Call the safeguarding focal person and the chief functionary at once with what was reported, where and who is involved. Keep the accused away from programme contact and keep names private.
+      - key: record
+        title: Keep a confidential record
+        agent: programme-desk
+        depends_on: [alert]
+        instructions: Write a short factual record with dates and words used, confirm with the focal person by phone that the police or SJPU report or the Internal Committee complaint is made, and track the follow-up until the board reviews it.
+
+routines:
+  - id: daily-work-report
+    name: Daily field report
+    description: Each field worker or centre in-charge reports who they reached, where they went, what ran short and any concern at the end of the day.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "18:00"
+    questions:
+      - { key: people, label: "People reached", ask: "How many people did you meet or serve today?", type: number, unit: people }
+      - { key: places, label: "Villages or centres", ask: "Which villages or centres did you visit today?", type: text }
+      - { key: workDone, label: "Work done", ask: "What work got done today?", type: text }
+      - { key: shortages, label: "Running short", ask: "Is anything running short, like kits, medicines or forms?", type: text, flag: true }
+      - { key: concerns, label: "Safety or money concern", ask: "Did anyone raise a worry about a child's safety, harassment or money being asked for?", type: text, flag: true }
+      - { key: problems, label: "Problems", ask: "Is there any problem you need help with?", type: text, flag: true, required: false }
+
+policies:
+  - id: board-above-5-lakh
+    action: case.proceed
+    approver: board-chair
+    require_approval_above: { amount: 500000, currency: INR }
+    when: { category: [payment, partner-grant] }
+    reason: Payments and partner grants above ₹5,00,000 go to the board chair or a named trustee.
+
+lifecycle:
+  case: { label: Programme case, plural: Programme cases, prefix: PRG }
+  stages:
+    request:
+      name: Request or application received
+      description: A beneficiary's application, a donor or CSR partner's request, a staff request, a due date from the compliance calendar or an MIS alert comes in by WhatsApp, phone, form or email, gets a case number and is acknowledged in the person's language.
+    review:
+      name: Eligibility and document check
+      description: Staff and agents check who is asking, the documents and the written rules of the programme or fund, make anyone at risk safe first, and ask for anything missing before the case moves on.
+      checks:
+        - "Anyone at risk? Make them safe and make any police, SJPU or Childline report first; it never waits for approval"
+        - "Who is asking is confirmed: beneficiary ID, donor PAN, partner's registration papers, or a staff request from the right person"
+        - Consent taken in the person's language before collecting personal details; a parent's or guardian's consent for a child
+        - "Eligibility matched to the written criteria: project area, need, income, age, or the donor's terms"
+        - Not already served, paid or reported for the same thing
+        - "Documents complete and readable: ID, bills, quotations, agreements, CA certificates"
+        - "The money may be used this way: foreign money only for our FCRA-approved purposes (and, under the 2026 rules, states) and never passed to another organisation; CSR money only for the agreed project"
+    classify:
+      name: Priority, project and fund
+      description: The case gets its type, priority, due date and owning team, and is tagged to the right project, grant, budget line and fund (foreign, CSR, government or local donations).
+    assign:
+      name: Assign team and deadline
+      description: The programme manager or office lead names the person responsible (field worker, M&E officer, accountant, proposal writer or safeguarding focal person) and sets a deadline a few days before any donor or legal due date.
+    approve:
+      name: Approval by authorised person
+      description: The authorised person decides within the delegation of powers, never the person who prepared the work, and no money moves before this step.
+      checks:
+        - Programme manager selects or declines beneficiaries against the written criteria
+        - "Chief functionary (executive director, secretary or managing trustee) signs agreements, donor reports and filings and approves payments above ₹50,000"
+        - Board chair or a named trustee approves payments and partner grants above ₹5,00,000 or outside the approved budget
+        - "If the chief functionary is named in an alert, the board chair decides instead"
+    execute:
+      name: Deliver and track progress
+      description: The team and agents deliver the support, make payments, send reports and filings, and track progress, spending against budget, proof and deadlines.
+      checks:
+        - Support paid by bank transfer to the person's own account or handed over against a signed or thumb-printed receipt
+        - Spending booked to the right grant and budget line as it happens
+        - Photos and stories collected only with written consent
+    close:
+      name: Verify proof and close
+      description: Someone other than the person who did the work checks the proof, the named role signs off, the person who asked is told the outcome and the case is closed.
+      checks:
+        - "Proof on file: signed or thumb-printed receipt, bank transfer record, photo taken with consent, or filing acknowledgement"
+        - Spending booked to the right grant, budget line and bank account (foreign money only from FCRA accounts)
+        - Donor or regulator acknowledgement saved and the next due date set
+        - The person who asked is told the outcome in their language, with the reason if declined
+        - "Safeguarding and fraud cases: person safe, police reports made, donors told where the agreement needs it, board told"
+    report:
+      name: Donor reports and learning
+      description: Each month the team reviews people reached, grant spending against plan, the admin share of foreign money, reports and filings due, and complaint and safeguarding trends, and the board reviews them at each meeting.
+      checks:
+        - Grants spending behind plan flagged early to the donor
+        - Admin share of foreign money checked against the 20% limit
+        - Safeguarding and fraud cases reviewed by the board
+  priorities:
+    - { id: P1, name: "Urgent: someone at risk or money lost", respond_within_hours: 1, resolve_within_hours: 72 }
+    - { id: P2, name: "High: donor or legal deadline", respond_within_hours: 4, resolve_within_hours: 168 }
+    - { id: P3, name: Normal, respond_within_hours: 24, resolve_within_hours: 240 }
+    - { id: P4, name: Low, respond_within_hours: 48, resolve_within_hours: 360 }
+  roles:
+    - { id: programme-manager, name: Programme manager, approves: "Selects or declines each beneficiary against the written criteria; signs off field checks and monitoring findings once the fixes are agreed" }
+    - { id: me-officer, name: Monitoring and evaluation (M&E) officer, approves: "Signs off each beneficiary case after checking the proof of delivery: signed or thumb-printed receipt, bank transfer record or photo taken with consent" }
+    - { id: board-chair, name: Board chair or named trustee, approves: "Payments and partner grants above ₹5,00,000 or outside the budget; signs off the closing of every safeguarding and fraud case after reviewing what happened and what will change" }
+    - { id: finance-manager, name: Finance manager, approves: "Releases payments up to ₹50,000 within the approved budget; signs off every payment voucher and confirms grant money reached the right bank account (foreign money only in the FCRA account)" }
+  urgent_keywords: [fraud, forged, forgery, embezzlement, misappropriation, theft, stolen, hacked, data leak, bribe, cut money, abused, sexual abuse, child abuse, molested, pocso, harassment, harassed, harassing, threatened, missing child, went missing, ran away, trafficking, child marriage, domestic violence, suicide, self harm, caught fire, fire broke out, injured, food poisoning, drowned, snake bite, electrocuted, collapsed]
+  categories:
+    - id: beneficiary-application
+      name: Beneficiary application
+      keywords:
+        - apply
+        - applied
+        - application form
+        - want to join
+        - enrol
+        - enroll
+        - enrolment
+        - enrollment
+        - admission
+        - scholarship
+        - fee support
+        - school fees
+        - education support
+        - goat unit
+        - goat rearing
+        - poultry unit
+        - livelihood
+        - tailoring course
+        - skill training
+        - vocational training
+        - ration kit
+        - medical aid
+        - medical help
+        - treatment support
+        - wheelchair
+        - hearing aid
+        - self-help group
+        - shg
+        - selection list
+        - madad
+        - sahayata
+      priority: P3
+      risk: low
+      department: Programmes
+      required_details:
+        - key: place
+          label: Where the person lives (village, ward or block)
+          kind: keywords
+          keywords: [village, gaon, ward, block, tehsil, taluka, taluk, mandal, district, zilla, basti, colony, nagar, panchayat, mohalla, pin code, pincode]
+        - key: idOrForm
+          label: An ID or the filled application form
+          kind: keywords
+          keywords: [aadhaar, aadhar, voter id, voter card, ration card, job card, pan card, birth certificate, disability certificate, udid, id proof, id card, bpl card, form attached, forms attached, forms are attached, documents attached]
+      required_checks:
+        - Lives in a project village and fits the programme's written criteria (need, income, age)
+        - One valid ID seen; Aadhaar only with consent and stored masked
+        - Consent to use their details taken in their language; a parent's or guardian's consent for a child
+        - Not already getting the same support from us or a government scheme we can check
+        - Home visit by a field worker, with notes; photos only with consent
+        - No fee, gift or favour asked from the applicant
+        - Support fits an approved budget line and the fund's allowed purpose
+      not_eligible:
+        - keywords: [dowry, dahej, dowry money, money for the dowry]
+          reason: "Giving or helping with dowry is an offence under the Dowry Prohibition Act, 1961, so no programme can pay for it. Tell the family kindly, share the women's helpline 181 and the district Dowry Prohibition Officer, and offer any support we have that does not involve dowry."
+      approval: { required: always, role: programme-manager }
+      signoff: { required: true, role: me-officer }
+      workflow: beneficiary-intake
+      execution: both
+    - id: field-monitoring
+      name: Field check or monitoring
+      keywords:
+        - field visit
+        - site visit
+        - spot check
+        - monitoring visit
+        - verification visit
+        - physical verification
+        - joint visit
+        - geo-tagged
+        - geotagged
+        - baseline
+        - endline
+        - household survey
+        - survey
+        - mis alert
+        - mis
+        - indicator
+        - attendance
+        - dropout
+        - drop out
+        - evaluation
+        - mid-term review
+        - impact assessment
+        - monitoring
+        - off track
+        - behind target
+      priority: P3
+      risk: low
+      department: Monitoring and evaluation
+      required_details:
+        - key: where
+          label: Which centre, village or project
+          kind: keywords
+          keywords: [centre, center, village, block, district, school, project, site, ward, anganwadi, hostel, cluster, household, programme, panchayat]
+      required_checks:
+        - Visit plan and checklist ready before going; two people for cash or stock checks
+        - GPS-tagged photos only with consent; no child shown by face or name without a guardian's consent
+        - "Findings compared with our records: beneficiary lists, receipts, stock and MIS data"
+        - "Surveys: consent taken, sample agreed, questions in the local language"
+        - Visit report within 48 hours, with fixes, owners and dates
+        - Any sign of abuse, fraud or fake records raised as an alert at once
+      approval: { required: never }
+      signoff: { required: true, role: programme-manager }
+      workflow: field-check
+      execution: both
+    - id: grant-partnership
+      name: New grant or CSR project
+      keywords:
+        - proposal
+        - full proposal
+        - concept note
+        - call for proposals
+        - rfp
+        - request for proposal
+        - expression of interest
+        - eoi
+        - grant agreement
+        - new grant
+        - grant offer
+        - grant application
+        - csr proposal
+        - csr agreement
+        - csr partnership
+        - csr project
+        - csr funding
+        - mou with
+        - memorandum of understanding
+        - due diligence
+        - funding opportunity
+        - prior permission
+        - sanction letter
+        - grant-in-aid
+      priority: P2
+      risk: medium
+      department: Partnerships and grants
+      required_details:
+        - { key: deadline, label: Deadline or signing date, kind: date }
+      required_checks:
+        - Fits our registered aims and, for foreign money, our FCRA-approved purposes (and states, under the 2026 rules)
+        - Foreign money only with FCRA registration or prior permission, received only in the FCRA account at SBI New Delhi Main Branch
+        - "CSR money: our CSR-1 registration number, 12A and 80G (sections 332 and 354 of the Income-tax Act, 2025), and 3 years of similar work"
+        - "Central government grants: NGO Darpan ID in place"
+        - Budget keeps admin costs within the donor's cap and, for foreign money, within 20% of the year's foreign receipts
+        - No plan to pass foreign money on to another organisation
+        - "Due diligence pack ready: registration, PAN, 12A and 80G, FCRA, 3 years' audited accounts, board list, and a board resolution where needed"
+      approval: { required: always, role: owner }
+      signoff: { required: true, role: finance-manager }
+      workflow: proposal-and-agreement
+      execution: both
+    - id: donor-report
+      name: Donor report or utilisation certificate
+      keywords:
+        - donor report
+        - progress report
+        - quarterly report
+        - half-yearly report
+        - six monthly report
+        - annual progress report
+        - annual report to the donor
+        - narrative report
+        - financial report
+        - utilisation certificate
+        - utilization certificate
+        - uc
+        - gfr 12-a
+        - gfr 12a
+        - statement of expenditure
+        - soe
+        - case study
+        - impact report
+        - budget variance
+        - report due
+        - completion report
+        - csr report
+      priority: P2
+      risk: medium
+      department: Grants and reporting
+      required_details:
+        - key: grant
+          label: Which grant or donor
+          kind: keywords
+          keywords: [grant, donor, csr, ministry, department, foundation, funder, project, programme, scheme, company, trust]
+      required_checks:
+        - Figures taken from the books, per budget line, not estimates
+        - Overspent budget lines explained, with the donor's written okay where the agreement needs it
+        - "Results backed by proof: lists, attendance, photos and stories with written consent"
+        - Unspent money and interest earned shown
+        - "Central government grants: utilisation certificate in the form the ministry asks for (usually GFR 12-A), CA-certified, within 12 months of the year's end; interest on the grant goes back to the government"
+        - Foreign-funded projects match the project-wise and place-wise spending in the FCRA return
+        - No child named or shown in a way that identifies them without a guardian's consent
+      approval: { required: always, role: owner }
+      signoff: { required: false }
+      workflow: donor-reporting
+      execution: both
+    - id: donation
+      name: Donation or 80G receipt
+      keywords:
+        - donation
+        - donate
+        - donated
+        - donating
+        - donation receipt
+        - 80g
+        - 80g receipt
+        - 80g certificate
+        - form 10be
+        - 10be
+        - tax certificate
+        - monthly giving
+        - recurring donation
+        - crowdfunding
+        - fundraiser
+        - website donation
+        - daan
+        - chanda
+      priority: P4
+      risk: low
+      department: Fundraising and donor care
+      required_details:
+        - key: donorId
+          label: Donor's PAN or other ID
+          kind: keywords
+          keywords: [pan, pan no, pan number, pan card, aadhaar, aadhar, passport, voter id, tin]
+      required_checks:
+        - Money matched in the bank statement
+        - Donor name, address and PAN (or other ID) recorded for the donation statement and tax certificate; anonymous gifts can be taxed
+        - "Foreign source check by citizenship, not address: a gift from a foreign citizen (OCI card holders too), foreign company or foreign trust is foreign money and comes in only to the FCRA account; an Indian citizen living abroad is not a foreign source"
+        - Cash gifts above ₹2,000 give the donor no tax deduction; say so before accepting
+        - Receipt shows our 80G approval number and its validity
+        - Company CSR money is not a donation; raise it as a new grant or CSR project
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: donation-receipt
+      execution: agents
+    - id: compliance-filing
+      name: FCRA, tax or registration filing
+      keywords:
+        - compliance calendar
+        - fc-4
+        - fc4
+        - fc-3c
+        - fc-6
+        - fcra return
+        - fcra annual return
+        - fcra renewal
+        - fcra notice
+        - fcra inspection
+        - mha notice
+        - mha letter
+        - itr-7
+        - income tax return
+        - audit report
+        - form 10b
+        - 10bb
+        - form 10bd
+        - donation statement
+        - 12a
+        - 12ab
+        - 12a renewal
+        - 80g renewal
+        - section 332
+        - section 354
+        - csr-1
+        - ngo darpan
+        - darpan
+        - tds return
+        - income tax notice
+        - scrutiny notice
+        - show cause notice
+        - show cause
+        - annual return
+        - charity commissioner
+        - change report
+        - registrar of societies
+        - posh annual report
+        - aoc 4
+        - mgt 7
+        - registration renewal
+      priority: P2
+      risk: medium
+      department: Finance and compliance
+      required_details:
+        - { key: dueDate, label: Due date, kind: date }
+      required_checks:
+        - Due date and late fee known; work starts at least 60 days ahead
+        - Figures match the audited accounts and the CA certificate (with UDIN)
+        - "FCRA return (FC-4) by 31 December, even if nothing came in, with the details the current rules ask for (project-wise and place-wise spending under the 2026 rules)"
+        - FCRA changes in key people, address, aims or bank accounts filed on the FC-6 forms
+        - "Income tax: audit report by 30 September, return (ITR-7) by 31 October, donation statement by 31 May; at least 85% of the year's income spent on the aims. Confirm form numbers under the Income-tax Rules, 2026"
+        - "Renewals started 6 months before expiry: 12A (section 332), 80G (section 354) and FCRA (FC-3C)"
+        - Signed and filed by the chief functionary; acknowledgement saved
+      approval: { required: always, role: owner }
+      signoff: { required: false }
+      workflow: compliance-calendar
+      execution: both
+    - id: payment
+      name: Payment or fund use
+      keywords:
+        - release payment
+        - release the payment
+        - payment release
+        - release funds
+        - release of funds
+        - fund release
+        - vendor payment
+        - supplier payment
+        - pay the vendor
+        - pay the supplier
+        - please pay
+        - make the payment
+        - payment voucher
+        - approve payment
+        - approve the payment
+        - reimbursement
+        - reimburse
+        - petty cash
+        - imprest
+        - salary advance
+        - field advance
+        - ta da
+        - honorarium
+        - salary
+        - stipend
+        - consultant fee
+        - professional fees
+        - invoice
+        - gst invoice
+        - pay the bill
+        - bill attached
+        - pending bill
+        - quotation
+        - three quotations
+        - purchase
+        - purchase order
+        - work order
+        - budget change
+        - budget revision
+        - budget reallocation
+      priority: P3
+      risk: medium
+      department: Finance
+      required_details:
+        - { key: amount, label: Amount to pay, kind: amount }
+      required_checks:
+        - Inside an approved budget line of the right grant, with money left in it
+        - Foreign money paid only from FCRA accounts, for approved purposes, and never mixed with local money
+        - Admin costs from foreign money stay within 20% of the year's foreign receipts
+        - "Proper papers: GST invoice or voucher, goods or work received, three quotations above ₹50,000 (or the donor's own rule)"
+        - No payment or benefit to a trustee, board member, founder or their relatives without board approval
+        - Paid by bank transfer or UPI to the payee's own account, with two bank signatories; TDS deducted where due
+      not_eligible:
+        - keywords: [in cash, by cash, cash payment, pay cash, paid in cash, cash only, nakad]
+          amount_above_inr: 10000
+          reason: "Payments above ₹10,000 to one person in a day must go by bank transfer, UPI or account-payee cheque; a bigger cash payment does not count as spending on our aims for income tax. Raise it again with the payee's bank details."
+      approval: { required: above_amount, role: owner, amount_inr: 50000 }
+      signoff: { required: true, role: finance-manager }
+      workflow: payment-voucher
+      execution: both
+    - id: partner-grant
+      name: Grant to a partner organisation
+      keywords:
+        - partner ngo
+        - partner organisation
+        - partner organization
+        - partner sanstha
+        - partner samiti
+        - implementing partner
+        - field partner
+        - local partner
+        - partner cbo
+        - cbo
+        - sub grant
+        - subgrant
+        - re-grant
+        - regrant
+        - onward grant
+        - grant to partner
+        - fund the partner
+        - oldest partner
+        - old partner
+        - long time partner
+        - trusted partner
+        - samiti
+        - sanstha
+      priority: P3
+      risk: medium
+      department: Partnerships and grants
+      required_details:
+        - { key: amount, label: Amount for the partner, kind: amount }
+      required_checks:
+        - "Partner checked: registration, PAN, 12A, bank account, audited accounts and past work"
+        - Money is local or CSR money; CSR money passed on only if the CSR agreement allows it in writing
+        - Written MoU with the work, budget, reports, instalments and our right to check the books
+        - Each instalment released only after the last one is reported and checked
+      not_eligible:
+        - keywords: [fcra account, fcra funds, fcra fund, fcra money, fcra grant, foreign contribution, foreign grant, foreign funds, foreign money, foreign donor, german grant, dutch grant, swiss grant, uk grant, eu grant, american grant, international grant]
+          reason: "Foreign contribution cannot be passed to any other person or organisation, even one with its own FCRA registration (FCRA section 7, since the 2020 amendment). It is an offence and can cost us our registration. Run the work ourselves with our own staff and bills, or support the partner from local or CSR money under an MoU."
+      approval: { required: always, role: owner }
+      signoff: { required: true, role: finance-manager }
+      workflow: partner-grant
+      execution: both
+    - id: fraud-alert
+      name: Fraud or money misuse alert
+      keywords:
+        - fraud
+        - fraudulent
+        - forged
+        - forgery
+        - fake bill
+        - fake receipt
+        - fake voucher
+        - fake signature
+        - fake attendance
+        - fake beneficiary
+        - ghost beneficiary
+        - bogus
+        - misappropriation
+        - embezzlement
+        - siphoned
+        - diverted funds
+        - misuse of funds
+        - bribe
+        - kickback
+        - cut money
+        - asked for money
+        - took money
+        - demanded money
+        - paise maange
+        - paise liye
+        - cheated
+        - cheating
+        - scam
+        - phishing
+        - unauthorised transaction
+        - unauthorized transaction
+        - cash shortage
+        - cash missing
+        - stock missing
+        - hacked
+        - data leak
+        - leaked
+        - identity theft
+        - impersonation
+        - theft
+        - stolen
+        - misconduct
+      priority: P1
+      risk: high
+      department: Finance and ethics
+      required_checks:
+        - "Loss stopped first: linked payments held, access blocked, or the person taken off the work"
+        - "Evidence kept: bills, lists, messages, bank trail, visit logs"
+        - Police complaint filed where money or goods are lost
+        - Donors told as the grant agreement requires
+        - "Personal data leak: contained and the people affected told (from May 2027 also the Data Protection Board, with a full report within 72 hours)"
+        - The person who raised it is protected and their name kept private
+      approval: { required: always, role: owner }
+      signoff: { required: true, role: board-chair }
+      workflow: fraud-response
+      execution: both
+    - id: safeguarding-alert
+      name: Safeguarding alert (abuse or harassment)
+      keywords:
+        - pocso
+        - child abuse
+        - abuse of a child
+        - sexual abuse
+        - sexually abused
+        - abused
+        - molested
+        - molestation
+        - bad touch
+        - touched her
+        - touched him
+        - inappropriate touch
+        - obscene
+        - vulgar messages
+        - dirty messages
+        - meet him alone
+        - meet her alone
+        - alone with the child
+        - harassing
+        - harassment
+        - harassed
+        - sexual harassment
+        - posh complaint
+        - eve teasing
+        - stalking
+        - threatened
+        - threatening
+        - beaten
+        - beat me
+        - corporal punishment
+        - slapped
+        - child labour
+        - child marriage
+        - trafficking
+        - trafficked
+        - missing child
+        - went missing
+        - ran away
+        - domestic violence
+        - dowry harassment
+        - self harm
+        - suicide
+      priority: P1
+      risk: high
+      department: Safeguarding
+      required_checks:
+        - "Person made safe first: the accused kept away from children and beneficiaries, and the reporter's name kept private"
+        - "Sexual abuse of a child, or a fear it may happen, reported to the police or the Special Juvenile Police Unit at once (POCSO sections 19 and 21); an internal inquiry never replaces this"
+        - Child in need of care taken to the Child Welfare Committee; Childline 1098 or 112 in an emergency
+        - "Sexual harassment at work goes to the Internal Committee (the district Local Committee if we have fewer than 10 staff): complaint within 3 months, inquiry within 90 days"
+        - Evidence kept and donors told as the grant agreement requires
+        - If the chief functionary is named, the board chair handles it
+      approval: { required: always, role: owner }
+      signoff: { required: true, role: board-chair }
+      workflow: safeguarding-response
+      execution: both
+  examples:
+    - { request: "Field worker from Pati block: 9 widows in Bokrata village want the goat rearing support, voter ID copies are with me", category: beneficiary-application, priority: P3, approval: true }
+    - { request: "Please enrol my son Arjun (Class 7) for your scholarship. We live in ward 14, Ratlam and the ration card is attached", category: beneficiary-application, priority: P3, approval: true }
+    - { request: Can I apply for a wheelchair for my father? He cannot walk after a stroke. We stay in Hatod village, category: beneficiary-application, priority: P3, approval: true }
+    - { request: Plan a spot check of the 12 anganwadi nutrition centres in Jhabua block next week, category: field-monitoring, priority: P3, approval: false }
+    - { request: Baseline survey for the new water and sanitation project in 30 villages of Alirajpur must start in December, category: field-monitoring, priority: P3, approval: false }
+    - { request: MIS shows the dropout of Class 8 girls in the Sendhwa cluster went up to 14% this term, category: field-monitoring, priority: P3, approval: false }
+    - { request: A Bengaluru software company's CSR team asked for a concept note on 15 digital libraries by 20 November, category: grant-partnership, priority: P2, approval: true }
+    - { request: "A Delhi foundation's call for proposals on menstrual health closes on 5 December, up to ₹40 lakh", category: grant-partnership, priority: P2, approval: true }
+    - { request: "The state health mission sent a sanction letter for ₹22 lakh grant-in-aid, and the grant agreement must be signed by 30 November", category: grant-partnership, priority: P2, approval: true }
+    - { request: "The quarterly progress report for our Pune CSR partner is due on 10 January, with photos and attendance", category: donor-report, priority: P2, approval: true }
+    - { request: Send the utilisation certificate and statement of expenditure for the tribal welfare department grant of last year, category: donor-report, priority: P2, approval: true }
+    - { request: Start the final narrative and financial report for the three-year grant from the Dutch foundation that ends in March, category: donor-report, priority: P2, approval: true }
+    - { request: "Got ₹3,000 through the website donation page from Priya Nair with her PAN, please send the receipt and a thank-you", category: donation, priority: P4, approval: false }
+    - { request: "Can I get the Form 10BE for all my gifts this year? My PAN is ABCPN1234F", category: donation, priority: P4, approval: false }
+    - { request: A friend who is a US citizen wants to donate 500 dollars for the school library. Can we take it?, category: donation, priority: P4, approval: false }
+    - { request: ITR-7 for the trust is due on 31 October and the audit report is ready, category: compliance-filing, priority: P2, approval: true }
+    - { request: "80G renewal is due before our approval ends on 31 March 2027, start the papers now", category: compliance-filing, priority: P2, approval: true }
+    - { request: "MHA letter asks why our FCRA return showed admin costs above 20%, reply within 15 days", category: compliance-filing, priority: P2, approval: true }
+    - { request: Please pay the honorarium of ₹8000 to the resource person for the SHG bookkeeping training, category: payment, priority: P3, approval: false }
+    - { request: "Release payment of ₹2,40,000 to Narmada Builders for the hostel toilet block, engineer's measurement sheet attached", category: payment, priority: P3, approval: true }
+    - { request: "Budget change: move ₹75,000 from the training line to the materials line in the school WASH grant", category: payment, priority: P3, approval: true }
+    - { request: Second instalment of ₹3 lakh to our partner NGO Gram Swaraj Sanstha from the local donations fund, category: partner-grant, priority: P3, approval: true }
+    - { request: "Sign the sub-grant MoU with Adivasi Ekta Samiti for the seed bank work, ₹1.2 lakh from CSR money", category: partner-grant, priority: P3, approval: true }
+    - { request: Our accountant found fake bills of ₹1.8 lakh from a stationery shop that does not exist, category: fraud-alert, priority: P1, approval: true }
+    - { request: Women in Bhaisdehi say the community resource person asked for money and took a bribe to put their names on the selection list, category: fraud-alert, priority: P1, approval: true }
+    - { request: Our donor portal was hacked and donors' PAN details may have leaked, category: fraud-alert, priority: P1, approval: true }
+    - { request: Hostel warden says a 10-year-old girl told her the cook touched her badly at night. Raise it under POCSO, category: safeguarding-alert, priority: P1, approval: true }
+    - { request: A woman trainer says the project coordinator keeps sending her vulgar messages and stalking her after work, category: safeguarding-alert, priority: P1, approval: true }
+    - { request: Two girls from the Mandla residential bridge school went missing last night, category: safeguarding-alert, priority: P1, approval: true }
+
+playbooks:
+  - id: fcra-foreign-money
+    title: Foreign money under FCRA
+    source: "Foreign Contribution (Regulation) Act, 2010 as amended in 2020 (sections 7, 8, 12, 16 and 17); FCRA Rules, 2011 as amended in 2025; FCRA Amendment Rules, 2026 (22 June 2026; rules 9A and 14A) as summarised by AZB & Partners. Check the 2026 rules in the gazette"
+    body: |
+      1. Take foreign money only with FCRA registration or prior permission, and only into the FCRA account at SBI, New Delhi Main Branch. Spend it through FCRA utilisation accounts and never put local money in them.
+      2. A foreign source is decided by citizenship, not address: foreign citizens (OCI card holders too), foreign companies and foreign trusts. An Indian citizen living abroad is not a foreign source.
+      3. Use foreign money only for the purposes FCRA has approved; under the 2026 rules, also only in the approved states, and existing holders name them on Form FC-6F within a year (about June 2027).
+      4. Keep admin costs within 20% of the foreign money received in the year.
+      5. Never pass foreign money to any other person or organisation, even one with its own FCRA registration. Run the work yourselves, or support partners from local or CSR money.
+      6. Interest and other income earned on foreign money is foreign money too and stays in FCRA accounts.
+      7. File the FCRA return (FC-4) by 31 December every year, even if nothing came in, with CA-certified accounts (UDIN) and the details the current rules ask for, such as project-wise and place-wise spending.
+      8. Report changes in key people, address, aims or bank accounts on the FC-6 forms, and start renewal (FC-3C) six months before the certificate expires.
+  - id: csr-funds
+    title: Taking CSR money
+    source: Companies Act, 2013 section 135; Companies (CSR Policy) Rules, 2014 as amended in 2021 and 2022 (rules 4 and 8)
+    body: |
+      1. To run a company's CSR project we need 12A and 80G registration, our CSR-1 registration number from the Ministry of Corporate Affairs and, as an independent NGO, at least 3 years of similar work.
+      2. Agree the project, budget, timeline, reports and site visits in a written CSR agreement before work starts. Pass CSR money to a partner only if the agreement allows it in writing.
+      3. CSR money from an Indian company is local money; keep it in its own grant code and report against it.
+      4. Report spending and give utilisation certificates on time. The company must move money left unspent on ongoing projects into its Unspent CSR Account, so warn it early if spending is behind.
+      5. Companies with an average CSR obligation of ₹10 crore or more must get an independent impact assessment of projects of ₹1 crore or more, at least a year after they finish, so keep baseline and results data ready.
+  - id: fair-selection-and-data
+    title: Fair selection and care with people's data
+    source: "Digital Personal Data Protection Act, 2023 and DPDP Rules, 2025 (notified November 2025; consent, children's data and breach rules apply about 18 months later); Dowry Prohibition Act, 1961; common Indian NGO programme practice"
+    body: |
+      1. Write down who qualifies for each programme and select only against those criteria, after a home visit.
+      2. Ask for any one valid ID. Take Aadhaar only with consent and store it masked.
+      3. Explain in the person's language what details we collect and why, and take their consent; for a child, take a parent's or guardian's consent.
+      4. Never ask for a fee, gift or favour. Treat any such demand by staff as a fraud alert.
+      5. Tell people who are not selected the reason and where else they can ask, such as a government scheme or another organisation.
+      6. Never pay for dowry; it is an offence. Share the women's helpline 181 instead.
+      7. From about May 2027 the DPDP Rules require clear notice, consent, parental consent for children, data security and breach reports to the Data Protection Board; build these habits now.
+  - id: child-safety-and-harassment
+    title: Child safety and harassment concerns
+    source: "Protection of Children from Sexual Offences Act, 2012 (sections 19 and 21); Juvenile Justice (Care and Protection of Children) Act, 2015; Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (sections 4, 6, 9, 11, 13 and 21)"
+    body: |
+      1. Act the same day: make the child or adult safe, keep the accused away from programme contact, and tell the safeguarding focal person and the chief functionary.
+      2. Report sexual abuse of a child, or a fear that it may happen, to the police or the Special Juvenile Police Unit at once. Not reporting can mean up to 6 months in jail, and up to 1 year for a person in charge who fails to report about someone under them.
+      3. Never replace the police report with an internal inquiry. A report made in good faith is protected.
+      4. A child who needs care goes to the Child Welfare Committee; call 1098 (Childline) or 112 in an emergency.
+      5. Sexual harassment at work goes to the Internal Committee (needed with 10 or more staff; otherwise the district Local Committee): complaint within 3 months, inquiry within 90 days, the employer acts within 60 days of the report, and a yearly report goes to the District Officer.
+      6. Keep names private, keep the evidence, tell donors as the grant agreement requires, and take every case to the board.
+  - id: government-grants-and-tax
+    title: Government grants and tax status
+    source: "General Financial Rules, 2017 (rule 238, Form GFR 12-A); NGO-DARPAN unique ID rule for central grants; Income-tax Act, 2025 (Registered Non-Profit Organisation rules, sections 332 to 354 as practitioners map them, in force 1 April 2026)"
+    body: |
+      1. Get an NGO Darpan ID before applying for any central government grant; without it the grant cannot be sanctioned.
+      2. Send the utilisation certificate in the form the ministry asks for (usually GFR 12-A) with a CA-certified receipts and payments account within 12 months of the year's end. Show unspent money and return the interest earned; a late certificate holds up the next grant.
+      3. Keep the old 12A registration (now section 332, Registered Non-Profit Organisation) and 80G approval (now section 354) valid and renew 6 months before expiry. Small NGOs (income within ₹5 crore in each of the last two years) can get 10-year registration; 80G approval stays at 5 years.
+      4. Spend at least 85% of the year's income on the aims.
+      5. File the audit report by 30 September, the return (ITR-7) by 31 October and the donation statement by 31 May, then send donors their tax certificates. Confirm the form numbers under the Income-tax Rules, 2026.
+      6. Cash gifts above ₹2,000 give the donor no tax deduction, and anonymous gifts can be taxed, so record every donor's name, address and PAN.
+
+kpis:
+  - id: grant-spend-on-plan
+    name: Grant spending on plan
+    description: Money spent so far on active grants as a share of the spending their budgets planned by this date. Below 90% means work or spending is behind.
+    unit: percent
+    direction: up
+    target: 90
+  - id: reports-filings-on-time
+    name: Reports and filings on time
+    description: Donor reports, utilisation certificates and legal filings sent by their due date, as a share of all that fell due in the month.
+    unit: percent
+    direction: up
+    target: 100
+  - id: fcra-admin-share
+    name: Admin share of foreign money
+    description: Admin costs paid from foreign money this financial year as a share of foreign money received this year. The legal limit is 20%.
+    unit: percent
+    direction: down
+    target: 15
+  - id: applications-in-10-days
+    name: Applications decided in 10 days
+    description: Complete beneficiary applications decided (selected, or declined with a reason) within 10 days, as a share of all applications decided in the month.
+    unit: percent
+    direction: up
+    target: 90
+  - id: reach-vs-target
+    name: People reached against target
+    description: Different people who received support so far this year as a share of the year's target in the approved plans.
+    unit: percent
+    direction: up
+    target: 100
+  - id: safety-alerts-24h
+    name: Safety alerts acted on in 24 hours
+    description: Safeguarding and fraud alerts where the person was made safe, linked payments were held and required police reports were made within 24 hours, as a share of all such alerts.
+    unit: percent
+    direction: up
+    target: 100
