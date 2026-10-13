@@ -1,0 +1,103 @@
+# Hospital & clinic: realistic requests from the front office, ambulance control,
+# the hospital system, patients and families, the owner, ward staff and the
+# police, with what the stages should decide.
+pack: hospital
+cases:
+  - id: doctor-on-leave-reschedule
+    request: "Reception here. Dr. Kulkarni (cardiology) is on leave tomorrow and 14 OPD appointments are booked with him. Please reschedule them to Thursday or offer Dr. Shah, and inform each patient."
+    source: staff
+    expect:
+      category: appointment
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: OPD, appointments and reschedule mark an appointment (P3). Moving appointments needs no approval and no sign-off; the appointment desk messages each patient and offers the other cardiologist.
+  - id: road-accident-ambulance
+    request: "108 ambulance control: bringing a road accident victim from NH-48 near Manesar, male about 30, unconscious, bleeding from the head. ETA 12 minutes. No relatives, a passer-by is coming with him."
+    source: partner
+    expect:
+      category: emergency
+      priority: P1
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: emergency-in-charge }
+    why: Road accident and unconscious mark an emergency (P1). Care starts on arrival with no deposit or papers, so there is no approval step. He is registered as unknown and as a medico-legal case with the police told, the road accident scheme covers up to ₹1.5 lakh for 7 days, and the passer-by is free to go. The emergency in-charge signs off.
+  - id: discharge-final-approval
+    request: "HIS alert: discharge ordered for IP 24-0912, Anil Mehta (Care Health, via TPA) at 11:10. Final bill ready, Rs 1,46,300. Final approval request not yet sent to the TPA."
+    source: system
+    amount_inr: 146300
+    expect:
+      category: insurance
+      priority: P2
+      review: complete
+      approval: { required: true, role: treating-doctor }
+      signoff: { required: true, role: insurance-manager }
+    why: TPA, final approval and the insurer's name outweigh the bill words, so it is a cashless approval (P2); the IP number shows the cover is already on file. The request carries the treating doctor's signed discharge summary, so the doctor approves, and the insurer then has 3 hours to decide. The insurance desk manager signs off when approval, bill and claim match.
+  - id: knee-cashless-no-policy
+    request: "Dr. Rao has advised knee replacement for my mother. We have Star Health insurance through my office. Please arrange cashless, we want to come next week."
+    source: customer
+    expect:
+      category: insurance
+      priority: P2
+      review: needs_info
+    why: Insurance and cashless outweigh the surgery words, so it is a cashless approval (P2). Cover cannot be checked without the policy number or e-card, so review asks for it before the pre-auth is prepared.
+  - id: sex-determination-scan
+    request: "My wife is 3 months pregnant. We want an ultrasound to know if it is a boy or a girl. We can pay extra, please tell us quietly."
+    source: customer
+    expect:
+      category: appointment
+      priority: P3
+      review: not_eligible
+    why: Ultrasound marks an appointment (P3). Telling the baby's sex is a crime under the PCPNDT Act for the doctor and the family who asks, so the request ends at review; the reply says so politely and offers a normal pregnancy scan with Form F.
+  - id: advance-balance-refund
+    request: "We paid Rs 50,000 advance when my father was admitted (IP 24-0877). He was discharged on 2 October and the final bill was Rs 31,200. Please refund the balance Rs 18,800 to my bank account. Receipts attached."
+    source: customer
+    amount_inr: 18800
+    expect:
+      category: billing
+      priority: P3
+      review: complete
+      approval: { required: true, role: head-of-institution }
+      signoff: { required: true, role: accounts-head }
+    why: Refund, final bill and receipts mark a bill or refund (P3). The refund of ₹18,800 is above the ₹10,000 limit, so the medical superintendent approves; the accounts head signs off once the money reaches the payer's own account and the ledger matches.
+  - id: owner-hip-replacement
+    request: "Owner here. Mrs. Savitri Rao, 72, my friend's mother, comes on Monday for a hip replacement with Dr. Bhat. Her tests were done at his clinic. Skip the deposit, I'll settle it myself. Just admit her and get it done Monday itself."
+    source: owner
+    expect:
+      category: admission
+      priority: P4
+      review: complete
+      approval: { required: true, role: treating-doctor }
+      signoff: { required: true, role: treating-doctor }
+    why: Hip replacement and admit mark a planned admission (P4); the owner's hurry does not change the priority. The owner can waive the deposit, but not the consultant's go-ahead, the fitness and anaesthesia checks or her written consent, so Dr. Bhat approves and signs off with the discharge summary.
+  - id: night-ward-fall
+    request: "Night nurse, ward 5: Mrs. Kamala Iyer, 78, bed 22, fell in the bathroom at 3:15 am. Small cut on the forehead, duty doctor has seen her, vitals stable. Family not told yet."
+    source: staff
+    expect:
+      category: incident
+      priority: P2
+      review: complete
+      approval: { required: true, role: head-of-institution }
+      signoff: { required: true, role: quality-manager }
+    why: Fell marks a patient safety incident (P2); she is already safe and seen. The medical superintendent approves what the family is told and whether a root cause analysis is needed, and the quality manager signs off. It counts in the monthly falls indicator.
+  - id: opd-wait-complaint
+    request: "This is a complaint. Yesterday my mother Shanti Verma waited 3 hours in OPD to see Dr. Sharma though we had a 10 am slot, and the reception staff were rude when we asked. Nobody even told us he was in surgery."
+    source: customer
+    expect:
+      category: complaint
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: grievance-officer }
+    why: Complaint, waited and rude outweigh the appointment words (OPD, slot). No approval is needed; the grievance officer signs off the written reply, due within 7 days.
+  - id: police-mlc-request
+    request: "Kotwali police station: for FIR 412/2026, please send a copy of the MLC and the wound certificate of Ramesh Yadav, MLC no. 318 dated 3 October 2026. Requisition signed by the SHO is attached."
+    source: partner
+    expect:
+      category: certificate
+      priority: P2
+      review: complete
+      approval: { required: true, role: head-of-institution }
+      signoff: { required: true, role: records-officer }
+    why: MLC, wound certificate and requisition mark a records request (P2, 72-hour limit). A signed police requisition is enough to proceed; the medical superintendent approves every release to the police, and the medical records officer signs the copies against the MLC register.

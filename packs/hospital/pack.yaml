@@ -1,0 +1,1110 @@
+# Ready-made pack: hospitals, nursing homes and clinics in India (multispeciality,
+# maternity, eye, dental and day-care). Built from Indian practice: the Clinical
+# Establishments Act 2010 and its rules, NABH hospital standards, the IRDAI health
+# insurance master circular (2024), PM-JAY guidelines, the IMC (Professional
+# Conduct) Regulations 2002, the PCPNDT and MTP Acts, the Registration of Births
+# and Deaths Act and the DPDP Act 2023. Agents register, coordinate, remind and
+# document; doctors make every clinical decision.
+id: hospital
+version: 1.0.0
+name: Hospital & clinic
+description: Emergencies, OPD appointments, planned admissions and surgery, cashless and PM-JAY approvals, bills and refunds, medical records and certificates, complaints and patient safety incidents for hospitals, nursing homes and clinics.
+kind: industry
+sector: public-services
+extends: [sector-public-services, bookings-base]
+match:
+  keywords:
+    - hospital
+    - multispeciality
+    - multispeciality hospital
+    - multi speciality hospital
+    - multispecialty hospital
+    - super speciality hospital
+    - superspeciality hospital
+    - private hospital
+    - trust hospital
+    - charitable hospital
+    - general hospital
+    - nursing home
+    - maternity home
+    - maternity hospital
+    - clinic
+    - polyclinic
+    - dental clinic
+    - dental hospital
+    - dentist
+    - eye hospital
+    - eye clinic
+    - children's hospital
+    - skin clinic
+    - ent clinic
+    - orthopaedic hospital
+    - cardiac hospital
+    - cancer hospital
+    - dialysis centre
+    - day care surgery centre
+    - medical centre
+    - doctor's clinic
+    - nabh hospital
+
+labels:
+  Customer: Patient
+  Booking: Appointment
+  Service: Treatment
+
+connectors: [whatsapp-business, razorpay]
+
+entities:
+  - name: Customer
+    label: Patient
+    plural_label: Patients
+    description: A person registered with the hospital or clinic. Aadhaar numbers are never stored here.
+    title_field: name
+    list_columns: [uhid, name, phone, gender, usualPayer]
+    fields:
+      - { name: name, label: Full name, type: string, required: true }
+      - { name: uhid, label: UHID (hospital patient number), type: string }
+      - { name: phone, label: Registered mobile, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: dateOfBirth, label: Date of birth, type: date }
+      - name: gender
+        label: Gender
+        type: enum
+        options: [female, male, other]
+      - { name: city, label: City or village, type: string }
+      - { name: address, label: Address, type: text }
+      - { name: abhaNumber, label: ABHA number (only if the patient wants it linked), type: string }
+      - { name: relativeName, label: Relative or attendant, type: string }
+      - { name: relativePhone, label: Relative's mobile, type: phone }
+      - name: usualPayer
+        label: Usually pays by
+        type: enum
+        options: [cash, insurance, pm-jay, cghs, echs, esi, state-scheme, employer]
+      - { name: allergies, label: Known allergies, type: text }
+      - name: source
+        label: Came through
+        type: enum
+        options: [walk-in, phone, whatsapp, website, referral, ambulance, other]
+      - { name: notes, label: Notes, type: text }
+  - name: Visit
+    label: Visit or admission
+    plural_label: Visits and admissions
+    description: One OPD visit, day-care stay, admission or emergency visit, from arrival to leaving.
+    title_field: visitNumber
+    list_columns: [visitNumber, patientName, visitType, doctor, status]
+    fields:
+      - { name: visitNumber, label: OPD or IP number, type: string, required: true }
+      - { name: patientName, label: Patient, type: string, required: true }
+      - { name: uhid, label: UHID, type: string }
+      - name: visitType
+        label: Type
+        type: enum
+        required: true
+        options: [opd, day-care, admission, emergency]
+      - { name: department, label: Department, type: string }
+      - { name: doctor, label: Treating doctor, type: string }
+      - name: triageColour
+        label: Triage colour (set by the triage nurse or doctor)
+        type: enum
+        options: [red, yellow, green]
+      - { name: isMedicoLegal, label: Medico-legal case (MLC), type: boolean }
+      - { name: arrivedAt, label: Arrived or admitted at, type: datetime }
+      - { name: bed, label: Ward and bed, type: string }
+      - { name: procedure, label: Surgery or procedure, type: string }
+      - { name: consentSigned, label: Written consent signed, type: boolean }
+      - name: payer
+        label: Who pays
+        type: enum
+        options: [cash, insurance, pm-jay, cghs, echs, esi, state-scheme, employer]
+      - { name: estimate, label: Cost estimate given, type: money }
+      - { name: advancePaid, label: Advance paid, type: money }
+      - { name: finalBill, label: Final bill, type: money }
+      - { name: dischargeOrderedAt, label: Discharge ordered at, type: datetime }
+      - { name: leftAt, label: Left the hospital at, type: datetime }
+      - name: dischargeType
+        label: How the patient left
+        type: enum
+        options: [routine, against-advice, referred, death]
+      - { name: summaryGiven, label: Discharge summary given, type: boolean }
+      - { name: followUpOn, label: Follow-up date, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [registered, in-treatment, discharge-ordered, left]
+  - name: CashlessRequest
+    label: Cashless or scheme approval
+    plural_label: Cashless and scheme approvals
+    description: A pre-authorisation, enhancement, final approval or claim sent to an insurer, TPA, PM-JAY or another government scheme.
+    title_field: patientName
+    list_columns: [patientName, payer, requestType, amountAsked, status]
+    fields:
+      - { name: patientName, label: Patient, type: string, required: true }
+      - { name: visitNumber, label: IP or OPD number, type: string, required: true }
+      - name: payer
+        label: Payer
+        type: enum
+        required: true
+        options: [insurance-tpa, pm-jay, cghs, echs, esi, state-scheme, employer]
+      - { name: insurerOrTpa, label: Insurer or TPA, type: string }
+      - { name: policyOrCardNumber, label: "Policy, e-card or beneficiary ID", type: string }
+      - { name: packageCode, label: Package or procedure code, type: string }
+      - name: requestType
+        label: Request
+        type: enum
+        required: true
+        options: [pre-auth, enhancement, final-approval, claim]
+      - { name: amountAsked, label: Amount asked, type: money }
+      - { name: amountApproved, label: Amount approved, type: money }
+      - { name: sentAt, label: Sent at, type: datetime }
+      - { name: decidedAt, label: Decided at, type: datetime }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [draft, sent, query, approved, part-approved, denied, claim-sent, paid]
+      - { name: queryNote, label: Query or denial reason, type: text }
+      - { name: claimPaidOn, label: Claim paid on, type: date }
+  - name: Incident
+    label: Patient safety incident
+    plural_label: Patient safety incidents
+    description: A fall, medication error, needle-stick, reaction, pressure sore or near miss, reported without blame.
+    title_field: summary
+    list_columns: [occurredAt, location, incidentType, harm, status]
+    fields:
+      - { name: summary, label: What happened (one line), type: string, required: true }
+      - { name: occurredAt, label: When, type: datetime, required: true }
+      - { name: location, label: Ward or area, type: string, required: true }
+      - name: incidentType
+        label: Type
+        type: enum
+        required: true
+        options: [fall, medication-error, needle-stick, drug-reaction, transfusion-reaction, pressure-sore, wrong-patient-or-site, infection, absconding, equipment, other]
+      - { name: patientName, label: Patient (if any), type: string }
+      - { name: visitNumber, label: IP number, type: string }
+      - name: harm
+        label: Harm
+        type: enum
+        options: [near-miss, no-harm, minor, moderate, severe, death]
+      - { name: isSentinel, label: Death or serious harm (sentinel event), type: boolean }
+      - { name: familyTold, label: Patient or family told, type: boolean }
+      - { name: reportedBy, label: Reported by, type: string }
+      - { name: rootCause, label: Root cause, type: text }
+      - { name: actions, label: Actions agreed, type: text }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [reported, under-review, actions-agreed, closed]
+      - { name: closedOn, label: Closed on, type: date }
+
+tools:
+  - name: patients.search
+    description: Find a patient by name, UHID or registered mobile.
+    uses: records.search
+    with: { entity: Customer }
+  - name: patient.register
+    description: Register a new patient and give them a UHID. Search first so nobody is registered twice.
+    uses: records.create
+    with: { entity: Customer }
+  - name: visits.search
+    description: Find OPD visits, admissions and emergency visits by number, patient, doctor or status.
+    uses: records.search
+    with: { entity: Visit }
+  - name: visit.open
+    description: Open an OPD visit, day-care stay, admission or emergency visit for a registered patient.
+    uses: records.create
+    with: { entity: Visit, data: { status: registered } }
+  - name: cashless.search
+    description: Find cashless, PM-JAY and scheme requests by patient, IP number, payer or status.
+    uses: records.search
+    with: { entity: CashlessRequest }
+  - name: cashless.prepare
+    description: Prepare a cashless, PM-JAY or scheme request from the treating doctor's notes. Nothing reaches the insurer or the portal until the insurance desk sends it.
+    uses: records.create
+    with: { entity: CashlessRequest, data: { status: draft } }
+  - name: incidents.search
+    description: Search patient safety incidents by type, ward, harm or status.
+    uses: records.search
+    with: { entity: Incident }
+  - name: incident.report
+    description: Record a patient safety incident or near miss with what happened, where and when, without naming anyone to blame.
+    uses: records.create
+    with: { entity: Incident, data: { status: reported } }
+
+agents:
+  - role: booking-coordinator
+    name: Appointment desk
+    description: Registers patients, books, moves and cancels OPD appointments, tests and scans, sends reminders and preparation instructions, and sends ready reports to the patient's registered mobile or email.
+    instructions: >-
+      Never give medical advice, never suggest a diagnosis, test or medicine, and never tell or hint the sex of an unborn baby.
+      If a message mentions chest pain, breathlessness, heavy bleeding, fits, unconsciousness, or pain or bleeding in pregnancy, stop and hand it to the emergency team at once.
+      Search before registering so nobody gets two UHIDs. Send reports only to the registered mobile or email.
+    autonomy: 3
+    tools: [patients.search, patient.register, visits.search, records.search, records.create, booking.hold, booking.confirm, booking.cancel, payment.request, refund.issue, knowledge.search, message.draft, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: restricted }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: billing-insurance-desk
+    name: Billing and insurance desk
+    description: Prepares cost estimates and cashless, PM-JAY and scheme requests from the doctor's notes, watches the insurer's clock and chases late decisions, checks and explains bills, and raises refunds to the payer's own account.
+    instructions: >-
+      Take every diagnosis, package and amount from what the treating doctor wrote and signed; never add, upgrade or change one.
+      You prepare requests; the insurance desk sends them on the insurer, TPA or PM-JAY portal.
+      Never ask a PM-JAY patient to pay for a covered package, and explain any denial or cut in writing before asking anyone to pay.
+      Never hold back a patient or a body over a bill. Refunds go only to the payer's own account.
+    autonomy: 2
+    tools: [patients.search, visits.search, cashless.search, cashless.prepare, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, payment.request, refund.issue, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: restricted }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: patient-care-desk
+    name: Patient care and quality desk
+    description: Alerts the emergency team and the family, keeps admissions, bed and theatre slots and family updates moving, prepares medical record copies and certificates for signature, logs complaints and patient safety incidents, and drafts replies and reviews.
+    instructions: >-
+      You coordinate and write things down; doctors and nurses make every clinical decision.
+      Never diagnose, set a triage colour, advise on medicines or tell anyone about a patient's condition beyond what the treating doctor has approved.
+      In an emergency, alert the team first and do the papers after care has started.
+      Release records only after the medical superintendent approves, and only to the patient, someone they authorised in writing, the legal heir of a patient who died, or a signed police or court requisition.
+      Report incidents without blame.
+    autonomy: 2
+    tools: [patients.search, patient.register, visits.search, visit.open, incidents.search, incident.report, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, schedule.create, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: restricted }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+
+workflows:
+  - id: emergency-response
+    name: Emergency response
+    description: Get the emergency team ready, reach the family, and do the papers once care has started.
+    keywords: [emergency, casualty, code blue, ambulance, critical value, mlc]
+    steps:
+      - key: alert-team
+        title: Alert the emergency team
+        agent: patient-care-desk
+        instructions: Phone the emergency in-charge or the duty doctor at once with who is coming or what happened, where and when, exactly as reported and without any medical opinion. For a critical lab or scan result, reach the treating or duty doctor and note who took the call and when. Pre-register the patient (as unknown, with sex and rough age, if the name is not known) and reach the family.
+      - key: papers-after-care
+        title: Papers after care has started
+        agent: patient-care-desk
+        depends_on: [alert-team]
+        instructions: Once the doctor has started care, open the emergency visit, mark it medico-legal if the doctor says so and draft the police intimation for the doctor to sign. Find a ward or ICU bed if the doctor admits, start the PM-JAY, insurance or road-accident scheme papers, and never ask for a deposit before treatment. Report what the emergency in-charge confirmed.
+  - id: opd-appointment
+    name: OPD appointment
+    description: Book, move or cancel an OPD visit, test or scan, remind the patient and share the report when it is ready.
+    keywords: [appointment, opd, slot, reschedule, test, scan, report, follow-up]
+    steps:
+      - key: book
+        title: Book or move the visit
+        agent: booking-coordinator
+        instructions: Find or register the patient, book the doctor, test or scan on a free slot, and send the time, the fee and how to prepare (fasting, old reports, the doctor's referral slip for a pregnancy scan). If the doctor is away, offer another date or another doctor of the same department and tell every patient affected.
+      - key: remind
+        title: Remind and share the report
+        agent: booking-coordinator
+        depends_on: [book]
+        instructions: Send a reminder the day before, and when the report is ready send it only to the registered mobile or email. Hand anything that sounds urgent to a person at once.
+  - id: planned-admission
+    name: Planned admission or surgery
+    description: Give the estimate, settle who pays, book the bed and theatre slot, keep the family updated and get the discharge papers ready.
+    keywords: [admission, surgery, operation, estimate, bed, day care, discharge]
+    steps:
+      - key: estimate-and-payer
+        title: Estimate and payer
+        agent: billing-insurance-desk
+        instructions: Prepare the written estimate from the rate list or package rates for what the consultant advised, check who pays (cash, insurance, PM-JAY or another scheme) and start the cashless or scheme request from the doctor's notes. Take no deposit from a PM-JAY patient for a covered package.
+      - key: bed-and-theatre
+        title: Bed, theatre slot and pre-admission steps
+        agent: patient-care-desk
+        depends_on: [estimate-and-payer]
+        instructions: Reserve the bed or day-care slot and the theatre slot the consultant asked for, send the pre-admission instructions (tests, fitness and anaesthesia check, fasting, papers to bring), and remind the ward that the doctor takes written consent in a language the patient understands.
+      - key: stay-and-discharge
+        title: Family updates and discharge papers
+        agent: patient-care-desk
+        depends_on: [bed-and-theatre]
+        instructions: Send the family a daily update the doctor has approved, and when discharge is ordered get the summary signed, the final bill explained and the follow-up date given. Never hold the patient back over a bill.
+  - id: cashless-approval
+    name: Cashless or scheme approval
+    description: Prepare the request from the doctor's notes, get it sent, watch the clock and chase until the insurer or scheme decides.
+    keywords: [cashless, tpa, insurance, pre-auth, enhancement, final approval, pm-jay, ayushman, claim]
+    steps:
+      - key: prepare
+        title: Prepare the request
+        agent: billing-insurance-desk
+        instructions: Check the policy, e-card or scheme card is active and in the patient's name. Fill the pre-auth, enhancement or final approval request from the treating doctor's notes and signed estimate or discharge summary, attach the papers and record the request.
+      - key: send-and-chase
+        title: Get it sent and chase the decision
+        agent: billing-insurance-desk
+        depends_on: [prepare]
+        instructions: Hand the request to the insurance desk or the Arogya Mitra by phone to send on the portal. Insurers decide a cashless request within 1 hour and a discharge approval within 3 hours, so chase before the time runs out, draft answers to any query for the doctor, and tell the patient in writing about any denial or cut.
+  - id: bill-and-refund
+    name: Bill check and refund
+    description: Check the bill line by line, explain it in plain words, and raise refunds or concessions once approved.
+    keywords: [bill, refund, discount, concession, overcharged, receipt]
+    steps:
+      - key: check-bill
+        title: Check and explain the bill
+        agent: billing-insurance-desk
+        instructions: Match every line of the bill against the rate list, the estimate, what was actually used and the receipts. Explain the charges in plain words and correct any mistake.
+      - key: refund
+        title: Refund or concession
+        agent: billing-insurance-desk
+        depends_on: [check-bill]
+        instructions: Once approved, refund only to the payer's own bank account, card or UPI and send the receipt. Apply concessions only under the written concession policy.
+  - id: records-release
+    name: Medical records and certificates
+    description: Check who is asking, pull the file, prepare the copies or certificate for signature and hand them over within 72 hours.
+    keywords: [medical records, case sheet, certified copy, certificate, mlc, discharge summary]
+    steps:
+      - key: verify-and-prepare
+        title: Check the requester and prepare
+        agent: patient-care-desk
+        instructions: Confirm the requester is the patient, someone they authorised in writing with ID, the legal heir of a patient who died, or a signed police or court requisition. Find the visit, list the pages to copy, and draft any certificate from the treating doctor's own findings for them to sign.
+      - key: hand-over
+        title: Hand over within 72 hours
+        agent: patient-care-desk
+        depends_on: [verify-and-prepare]
+        instructions: Hand the copying and signing to the medical records officer by phone with the 72-hour deadline. Copies are handed over against a signature or sent only to the registered email, and the originals stay with the hospital.
+  - id: complaint-handling
+    name: Complaint handling
+    description: Log and acknowledge the complaint, hear the family, get the facts and draft the written reply for the grievance officer.
+    keywords: [complaint, grievance, rude, waiting, negligence, feedback]
+    steps:
+      - key: acknowledge
+        title: Log and acknowledge
+        agent: patient-care-desk
+        instructions: Log the complaint with a number and acknowledge it the same day in the person's language. Ask patient relations by phone to call the family and fix what can be fixed at once (cleaning, waiting, behaviour).
+      - key: facts-and-reply
+        title: Get the facts and draft the reply
+        agent: patient-care-desk
+        depends_on: [acknowledge]
+        instructions: Gather the case papers, bills, call logs and staff statements, and keep anyone named in the complaint out of handling it. Draft the written reply for the grievance officer within 7 days, saying what was done, what will change and where to go next. Raise a fall or a wrong medicine as a safety incident too.
+  - id: incident-reporting
+    name: Patient safety incident
+    description: Record the incident without blame, gather the facts, and draft the review and the note to the family.
+    keywords: [incident, fall, medication error, needle stick, near miss, reaction]
+    steps:
+      - key: record
+        title: Record it the same day
+        agent: patient-care-desk
+        instructions: Record what happened, where, when and the harm, as the staff reported it, without blame. For a needle-stick or blood splash, phone the duty doctor at once so HIV preventive medicine (PEP) can start within 2 hours.
+      - key: review
+        title: Gather facts and draft the review
+        agent: patient-care-desk
+        depends_on: [record]
+        instructions: Collect statements and records, check for repeats in recent months, and draft the review and the note to the family for the medical superintendent. Hand the agreed actions to the quality manager by phone and report the dates agreed.
+
+routines:
+  - id: evening-ward-check
+    name: Evening ward check-in
+    description: The duty manager reports beds in use, discharges held up by bills or approvals, safety incidents and pending cashless approvals.
+    mode: automatic
+    days: [0, 1, 2, 3, 4, 5, 6]
+    time: "20:00"
+    questions:
+      - { key: bedsInUse, label: "Beds in use", ask: "How many beds are in use right now?", type: number, unit: beds }
+      - { key: dischargesHeldUp, label: "Discharges held up", ask: "Is any discharge waiting on a bill or an insurance approval?", type: text, flag: true }
+      - { key: incidentsToday, label: "Incidents today", ask: "Did any fall, medication error or other safety incident happen today?", type: text, flag: true }
+      - { key: cashlessPending, label: "Cashless pending", ask: "Is any cashless or PM-JAY approval still pending?", type: text, flag: true, required: false }
+
+lifecycle:
+  case: { label: Patient request, plural: Patient requests, prefix: PRQ }
+  stages:
+    request:
+      name: Request or alert received
+      description: A patient or family member, doctor, nurse, insurer or TPA, ambulance, the police or the hospital system raises an appointment, emergency, admission, cashless approval, bill, records request, complaint or safety incident, and it gets a request number and an acknowledgement.
+    review:
+      name: Registration and eligibility check
+      description: The front office and agents find or register the patient, confirm who will pay (cash, insurance, PM-JAY or another scheme) and check that the details and papers needed are there; emergencies skip this, because treatment never waits for papers.
+      checks:
+        - Patient identified by two identifiers (name with UHID or date of birth), never by bed number
+        - "Payer confirmed: cash, insurance or TPA, PM-JAY, CGHS, ECHS, ESI or a state scheme, with a valid policy or card"
+        - Doctor's advice, referral or earlier reports attached where the request needs them
+        - "The person asking has the right to: the patient, family with the patient's consent, the legal heir of a patient who died, or a signed police or court requisition"
+        - ABHA linked and Aadhaar seen only with the patient's consent, and Aadhaar never stored unmasked
+        - Anything that sounds like an emergency goes straight to the emergency team; treatment first, registration and payment after
+    classify:
+      name: Triage and priority
+      description: The request gets its type, priority, risk, due time and department; emergency patients also carry the red, yellow or green triage colour given by the triage nurse or doctor, never by an agent.
+    assign:
+      name: Assign doctor and team
+      description: The front office or duty manager names the consultant, duty doctor, nurse, insurance desk, billing, medical records or patient relations person responsible and sets the due time.
+    approve:
+      name: Approval and consent
+      description: "When the rules need it, the right person decides in writing: the treating doctor for admission, surgery and what goes to the insurer (and the doctor takes the patient's written consent), and the medical superintendent for records, certificates, incident actions and refunds or concessions above ₹10,000."
+      checks:
+        - The approver is not the person who prepared the request
+        - Written informed consent signed before surgery, anaesthesia or blood transfusion
+        - Amount within the approver's limit
+    execute:
+      name: Treatment and follow-up
+      description: Doctors, nurses and staff give the treatment or service; agents book, remind, chase approvals, update the family with what the doctor has approved and track time, cost and papers.
+    close:
+      name: Discharge and sign-off
+      description: The outcome is checked against the request; the patient leaves with a signed discharge summary and an explained bill, or gets the records, refund or written reply asked for, and the named role signs off.
+      checks:
+        - Discharge summary signed by the treating doctor and given to every patient who leaves, including those leaving against advice, and a death summary after a death
+        - Final bill itemised and explained; cashless or PM-JAY final approval received
+        - No patient, and no body, held back over an unpaid or disputed bill
+        - Consent forms, case sheet and reports complete and handed to medical records
+        - "After a death: cause-of-death certificate (MCCD) sent to the registrar and a copy given to the nearest relative"
+        - Outcome confirmed with the patient or family, and the sign-off recorded by the named role
+    report:
+      name: Quality indicators and review
+      description: Each month the quality committee reviews the NABH quality indicators (OPD waiting time, discharge time, returns to emergency within 72 hours, falls, medication errors, needle-stick injuries), cashless denials, complaints and repeat problems, and checks that births, deaths and notifiable diseases were reported to the government on time.
+  priorities:
+    - { id: P1, name: "Emergency: life or limb at risk", respond_within_hours: 0.25, resolve_within_hours: 24 }
+    - { id: P2, name: "Urgent: patient waiting, safety issue or 72-hour limit", respond_within_hours: 1, resolve_within_hours: 72 }
+    - { id: P3, name: "Normal: within the week", respond_within_hours: 4, resolve_within_hours: 168 }
+    - { id: P4, name: "Planned: elective care", respond_within_hours: 24, resolve_within_hours: 720 }
+  roles:
+    - { id: head-of-institution, name: Medical superintendent, approves: "Release of medical records, certificates and medico-legal papers; what the family is told and whether a root cause analysis is done after a safety incident; refunds, discounts and concessions above ₹10,000; staff leave" }
+    - { id: treating-doctor, name: Treating doctor (consultant), approves: "Admission and surgery, and the diagnosis, plan and estimate in every cashless or scheme request; takes the patient's written consent and signs the discharge summary" }
+    - { id: emergency-in-charge, name: Emergency in-charge (casualty medical officer), approves: "Signs off emergencies and critical alerts once the patient is admitted, transferred or sent home, the MLC entry and police intimation are done and the papers are complete" }
+    - { id: insurance-manager, name: Insurance and TPA desk manager, approves: "Signs off cashless, PM-JAY and scheme cases when the approval, the final bill and the claim papers match" }
+    - { id: quality-manager, name: Quality manager (NABH coordinator), approves: "Signs off patient safety incidents once actions are agreed, and runs the monthly quality indicator review" }
+    - { id: grievance-officer, name: Grievance officer (patient relations), approves: "Signs off the written reply to every complaint, within 7 days" }
+    - { id: records-officer, name: Medical records officer (MRD in-charge), approves: "Signs record copies and certificates after checking them against the file, and hands them over against a signature" }
+  urgent_keywords: [not breathing, cannot breathe, can't breathe, unconscious, unresponsive, collapsed, cardiac arrest, code blue, code red, code pink, heart attack, chest pain, heavy bleeding, bleeding heavily, having a seizure, convulsions, caught fire, fire broke out, on fire, smoke coming, short circuit, electric shock, electrocuted, gas leak, oxygen leak, oxygen supply failed, oxygen pressure low, low oxygen pressure, assaulted, attacked, beaten up, acid attack, sexual assault, baby missing, newborn missing, child missing, bomb threat, threat to life, critical value]
+  categories:
+    - id: emergency
+      name: Emergency or critical alert
+      keywords:
+        - emergency
+        - casualty
+        - code blue
+        - code red
+        - code pink
+        - cardiac arrest
+        - unconscious
+        - unresponsive
+        - behosh
+        - not breathing
+        - cannot breathe
+        - can't breathe
+        - breathless
+        - breathlessness
+        - saans nahi
+        - chest pain
+        - heart attack
+        - stroke
+        - having fits
+        - seizure
+        - convulsions
+        - heavy bleeding
+        - bleeding heavily
+        - head injury
+        - road accident
+        - accident victim
+        - met with an accident
+        - fall from height
+        - poisoning
+        - consumed poison
+        - swallowed
+        - overdose
+        - snake bite
+        - dog bite
+        - scorpion sting
+        - burns
+        - acid attack
+        - labour pain
+        - labor pain
+        - water broke
+        - bleeding in pregnancy
+        - critical value
+        - critical result
+        - critical condition
+        - collapsed
+        - fainted
+        - send an ambulance
+        - need an ambulance
+        - ventilator stopped
+        - oxygen leak
+        - oxygen supply failed
+        - oxygen pressure low
+        - low oxygen pressure
+        - caught fire
+        - fire broke out
+        - smoke coming
+        - short circuit
+        - electric shock
+        - gas leak
+        - assaulted
+        - attacked
+        - beaten up
+        - violence
+        - sexual assault
+        - suicide
+        - self harm
+        - baby missing
+        - child missing
+        - bomb threat
+      priority: P1
+      risk: high
+      department: Emergency (casualty)
+      required_checks:
+        - "Care starts at once: no deposit, payment, papers or police formalities first"
+        - Triage colour (red, yellow or green) set on arrival by the triage nurse or doctor, never by an agent
+        - Patient stabilised with the staff and equipment we have; transfer only after that, with a referral note, a suitable ambulance and the receiving hospital told
+        - "Medico-legal case (accident, assault, burns, poisoning, suicide attempt or unclear cause): MLC entry made and police told, and treatment never waits for them"
+        - Rape or acid-attack survivor given free first aid and treatment, and the police told (BNSS section 397)
+        - Road accident victim treated under the cashless scheme (up to ₹1.5 lakh for 7 days at designated hospitals), and the person who brought them free to go without paying or giving details
+        - Critical lab or scan result told to the treating or duty doctor at once, with the read-back and time noted
+        - For fire, smoke, gas or an oxygen leak, the safety officer confirms the area is safe before anyone goes back
+      approval: { required: never }
+      signoff: { required: true, role: emergency-in-charge }
+      workflow: emergency-response
+      execution: team
+    - id: appointment
+      name: Appointment, test or report
+      keywords:
+        - appointment
+        - appointment chahiye
+        - opd
+        - opd timing
+        - slot
+        - token
+        - consultation
+        - consult
+        - follow-up
+        - reschedule
+        - teleconsultation
+        - video consultation
+        - health check-up
+        - health checkup
+        - full body checkup
+        - vaccination
+        - vaccine
+        - blood test
+        - lab test
+        - home collection
+        - test report
+        - lab report
+        - report ready
+        - ultrasound
+        - sonography
+        - scan
+        - pregnancy scan
+        - anomaly scan
+        - sex determination
+        - gender test
+        - mtp
+        - abortion
+        - terminate pregnancy
+        - terminate my pregnancy
+        - termination of pregnancy
+        - end my pregnancy
+        - mri
+        - ct scan
+        - x-ray
+        - ecg
+        - doctor available
+        - dentist
+        - dental
+        - root canal
+        - rct
+        - braces
+        - scaling
+        - tooth extraction
+        - toothache
+        - physiotherapy
+        - eye checkup
+      priority: P3
+      risk: low
+      department: Front office and OPD
+      required_checks:
+        - "Patient found or registered with a UHID: name, age, sex and mobile checked"
+        - Right doctor, department or test and a confirmed slot; fee and preparation (fasting, old reports) told upfront
+        - Warning signs (chest pain, breathlessness, stroke signs, heavy bleeding, pain or bleeding in pregnancy) sent straight to the emergency team
+        - "Pregnancy scan: Form F filled and signed under the PCPNDT Act, and the baby's sex never told or hinted"
+        - Reports sent only to the registered mobile or email, or handed over against ID
+      not_eligible:
+        - keywords: [boy or girl, boy or a girl, girl or boy, girl or a boy, sex of the baby, baby's sex, gender of the baby, baby's gender, sex determination, gender test, know the sex, tell the sex, baby gender, baby sex, ladka hai ya ladki, ladka ya ladki, beta hai ya beti]
+          reason: Telling or hinting the sex of an unborn baby is a crime under the PCPNDT Act, 1994, for the doctor and for the family who asks. We gladly do pregnancy scans with Form F, but never tell the baby's sex.
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: opd-appointment
+      execution: agents
+    - id: admission
+      name: Planned admission or surgery
+      keywords:
+        - admission
+        - admit
+        - bharti
+        - surgery
+        - operation
+        - book a bed
+        - bed booking
+        - ot slot
+        - ot booking
+        - theatre slot
+        - room booking
+        - private room
+        - day care
+        - daycare
+        - cataract
+        - knee replacement
+        - hip replacement
+        - joint replacement
+        - angioplasty
+        - bypass surgery
+        - c-section
+        - caesarean
+        - normal delivery
+        - delivery package
+        - dialysis
+        - chemotherapy
+        - chemo
+        - hernia
+        - gallbladder
+        - estimate
+        - cost estimate
+        - package rate
+        - surgery package
+      priority: P4
+      risk: medium
+      department: Admissions and wards
+      required_details:
+        - key: advisedBy
+          label: Doctor who advised it
+          kind: keywords
+          keywords: [dr, doctor, consultant, surgeon, advised, advice, referred, referral]
+      required_checks:
+        - Admission or surgery advised in writing by the treating consultant
+        - Written estimate given from the displayed rate list or package rates
+        - Payer settled before admission (cash advance, cashless approval or a government scheme), and no deposit from a PM-JAY patient for a covered package
+        - Pre-surgery checks done (tests, physician fitness, anaesthesia check, blood arranged if needed); outside reports accepted only if the doctor agrees
+        - Written informed consent for surgery, anaesthesia and any blood transfusion in a language the patient understands; both spouses for an operation that may cause sterility
+        - Bed or day-care slot and theatre slot reserved, and the family told the plan
+      not_eligible:
+        - keywords: [sell my kidney, sell a kidney, buy a kidney, kidney for money, paid donor, organ for money, sell my liver]
+          reason: Buying or selling organs is a crime under the Transplantation of Human Organs and Tissues Act, 1994. A transplant from a living donor needs the hospital's authorisation committee to approve the donor first, so the transplant team must meet the family.
+      approval: { required: always, role: treating-doctor }
+      signoff: { required: true, role: treating-doctor }
+      workflow: planned-admission
+      execution: both
+    - id: insurance
+      name: Cashless or scheme approval
+      keywords:
+        - cashless
+        - tpa
+        - insurance
+        - insurer
+        - health insurance
+        - mediclaim
+        - policy number
+        - e-card
+        - pre-auth
+        - preauth
+        - pre-authorisation
+        - pre-authorization
+        - enhancement
+        - final approval
+        - discharge approval
+        - tpa query
+        - raised a query
+        - query letter
+        - deficiency letter
+        - claim
+        - claim number
+        - pm-jay
+        - pmjay
+        - ayushman
+        - ayushman card
+        - ayushman bharat
+        - vay vandana
+        - golden card
+        - arogya mitra
+        - cghs
+        - echs
+        - esi
+        - esic
+        - state scheme
+        - aarogyasri
+        - mjpjay
+        - cmchis
+        - star health
+        - care health
+        - niva bupa
+        - hdfc ergo
+        - icici lombard
+        - bajaj allianz
+        - new india assurance
+        - united india insurance
+        - medi assist
+        - md india
+        - paramount tpa
+        - health india tpa
+        - vidal health
+      priority: P2
+      risk: medium
+      department: Insurance desk (TPA and PM-JAY)
+      required_details:
+        - key: coverId
+          label: Policy, e-card or scheme card number, or the IP number of a patient already admitted
+          kind: keywords
+          keywords: [policy no, policy number, policy copy, e-card, ecard, insurance card, health card, card no, card number, member id, ayushman card, pm-jay card, pmjay card, golden card, beneficiary id, cghs card, echs card, esic card, esi card, uhid, ip no, ip number, ip, claim no, claim number, pre-auth no, preauth no]
+      required_checks:
+        - "Cover checked: policy or e-card active and in the patient's name; PM-JAY beneficiary verified by Aadhaar e-KYC or the Ayushman card (everyone aged 70 and above is covered); CGHS, ECHS, ESI or state-scheme card valid"
+        - Diagnosis, plan, package and estimate taken from the treating doctor's signed notes, with nothing added or upgraded
+        - "Papers attached: ID, card or policy, doctor's notes, reports and estimate; for final approval, the signed discharge summary and final bill"
+        - "Clock watched: insurers decide a cashless request within 1 hour and the discharge approval within 3 hours of our request; PM-JAY pre-auth usually within 6 hours (check your state health agency's rules)"
+        - Any denial or cut explained to the patient in writing before they are asked to pay
+        - PM-JAY patients pay nothing for the approved package, including medicines and tests 3 days before and 15 days after the stay
+        - Claim papers collected from us by the insurer or TPA, never chased by the patient
+      not_eligible:
+        - keywords: [only for the claim, just for the claim, only for claim purpose, for claim purpose only, admit only for insurance, fake bill, inflate the bill, increase the bill for insurance, show more days, backdate the admission]
+          reason: We bill an insurer or a scheme only for care that was needed and given. Showing an admission, extra days or charges that did not happen is cheating and claim fraud, so we cannot do it.
+      approval: { required: always, role: treating-doctor }
+      signoff: { required: true, role: insurance-manager }
+      workflow: cashless-approval
+      execution: both
+    - id: billing
+      name: Bill, refund or concession
+      keywords:
+        - bill
+        - billing
+        - final bill
+        - interim bill
+        - wrong bill
+        - bill amount
+        - refund
+        - money back
+        - paisa wapas
+        - advance refund
+        - deposit refund
+        - balance amount
+        - discount
+        - concession
+        - waiver
+        - waive
+        - write off
+        - overcharged
+        - extra charges
+        - charged twice
+        - paid twice
+        - double payment
+        - excess paid
+        - receipt
+        - rate list
+        - payment link
+      priority: P3
+      risk: medium
+      department: Billing and accounts
+      required_checks:
+        - Bill checked line by line against the rate list, the estimate and what was actually used
+        - Refund amount confirmed from the receipts and the final bill
+        - Discounts and concessions given only under the written concession policy
+        - Money goes back only to the payer's own bank account, card or UPI, with a receipt
+        - Nothing charged to a PM-JAY or cashless patient for what the scheme or insurer covers
+        - No patient, and no body, held back over an unpaid or disputed bill
+      not_eligible:
+        - keywords: [someone else's account, another person's account, third party account, my friend's account, my relative's account]
+          reason: Refunds go only to the account the money came from or to the payer's own bank account. Ask the payer to share their own account details.
+      approval: { required: above_amount, role: head-of-institution, amount_inr: 10000 }
+      signoff: { required: true, role: accounts-head }
+      workflow: bill-and-refund
+      execution: both
+    - id: certificate
+      name: Medical records or certificate
+      keywords:
+        - medical records
+        - medical record
+        - case file
+        - case papers
+        - case sheet
+        - certified copy
+        - copy of records
+        - record copy
+        - discharge summary
+        - discharge card
+        - death summary
+        - certificate
+        - medical certificate
+        - fitness certificate
+        - sick leave certificate
+        - disability certificate
+        - birth certificate
+        - death certificate
+        - register the birth
+        - birth registration
+        - register the death
+        - death registration
+        - mccd
+        - cause of death certificate
+        - mlc
+        - mlc copy
+        - medico legal
+        - wound certificate
+        - injury report
+        - postmortem report
+        - police requisition
+        - requisition
+        - court order
+        - summons
+        - fir
+        - rti
+      priority: P2
+      risk: medium
+      department: Medical records (MRD)
+      required_details:
+        - key: whichVisit
+          label: Whose record and which visit (UHID, IP or MLC number, or the dates of the stay)
+          kind: keywords
+          keywords: [uhid, ip, ip no, ip number, mrd no, mrd number, mlc, mlc no, mlc number, opd no, op no, registration no, admitted, admission, discharged, stay, treated, treatment, died, expired, death, born, birth, delivery, visit, operated, surgery]
+      required_checks:
+        - Asked by the patient, someone with the patient's written authorisation and ID, the legal heir of a patient who died, or a signed police or court requisition
+        - Medico-legal papers released only from the MLC register and only to the police or court that asked in writing
+        - Request acknowledged and copies given within 72 hours; the originals stay with the hospital
+        - Fitness, sick-leave and disability certificates only on the treating doctor's own examination and signature, never backdated
+        - "After a death: MCCD sent to the registrar and a copy given to the nearest relative; births and deaths reported to the registrar within 21 days (the registrar, not the hospital, issues the birth or death certificate)"
+        - Handed over against a signature or sent only to the registered email, with an entry in the release register
+      not_eligible:
+        - keywords: [someone else's, another person's, other person's, my neighbour's, my neighbor's, my friend's, my colleague's, my employee's, our employee's, my tenant's]
+          reason: Medical records are confidential. We give them only to the patient, someone the patient has authorised in writing, the legal heir of a patient who has died, or on a signed police or court requisition. Ask the patient to request them or to give a written authorisation.
+        - keywords: [backdated, back dated, without examination, without checkup, without check up, without seeing the doctor, without visiting the doctor]
+          reason: A doctor certifies only what they have examined, on the true date. A backdated certificate, or one given without a visit, is professional misconduct (IMC Regulations 2002, regulation 7.7). Please book a visit with the doctor.
+      approval: { required: always, role: head-of-institution }
+      signoff: { required: true, role: records-officer }
+      workflow: records-release
+      execution: both
+    - id: complaint
+      name: Complaint or feedback
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - grievance
+        - shikayat
+        - rude
+        - misbehaved
+        - misbehaviour
+        - misbehavior
+        - shouted
+        - waited
+        - kept waiting
+        - long wait
+        - nobody came
+        - no response
+        - no reply
+        - nobody called
+        - not attended
+        - nobody attended
+        - negligence
+        - negligent
+        - medical negligence
+        - careless
+        - dirty
+        - unclean
+        - unhygienic
+        - bad experience
+        - worst
+        - poor service
+        - feedback
+        - legal notice
+        - consumer court
+        - consumer forum
+        - bribe
+        - cpgrams
+        - not releasing the body
+        - holding the body
+        - not allowing discharge
+      priority: P3
+      risk: medium
+      department: Patient relations
+      required_checks:
+        - Logged with a number and acknowledged the same day
+        - Nobody named in the complaint handles it
+        - "Facts checked: case papers, bills, call logs, CCTV and the staff member's side"
+        - Patient or family called and heard in their own language
+        - Final written reply within 7 days (our own rule), signed by the grievance officer
+        - Reply says how to take it further (the hospital's grievance committee, then the district registering authority under the Clinical Establishments Act or the state's own nursing home law)
+        - Complaints about treatment also get a clinical review; legal notices go to the medical superintendent and the owner the same day
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: complaint-handling
+      execution: both
+    - id: incident
+      name: Patient safety incident
+      keywords:
+        - incident
+        - incident report
+        - fell down
+        - fell in
+        - fell from
+        - fell off
+        - had a fall
+        - patient fall
+        - fall from bed
+        - patient slipped
+        - slipped on
+        - slipped in
+        - wrong medicine
+        - wrong drug
+        - wrong dose
+        - medication error
+        - missed dose
+        - wrong patient
+        - wrong site
+        - wrong side
+        - wrong blood
+        - transfusion reaction
+        - drug reaction
+        - adverse reaction
+        - allergic reaction
+        - bed sore
+        - bedsore
+        - pressure sore
+        - pressure ulcer
+        - needle stick
+        - needlestick
+        - sharps injury
+        - blood splash
+        - near miss
+        - infection outbreak
+        - absconded
+        - left without informing
+      priority: P2
+      risk: high
+      department: Quality and patient safety
+      required_details:
+        - key: where
+          label: Where it happened (ward, bed or area)
+          kind: keywords
+          keywords: [ward, bed, room, icu, nicu, picu, ot, operation theatre, theatre, opd, casualty, emergency, lab, pharmacy, dialysis, labour room, bathroom, toilet, washroom, corridor, ramp, stairs, lift, floor, unit, blood bank, blood centre, recovery, radiology, cath lab, sharps bin]
+      required_checks:
+        - Patient made safe first and the treating or duty doctor told
+        - Reported on the incident form the same day, without blame
+        - Patient or family told honestly what happened and what is being done, as the medical superintendent approved
+        - Needle-stick or blood splash washed and reported at once, and HIV preventive medicine (PEP) started as early as possible, ideally within 2 hours and never later than 72 hours
+        - "Death or serious harm (sentinel event): management told within 24 hours and a root cause analysis done"
+        - Drug reactions reported to the Pharmacovigilance Programme of India, and transfusion reactions to the blood centre and the Haemovigilance Programme of India
+        - Counted in the NABH indicators (falls, medication errors, needle-stick injuries, transfusion reactions, pressure sores)
+      approval: { required: always, role: head-of-institution }
+      signoff: { required: true, role: quality-manager }
+      workflow: incident-reporting
+      execution: both
+  examples:
+    - { request: "Code blue in ward 6 bed 14: patient unresponsive and the staff nurse has started CPR", category: emergency, priority: P1, approval: false }
+    - { request: "Our neighbour's child swallowed kerosene, we are bringing her to casualty now", category: emergency, priority: P1, approval: false }
+    - { request: "Lab alert: critical value haemoglobin 4.8 for IP 26-0331 in the female medical ward", category: emergency, priority: P1, approval: false }
+    - { request: "Can I get a slot with the dentist for a root canal on Saturday morning?", category: appointment, priority: P3, approval: false }
+    - { request: "Please book a fasting lipid profile and thyroid blood test with home collection tomorrow at 7 am", category: appointment, priority: P3, approval: false }
+    - { request: "Is my MRI report ready? The scan was done on Tuesday evening.", category: appointment, priority: P3, approval: false }
+    - { request: "Dr. Iqbal has advised cataract surgery for my left eye. Please send the package cost and the earliest date.", category: admission, priority: P4, approval: true }
+    - { request: "Dr. Pillai wants a day care bed reserved for Mr. Joseph's dialysis every Monday and Thursday from next week", category: admission, priority: P4, approval: true }
+    - { request: "Ayushman card holder, 74 years old, advised prostate surgery; please raise the PM-JAY pre-auth", category: insurance, priority: P2, approval: true }
+    - { request: "Medi Assist has raised a query on the pre-auth for IP 26-0418 and wants the CT report and the doctor's notes", category: insurance, priority: P2, approval: true }
+    - { request: "ECHS referral for my father's angioplasty, his ECHS card number is 4471-22", category: insurance, priority: P2, approval: true }
+    - { request: "Wrong bill: we were charged ₹4,200 twice for the same blood tests, please correct it", category: billing, priority: P3, approval: false }
+    - { request: "My husband's final bill is ₹68,000 and we are daily-wage workers. Can the hospital give a concession?", category: billing, priority: P3, approval: true }
+    - { request: "Paid twice by UPI for the same X-ray, ₹650. Please refund one payment.", category: billing, priority: P3, approval: false }
+    - { request: "Need a certified copy of my wife's case sheet from her May admission for our insurance reimbursement", category: certificate, priority: P2, approval: true }
+    - { request: "Please give the MCCD copy for my mother who died in the ICU on 2 September; the municipal office needs it to register the death", category: certificate, priority: P2, approval: true }
+    - { request: "My company wants a fitness certificate before I rejoin after the typhoid treatment here", category: certificate, priority: P2, approval: true }
+    - { request: "We pressed the nurse call bell in room 304 for two hours and nobody came. Very bad experience.", category: complaint, priority: P3, approval: false }
+    - { request: "The security guard shouted at my elderly father at the main gate and did not let him sit", category: complaint, priority: P3, approval: false }
+    - { request: "I am sending a legal notice for medical negligence in my son's treatment last month", category: complaint, priority: P3, approval: false }
+    - { request: "Needle stick to a staff nurse while recapping in the dialysis unit at 2 pm", category: incident, priority: P2, approval: true }
+    - { request: "Near miss in ward 2: insulin was almost given to the wrong patient but caught at the bedside check", category: incident, priority: P2, approval: true }
+    - { request: "Grade 2 pressure sore found on day 5 of the stay, bed 9 in the ICU", category: incident, priority: P2, approval: true }
+
+playbooks:
+  - id: emergency-care-first
+    title: Emergency care comes first
+    source: Supreme Court, Parmanand Katara v. Union of India (1989); Clinical Establishments (Registration and Regulation) Act, 2010, section 12; Bharatiya Nagarik Suraksha Sanhita, 2023, section 397; Motor Vehicles Act, 1988, section 134A; Cashless Treatment of Road Accident Victims Scheme, 2025 (MoRTH, S.O. 2015(E), 5 May 2025); AIIMS triage protocol and NHSRC module 'Triage in Emergencies'; National Building Code of India, 2016, Part 4
+    body: |
+      1. Never refuse or delay emergency care for a deposit, payment, papers or police formalities. Stabilise first with the staff and equipment you have.
+      2. The triage nurse or doctor sees every arrival: red needs care now, yellow needs admission and watching, green gets minor care and goes home. Agents never set a triage colour.
+      3. Medico-legal cases (accidents, assaults, burns, poisoning, suicide attempts, unclear cause): make the MLC entry and tell the police. Treatment does not wait for them.
+      4. Rape and acid-attack survivors get free first aid and treatment in every hospital, public or private, and the police are told.
+      5. Road accident victims get cashless treatment up to ₹1.5 lakh for 7 days from the accident at designated hospitals; other hospitals stabilise and transfer. The person who brought the victim is free to go and is never asked to pay or give details.
+      6. Transfer only after stabilising, with a referral note, a suitable ambulance and the receiving hospital told.
+      7. Critical lab or scan results go to the treating or duty doctor at once; note who took the call, the read-back and the time.
+      8. Code red (fire), oxygen or gas leak: move patients sideways to the next safe zone, never by the lift, and wait for the safety officer's all-clear before going back.
+  - id: cashless-and-pm-jay
+    title: Cashless and PM-JAY approvals on time
+    source: IRDAI Master Circular on Health Insurance Business, 29 May 2024; National Health Authority PM-JAY guidelines and claims adjudication manual; CAG performance audit of PM-JAY (2023), Chapter V; Ayushman Vay Vandana cover for everyone aged 70 and above (2024)
+    body: |
+      1. Check cover before a planned admission: the policy or e-card for insurance; Aadhaar e-KYC or the Ayushman card at the Arogya Mitra desk for PM-JAY (everyone aged 70 and above is covered, whatever their income); a valid CGHS, ECHS, ESI or state-scheme card.
+      2. The treating doctor signs the diagnosis, plan and estimate. Never add, upgrade or change a package to get more approved.
+      3. Insurers must decide a cashless request within 1 hour and the final discharge approval within 3 hours of the hospital's request. If they are late, the insurer pays the extra charges, not the patient.
+      4. The insurer or TPA collects claim papers from the hospital; patients do not chase them. After a death, the claim is processed at once and the body is released without delay.
+      5. PM-JAY: the state health agency usually decides a pre-auth within 6 hours (check your state's rules). In an emergency, start treatment and raise the pre-auth as soon as you can. The patient pays nothing for the package, including medicines and tests 3 days before and 15 days after the stay.
+      6. Explain any denial or cut in writing before asking the patient to pay, and tell them how to claim reimbursement.
+      7. Track the clock on every request, and each month the share of claims denied or cut and why.
+  - id: patient-rights-consent-discharge
+    title: Patient rights, consent and discharge
+    source: Charter of Patients' Rights and Responsibilities (MoHFW and National Council for Clinical Establishments, 2021); Clinical Establishments (Central Government) Rules, 2012, rule 9; Indian Medical Council (Professional Conduct, Etiquette and Ethics) Regulations, 2002, regulation 7.16; Medical Termination of Pregnancy Act, 1971, section 3(4); NABH Hospital Accreditation Standards
+    body: |
+      1. Display the rate list in English and the local language, and the patients' rights charter. Give a written estimate before planned treatment.
+      2. Take written informed consent before surgery, anaesthesia, blood transfusion and high-risk procedures, in a language the patient understands. For an operation that may cause sterility, both spouses consent; for an MTP, only the woman (a guardian if she is under 18 or mentally ill).
+      3. Respect privacy and confidentiality, the right to a second opinion and the patient's choice of where to buy medicines and tests.
+      4. Every patient who leaves gets a discharge summary signed by the treating doctor (diagnosis, treatment, medicines, follow-up and when to come back urgently), including those who leave against advice; after a death, a death summary.
+      5. Never hold back a patient, or the body of a patient who died, over an unpaid or disputed bill.
+      6. Name a grievance officer, log and acknowledge every complaint the same day and reply in writing within 7 days (our own rule). A patient who is not satisfied can go to the district registering authority under the Clinical Establishments Act, or the authority under your state's own law.
+  - id: medical-records-and-certificates
+    title: Medical records, certificates and privacy
+    source: Indian Medical Council (Professional Conduct, Etiquette and Ethics) Regulations, 2002, regulations 1.3.1, 1.3.2, 7.7 and 7.14; Registration of Births and Deaths Act, 1969 (amended 2023), sections 8 and 10; PCPNDT Rules, 1996, rule 9; MTP Regulations, 2003; Digital Personal Data Protection Act, 2023; Aadhaar Act, 2016
+    body: |
+      1. Acknowledge every request for records and give copies within 72 hours. Give copies only; the originals stay with the hospital.
+      2. Give records only to the patient, someone with the patient's written authorisation and ID, the legal heir of a patient who died, or on a signed police or court requisition. Never read records out on the phone. The medical superintendent approves every release.
+      3. Medico-legal papers come only from the MLC register and go only to the police or court that asked in writing.
+      4. Certificates (fitness, sick leave, disability) are issued only on the treating doctor's own examination and signature, with the true date. A false or backdated certificate is misconduct.
+      5. When a patient dies, send the cause-of-death certificate (MCCD) to the registrar and give the nearest relative a copy. Report births and deaths to the registrar within 21 days; the registrar issues the birth or death certificate.
+      6. Keep indoor records at least 3 years and medico-legal records until the case is over, or longer where your state or insurers ask. Keep PCPNDT records 2 years and the MTP admission register 5 years.
+      7. Treat health data as sensitive under the DPDP Act: collect only what is needed, use Aadhaar only with consent and keep it masked, share only for the purpose the patient agreed to, and tell the patient and the Data Protection Board about any breach.
+  - id: pregnancy-scans-and-mtp
+    title: Pregnancy scans and MTP within the law
+    source: Pre-Conception and Pre-Natal Diagnostic Techniques (Prohibition of Sex Selection) Act, 1994, sections 5, 6 and 23, and Rules, 1996, rule 9 and Form F; Medical Termination of Pregnancy Act, 1971 as amended in 2021, sections 3 and 5A, and MTP Rules, 2003; POCSO Act, 2012, section 19; Supreme Court, X v. Principal Secretary, Health and Family Welfare Department, Govt of NCT of Delhi (2022)
+    body: |
+      1. Every ultrasound or other prenatal test on a pregnant woman needs Form F, filled and signed by the doctor with the referral details, and the month's forms reach the district appropriate authority by the 5th of the next month. Keep the records for 2 years.
+      2. Never tell, write or hint the sex of the baby, by words, signs or colours. Display the board saying sex determination is not done here. Doing it, or asking for it, is a crime for the doctor and for the family.
+      3. Only registered machines and qualified, registered doctors do the scans; tell the appropriate authority about any new machine or change of place.
+      4. MTP is a doctor's decision under the MTP Act: up to 20 weeks on one registered doctor's opinion, 20 to 24 weeks for the groups the rules list on two doctors' opinion, and later only for serious foetal abnormality decided by the state medical board. Only at a government-approved place.
+      5. The woman's own written consent is enough; a guardian consents if she is under 18 or mentally ill. Her name is never shared except as the law allows.
+      6. A pregnancy in a girl under 18 must be reported to the police under POCSO; her name can be left out of that report when she and her guardian ask.
+      7. Agents only book the visit with the gynaecologist, keep it confidential and never give advice.
+  - id: incidents-and-quality-indicators
+    title: Reporting incidents and tracking quality
+    source: NABH Hospital Accreditation Standards, 6th edition (2025), patient safety and quality chapters; NACO National Guidelines for HIV Care and Treatment (post-exposure prophylaxis); Pharmacovigilance Programme of India and Haemovigilance Programme of India (Indian Pharmacopoeia Commission)
+    body: |
+      1. Report every fall, medication error, needle-stick, drug or transfusion reaction, pressure sore and near miss on the incident form the same day. Nobody is blamed for reporting.
+      2. Make the patient safe first and tell the treating or duty doctor.
+      3. Tell the patient or family honestly what happened and what is being done, as the medical superintendent approves.
+      4. Needle-stick or blood splash: wash with soap and water, report at once and start HIV preventive medicine (PEP) as early as possible, ideally within 2 hours and never after 72 hours.
+      5. For a death or serious harm (sentinel event), tell management within 24 hours and do a root cause analysis with actions, owners and dates.
+      6. Report drug reactions to the Pharmacovigilance Programme of India, and transfusion reactions to the blood centre and the Haemovigilance Programme of India.
+      7. Each month, track the quality indicators your NABH level asks for, compare them with earlier months and act on the trend. Set your own targets and review them in the quality committee.
+
+kpis:
+  - id: opd-waiting-time
+    name: OPD waiting time
+    description: Average minutes from the booked time (or registration, for walk-ins) to the start of the consultation.
+    unit: minutes
+    direction: down
+    target: 30
+  - id: discharge-time
+    name: Time to discharge
+    description: Average hours from the doctor's discharge order to the patient leaving with the signed summary and a settled bill.
+    unit: hours
+    direction: down
+    target: 3
+  - id: emergency-return-72h
+    name: Back in emergency within 72 hours
+    description: Patients who come back to emergency within 72 hours with the same complaint, as a share of emergency patients sent home.
+    unit: percent
+    direction: down
+    target: 2
+  - id: falls-and-medication-errors
+    name: Falls and medication errors
+    description: Patient falls plus medication errors that reached the patient this month; the quality team also works out the rate per 1,000 patient days. Every one is reported, and the aim is fewer.
+    unit: count
+    direction: down
+  - id: cashless-denials
+    name: Cashless claims denied or cut
+    description: Cashless, PM-JAY and scheme claims denied or paid less than billed, as a share of all such claims sent this month.
+    unit: percent
+    direction: down
+    target: 5
+  - id: incidents-awaiting-review
+    name: Incidents waiting for review
+    description: Patient safety incidents reported but not yet reviewed.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Incident, where: { status: reported } }
