@@ -1,0 +1,1222 @@
+# Ready-made pack: software and SaaS companies (product companies running
+# customer-facing web and mobile apps). Built from researched Indian practice:
+# CERT-In Directions 2022, the DPDP Act 2023 and Rules 2025, the IT Act sections
+# 69, 69A and 79 with the IT Rules 2021 (as amended in 2026), section 94 BNSS,
+# RBI e-mandate rules, the CGST Act and common incident and release practice.
+id: software-saas
+version: 1.0.0
+name: Software & SaaS company
+description: Outages, security incidents and CERT-In reports, bugs, releases, subscription billing and refunds, privacy and police requests, admin and login changes, how-to questions and feature requests for software and SaaS product companies.
+kind: industry
+sector: technology-innovation
+extends: [sector-technology-innovation, projects-base]
+match:
+  keywords:
+    - saas
+    - saas company
+    - saas startup
+    - saas product
+    - b2b saas
+    - software as a service
+    - software company
+    - software product
+    - software product company
+    - software startup
+    - tech startup
+    - technology startup
+    - app company
+    - mobile app company
+    - consumer app
+    - cloud software
+    - subscription software
+    - online software
+
+labels:
+  Project: Implementation
+
+entities:
+  - name: CustomerAccount
+    label: Customer account
+    plural_label: Customer accounts
+    description: A company or person subscribed to the product, with its plan, admins and billing details.
+    title_field: companyName
+    list_columns: [companyName, plan, status, renewalOn, monthlyValue]
+    fields:
+      - { name: companyName, label: Company or customer name, type: string, required: true }
+      - { name: accountId, label: Account ID, type: string, required: true }
+      - name: plan
+        label: Plan
+        type: enum
+        options: [free, trial, starter, growth, enterprise]
+      - name: supportLevel
+        label: Support level
+        type: enum
+        options: [standard, priority, enterprise]
+      - { name: adminName, label: Account admin, type: string }
+      - { name: adminEmail, label: Admin email, type: email }
+      - { name: billingEmail, label: Billing contact email, type: email }
+      - { name: phone, label: Registered phone, type: phone }
+      - { name: gstin, label: GSTIN, type: string }
+      - { name: state, label: State (place of supply), type: string }
+      - { name: monthlyValue, label: Monthly value, type: money }
+      - { name: renewalOn, label: Renewal date, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [trial, active, past-due, cancelled]
+      - { name: holdsPersonalData, label: We hold personal data of their staff or customers, type: boolean }
+  - name: Incident
+    label: Outage or security incident
+    plural_label: Outages and security incidents
+    title_field: title
+    list_columns: [title, kind, severity, noticedAt, status]
+    fields:
+      - { name: title, label: What happened, type: string, required: true }
+      - name: kind
+        label: Kind
+        type: enum
+        required: true
+        options: [outage, slowdown, security, data-leak]
+      - name: severity
+        label: Severity
+        type: enum
+        options: [P1, P2, P3]
+      - { name: startedAt, label: Started at, type: datetime }
+      - { name: noticedAt, label: Noticed or reported at, type: datetime, required: true }
+      - { name: restoredAt, label: Restored or contained at, type: datetime }
+      - { name: customersAffected, label: Customers affected, type: integer }
+      - { name: downtimeMinutes, label: Downtime (minutes), type: integer }
+      - { name: personalDataInvolved, label: Personal data involved, type: boolean }
+      - { name: certInReportedAt, label: Reported to CERT-In at, type: datetime }
+      - { name: certInReference, label: CERT-In reference, type: string }
+      - { name: rootCause, label: Root cause, type: text }
+      - { name: reviewHeldOn, label: Incident review held on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [open, contained, resolved, review-done]
+  - name: Release
+    label: Release or change
+    plural_label: Releases and changes
+    title_field: version
+    list_columns: [version, changeType, plannedAt, status, outcome]
+    fields:
+      - { name: version, label: Version or change name, type: string, required: true }
+      - name: changeType
+        label: Type
+        type: enum
+        required: true
+        options: [standard, normal, emergency]
+      - { name: summary, label: What changes, type: text }
+      - { name: plannedAt, label: Planned for, type: datetime }
+      - { name: downtimeExpectedMinutes, label: Downtime expected (minutes), type: integer }
+      - { name: customersToldOn, label: Customers told on, type: date }
+      - { name: testedOnStaging, label: Tested on staging, type: boolean }
+      - { name: rollbackPlan, label: Rollback plan, type: text }
+      - { name: approvedBy, label: Approved by, type: string }
+      - { name: releasedAt, label: Released at, type: datetime }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [planned, approved, released, rolled-back, cancelled]
+      - name: outcome
+        label: Outcome
+        type: enum
+        options: [fine, hotfix-needed, rolled-back, caused-incident]
+  - name: Payment
+    label: Invoice and payment
+    plural_label: Invoices and payments
+    title_field: invoiceNumber
+    list_columns: [invoiceNumber, account, amount, status, paidOn]
+    fields:
+      - { name: invoiceNumber, label: Invoice number, type: string, required: true }
+      - { name: account, label: Customer account, type: string, required: true }
+      - { name: invoiceDate, label: Invoice date, type: date }
+      - { name: amount, label: Amount (with GST), type: money, required: true }
+      - { name: gstAmount, label: GST, type: money }
+      - name: mode
+        label: Paid by
+        type: enum
+        options: [card-auto-debit, upi-autopay, net-banking, neft-rtgs, other]
+      - { name: reference, label: Gateway payment ID or UTR, type: string }
+      - { name: paidOn, label: Paid on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [due, paid, failed, refunded, disputed]
+      - { name: refundOrCredit, label: Refund or credit given, type: money }
+      - { name: creditNoteNumber, label: Credit note number, type: string }
+
+tools:
+  - name: accounts.search
+    description: Search customer accounts by company, account ID, admin, plan or status.
+    uses: records.search
+    with: { entity: CustomerAccount }
+  - name: incidents.search
+    description: Search outages and security incidents by what happened, kind or status.
+    uses: records.search
+    with: { entity: Incident }
+  - name: incident.log
+    description: Record an outage or security incident with when it started and when it was noticed, which starts its clocks.
+    uses: records.create
+    with: { entity: Incident }
+  - name: releases.search
+    description: Search releases and changes by version, type or status.
+    uses: records.search
+    with: { entity: Release }
+  - name: release.plan
+    description: Prepare a release or change record for the engineering manager to approve. It is not approved or live until a person says so.
+    uses: records.create
+    with: { entity: Release, data: { status: planned } }
+  - name: payments.search
+    description: Search invoices and payments by invoice number, account, payment ID or status.
+    uses: records.search
+    with: { entity: Payment }
+
+agents:
+  - role: support-desk
+    name: Support desk
+    description: Answers how-to questions from the help articles, collects bug details and tries to repeat them, checks known issues, verifies admin and login change requests, logs feature ideas and personal data requests, keeps customers updated and hands engineering work to the engineer in charge by phone.
+    instructions: Give every customer the ticket number and when they will hear from us next. Never change admins, owners or login details without the written OK the rules ask for. Never share or delete anyone's personal data, or reply to the police or a court, until the privacy officer approves. Hand over to a person when the customer asks for one, is upset, or two answers have not solved it.
+    autonomy: 3
+    tools: [accounts.search, incidents.search, releases.search, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: incident-desk
+    name: Incident and release desk
+    description: Runs the clock on outages, security incidents and releases. Logs the incident, pages the on-call engineer or security lead by phone, drafts status page and customer updates, keeps the timeline, drafts the CERT-In report and breach notices for approval, prepares release records and watches errors after go-live.
+    instructions: Start the CERT-In 6-hour clock from the moment anyone noticed or told us, not when it is confirmed. Never send a CERT-In report or a breach notice, and never mark a release approved; the security lead or the engineering manager does that. During an outage, roll back first and find the cause after.
+    autonomy: 3
+    tools: [incidents.search, incident.log, releases.search, release.plan, accounts.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: billing-desk
+    name: Billing desk
+    description: Answers billing questions, resends and corrects GST invoices, retries failed payments, changes plans, processes refunds and service credits within policy and prepares chargeback evidence.
+    instructions: Refunds go back only to the card, UPI or bank account that paid. Refunds, credits or waivers above ₹10,000 wait for the finance manager. Send the pre-debit notice at least 24 hours before every auto-debit, and get the customer's OTP for any auto-debit above ₹15,000.
+    autonomy: 3
+    tools: [accounts.search, payments.search, records.search, records.update, knowledge.search, document.generate, payment.request, refund.issue, message.draft, message.send, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 10000, max_steps: 20 }
+
+workflows:
+  - id: outage-response
+    name: Outage response
+    description: Open the incident, get the on-call engineer restoring service and keep customers updated until it is back.
+    keywords: [outage, down, "503", "502", uptime, health check, error rate, latency, failover, rollback]
+    steps:
+      - key: open-incident
+        title: Open the incident and page on call
+        agent: incident-desk
+        instructions: Log the incident with when it started and when it was noticed, list releases and config changes from the last 24 hours, and page the on-call engineer by phone with the impact. Draft the first status page and customer update within 30 minutes.
+      - key: restore
+        title: Restore service and keep everyone posted
+        agent: incident-desk
+        depends_on: [open-incident]
+        instructions: Keep the timeline, post updates at least every hour, ask the engineering head to okay any rollback, failover or emergency fix, and record the restore time.
+      - key: after
+        title: Work out credits and book the review
+        agent: incident-desk
+        depends_on: [restore]
+        instructions: Work out the downtime per customer for the uptime report and service credits, and book the blameless review within 5 working days.
+  - id: security-response
+    name: Security incident response
+    description: Contain the attack or leak, keep the evidence and get the CERT-In report and notices ready for the security lead.
+    keywords: [hacked, breach, leak, ransomware, phishing, suspicious login, vulnerability, cert-in, ddos]
+    steps:
+      - key: contain
+        title: Start the clock and contain it
+        agent: incident-desk
+        instructions: Log the incident with the time it was noticed, phone the security lead at once, and list the containment steps (block, close the exposed link, rotate keys and passwords, log users out) and the logs and accounts to keep as evidence.
+      - key: report
+        title: Draft the CERT-In report and notices
+        agent: incident-desk
+        depends_on: [contain]
+        instructions: Draft the CERT-In report to go within 6 hours of noticing it, the notices to affected customers and people in plain words, and the status page update, all for the security lead to approve.
+      - key: close-gap
+        title: Close the way in and follow up
+        agent: incident-desk
+        depends_on: [report]
+        instructions: Hand the fix of the way in to the engineer in charge by phone, record the CERT-In reference, and book the blameless review.
+  - id: bug-fix
+    name: Bug fix
+    description: Collect the details, repeat the bug, get it fixed and tell everyone who reported it.
+    keywords: [bug, error, crash, broken, wrong total, not working, regression]
+    steps:
+      - key: triage
+        title: Collect details and repeat it
+        agent: support-desk
+        instructions: Ask for anything missing (screen, steps, screenshot, error text, app or browser version), search known issues, try to repeat it and give the customer a workaround if there is one.
+      - key: fix
+        title: Get it fixed
+        agent: support-desk
+        depends_on: [triage]
+        instructions: Hand the bug to the engineer in charge of that module by phone with the steps and how many customers hit it, and tell everyone who reported it when the fix is live.
+  - id: release-change
+    name: Release or change
+    description: Prepare the change record, get it approved, release it in the agreed window and watch it afterwards.
+    keywords: [release, deploy, go live, hotfix, migration, maintenance window, feature flag, ssl, dns]
+    steps:
+      - key: prepare
+        title: Prepare the change record
+        agent: incident-desk
+        instructions: Fill the release record from the pull request with what changes, who it affects, the window, test and staging results and the rollback plan, and draft the maintenance notice if there is downtime.
+      - key: release
+        title: Release and watch
+        agent: incident-desk
+        depends_on: [prepare]
+        instructions: Once the engineering manager approves, hand the release to the engineer on duty by phone with the window and rollback plan, watch errors for an hour afterwards and draft the release notes.
+  - id: billing-request
+    name: Billing request
+    description: Check the payment, fix the invoice or plan, and refund or credit within policy.
+    keywords: [invoice, refund, credit note, chargeback, autopay, payment failed, gstin, plan change]
+    steps:
+      - key: handle
+        title: Check and settle it
+        agent: billing-desk
+        instructions: Check the invoice and payment with the gateway or bank, correct the invoice by credit note and a fresh invoice, change the plan, or prepare the refund, credit or chargeback evidence within the published policy, and reply to the customer.
+  - id: account-help
+    name: Question or account help
+    description: Answer the question from the help articles and guide the customer step by step.
+    keywords: [how to, how do i, setup, configure, add user, password, otp, training]
+    steps:
+      - key: answer
+        title: Answer and guide
+        agent: support-desk
+        instructions: Find the answer in the help articles for the customer's plan, guide them step by step, and move the ticket to the right type if it turns out to be a bug, billing, data or admin change.
+  - id: account-access-change
+    name: Admin or login change
+    description: Verify who is asking and their authority, then make the admin, owner or login change after the security lead approves.
+    keywords: [admin, owner, login email, registered mobile, 2fa, authenticator]
+    steps:
+      - key: verify
+        title: Verify the person and their authority
+        agent: support-desk
+        instructions: Check the account, the current admins and the written OK or company letter, and verify the person by OTP to the registered email or phone or by a call back on the number in our records.
+      - key: change
+        title: Make the change and tell the admins
+        agent: support-desk
+        depends_on: [verify]
+        instructions: After the security lead approves, hand the change to the support lead by phone, then email every admin on the account that it was made.
+  - id: privacy-request
+    name: Privacy, police or legal request
+    description: Check the person or the order, find the data and draft the reply, export, deletion plan or takedown for the privacy officer.
+    keywords: [delete my data, personal data, dpdp, police, court order, notice, takedown, grievance]
+    steps:
+      - key: check
+        title: Check the person or the order
+        agent: support-desk
+        instructions: Verify the person by OTP, or check that the order is written, signed, names the officer and the law and is genuine. Note every deadline that applies and whether the data belongs to a business customer who must decide.
+      - key: draft
+        title: Find the data and draft the reply
+        agent: support-desk
+        depends_on: [check]
+        instructions: List where the person's data sits, what the law makes us keep, and draft the export, deletion plan, takedown or reply for the privacy officer. Nothing is shared or deleted before the privacy officer approves.
+  - id: feature-intake
+    name: Feature request
+    description: Log the idea, merge duplicates and reply without promising a date.
+    keywords: [feature request, new feature, idea, suggestion, integration, roadmap]
+    steps:
+      - key: log
+        title: Log and reply
+        agent: support-desk
+        instructions: Log the problem the customer wants solved, merge it with the same idea if already logged, add the customer's plan and yearly value, and reply without any date. Tell everyone who asked once the product manager decides.
+  - id: complaint-handling
+    name: Complaint handling
+    description: Check the facts and get the account manager's reply out the same day.
+    keywords: [complaint, escalation, unhappy, sla breach, rude, no response]
+    steps:
+      - key: facts
+        title: Check the facts
+        agent: support-desk
+        instructions: Gather the ticket history, chats, emails and SLA timers, and draft a reply saying what we will do and by when, with any service credit the contract gives.
+      - key: reply
+        title: Get the account manager to reply
+        agent: support-desk
+        depends_on: [facts]
+        instructions: Hand the complaint and the draft to the account manager by phone and record the promise they make.
+
+policies:
+  - id: refund-above-10000
+    action: refund.issue
+    require_approval_above: { amount: 10000, currency: INR }
+    approver: finance-manager
+    reason: Refunds above ₹10,000 need the finance manager's approval.
+
+routines:
+  - id: daily-work-report
+    name: Daily team update
+    description: Each team lead reports tickets closed, what went live, open incidents and blockers at the end of the working day.
+    mode: manual
+    days: [1, 2, 3, 4, 5]
+    time: "18:30"
+    questions:
+      - { key: ticketsClosed, label: "Tickets closed", ask: "How many tickets did your team close today?", type: number, unit: tickets }
+      - { key: shipped, label: "Shipped today", ask: "What went live or got fixed today?", type: text }
+      - { key: openIncidents, label: "Open P1 or P2", ask: "Is any outage, security issue or P1 or P2 ticket still open?", type: text, flag: true }
+      - { key: blockers, label: "Blocked", ask: "Is anything blocked or likely to miss its deadline?", type: text, flag: true }
+      - { key: needs, label: "Needs from founder", ask: "Do you need anything from the founder or another team?", type: text, flag: true, required: false }
+
+lifecycle:
+  case: { label: Ticket, plural: Tickets, prefix: TKT }
+  stages:
+    request:
+      name: New ticket or alert
+      description: A customer, staff member, partner or monitoring system raises a ticket by email, chat, WhatsApp, phone or an automatic alert, and the sender gets a reply with the ticket number.
+    review:
+      name: Check details and account
+      description: Support checks who is asking and which account and plan they are on, collects what is missing, tries to repeat the problem and looks for duplicates before the ticket moves on.
+      checks:
+        - Account found and active; plan and support level known
+        - Requester is a user on that account; admin, owner, login, billing or data changes only with a current admin's written OK, or a signed letter on company letterhead if no admin is left
+        - "Enough to act on: what happened, when, where (screen, link or API), how many users, and a screenshot or error text"
+        - Problem repeated by support or QA, or seen in logs and monitoring
+        - Not a duplicate of an open ticket, a known issue or a planned feature
+        - Signs of an attack or exposed data? Open a security incident at once, because the CERT-In 6-hour clock is running
+    classify:
+      name: Set severity and priority
+      description: The ticket gets its type, priority (P1 to P4), reply and fix deadlines and owning team; P1 means down for everyone, data lost or a security breach, and P2 means some customers blocked or a legal deadline running.
+    assign:
+      name: Assign team and deadline
+      description: The team lead names the person responsible and the deadline; P1 tickets page the on-call engineer at any hour, P3 and P4 tickets wait for working hours.
+    approve:
+      name: Approval to go ahead
+      description: The named approver says yes before the risky step, never for their own work, such as a rollback or failover, a release, a CERT-In report, an admin change, a refund above ₹10,000, a feature promise or a reply to the police.
+      checks:
+        - Engineering head for rollbacks, failover and emergency fixes during an outage
+        - Engineering manager for every release or change to the live system
+        - Security lead for CERT-In reports, breach notices and admin or owner changes
+        - Finance manager for refunds, credits and chargebacks above ₹10,000
+        - Privacy officer for deleting or sharing personal data, takedowns and replies to police, court or government orders
+    execute:
+      name: Fix, release and update
+      description: The team and agents fix and test, release with a rollback plan ready, update the status page and the customer, and track time against the deadline.
+    close:
+      name: Test, confirm and close
+      description: Someone other than the person who did the work checks the result in the live system, the customer confirms, the named role signs off and the ticket is closed.
+      checks:
+        - Fix checked in the live system by someone other than the person who made it
+        - Customer confirmed, or no reply 3 working days after we said it was fixed
+        - "Outages: status page closed out; start, noticed and restored times recorded for the uptime report and service credits"
+        - "Security incidents: CERT-In report sent and its acknowledgement saved; breach notices sent where needed"
+        - P1 and P2 incidents have a blameless review booked within 5 working days
+        - Help articles and release notes updated if anything changed for customers
+    report:
+      name: Reports and incident reviews
+      description: Weekly and monthly reports show uptime, reply times, customer ratings, failed releases and repeat problems, and every P1 and P2 incident gets a blameless review whose fixes are tracked until done.
+      checks:
+        - Uptime against the promise in each plan, with service credits owed
+        - Releases that needed a rollback or hotfix reviewed
+        - Root-cause fixes past their deadline listed with their owners
+  priorities:
+    - { id: P1, name: "Critical: service down, data lost or security breach", respond_within_hours: 0.5, resolve_within_hours: 4 }
+    - { id: P2, name: "High: some customers blocked or a legal deadline", respond_within_hours: 2, resolve_within_hours: 48 }
+    - { id: P3, name: Normal, respond_within_hours: 8, resolve_within_hours: 120 }
+    - { id: P4, name: "Low: ideas and small issues", respond_within_hours: 24, resolve_within_hours: 360 }
+  roles:
+    - { id: engineering-head, name: Engineering head (CTO), approves: "Rollbacks, failover and emergency fixes during an outage; signs off outages once the incident review is booked" }
+    - { id: engineering-manager, name: Engineering manager (release approver), approves: "Every release or change to the live system, never their own; low-risk changes on the pre-approved list get a quick yes" }
+    - { id: qa-lead, name: QA lead, approves: Signs off fixed bugs and releases after checking them in the live system }
+    - { id: security-lead, name: Security lead (CERT-In contact), approves: "Containment steps, the CERT-In report, breach notices to customers, people and the Data Protection Board, and changes to account admins, owners and two-step login" }
+    - { id: product-manager, name: Product manager, approves: "Decides feature requests (plan, park or decline) and any date or promise about new features" }
+    - { id: finance-manager, name: Finance manager, approves: "Refunds, credit notes, waivers, service credits and chargeback decisions above ₹10,000" }
+    - { id: privacy-officer, name: Grievance and privacy officer, approves: "Deleting, exporting or correcting a person's data, takedowns and every reply to police, court or government orders; named on the website and app for grievances" }
+  # Bare "outage", "site down", "server down" and "smoke" are left out: planned
+  # maintenance notices and smoke tests use them. Bare "fire" is left out too:
+  # webhooks and events "fire" in everyday software talk.
+  urgent_keywords:
+    - unplanned outage
+    - major outage
+    - complete outage
+    - everything is down
+    - down for everyone
+    - down for all users
+    - down for all customers
+    - nobody can log in
+    - no one can log in
+    - data loss
+    - data lost
+    - database deleted
+    - database corrupted
+    - data breach
+    - data leak
+    - data leaked
+    - data theft
+    - customer data exposed
+    - keys leaked
+    - api key leaked
+    - credentials leaked
+    - hacked
+    - ransomware
+    - files encrypted
+    - defaced
+    - ddos
+    - cyber attack
+    - account takeover
+    - accounts taken over
+    - unauthorised access
+    - unauthorized access
+    - laptop stolen
+    - stolen laptop
+    - caught fire
+    - fire broke out
+    - fire in the office
+    - burning smell
+    - electric shock
+    - injured
+    - injury
+  categories:
+    - id: outage
+      name: Outage or slowdown
+      keywords:
+        - outage
+        - unplanned outage
+        - major outage
+        - complete outage
+        - site down
+        - site is down
+        - site went down
+        - site not loading
+        - website down
+        - website is down
+        - website not loading
+        - app down
+        - app is down
+        - app went down
+        - app not loading for anyone
+        - api down
+        - api is down
+        - api not responding
+        - server down
+        - server is down
+        - servers down
+        - database down
+        - db down
+        - dashboard down
+        - everything is down
+        - down for everyone
+        - down for all users
+        - down for all customers
+        - nobody can log in
+        - no one can log in
+        - service unavailable
+        - 503 service unavailable
+        - bad gateway
+        - gateway timeout
+        - http 502
+        - http 503
+        - http 504
+        - error 502
+        - error 503
+        - 502 error
+        - 503 error
+        - 504 error
+        - uptime check
+        - uptime check failed
+        - uptime alert
+        - health check failed
+        - error rate
+        - error spike
+        - latency alert
+        - high latency
+        - payments failing for everyone
+        - data loss
+        - app nahi chal raha
+        - site nahi khul raha
+      priority: P1
+      risk: high
+      department: Engineering (on call)
+      required_checks:
+        - "Impact confirmed from monitoring: which service, how many customers, since when (not one user's own internet)"
+        - Releases and config changes from the last 24 hours checked; roll back first if one lines up
+        - Status page and affected customers updated within 30 minutes, then at least every hour until fixed
+        - "Data lost or exposed, or an attack such as DDoS? Open a security incident too: the CERT-In 6-hour clock starts"
+        - Rollback, failover or emergency fix approved by the engineering head and written up within 1 working day
+        - Start, noticed and restored times recorded for the uptime report and service credits
+      approval: { required: high_risk_or_p1, role: engineering-head }
+      signoff: { required: true, role: engineering-head }
+      workflow: outage-response
+      execution: both
+    - id: security-incident
+      name: Security incident or data leak
+      keywords:
+        - hacked
+        - hacker
+        - hack into
+        - hack attempt
+        - data breach
+        - security breach
+        - data leak
+        - data leaked
+        - personal data leaked
+        - data exposed
+        - exposed publicly
+        - leaked
+        - ransomware
+        - files encrypted
+        - malware
+        - virus
+        - phishing
+        - phishing email
+        - fake login page
+        - suspicious login
+        - suspicious sign in
+        - unauthorised access
+        - unauthorized access
+        - account takeover
+        - accounts taken over
+        - account compromised
+        - been compromised
+        - credential stuffing
+        - brute force
+        - ddos
+        - ddos attack
+        - cyber attack
+        - defaced
+        - intrusion
+        - vulnerability
+        - security vulnerability
+        - security bug
+        - idor
+        - xss
+        - sql injection
+        - responsible disclosure
+        - keys leaked
+        - api key leaked
+        - credentials leaked
+        - laptop stolen
+        - stolen laptop
+        - cert in
+      priority: P1
+      risk: high
+      department: Security
+      required_checks:
+        - Time we noticed it or were told recorded; CERT-In report within 6 hours of that time (incident@cert-in.org.in) with what we know, the rest to follow
+        - "Damage stopped first: attacker blocked, exposed link closed, leaked keys and passwords rotated, users logged out"
+        - "Evidence kept before anything is wiped: logs (kept for a rolling 180 days), screenshots, affected accounts and records"
+        - Personal data involved? Affected people told in plain words without delay; from May 2027 the Data Protection Board too, with the full report within 72 hours
+        - Business customers whose data we hold told at once, or within the time their contract sets, so they can meet their own duties
+        - Money stolen? Report it on cybercrime.gov.in or call 1930 at once
+        - A weakness reported with no sign anyone used it is fixed fast and the reporter thanked; never pay or promise a bounty we have not published
+        - Security lead approves every report and notice before it goes out
+      not_eligible:
+        - keywords:
+            - hack someone's
+            - hack someone else's
+            - hack into someone's
+            - hack into someone else's
+            - hack my ex's
+            - hack into my ex's
+            - hack my wife's
+            - hack my husband's
+            - hack my girlfriend's
+            - hack my boyfriend's
+            - hack my competitor's
+            - hack a competitor's
+            - hack into my competitor's
+            - get into someone else's account
+            - read someone else's messages
+          reason: We only protect our own systems and the accounts of our customers. We never break into anyone else's account, phone or computer. If someone is misusing yours, report it on cybercrime.gov.in or call 1930.
+      approval: { required: always, role: security-lead }
+      signoff: { required: true, role: owner }
+      workflow: security-response
+      execution: both
+    - id: bug
+      name: Bug or error
+      keywords:
+        - bug
+        - error
+        - error message
+        - error code
+        - not working
+        - stopped working
+        - doesn't work
+        - does not work
+        - isn't working
+        - not opening
+        - not saving
+        - not syncing
+        - not updating
+        - crash
+        - crashes
+        - crashed
+        - crashing
+        - glitch
+        - broken
+        - broken link
+        - showing wrong
+        - wrong calculation
+        - wrong total
+        - blank page
+        - blank screen
+        - white screen
+        - 500 error
+        - internal server error
+        - exception
+        - freezes
+        - hanging
+        - stuck
+        - keeps failing
+        - export failing
+        - upload failing
+        - sync failing
+        - webhook not firing
+        - slowness
+        - very slow
+        - after the update
+        - since the update
+        - after yesterday's update
+        - since yesterday's update
+        - after the new version
+        - since the new version
+        - after the new release
+        - since the new release
+        - since the last release
+        - kaam nahi kar raha
+      priority: P3
+      risk: medium
+      department: Engineering and QA
+      required_details:
+        - key: where
+          label: Which screen, report or feature
+          kind: keywords
+          keywords: [app, mobile app, android, iphone, ios, web app, website, page, screen, dashboard, report, api, login, checkout, invoice, bill, form, button, field, module, export, import, upload, download, sync, integration, webhook, notification, email, sms, whatsapp, pdf, excel, settings, browser, chrome]
+        - key: evidence
+          label: Screenshot, error text or steps to repeat it
+          kind: keywords
+          keywords: [screenshot, screen shot, screen recording, recording, video, attached, attaching, attachment, error says, error message, error code, steps, step 1, steps to reproduce, request id, trace id, expected, should show, should be]
+      required_checks:
+        - Repeated by support or QA, or seen in logs and monitoring
+        - How many customers hit it, and is there a workaround to give them now
+        - Not already an open bug or known issue
+        - A bug that shows one customer's data to another, or skips a login, is a security incident; move it at once
+        - Fix tested on staging and released through the normal release approval
+      not_eligible:
+        - keywords: [cracked version, pirated version, mod apk, modded apk, modified apk, unofficial apk, rooted phone, rooted device, jailbroken, internet explorer]
+          reason: We support only the official app from the Play Store or App Store and current Chrome, Edge, Firefox or Safari. Please install the official app or use a supported browser, and write again if the problem is still there.
+      approval: { required: never }
+      signoff: { required: true, role: qa-lead }
+      workflow: bug-fix
+      execution: both
+    - id: billing
+      name: Billing, refund or plan change
+      keywords:
+        - invoice
+        - gst invoice
+        - tax invoice
+        - invoice copy
+        - billing
+        - billing query
+        - wrong bill
+        - gstin
+        - wrong gstin
+        - refund
+        - refunded
+        - charged twice
+        - double charged
+        - debited twice
+        - deducted twice
+        - still charged
+        - money deducted
+        - amount deducted
+        - credit note
+        - cancel subscription
+        - cancel my subscription
+        - turn off auto renewal
+        - downgrade
+        - upgrade plan
+        - upgrade my plan
+        - change my plan
+        - renewal
+        - annual plan
+        - monthly plan
+        - auto debit
+        - autopay
+        - e mandate
+        - payment failed
+        - payment failing
+        - payment declined
+        - card declined
+        - payment stuck
+        - payment reminder
+        - chargeback
+        - payment dispute
+        - service credit
+        - sla credit
+        - discount
+        - waiver
+        - pricing
+        - tds
+        - paise wapas
+      priority: P3
+      risk: medium
+      department: Finance (billing)
+      required_checks:
+        - Request from the account admin or the billing contact on record
+        - Payment checked in the billing system and with the gateway or bank (payment ID or UTR)
+        - "Refund policy followed: duplicate or wrong charges always; annual plans within 30 days of purchase; no part refunds after that"
+        - Service credits follow the uptime promise in the contract and the downtime recorded in the outage ticket
+        - GST invoice shows the customer's correct GSTIN and state; corrections by credit note and a fresh invoice, and credit notes for last year's invoices only until 30 November
+        - "Auto-debit: notice at least 24 hours before each charge, and the customer's OTP for any charge above ₹15,000"
+        - Money goes back only to the card, UPI or bank account that paid
+        - The person who raised a refund or credit note does not approve it
+      not_eligible:
+        - keywords: [refund the unused, refund for the unused, unused months, unused period, unused days, remaining months, remaining period, rest of the year, balance months, balance period, pro rata refund, prorata refund, prorated refund, pro rated refund]
+          reason: Annual plans can be refunded only within 30 days of purchase; after that we do not refund unused months. Duplicate or wrong charges are always refunded. We can turn off auto-renewal now and move you to a smaller plan from the next renewal.
+      approval: { required: above_amount, role: finance-manager, amount_inr: 10000 }
+      signoff: { required: false }
+      workflow: billing-request
+      execution: agents
+    - id: change-release
+      name: Release or change to the live system
+      keywords:
+        - release
+        - production release
+        - release to production
+        - release to all
+        - rollout
+        - roll out
+        - deploy
+        - deployment
+        - deploy to production
+        - go live
+        - push live
+        - push to production
+        - hotfix
+        - config change
+        - database migration
+        - data migration
+        - server migration
+        - schema change
+        - maintenance window
+        - planned maintenance
+        - scheduled maintenance
+        - down for maintenance
+        - planned downtime
+        - scheduled downtime
+        - planned outage
+        - server upgrade
+        - version upgrade
+        - feature flag
+        - staging
+        - tested on staging
+        - smoke test
+        - rollback plan
+        - rollback
+        - roll back
+        - ssl certificate
+        - ssl renewal
+        - dns change
+        - dns record
+        - security patch
+        - patching
+        - change freeze
+        - play store release
+        - app store release
+      priority: P3
+      risk: medium
+      department: Engineering (releases)
+      required_details:
+        - { key: window, label: Planned date or time window, kind: date }
+      required_checks:
+        - "What changes, who it affects, and when (outside busy hours: month-end, GST return dates, sale days)"
+        - Code reviewed by someone other than the author, and tests passed on staging
+        - Rollback plan ready; backup taken and restore tested before any database change
+        - Customers told at least 72 hours before any planned downtime
+        - No open P1 incident and no change freeze at that time
+        - Errors watched for an hour after release; roll back first if they rise
+      approval: { required: always, role: engineering-manager }
+      signoff: { required: true, role: qa-lead }
+      workflow: release-change
+      execution: both
+    - id: complaint
+      name: Complaint or escalation
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - escalate
+        - escalating
+        - escalation
+        - not satisfied
+        - unhappy
+        - not happy
+        - disappointed
+        - poor service
+        - worst service
+        - worst app
+        - pathetic
+        - no response
+        - no reply
+        - nobody called back
+        - no one called back
+        - nobody replied
+        - still not fixed
+        - still not resolved
+        - sla breach
+        - sla missed
+        - missed deadline
+        - unprofessional
+        - rude
+        - legal notice
+        - consumer forum
+        - consumer court
+        - terminate the contract
+        - cancel the contract
+        - switching to another software
+        - one star review
+        - third reminder
+        - shikayat
+      priority: P2
+      risk: medium
+      department: Customer success
+      required_checks:
+        - Logged and acknowledged the same day
+        - "Facts checked: ticket history, chats, emails, call logs and SLA timers"
+        - Written reply saying what we will do and by when
+        - Service credit under the contract worked out where the SLA was missed
+      approval: { required: never }
+      signoff: { required: true, role: account-manager }
+      workflow: complaint-handling
+      execution: both
+    - id: privacy-legal
+      name: Privacy, police or legal request
+      keywords:
+        - delete my data
+        - delete my account
+        - erase my data
+        - erasure
+        - copy of my data
+        - export my data
+        - download my data
+        - correct my data
+        - personal data
+        - withdraw consent
+        - withdraw my consent
+        - dpdp
+        - data protection
+        - data principal
+        - privacy
+        - grievance
+        - grievance officer
+        - police
+        - police station
+        - cyber crime
+        - cyber cell
+        - court order
+        - summons
+        - subpoena
+        - notice under section
+        - section 94
+        - bnss
+        - section 91 crpc
+        - section 69
+        - section 69a
+        - section 79
+        - blocking order
+        - takedown
+        - take down
+        - law enforcement
+        - preservation request
+        - deepfake
+        - morphed
+        - impersonation
+        - impersonating
+      priority: P2
+      risk: high
+      department: Legal and compliance
+      required_details:
+        - key: proof
+          label: The signed order, or the person's registered email or phone to verify them
+          kind: keywords
+          keywords: [signed notice, signed order, notice attached, order attached, copy of the order, copy of the notice, official email, letterhead, registered email, registered mobile, registered phone, registered number, registered address, otp, from my registered]
+      required_checks:
+        - Identity checked by OTP to the registered email or phone; a police, court or government order must be in writing, signed, name the officer and the law it uses, and be checked by calling the office on its published number
+        - Whose data? For data we hold for a business customer, that customer decides; pass the request to them and tell the person
+        - Only what is asked is shared, and only with the officer named; data the law makes us keep (GST records, security logs) is kept and the person is told why
+        - Requests to see, correct or erase personal data answered within 90 days at most
+        - "Deadlines: the order's own deadline; information orders from an authorised agency within 72 hours; takedowns on a court or government order within 3 hours; nudity, impersonation or morphed images within 2 hours"
+        - Grievances acknowledged within 24 hours and resolved within 7 days, and removal requests within 36 hours
+        - Interception (section 69) and blocking (section 69A) orders kept confidential
+        - Privacy officer approves every deletion, export, takedown and reply
+      not_eligible:
+        - keywords: [my husband's data, my wife's data, my husband's chats, my wife's chats, my husband's messages, my wife's messages, my ex's, my ex husband's, my ex wife's, my girlfriend's, my boyfriend's, someone else's data, another person's data, another user's data, another user's personal]
+          reason: We share a person's data only with that person, or with the police or a court on a valid written order. If you think a crime has been committed, report it to the police or on cybercrime.gov.in, and the police can send us a written notice.
+      approval: { required: always, role: privacy-officer }
+      signoff: { required: true, role: privacy-officer }
+      workflow: privacy-request
+      execution: both
+    - id: support-ticket
+      name: Question or account help
+      keywords:
+        - how do i
+        - how to
+        - how can i
+        - where can i
+        - where do i
+        - is there a way
+        - is there an option
+        - set up
+        - setup
+        - configure
+        - add user
+        - add a user
+        - add new user
+        - as a user
+        - remove user
+        - remove a user
+        - user access
+        - view only
+        - read only access
+        - reset password
+        - forgot password
+        - password reset
+        - otp not received
+        - not getting otp
+        - can't log in
+        - cannot log in
+        - unable to log in
+        - can't login
+        - unable to login
+        - training
+        - demo
+        - walkthrough
+        - user guide
+        - kaise
+      priority: P3
+      risk: low
+      department: Customer support
+      required_checks:
+        - Account found and the person is a user on it
+        - Answer checked against current help articles and the customer's plan
+        - Customer given the ticket number and the time of the next reply
+        - Moved to the right type if it turns out to be a bug, billing, data or admin change
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: account-help
+      execution: agents
+    - id: account-access
+      name: Admin, owner or login change
+      keywords:
+        - make me admin
+        - make me the admin
+        - make him admin
+        - make her admin
+        - new admin
+        - change admin
+        - change the admin
+        - remove the admin
+        - admin has left
+        - admin left
+        - only admin
+        - transfer ownership
+        - account owner
+        - change owner
+        - change login email
+        - change the login email
+        - change registered email
+        - change registered mobile
+        - change registered number
+        - change my registered
+        - lost access to the account
+        - reset 2fa
+        - disable 2fa
+        - reset two factor
+        - authenticator
+      priority: P3
+      risk: high
+      department: Customer support and security
+      required_details:
+        - key: authority
+          label: Written OK from a current account admin, or a signed letter on company letterhead
+          kind: keywords
+          keywords: [letterhead, signed letter, authorisation letter, authorization letter, authority letter, board resolution, signed by the director, signed by our director, admin has approved, approved by the admin, admin approval, cc the admin, copied the admin, i am the admin, i'm the admin, as the admin, as account admin]
+      required_checks:
+        - Written OK from a current admin, or a signed letter on company letterhead from a director, partner or proprietor if no admin is left
+        - Person verified by OTP to the registered email or phone, or by a call back on the number in our records, never the number in the request
+        - Partners, resellers and consultants never get admin rights on their own word
+        - All admins told by email when the change is made
+        - A rush ("do it right now") or a free email address asking for a company account is a warning sign; open a security incident if in doubt
+      approval: { required: always, role: security-lead }
+      signoff: { required: false }
+      workflow: account-access-change
+      execution: both
+    - id: feature-request
+      name: Feature request or idea
+      keywords:
+        - feature request
+        - feature idea
+        - new feature
+        - can you add
+        - could you add
+        - please add a feature
+        - please add an option
+        - would be nice
+        - would be great if
+        - it would help if
+        - suggestion
+        - enhancement
+        - wishlist
+        - roadmap
+        - integration with
+        - integrate with
+        - option to
+        - ability to
+        - custom field
+        - any plans to
+        - when will you add
+        - missing feature
+      priority: P4
+      risk: low
+      department: Product
+      required_checks:
+        - The problem the customer wants solved, not just the feature they named
+        - Checked whether it already exists or is planned; if so, say how to use it or when it is due
+        - Merged with the same idea if already logged, with the customer's name, plan and yearly value added
+        - No date or promise to the customer without the product manager's approval
+      approval: { required: always, role: product-manager }
+      signoff: { required: false }
+      workflow: feature-intake
+      execution: agents
+  examples:
+    - { request: "Pager alert 03:10: checkout API returning HTTP 502 for all merchants, health check failed in both regions", category: outage, priority: P1, approval: true }
+    - { request: "Since 9.15 am customers in Pune and Chennai say the web app is down and the login page never loads", category: outage, priority: P1, approval: true }
+    - { request: "Database down after the storage disk filled up, nobody can log in or save anything", category: outage, priority: P1, approval: true }
+    - { request: "Suspicious login on our AWS root account from an unknown country at 2 am, and new access keys were created", category: security-incident, priority: P1, approval: true }
+    - { request: "A researcher wrote that customer documents can be downloaded by changing the number in the URL (IDOR) without logging in", category: security-incident, priority: P1, approval: true }
+    - { request: "Credential stuffing on the mobile app tonight, thousands of failed logins and 12 customer accounts taken over", category: security-incident, priority: P1, approval: true }
+    - { request: "Purchase register report shows the wrong total when the branch filter is applied, screenshot attached", category: bug, priority: P3, approval: false }
+    - { request: "Android app crashes on the attendance screen after the 5.2 update on a Redmi Note 12, screen recording attached", category: bug, priority: P3, approval: false }
+    - { request: "Bulk upload of 500 contacts gets stuck at 80% with error code E-413", category: bug, priority: P3, approval: false }
+    - { request: "Our GSTIN is wrong on the September invoice, please cancel it and send a corrected one", category: billing, priority: P3, approval: true }
+    - { request: "UPI AutoPay took ₹2,950 for the monthly plan even though we moved to the free plan last week, please refund", category: billing, priority: P3, approval: false }
+    - { request: "Service credit for last Tuesday's 3-hour outage please, our contract gives 10% of the ₹1,20,000 monthly fee", category: billing, priority: P3, approval: true }
+    - { request: "Schedule the database migration for the ledger table this Saturday 11 pm, rollback script is ready", category: change-release, priority: P3, approval: true }
+    - { request: Turn on the new reports feature flag for all customers on Monday morning, category: change-release, priority: P3, approval: true }
+    - { request: Renew the SSL certificate for api.ourapp.in before it expires on 28 October, category: change-release, priority: P3, approval: true }
+    - { request: "This is the third reminder, our export problem is still not fixed and nobody replied for a week", category: complaint, priority: P2, approval: false }
+    - { request: Your support executive was rude on the call and hung up on our accountant. I want to escalate this to your founder., category: complaint, priority: P2, approval: false }
+    - { request: "If the SLA breach on our account is not explained by Friday we will terminate the contract", category: complaint, priority: P2, approval: false }
+    - { request: I closed my account last month. Please erase my data and confirm by email to my registered address., category: privacy-legal, priority: P2, approval: true }
+    - { request: Cyber cell Hyderabad emailed a signed notice asking us to take down a fake profile impersonating a doctor on our app, category: privacy-legal, priority: P2, approval: true }
+    - { request: Please send me a copy of all the personal data your app holds about me under the DPDP Act, category: privacy-legal, priority: P2, approval: true }
+    - { request: Where can I change the logo printed on our quotations?, category: support-ticket, priority: P3, approval: false }
+    - { request: "OTP not received on my new SIM, so I can't log in to the mobile app", category: support-ticket, priority: P3, approval: false }
+    - { request: Can someone give our sales team a 30-minute training on the leads screen?, category: support-ticket, priority: P3, approval: false }
+    - { request: Our previous director was the only admin. Attached is a signed letter on company letterhead asking to make Priya Nair the new admin., category: account-access, priority: P3, approval: true }
+    - { request: "Please change the login email for Raj Traders to accounts@rajtraders.in, I am the admin", category: account-access, priority: P3, approval: true }
+    - { request: Lost my phone with the authenticator app on it. Please reset 2FA on my account., category: account-access, priority: P3, approval: true }
+    - { request: Would be great if the mobile app worked offline at client sites with no network, category: feature-request, priority: P4, approval: true }
+    - { request: Any plans to add an integration with Zoho Books?, category: feature-request, priority: P4, approval: true }
+    - { request: "Feature idea: let us set a different GST rate on each line of a recurring invoice", category: feature-request, priority: P4, approval: true }
+
+playbooks:
+  - id: major-outage
+    title: "Major outage: the first hours"
+    source: Atlassian Incident Management Handbook (incident roles, communication and severity levels); service credit and notice periods are house defaults for the owner to tune
+    body: |
+      1. Confirm it is real from monitoring: two regions, many customers or the uptime check, not one user's own internet. Open the incident and page the on-call engineer at any hour.
+      2. Name one incident lead who decides and one person who talks to customers. The engineering head okays any rollback, failover or emergency fix by phone; write it up within 1 working day.
+      3. Check releases and config changes from the last 24 hours. If one lines up, roll back first and find the cause after.
+      4. Post on the status page and tell affected customers within 30 minutes, then at least every hour, even when there is no news. Use plain words and give the next update time.
+      5. If data was lost or exposed, or it is an attack such as DDoS, open a security incident too, because the CERT-In 6-hour clock starts.
+      6. Record when it started, when we noticed and when it was restored. Work out service credits from the contract (suggested default: 10% of the monthly fee below 99.9% uptime, 25% below 99%, claimed within 30 days).
+      7. Book a blameless review within 5 working days.
+  - id: incident-review
+    title: Blameless review after a P1 or P2 incident
+    source: Atlassian Incident Management Handbook, Postmortems; Atlassian, Incident severity levels (vendor practice, not law)
+    body: |
+      1. Hold a review for every P1 and P2 incident, in a meeting within 5 working days.
+      2. Keep it blameless: ask what let it happen, not who did it.
+      3. One owner writes it up: what customers saw and for how long, the timeline, the root cause found by asking "why?" until the real cause shows, and what will stop it coming back.
+      4. Each root-cause fix gets a named owner and a deadline of 4 or 8 weeks, and is tracked until done.
+      5. A manager approves the write-up. Affected customers get a short, plain summary without internal names or blame.
+      6. Review open fixes every month and chase the ones past their deadline.
+  - id: account-access-changes
+    title: Changing admins, owners and login details
+    source: OWASP Authentication and Forgot Password Cheat Sheets; common SaaS support practice against account takeover by social engineering
+    body: |
+      1. Only a current admin can add or remove admins, change the account owner or change login details. Show them how to do it in the app first.
+      2. If no admin is left, ask for a signed letter on company letterhead from a director, partner or proprietor, with their ID, sent from the company's own email domain.
+      3. Verify the person by OTP to the registered email or phone, or call back on the number in our records. Never use the number given in the request.
+      4. Partners, resellers and consultants never get admin rights on their own word. They need the customer's written OK.
+      5. The security lead approves the change. Record who asked, how they were verified and who approved.
+      6. After the change, email every admin on the account so a false request is caught quickly.
+      7. Pressure to do it right now, a free email address asking for a company account, or a story that does not add up are warning signs. If in doubt, open a security incident.
+  - id: data-rights-requests
+    title: Requests to see, correct or erase personal data
+    source: Digital Personal Data Protection Act, 2023, sections 8(7) and 11 to 14, and DPDP Rules, 2025 (rights and breach duties from May 2027); CGST Act, 2017, section 36; CERT-In Directions, 28 April 2022 (180-day logs)
+    body: |
+      1. Ask whose data it is. For our own users we decide. For data we hold for a business customer (their staff or their customers), that customer decides: pass the request to them within 2 working days and tell the person.
+      2. Verify the person by OTP to the registered email or phone. Never act on a phone call alone. A person can name someone to act for them; ask for the written nomination.
+      3. Find the data everywhere: the app database, file storage, support tickets, CRM, email lists, analytics and backups.
+      4. Erase what is no longer needed. Keep only what the law makes us keep, such as GST invoices and accounts (72 months from the annual return due date) and security logs (180 days), and tell the person what is kept and why. Backups are cleared as they expire.
+      5. Withdrawing consent must be as easy as giving it. Stop marketing messages at once.
+      6. Answer within 90 days at most; aim for 30. The privacy officer approves every export and deletion.
+      7. Record the request and the outcome without keeping the deleted data.
+  - id: police-court-government-orders
+    title: Police, court and government orders and grievances
+    source: IT Act, 2000, sections 69, 69A and 79; IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, rule 3, as amended by the IT Amendment Rules, 2026 (notified 10 February 2026, in force 20 February 2026); Bharatiya Nagarik Suraksha Sanhita, 2023, section 94
+    body: |
+      1. Act only on written orders: signed, from an official email or letterhead, naming the officer, the law used (for example section 94 BNSS, section 69 or 69A of the IT Act, or rule 3 of the IT Rules), the account and the data or content. A call or WhatsApp is not enough; ask for the written notice.
+      2. Check it is genuine by calling the police station or office on its published number.
+      3. Share only what the order asks for, only with the officer named, by the deadline in the order. An information order from an authorised government agency under the IT Rules must be answered within 72 hours.
+      4. If users can post content on our product: remove content within 3 hours of a court order or government notice, and within 2 hours of a complaint about nudity, intimate images, impersonation or morphed images.
+      5. Interception and decryption orders (section 69) and blocking orders (section 69A) are confidential. Do not tell the user or anyone who does not need to act on them.
+      6. Show the grievance officer's name and contact on the website and in the app. Acknowledge grievances within 24 hours, resolve removal requests within 36 hours and other grievances within 7 days.
+      7. The privacy officer approves every reply. Keep the order, what we shared and when, with the ticket.
+  - id: subscription-billing
+    title: Refunds, auto-debit and GST invoices
+    source: RBI e-mandate framework for recurring payments (24-hour pre-debit notice; ₹15,000 limit without OTP since December 2023); CGST Act, 2017, sections 31 and 34; CCPA Guidelines for Prevention and Regulation of Dark Patterns, 2023; Consumer Protection (E-Commerce) Rules, 2020
+    body: |
+      1. Publish the refund policy where people pay. House default: duplicate or wrong charges are always refunded in full; annual plans can be refunded within 30 days of purchase; no part refunds after that.
+      2. Auto-debit by card or UPI AutoPay needs the customer's mandate. Send a notice at least 24 hours before each charge, get the customer's OTP for any charge above ₹15,000, and let them cancel the mandate at any time.
+      3. Cancelling must be as easy as signing up. No hidden auto-renewal and no tricks to keep people paying.
+      4. GST on SaaS is 18%. The invoice shows the customer's GSTIN and state, which decides IGST or CGST plus SGST. Customers abroad paying in foreign currency are billed as an export of services under a LUT.
+      5. Correct a wrong invoice with a credit note and a fresh invoice. Credit notes for a year's invoices can be issued only until 30 November of the next year.
+      6. Refunds go back only to the card, UPI or bank account that paid, never to someone else.
+      7. Answer chargebacks before the gateway's deadline with the invoice, usage records, accepted terms and any cancellation record. The finance manager decides refunds, credits and chargebacks above ₹10,000.
+
+kpis:
+  - id: uptime
+    name: Uptime
+    description: Minutes the app and API worked for customers this month as a share of all minutes, not counting planned maintenance announced 72 hours ahead. 99.9% allows about 43 minutes of downtime in a 30-day month.
+    unit: percent
+    direction: up
+    target: 99.9
+  - id: first-reply-on-time
+    name: First replies on time
+    description: Tickets that got a first reply within their priority's time (P1 30 minutes, P2 2 hours, P3 8 hours, P4 24 hours), as a share of tickets opened this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: csat
+    name: Customer satisfaction
+    description: Closed tickets the customer rated good or better, as a share of all ratings received this month.
+    unit: percent
+    direction: up
+    target: 90
+  - id: review-fixes-on-time
+    name: Incident fixes done on time
+    description: Root-cause fixes from incident reviews finished by their 4- or 8-week deadline, as a share of such fixes due this month.
+    unit: percent
+    direction: up
+    target: 90
+  - id: open-incidents
+    name: Open incidents
+    description: Outages and security incidents still open.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Incident, where: { status: open } }
+  - id: accounts-past-due
+    name: Accounts past due
+    description: Customer accounts whose payment is overdue.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: CustomerAccount, where: { status: past-due } }
+
+connectors: [gmail, whatsapp-business, razorpay]

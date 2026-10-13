@@ -1,0 +1,105 @@
+# Software & SaaS company: realistic requests from monitoring, customers, staff,
+# partners and the founder, with what the stages should decide.
+pack: software-saas
+cases:
+  - id: uptime-503-after-release
+    request: "Uptime check failed for the web app and API from Mumbai and Singapore since 10:42 IST: HTTP 503, error rate 41%. Release v4.12 went out at 10:30."
+    source: system
+    expect:
+      category: outage
+      priority: P1
+      review: complete
+      approval: { required: true, role: engineering-head }
+      signoff: { required: true, role: engineering-head }
+    why: Uptime check, HTTP 503 and error rate mark an outage (P1), well ahead of the one release word. Two regions confirm real impact. Every P1 outage needs the engineering head, here to okay rolling back the 10:30 release, and the engineering head signs off once the review is booked.
+  - id: invoice-links-public
+    request: "Your invoice PDFs open for anyone who has the link, no login needed. I found one of our own customer's invoices on Google search. This is a data leak, please fix it today."
+    source: customer
+    expect:
+      category: security-incident
+      priority: P1
+      review: complete
+      approval: { required: true, role: security-lead }
+      signoff: { required: true, role: owner }
+    why: Data leak marks a security incident (P1), ahead of billing (invoice). The CERT-In 6-hour clock starts now, when it was brought to our notice. The security lead approves the CERT-In report and customer notices; the founder signs off the closure and any public statement.
+  - id: gst-report-wrong-total
+    request: "GST report showing wrong total since yesterday's update. Please fix urgently!!"
+    source: customer
+    expect:
+      category: bug
+      priority: P3
+      review: needs_info
+      approval: { required: false }
+      signoff: { required: true, role: qa-lead }
+    why: Showing wrong and wrong total mark a bug (P3); "urgently" does not change the priority. Without the period, the total shown against the total expected, or a screenshot, nobody can repeat it, so review asks for them.
+  - id: tally-export-renewal
+    request: "Feature request from Sharma Distributors (Rs 3.6 lakh a year): one-click export of sales vouchers to Tally. They say they'll renew in December only if we give them a date."
+    source: staff
+    amount_inr: 360000
+    expect:
+      category: feature-request
+      priority: P4
+      review: complete
+      approval: { required: true, role: product-manager }
+      signoff: { required: false }
+    why: Feature request (P4). The product manager decides before anyone gives a date, even with a renewal at stake; ₹3.6 lakh is under the ₹5 lakh owner limit and the product manager is named first anyway. Feature requests need no sign-off.
+  - id: founder-pushes-release
+    request: "WhatsApp payment reminders are tested on staging and the rollback plan is ready. Release them to all customers tonight at 11 pm, sales has promised three clients. I'm okaying it, no need to wait for the usual approval."
+    source: owner
+    expect:
+      category: change-release
+      priority: P3
+      review: complete
+      approval: { required: true, role: engineering-manager }
+      signoff: { required: true, role: qa-lead }
+    why: Staging, rollback plan and release mark a change to the live system (P3), not billing. The window is given (tonight). The founder's okay does not replace release approval; the engineering manager approves and the QA lead checks it live and signs off.
+  - id: razorpay-chargeback
+    request: "Razorpay: chargeback raised on payment pay_P7Kx2mQ for Rs 14,160 by Om Sai Clinics on 12 Sep 2026. Reason given: 'subscription cancelled but still charged'. Accept or submit evidence by 19 Oct 2026."
+    source: partner
+    amount_inr: 14160
+    expect:
+      category: billing
+      priority: P3
+      review: complete
+      approval: { required: true, role: finance-manager }
+      signoff: { required: false }
+    why: Chargeback marks billing (P3). ₹14,160 is above the ₹10,000 limit, so the finance manager decides whether to accept or contest it before 19 Oct. Billing needs no sign-off.
+  - id: annual-plan-unused-months
+    request: "We took the annual plan in May for Rs 9,600 but stopped using it after two months. Please refund the unused 7 months, about Rs 5,600."
+    source: customer
+    amount_inr: 5600
+    expect:
+      category: billing
+      priority: P3
+      review: not_eligible
+    why: Refund and annual plan mark billing. Annual plans are refundable only within 30 days of purchase, with no part refunds after that, so a refund of unused months is not eligible; agents decline politely and offer to stop auto-renewal.
+  - id: police-notice-bnss
+    request: "Forwarding from the grievance inbox: Cyber Crime PS, Bengaluru has sent a signed notice under Section 94 BNSS asking for the login IP addresses and registered mobile number of user ID 88213 from 1 Aug to 30 Sep 2026. They want a reply within 3 days. Notice attached."
+    source: staff
+    expect:
+      category: privacy-legal
+      priority: P2
+      review: complete
+      approval: { required: true, role: privacy-officer }
+      signoff: { required: true, role: privacy-officer }
+    why: Cyber crime, notice under section, section 94 and BNSS mark a police request (P2). The notice is signed and attached, so review is complete. The privacy officer approves sharing only what is asked, with the officer named, by the 3-day deadline, and signs off once the reply is filed.
+  - id: view-only-accountant
+    request: "How do I add my new accountant as a user who can only view reports and not change anything?"
+    source: customer
+    expect:
+      category: support-ticket
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A how-to from a user on the account (P3). Agents answer from the help articles; no approval or sign-off.
+  - id: partner-wants-admin
+    request: "Hi, this is Ravi from Techserve, your implementation partner. Mehta Foods' admin has left the company. Please make me admin on their account so I can manage their users."
+    source: partner
+    expect:
+      category: account-access
+      priority: P3
+      review: needs_info
+      approval: { required: true, role: security-lead }
+      signoff: { required: false }
+    why: Make me admin and admin has left mark an admin change. A partner's word is not enough; review needs a current Mehta Foods admin's written OK or a signed letter on Mehta Foods letterhead. Once that arrives, the security lead approves the change.
