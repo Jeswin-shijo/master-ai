@@ -1,0 +1,104 @@
+# Municipal & citizen services: realistic requests from citizens, portals, the
+# police, a corporator's office, field staff and the commissioner's office, with
+# what the stages should decide.
+pack: municipal
+cases:
+  - id: open-manhole
+    request: "Traffic police control room: manhole cover missing on Station Road opposite the SBI ATM, ward 22. Open manhole in the middle of the road, one bike already fell in. Send your team urgently."
+    source: partner
+    expect:
+      category: emergency
+      priority: P1
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: safety-officer }
+    why: An open manhole is a danger to life, so it is an emergency (P1) with no approval step. The disaster management officer signs off once it is barricaded and covered.
+  - id: swachhata-garbage
+    request: "Swachhata app complaint SW-2610-44817: Garbage dump. Garbage not lifted for 4 days at the corner of Netaji Road and Ambedkar lane, ward 12. Smell is unbearable. Photo attached."
+    source: system
+    expect:
+      category: sanitation
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: ward-officer }
+    why: Garbage not lifted with the road, lane and ward given. Sanitation complaints need no approval; the ward officer signs off after the after-photo.
+  - id: death-certificate-no-date
+    request: "Namaste, I need 5 copies of my father's death certificate for the bank and his pension. His name was Ramesh Kulkarni. What is the process?"
+    source: customer
+    expect:
+      category: certificate
+      priority: P3
+      review: needs_info
+    why: The registrar finds a death by name, date and place. No date of death is given, so the desk asks for it.
+  - id: caste-certificate
+    request: "Please issue OBC caste certificate for my son Aman, needed for college admission. We stay in ward 7, Shastri Nagar."
+    source: customer
+    expect:
+      category: certificate
+      priority: P3
+      review: not_eligible
+    why: Caste certificates are issued by the tehsildar or SDM of the revenue department, not the municipality.
+  - id: property-tax-paid-twice
+    request: "We paid property tax of ₹18,640 for 2026-27 twice, online on 2 June and again at the ward counter on 5 June. Property ID 07-112-0456. Please refund the extra payment to my account."
+    source: customer
+    amount_inr: 18640
+    expect:
+      category: billing
+      priority: P3
+      review: complete
+      approval: { required: true, role: revenue-officer }
+      signoff: { required: true, role: revenue-officer }
+    why: A refund above ₹10,000 needs the revenue officer, who also signs off once the money is back in the payer's account and the ledger matches.
+  - id: trade-licence-renewal
+    request: "Sir I want to renew the trade licence of my kirana store, Shop 14, Nehru Market, ward 21. Licence no TL/2025/3381 is valid till 31 October."
+    source: customer
+    expect:
+      category: trade-licence
+      priority: P3
+      review: complete
+      approval: { required: true, role: health-officer }
+      signoff: { required: false }
+    why: Every new or renewed trade licence is sanctioned by the health officer after the inspection; the signed licence closes it, with no separate sign-off.
+  - id: building-plan-large-fee
+    request: "Commissioner's office: put up the building plan file of Shree Ganesh Developers, G+4 residential on plot 23, Sector 9, application BP/2026/0419, for decision this week. Scrutiny and development fee of ₹7,85,000 deposited."
+    source: owner
+    amount_inr: 785000
+    expect:
+      category: building-permission
+      priority: P4
+      review: complete
+      approval: { required: true, role: town-planning-officer }
+      signoff: { required: true, role: town-planning-officer }
+    why: Building permissions always go to the town planning officer. The amount is above ₹5 lakh, but a named role is asked before the owner, and the commissioner's office asking does not skip the officer's decision.
+  - id: pothole-work-order
+    request: "JE ward 14 here. Station Road from the bus depot to the railway gate, about 300 m, has 40 potholes after the rains. Patch work estimate ₹6,80,000 under the road maintenance contract. Please approve the work order."
+    source: staff
+    amount_inr: 680000
+    expect:
+      category: facility
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: executive-engineer }
+    why: Road repairs have no approval rule of their own, but any case above ₹5 lakh needs the owner (the standing committee's limit). The executive engineer signs off the finished work.
+  - id: no-water-lane
+    request: "No water supply in Bhim Nagar lane 3 since Sunday morning. Whole lane affected and no tanker came. Please check the main valve."
+    source: customer
+    expect:
+      category: water-drainage
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: executive-engineer }
+    why: A whole lane without water is P2 and needs no approval. The executive engineer signs off once supply is back.
+  - id: corporator-grievance
+    request: "Corporator's office ward 17: residents gave complaint no. 88213 on 2 September about Kamla Nehru Marg. Third reminder, still no action and nobody attended. Please treat this as a grievance and give a written reply."
+    source: partner
+    expect:
+      category: complaint
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: grievance-officer }
+    why: A complaint past its time with nobody attending becomes a grievance. The public grievance officer signs off the written reply.

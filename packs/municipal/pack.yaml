@@ -1,0 +1,919 @@
+# Ready-made pack: municipal corporations, municipal councils, nagar panchayats
+# and their ward offices in India. Built from Indian practice: the state Right to
+# Services Acts and their notified time limits (Haryana's urban list, Maharashtra
+# 2015, Karnataka Sakala 2011), the Registration of Births and Deaths Act 1969 as
+# amended in 2023 (CRS portal), the Swachhata app service levels, the Solid Waste
+# Management Rules 2026 and the Model Building Bye-laws 2016. Agents register,
+# route to the ward and track the time limit; officers decide.
+id: municipal
+version: 1.0.0
+name: Municipal & citizen services
+description: Garbage, water and sewer, roads and streetlights, birth and death certificates, property tax, trade licences, building permissions, emergencies and grievances for municipal corporations, councils, nagar panchayats and ward offices.
+kind: industry
+sector: public-services
+extends: [sector-public-services]
+match:
+  keywords:
+    - municipal corporation
+    - municipality
+    - municipal council
+    - municipal committee
+    - nagar panchayat
+    - nagar palika
+    - nagar parishad
+    - nagar nigam
+    - mahanagar palika
+    - town panchayat
+    - urban local body
+    - ward office
+    - zonal office
+    - citizen services
+    - civic body
+    - corporation office
+
+labels:
+  Customer: Citizen
+
+entities:
+  - name: Property
+    label: Property
+    plural_label: Properties
+    title_field: propertyId
+    list_columns: [propertyId, ownerName, ward, usage, arrears]
+    fields:
+      - { name: propertyId, label: Property ID or assessment number, type: string, required: true }
+      - { name: ownerName, label: Owner, type: string, required: true }
+      - { name: address, label: Address, type: text }
+      - { name: ward, label: Ward, type: string }
+      - name: usage
+        label: Use
+        type: enum
+        options: [residential, commercial, mixed, institutional, industrial, vacant-plot]
+      - { name: builtUpAreaSqm, label: Built-up area (sq m), type: number }
+      - { name: annualTax, label: Annual property tax, type: money }
+      - { name: arrears, label: Arrears, type: money }
+      - { name: waterConsumerNo, label: Water consumer number, type: string }
+      - { name: lastPaidOn, label: Last paid on, type: date }
+  - name: Ward
+    label: Ward
+    plural_label: Wards
+    title_field: wardNo
+    list_columns: [wardNo, zone, wardOfficer, sanitaryInspector, juniorEngineer]
+    fields:
+      - { name: wardNo, label: Ward number, type: string, required: true }
+      - { name: name, label: Ward name or areas, type: string }
+      - { name: zone, label: Zone, type: string }
+      - { name: wardOfficer, label: Ward officer, type: string }
+      - { name: wardOfficerPhone, label: Ward officer's phone, type: phone }
+      - { name: sanitaryInspector, label: Sanitary inspector, type: string }
+      - { name: sanitaryInspectorPhone, label: Sanitary inspector's phone, type: phone }
+      - { name: juniorEngineer, label: Junior engineer, type: string }
+      - { name: juniorEngineerPhone, label: Junior engineer's phone, type: phone }
+      - { name: corporator, label: Corporator or councillor, type: string }
+  - name: ServiceApplication
+    label: Service application
+    plural_label: Service applications
+    title_field: applicationNo
+    list_columns: [applicationNo, service, applicant, dueBy, status]
+    fields:
+      - { name: applicationNo, label: Application or complaint number, type: string, required: true }
+      - { name: service, label: Notified service, type: string, required: true }
+      - { name: applicant, label: Applicant, type: string }
+      - { name: phone, label: Applicant's mobile, type: phone }
+      - { name: ward, label: Ward, type: string }
+      - { name: receivedOn, label: Received on, type: date }
+      - { name: dueBy, label: Due by (notified time limit), type: date }
+      - { name: designatedOfficer, label: Designated officer, type: string }
+      - { name: fee, label: Fee paid, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [received, papers-pending, inspection, sanctioned, rejected, issued, appealed]
+  - name: TradeLicence
+    label: Trade licence
+    plural_label: Trade licences
+    title_field: tradeName
+    list_columns: [licenceNo, tradeName, tradeType, validTill, status]
+    fields:
+      - { name: licenceNo, label: Licence number, type: string }
+      - { name: tradeName, label: Shop or business name, type: string, required: true }
+      - { name: holder, label: Licence holder, type: string }
+      - { name: tradeType, label: Trade, type: string }
+      - { name: address, label: Address, type: text }
+      - { name: ward, label: Ward, type: string }
+      - { name: fee, label: Licence fee, type: money }
+      - { name: validTill, label: Valid till, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [draft, active, expired, suspended, cancelled]
+
+tools:
+  - name: properties.search
+    description: Find a property by property ID, owner name, address or water consumer number.
+    uses: records.search
+    with: { entity: Property }
+  - name: wards.search
+    description: Find a ward and its ward officer, sanitary inspector and junior engineer by ward number or area name.
+    uses: records.search
+    with: { entity: Ward }
+  - name: applications.search
+    description: Find service applications and complaints by number, applicant, ward, service or status.
+    uses: records.search
+    with: { entity: ServiceApplication }
+  - name: application.register
+    description: Register a service application or complaint with its notified service, ward and due date.
+    uses: records.create
+    with: { entity: ServiceApplication, data: { status: received } }
+  - name: licences.search
+    description: Find trade licences by number, shop name, holder, ward or status.
+    uses: records.search
+    with: { entity: TradeLicence }
+  - name: licence.prepare
+    description: Prepare a new or renewed trade licence as a draft for the health officer. It is not valid until the officer signs it.
+    uses: records.create
+    with: { entity: TradeLicence, data: { status: draft } }
+
+agents:
+  - role: citizen-desk
+    name: Citizen service desk
+    description: Registers complaints and service applications from the counter, phone, WhatsApp and portals, gives each a number, the notified time limit and the officer's name, checks the papers, answers status questions, and prepares certificates, tax corrections and refunds for the officer to sign.
+    instructions: >-
+      Give every citizen a number, the notified time limit and the designated officer's name, in their language.
+      Never mark a certificate, correction or refund as done; the registrar or revenue officer signs.
+      Take Aadhaar only with consent and keep it masked. If a message mentions an open manhole, a collapsing wall,
+      a live wire, a fallen tree on people or anyone hurt, hand it to the people on duty at once.
+      Caste, income and domicile certificates come from the tehsil office; say so kindly and name the state portal.
+    autonomy: 3
+    tools: [properties.search, wards.search, applications.search, application.register, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, payment.request, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: ward-coordinator
+    name: Ward work coordinator
+    description: Sends complaints to the sanitary inspector, junior engineer or crew of the right ward by phone, watches the notified time limit, chases the before and after photos, tells the ward officer before a deadline is missed and keeps the citizen updated.
+    instructions: >-
+      Find the ward from the street or landmark before sending anyone. Ask the field staff for an after-photo from the same spot;
+      never close a complaint on a phone call alone. If the work will miss the time limit, tell the ward officer the same day.
+      Roads that are national highways or state PWD roads, and work inside private societies or houses, are not ours: explain kindly who to contact.
+    autonomy: 3
+    tools: [wards.search, applications.search, records.search, records.update, knowledge.search, message.draft, message.send, staff.delegate, schedule.create, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: licence-desk
+    name: Licence and permission desk
+    description: Checks trade licence and building permission files for missing papers, books the site inspection, prepares the scrutiny note, the licence or permit draft and any notice for the officer's signature, collects fees and reminds traders before renewal.
+    instructions: >-
+      You prepare; the health officer signs licences and the town planning officer decides building permissions and notices.
+      Never tell an applicant a file is approved before the officer signs. Name every missing paper in one message, not one at a time.
+      FSSAI, excise, drug and liquor licences come from their own departments; ownership disputes go to the civil court.
+    autonomy: 2
+    tools: [licences.search, licence.prepare, applications.search, properties.search, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, payment.request, staff.delegate, schedule.create, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+
+workflows:
+  - id: ward-complaint
+    name: Ward complaint
+    description: Send a garbage, road or streetlight complaint to the right ward team and close it with an after-photo inside the time limit.
+    keywords: [garbage, sanitation, pothole, streetlight, road, park, ward, complaint]
+    steps:
+      - key: send
+        title: Send it to the ward team
+        agent: ward-coordinator
+        instructions: Find the ward from the street or landmark, then hand the work by phone to the sanitary inspector (garbage, sweeping, dead animals, stray cattle) or the junior engineer (roads, streetlights, parks) with the spot, the citizen's photo and the notified time limit.
+      - key: follow-up
+        title: Chase the after-photo and update the citizen
+        agent: ward-coordinator
+        depends_on: [send]
+        instructions: Before the time limit runs out, get the after-photo from the same spot, send it to the citizen and ask if the work is done. If it is late, tell the ward officer the same day.
+  - id: water-sewer-repair
+    name: Water and sewer repair
+    description: Send the water or sewer crew, arrange a tanker when a lane has no water, and confirm supply or flow is back.
+    keywords: [water, leak, sewer, sewage, drainage, tanker, connection]
+    steps:
+      - key: send-crew
+        title: Send the crew and a tanker if needed
+        agent: ward-coordinator
+        instructions: Hand the job by phone to the junior engineer of the water or sewer section with the place, the problem and the time limit. If a lane has had no water for more than a day, ask for a tanker. For a new connection, book the site inspection.
+      - key: confirm
+        title: Confirm it is fixed
+        agent: ward-coordinator
+        depends_on: [send-crew]
+        instructions: Get the after-photo or the junior engineer's note, check with the citizen that water or flow is back, and report what was done.
+  - id: certificate-issue
+    name: Birth or death certificate
+    description: Find or register the birth or death and prepare the certificate or correction for the registrar.
+    keywords: [birth, death, certificate, registration, correction]
+    steps:
+      - key: prepare
+        title: Prepare the certificate for the registrar
+        agent: citizen-desk
+        instructions: Search the register for the event by name, date and place. Work out which rule applies (within 21 days, 21 to 30 days, up to 1 year, after 1 year), list any affidavit or order needed, and prepare the certificate or correction for the registrar's digital signature. Send it to the family once signed.
+  - id: tax-correction
+    name: Property tax or water bill correction
+    description: Find the property and payments and prepare the correction, owner name change or refund for the revenue officer.
+    keywords: [property tax, water bill, mutation, refund, assessment]
+    steps:
+      - key: prepare
+        title: Prepare the correction for the revenue officer
+        agent: citizen-desk
+        instructions: Find the property or water connection, check the payments against the ledger and receipts, and prepare the bill correction, owner name change note or refund note with the papers attached for the revenue officer.
+  - id: licence-processing
+    name: Trade licence
+    description: Check the papers, book the inspection and prepare the licence for the health officer.
+    keywords: [trade licence, licence, license, renewal, shop]
+    steps:
+      - key: check
+        title: Check the papers and book the inspection
+        agent: licence-desk
+        instructions: Check the application, ID, premises papers and property tax receipt, name every missing paper in one message, collect the fee and hand the premises inspection to the licence inspector by phone.
+      - key: draft
+        title: Prepare the licence
+        agent: licence-desk
+        depends_on: [check]
+        instructions: After the inspection report, prepare the licence or renewal draft for the health officer's signature and tell the trader when it is signed.
+  - id: building-permission-scrutiny
+    name: Building permission scrutiny
+    description: Check the plan file, book the site inspection and prepare the scrutiny note and the permit or notice for the town planning officer.
+    keywords: [building, plan, occupancy, construction, permission, obps]
+    steps:
+      - key: scrutiny
+        title: Check the file
+        agent: licence-desk
+        instructions: Check the plan, ownership papers, architect's details and fees on the file, list anything missing and prepare the scrutiny note against the building bye-laws.
+      - key: inspect
+        title: Book the site inspection and draft the order
+        agent: licence-desk
+        depends_on: [scrutiny]
+        instructions: Hand the site inspection to the building inspector by phone, then prepare the permit, occupancy certificate or notice for the town planning officer with the inspection report.
+
+routines:
+  - id: ward-sanitation-round
+    name: Daily ward round
+    description: Each sanitary inspector reports garbage points left, vehicles that missed their route, staff absent and any dangerous spot seen on the round.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "12:00"
+    questions:
+      - { key: pointsLeft, label: "Garbage points left", ask: "Are any garbage points in your ward still not cleared?", type: text, flag: true }
+      - { key: vehicleMissed, label: "Vehicle missed route", ask: "Did any garbage vehicle miss its route today?", type: yes_no, flag: true }
+      - { key: staffAbsent, label: "Staff absent", ask: "How many safai staff were absent today?", type: number, unit: people }
+      - { key: dangerSpots, label: "Dangerous spots", ask: "Did you see any open manhole, fallen tree or other dangerous spot today?", type: text, flag: true }
+
+lifecycle:
+  case: { label: Citizen request, plural: Citizen requests, prefix: CR }
+  stages:
+    request:
+      name: Application or complaint received
+      description: A citizen, a corporator's office, the police, field staff or a portal (Swachhata app, CPGRAMS, the state service portal) raises a complaint or a service application, and it gets a number and the notified time limit.
+    review:
+      name: Documents and eligibility check
+      description: The ward office or counter checks the place or property, who is applying and the papers the service needs, and sends back anything that is not the municipality's job; danger to life skips the papers.
+      checks:
+        - "Place given: ward, street or landmark for complaints; property ID, licence or application number for services"
+        - The place is inside our limits and the road, drain or line is ours (not a national highway, state PWD road, cantonment, private society or the inside of a house)
+        - "Papers the notified service needs are attached: ID, ownership or rent papers, hospital or cremation slip, plan drawings, fee receipt"
+        - Aadhaar taken only with consent and kept masked
+        - Danger to life (open manhole, collapsing wall, live wire, fallen tree on people)? Send the team at once and mark it P1
+        - Not a repeat of an open complaint for the same spot; if it is, link it and give the citizen the first number
+    classify:
+      name: Service, ward and time limit
+      description: The request gets its service type, ward, department, priority and the time limit notified for that service under the state Right to Services Act.
+    assign:
+      name: Designated officer and deadline
+      description: The request goes to the designated officer for that service in that ward (sanitary inspector, junior engineer, registrar, tax inspector, licence or building inspector) with a deadline inside the time limit, and the citizen gets the officer's name.
+    approve:
+      name: Sanction by the officer
+      description: The officer with the power to decide sanctions or rejects in writing with reasons, never the clerk or inspector who prepared the file, and no work order or refund goes out before this.
+      checks:
+        - Officer holds the delegated power for this service and amount
+        - Inspection report and scrutiny note on the file
+        - Reasons written down for every rejection, with the appeal officer's name
+    execute:
+      name: Field work and tracking
+      description: Field staff do the work, clear the garbage, fix the leak, patch the pothole or inspect the site, and upload before and after photos while agents update the citizen and watch the time limit.
+      checks:
+        - Work started inside the time limit
+        - Before and after photos from the same spot
+        - Ward officer told the same day if the time limit will be missed
+    close:
+      name: Site check and closure
+      description: Someone other than the person who did the work checks the photos or the site, the named officer signs off and the citizen gets the outcome in writing with the appeal officer's name.
+      checks:
+        - After-photo from the same spot, or the signed certificate, licence or order attached
+        - A sample of closed complaints spot-checked by the supervisor
+        - Certificate, licence or permission matches the register and is digitally signed
+        - Refund paid to the payer's own account and the tax ledger updated
+        - Citizen told the outcome and the first appeal officer under the Right to Services Act
+        - Complaint reopened, not closed, if the citizen says the work was not done
+    report:
+      name: Monthly service review
+      description: Each month the commissioner's office reviews requests past their time limit by ward and officer, appeals and penalties, repeat garbage points, potholes and leaks, and fixes the causes that keep coming back.
+      checks:
+        - Requests past the time limit listed by ward and officer
+        - Right to Services appeals and penalties reviewed
+        - Repeat garbage points, potholes and leak spots flagged for a lasting fix
+  priorities:
+    - { id: P1, name: "Emergency: danger to life or property", respond_within_hours: 0.5, resolve_within_hours: 24 }
+    - { id: P2, name: "Urgent: water, sewer or garbage service stopped", respond_within_hours: 4, resolve_within_hours: 48 }
+    - { id: P3, name: "Normal: within the notified time limit", respond_within_hours: 24, resolve_within_hours: 360 }
+    - { id: P4, name: "Planned: permissions and long applications", respond_within_hours: 48, resolve_within_hours: 720 }
+  roles:
+    - { id: owner, name: Owner (account holder for the municipal body), approves: "Works, purchases and payments above ₹5,00,000 that no rule gives to a named officer (the standing committee's limit in most corporations), and anything sent to a role nobody holds" }
+    - { id: head-of-institution, name: Municipal commissioner or chief officer, approves: "Staff leave, emergency spending, and action against an officer who missed a notified time limit" }
+    - { id: ward-officer, name: Ward officer (assistant commissioner or ward in-charge), approves: "Signs off garbage, sanitation and stray animal complaints in the ward after the after-photo and a spot check" }
+    - { id: executive-engineer, name: Executive engineer, approves: "Signs off road, streetlight, park, water supply, sewer and drainage work after the site check; hears the first appeal for engineering services" }
+    - { id: health-officer, name: Health officer (medical officer of health), approves: "Trade, food stall and meat shop licences and renewals after the inspection" }
+    - { id: revenue-officer, name: Revenue officer (assessor and collector), approves: "Property tax and water bill corrections, owner name changes and refunds above ₹10,000; signs off once the register and ledger are updated" }
+    - { id: town-planning-officer, name: Town planning officer, approves: "Building permissions, occupancy certificates and notices against unauthorised construction; signs off once the order is issued and the register updated" }
+    - { id: records-officer, name: Registrar of births and deaths, approves: "Signs birth and death certificates and corrections after checking them against the register" }
+    - { id: safety-officer, name: Disaster management officer, approves: "Signs off emergencies once the spot is barricaded or made safe, the injured are cared for and the police, fire service or electricity company are told" }
+    - { id: grievance-officer, name: Public grievance officer, approves: "Signs off the written reply to every escalated complaint and every CPGRAMS or state portal grievance" }
+  urgent_keywords: [open manhole, manhole open, uncovered manhole, manhole cover missing, fell into, building collapse, collapsed, collapse, wall collapsed, about to collapse, caught fire, on fire, fire broke out, fire accident, short circuit, electric shock, electrocuted, live wire, current in pole, gas leak, tree fell on, tree fallen on, road caved in, sinkhole, landslide, water entered houses, drowning, drowned, unconscious, injured, accident, met with an accident, dog bite, dog bit, bitten by, dogs attacked, mauled, cholera, outbreak, child missing, missing child, assaulted, threat to life, stampede, bomb threat, suicide]
+  categories:
+    - id: emergency
+      name: Emergency or danger to life
+      keywords:
+        - emergency
+        - open manhole
+        - manhole open
+        - uncovered manhole
+        - manhole cover missing
+        - fell into
+        - building collapse
+        - collapsed
+        - collapse
+        - wall collapsed
+        - about to collapse
+        - dangerous building
+        - caught fire
+        - on fire
+        - fire broke out
+        - fire accident
+        - short circuit
+        - electric shock
+        - electrocuted
+        - live wire
+        - current in pole
+        - gas leak
+        - tree fell on
+        - tree fallen on
+        - tree fallen
+        - fallen tree
+        - tree uprooted
+        - road caved in
+        - sinkhole
+        - landslide
+        - water entered houses
+        - drowning
+        - drowned
+        - unconscious
+        - injured
+        - accident
+        - met with an accident
+        - dog bite
+        - dog bit
+        - bitten by
+        - dogs attacked
+        - mauled
+        - cholera
+        - outbreak
+        - child missing
+        - missing child
+        - assaulted
+        - threat to life
+        - stampede
+        - bomb threat
+      priority: P1
+      risk: high
+      department: Disaster management and emergency
+      required_checks:
+        - "Spot made safe at once: manhole covered or fenced, power to the live wire cut, people moved out of the dangerous building"
+        - 112, 108 or 101 called where anyone is hurt or trapped or there is a fire
+        - Police told about deaths, injuries and collapses; the electricity company told about live wires
+        - Photos, time and the names of staff on site recorded for the inquiry and any compensation claim
+      approval: { required: never }
+      signoff: { required: true, role: safety-officer }
+      workflow: delegate-work
+      execution: team
+    - id: sanitation
+      name: Garbage, sanitation or stray animals
+      keywords:
+        - garbage
+        - garbage not collected
+        - garbage not lifted
+        - garbage not picked
+        - waste not collected
+        - not collected
+        - not lifted
+        - not picked up
+        - kachra
+        - kooda
+        - kuda
+        - dustbin
+        - bin overflowing
+        - garbage dump
+        - garbage heap
+        - garbage pile
+        - garbage vehicle
+        - garbage van
+        - garbage truck
+        - door to door collection
+        - sweeping
+        - not swept
+        - sweeper
+        - safai
+        - safai karmachari
+        - dead animal
+        - dead dog
+        - dead cow
+        - dead pig
+        - carcass
+        - stray cattle
+        - stray cows
+        - stray dogs
+        - dog catching
+        - dog sterilisation
+        - monkey menace
+        - public toilet
+        - community toilet
+        - toilet not cleaned
+        - mosquito
+        - fogging
+        - debris
+        - construction debris
+        - malba
+        - drain not cleaned
+        - nala safai
+        - nali
+        - gutter cleaning
+        - burning garbage
+        - garbage burning
+        - wet waste
+        - dry waste
+      priority: P2
+      risk: low
+      department: Public health and sanitation
+      required_details:
+        - key: location
+          label: Where it is (ward, street or landmark)
+          kind: keywords
+          keywords: [ward, street, road, lane, gali, cross, main road, colony, nagar, sector, block, layout, society, apartment, market, chowk, circle, mohalla, park, bus stop, near, opposite, behind, house no, plot]
+      required_checks:
+        - "Cleared within the notified time: 12 hours for a garbage point or bin and 48 hours for a dead animal on the Swachhata app, 2 days in Haryana"
+        - Before and after photo from the same spot
+        - Repeat dumping point marked for a bin or a fine, and the household or shop told to separate wet, dry, sanitary and special care waste
+        - Stray dogs caught for sterilisation and vaccination and returned to the same area, as the Animal Birth Control Rules need
+      not_eligible:
+        - keywords: [inside our society, inside the society, society premises, society compound, inside my house, inside our building, our own compound, inside the campus]
+          reason: Cleaning inside a private society, building or campus is the owner's or society's job. We collect separated waste at the gate and can fine anyone who dumps it on the street.
+      approval: { required: never }
+      signoff: { required: true, role: ward-officer }
+      workflow: ward-complaint
+      execution: both
+    - id: water-drainage
+      name: Water supply, sewer or drainage
+      keywords:
+        - no water
+        - no water supply
+        - water not coming
+        - paani nahi
+        - low pressure
+        - low water pressure
+        - dirty water
+        - muddy water
+        - smelly water
+        - contaminated water
+        - pipeline leak
+        - pipeline
+        - leak
+        - leaking
+        - leakage
+        - pipe leak
+        - pipe burst
+        - pipeline burst
+        - water leakage
+        - leaking pipe
+        - main valve
+        - tanker
+        - water tanker
+        - new water connection
+        - water connection
+        - sewer connection
+        - sewerage connection
+        - sewer
+        - sewage
+        - sewer blocked
+        - sewer line
+        - sewage overflow
+        - sewage overflowing
+        - drain blocked
+        - drainage blocked
+        - drainage overflow
+        - drainage
+        - manhole overflowing
+        - chamber overflowing
+        - gutter overflowing
+        - waterlogging
+        - water logging
+        - waterlogged
+        - stagnant water
+        - storm water drain
+        - hand pump
+        - handpump
+      priority: P2
+      risk: medium
+      department: Water supply and sewerage
+      required_details:
+        - key: location
+          label: Where it is (ward, street, landmark or property ID)
+          kind: keywords
+          keywords: [ward, street, road, lane, gali, cross, main road, colony, nagar, sector, block, layout, society, apartment, market, chowk, circle, mohalla, near, opposite, behind, house no, house, plot, property id, consumer no, consumer number]
+      required_checks:
+        - "Leak, blockage or overflow fixed within the notified time (2 days in Haryana); a tanker sent if a lane has no water for more than a day"
+        - Water sample taken where people report dirty or smelly water; sewage in drinking water is treated as an emergency
+        - "New connection: ownership and building papers and fee checked, and the connection given within the notified time (7 days in Haryana)"
+        - Fault is on our side of the ferrule or meter, not in the house plumbing
+      not_eligible:
+        - keywords: [inside the house, inside my house, inside our flat, internal plumbing, our own pipeline, own motor, private borewell, overhead tank, our society pump, society's pump]
+          reason: Pipes, tanks and pumps inside the property, after the ferrule or meter, are the owner's or society's to repair. Please call a licensed plumber; we fix the main line and the connection up to the meter.
+      approval: { required: never }
+      signoff: { required: true, role: executive-engineer }
+      workflow: water-sewer-repair
+      execution: both
+    - id: facility
+      name: Road, streetlight or public place repair
+      keywords:
+        - pothole
+        - potholes
+        - road damaged
+        - damaged road
+        - broken road
+        - road broken
+        - road repair
+        - road resurfacing
+        - kaccha road
+        - footpath
+        - footpath broken
+        - paver blocks
+        - speed breaker
+        - road divider
+        - zebra crossing
+        - streetlight
+        - street light
+        - streetlight not working
+        - street light not working
+        - streetlight off
+        - lights off
+        - light pole
+        - lamp post
+        - pole number
+        - high mast
+        - dark street
+        - park
+        - garden
+        - playground
+        - open gym
+        - swings broken
+        - community hall
+        - bus shelter
+      priority: P3
+      risk: low
+      department: Engineering (roads and lighting)
+      required_details:
+        - key: location
+          label: Where it is (ward, road, landmark or pole number)
+          kind: keywords
+          keywords: [ward, street, road, lane, gali, cross, main road, marg, colony, nagar, sector, block, layout, market, chowk, circle, mohalla, park, bus stop, near, opposite, behind, pole no, pole number, stretch]
+      required_checks:
+        - Road is ours, not a national highway, state PWD road or private colony road
+        - "Pothole patched within the notified time (5 days in Haryana) and barricaded until then if it is deep"
+        - "Streetlight replaced within the notified time (10 days in Haryana), with the pole number noted"
+        - Works above the delegated money limit sanctioned before the work order
+      not_eligible:
+        - keywords: [national highway, nh, nhai, toll plaza, state highway, pwd road, expressway]
+          reason: National highways belong to NHAI (helpline 1033) and state highways to the state PWD. We pass the complaint to them and tell you.
+        - keywords: [inside our society, society's internal road, private colony road, inside the campus]
+          reason: Roads and lights inside a private society or campus are the society's to repair, unless the colony has been handed over to the municipality.
+      approval: { required: never }
+      signoff: { required: true, role: executive-engineer }
+      workflow: ward-complaint
+      execution: both
+    - id: certificate
+      name: Birth or death certificate
+      keywords:
+        - birth certificate
+        - death certificate
+        - birth registration
+        - death registration
+        - register the birth
+        - register birth
+        - register the death
+        - register death
+        - name inclusion
+        - child's name
+        - correction in birth certificate
+        - correction in death certificate
+        - delayed registration
+        - late registration
+        - non availability certificate
+        - crs
+        - certificate copy
+        - certified copy
+        - residence certificate
+        - caste certificate
+        - income certificate
+        - domicile certificate
+        - ews certificate
+        - non creamy layer
+      priority: P3
+      risk: low
+      department: Birth and death registration
+      required_details:
+        - { key: eventDate, label: Date of birth or death, kind: date }
+      required_checks:
+        - Event happened inside our limits; births and deaths are registered where they happen
+        - "Within 21 days: registered free; 21 to 30 days: late fee; 30 days to 1 year: written permission and an affidavit; after 1 year: a magistrate's order"
+        - Details matched with the hospital or cremation ground report; corrections only with a supporting document and a dated note in the register
+        - Asked by the person, a parent, a family member or someone they authorised in writing
+        - Certificate issued from the CRS portal with the registrar's digital signature
+      not_eligible:
+        - keywords: [caste certificate, income certificate, domicile certificate, ews certificate, non creamy layer]
+          reason: Caste, income, domicile and EWS certificates are issued by the tehsildar or SDM office of the revenue department, not the municipality. Apply on the state service portal or at the tehsil office.
+        - keywords: [someone else's, another person's, other person's, my neighbour's, my neighbor's, my friend's, my colleague's]
+          reason: We give a certificate only to the person, their parents or family, or someone they have authorised in writing. Ask that person or their family to apply.
+      approval: { required: never }
+      signoff: { required: true, role: records-officer }
+      workflow: certificate-issue
+      execution: both
+    - id: billing
+      name: Property tax, water bill or refund
+      keywords:
+        - property tax
+        - house tax
+        - property tax bill
+        - water bill
+        - water charges
+        - sewerage charges
+        - tax bill
+        - tax demand
+        - mutation
+        - name transfer
+        - change of owner
+        - change of ownership
+        - property transfer
+        - khata
+        - khata transfer
+        - self assessment
+        - arrears
+        - rebate
+        - interest waiver
+        - penalty waiver
+        - refund
+        - money back
+        - paid twice
+        - double payment
+        - excess payment
+        - wrong bill
+        - no dues
+        - no dues certificate
+        - property id
+        - assessment number
+        - electricity bill
+        - light bill
+        - bijli bill
+      priority: P3
+      risk: medium
+      department: Revenue (property tax)
+      required_details:
+        - key: property
+          label: Property ID, assessment number or water consumer number
+          kind: keywords
+          keywords: [property id, property no, property number, assessment no, assessment number, pid, upic, khata no, khata number, holding no, holding number, house no, house number, consumer no, consumer number, connection no, connection number, receipt no]
+      required_checks:
+        - Property ID or water consumer number found in the tax register
+        - Payment found in the ledger or bank statement with its receipt before any refund
+        - "Owner name change: sale deed, gift deed, will, or death certificate and legal heir papers checked; done within the notified time (15 days in Haryana, 45 in a death case)"
+        - Rebate, waiver or penalty change allowed by the tax rules in writing
+        - Refund paid only to the payer's own account
+      not_eligible:
+        - keywords: [electricity bill, light bill, bijli bill, power bill]
+          reason: Electricity bills come from the power distribution company, not the municipality. Please contact their helpline or office with your consumer number.
+        - keywords: [someone else's account, another person's account, third party account, my friend's account, my relative's account]
+          reason: Refunds go only to the payer's own bank account. Ask the payer to share their own account details.
+      approval: { required: above_amount, role: revenue-officer, amount_inr: 10000 }
+      signoff: { required: true, role: revenue-officer }
+      workflow: tax-correction
+      execution: both
+    - id: trade-licence
+      name: Trade licence
+      keywords:
+        - trade licence
+        - trade license
+        - licence renewal
+        - license renewal
+        - renew licence
+        - renew license
+        - new licence
+        - new license
+        - shop licence
+        - shop license
+        - health licence
+        - health trade licence
+        - meat shop licence
+        - meat shop license
+        - food stall licence
+        - dhaba licence
+        - hotel licence
+        - restaurant licence
+        - hawker licence
+        - street vendor
+        - vending certificate
+        - tehbazari
+      priority: P3
+      risk: medium
+      department: Health and licensing
+      required_details:
+        - key: premises
+          label: Shop address or licence number
+          kind: keywords
+          keywords: [shop, shop no, market, bazaar, bazar, complex, plaza, road, street, lane, ward, chowk, sector, nagar, colony, licence no, license no, application no]
+      required_checks:
+        - Shop address, ward and type of trade given; property tax paid for the premises
+        - Premises inspected for hygiene, fire safety and whether the trade is allowed in that zone
+        - "Fee paid; licence issued or renewed within the notified time (15 days new and 12 days renewal in Haryana)"
+        - FSSAI, excise, drug and liquor licences come from their own departments
+      not_eligible:
+        - keywords: [liquor licence, liquor license, bar licence, bar license, wine shop, excise licence, fssai, food safety licence, food safety license, drug licence, drug license]
+          reason: Liquor licences come from the state excise department, FSSAI food licences from the food safety department (FoSCoS) and drug licences from the drugs controller. We issue only the municipal trade licence.
+      approval: { required: always, role: health-officer }
+      signoff: { required: false }
+      workflow: licence-processing
+      execution: both
+    - id: building-permission
+      name: Building permission or illegal construction
+      keywords:
+        - building permission
+        - building permit
+        - building plan
+        - plan sanction
+        - plan approval
+        - map sanction
+        - map approval
+        - naksha
+        - naksha pass
+        - sanctioned plan
+        - occupancy certificate
+        - occupation certificate
+        - completion certificate
+        - illegal construction
+        - unauthorised construction
+        - unauthorized construction
+        - construction without permission
+        - extra floor
+        - additional floor
+        - setback violation
+        - obps
+        - stop work notice
+        - demolition notice
+      priority: P4
+      risk: medium
+      department: Town planning
+      required_details:
+        - key: site
+          label: Plot, address or application number
+          kind: keywords
+          keywords: [plot, plot no, survey no, khasra, sector, layout, block, house no, application no, application number, file no, ward, street, lane, road, colony, nagar]
+      required_checks:
+        - Plans by a registered architect or engineer, ownership papers and fees uploaded on the online building permission system
+        - Site inspected and the plan checked against the building bye-laws (setbacks, FAR, height, parking, rainwater harvesting)
+        - "Decided within the notified time (20 days, or 60 for large commercial sites, in Haryana; 30 days in the model bye-laws)"
+        - "Unauthorised construction: notice under the municipal act, a hearing, then a stop-work or demolition order"
+      not_eligible:
+        - keywords: [cantonment, development authority, midc, gidc, sipcot, industrial development corporation]
+          reason: Plans in a cantonment, a development authority's area or a state industrial estate are approved by that authority, not by us.
+        - keywords: [property dispute, family dispute, title dispute, ownership dispute]
+          reason: Who owns a property is decided by the civil court. We only check building rules and permissions.
+      approval: { required: always, role: town-planning-officer }
+      signoff: { required: true, role: town-planning-officer }
+      workflow: building-permission-scrutiny
+      execution: both
+  examples:
+    - { request: "Manhole cover missing near Lakshmi Temple bus stop and a scooter rider fell into it, please send help", category: emergency, priority: P1, approval: false }
+    - { request: "The old two-storey building next to the fish market has big cracks and the front wall is about to collapse, families still live inside", category: emergency, priority: P1, approval: false }
+    - { request: A big gulmohar tree fell on two parked cars on MG Road and the wires are hanging low, category: emergency, priority: P1, approval: false }
+    - { request: The garbage van has not come to Shivaji Colony lane 4 for three days and the bins are full, category: sanitation, priority: P2, approval: false }
+    - { request: A dead cow has been lying near the vegetable market gate in ward 19 since morning, category: sanitation, priority: P2, approval: false }
+    - { request: Construction debris dumped on the footpath outside Sai Apartments in ward 3, category: sanitation, priority: P2, approval: false }
+    - { request: "Sewage overflowing from the chamber in front of house 112, Rajiv Nagar, for two days", category: water-drainage, priority: P2, approval: false }
+    - { request: "Apply for a new water connection for my house, property ID 04-221-0098, half inch", category: water-drainage, priority: P2, approval: false }
+    - { request: "Muddy water coming in the taps of Gokul Society, ward 8, since yesterday", category: water-drainage, priority: P2, approval: false }
+    - { request: "Three streetlights in a row on Mill Road near the water tank are off for a week, it is very dark at night", category: facility, priority: P3, approval: false }
+    - { request: "Deep potholes on Tilak Road near the vegetable market, scooters are skidding", category: facility, priority: P3, approval: false }
+    - { request: "The swings in Nehru Park, ward 5, are broken and the open gym has no bolts", category: facility, priority: P3, approval: false }
+    - { request: "My daughter was born at home on 2 October in ward 6, how do we register the birth?", category: certificate, priority: P3, approval: false }
+    - { request: The spelling of my mother's name is wrong in my son's birth certificate issued on 4 September, category: certificate, priority: P3, approval: false }
+    - { request: Need a death certificate for my grandmother who passed away on 14 August at City Hospital, category: certificate, priority: P3, approval: false }
+    - { request: "Please change the owner's name in the property tax records to mine after my father's death, property ID 11-405-2210", category: billing, priority: P3, approval: true }
+    - { request: "My water bill for August is ₹6,800 though the house was locked, consumer number WS-30217", category: billing, priority: P3, approval: false }
+    - { request: "Refund ₹12,500 property tax paid twice for shop 3, Main Bazar, property ID 02-118-0071", category: billing, priority: P3, approval: true }
+    - { request: "I am opening a bakery in Gandhi Market, shop 9, ward 11. What do I need for the trade licence?", category: trade-licence, priority: P3, approval: true }
+    - { request: "Renew the meat shop licence for Al-Noor Chicken Centre, licence no MS/2025/118, Gandhi Road", category: trade-licence, priority: P3, approval: true }
+    - { request: "Our ground plus two house plan for plot 41, Sector 3 went on OBPS three weeks ago, application BP-2026-0712, what is pending?", category: building-permission, priority: P4, approval: true }
+    - { request: My neighbour at 17 Gulmohar Lane is building an extra floor without any permission, category: building-permission, priority: P4, approval: true }
+    - { request: "Apply for occupancy certificate for our finished G+3 building on plot 8, Indira Nagar", category: building-permission, priority: P4, approval: true }
+
+playbooks:
+  - id: service-time-limits
+    title: Service time limits, designated officers and appeals
+    source: Haryana Right to Service Act, 2014, consolidated list of notified urban local body services (Department of Urban Local Bodies, Haryana); Maharashtra Right to Public Services Act, 2015; Karnataka Sakala Services Act, 2011; DARPG guidelines for CPGRAMS, 2024
+    body: |
+      1. Every notified service has a time limit, a designated officer and a first and second appeal officer. Load your state's notified list; the clock starts when the complete application or complaint is received.
+      2. Give every citizen the number, the time limit and the officer's name the day the request comes in.
+      3. Typical urban limits (Haryana's notified list): garbage on streets, blocked sewer or leak, stray cattle, drain and manhole covers 2 days; pothole 5 days; water and sewer connection 7 days; new property ID 10 days; streetlight replacement 10 days; owner name change 15 days (45 after a death); trade licence 15 days (12 to renew); occupation certificate 18 days; building plan 20 days (60 for large commercial sites).
+      4. If the work will miss the limit, the officer writes down why before the limit ends and tells the citizen the new date.
+      5. A citizen whose service is late or refused can appeal to the first appeal officer, then the second, then the state commission. Officers who miss limits without good reason can be fined (up to ₹5,000 a case in Maharashtra); Karnataka pays the citizen ₹20 a day up to ₹500.
+      6. Each month list every request past its limit by ward and officer, and fix the cause.
+  - id: birth-death-registration
+    title: Registering births and deaths and issuing certificates
+    source: Registration of Births and Deaths Act, 1969, sections 8 and 13, as amended in 2023 (CRS portal from 1 October 2023); Ghaziabad district birth and death registration page; Bombay High Court on delayed registration (2026)
+    body: |
+      1. Births and deaths are registered by the registrar of the area where they happen. Hospitals report the events that happen there; families report home births and deaths.
+      2. Reported within 21 days: register it free and give the informant the certificate free.
+      3. Between 21 and 30 days: register it with the late fee.
+      4. Between 30 days and 1 year: register it only with the written permission of the authority and an affidavit.
+      5. After 1 year: register it only on a magistrate's order (the Bombay High Court held in 2026 that this means a judicial magistrate; check your state's current rule).
+      6. Every event since 1 October 2023 is registered on the CRS portal. The digital birth certificate is proof of date of birth for school admission, licences, the voter list, Aadhaar and passports.
+      7. A correction needs a supporting document and a dated note in the register; never overwrite the original entry. A child's name can be added later on a parent's request.
+      8. Caste, income, domicile and EWS certificates are the tehsildar's; tell the citizen where to apply.
+  - id: garbage-sanitation
+    title: Garbage, sanitation and stray animal complaints
+    source: MoHUA Swachhata app service levels (as reported, 2017); Solid Waste Management Rules, 2026 (MoEF&CC, in force from 1 April 2026); Animal Birth Control Rules, 2023; Haryana Right to Service Act notified list
+    body: |
+      1. Register every complaint from the counter, phone, WhatsApp or the Swachhata app with the spot, the ward and a photo if the citizen has one.
+      2. Send it to the sanitary inspector of that ward by phone the same day. Start action within 6 hours.
+      3. Clear a garbage point, a full bin or a missed vehicle within 12 hours, and a dead animal within 48 hours (Swachhata app levels). Your state's notified limit may be longer, such as 2 days in Haryana.
+      4. Close only with an after-photo from the same spot. If the citizen says it is not done, reopen it.
+      5. Mark spots that keep filling up: put a bin, post a sweeper, or fine the people dumping there.
+      6. Remind households and shops to keep wet, dry, sanitary and special care waste separate. Bulk waste generators (100 kg a day or more) must register and process their own waste.
+      7. Stray dogs are caught for sterilisation and vaccination and returned to the same area; a dog bite is an emergency, so send the person for anti-rabies treatment and the dog squad at once.
+  - id: dangerous-spots
+    title: Open manholes, potholes and other dangerous spots
+    source: Bombay High Court, suo motu PIL on potholes and open manholes (orders of October and November 2025, as reported by Moneylife and LiveLaw); Haryana Right to Service Act notified list (manhole covers 2 days, potholes 5 days)
+    body: |
+      1. Treat an open manhole, a road cave-in, a collapsing wall, a live wire or a fallen tree on people as an emergency: send the nearest team to barricade it at once.
+      2. Call 112, 108 or 101 if anyone is hurt, trapped or there is a fire, and tell the electricity company about live wires.
+      3. Cover the manhole or drain within the day and log the time, the photos and the staff on site.
+      4. Patch deep potholes within the notified time (5 days in Haryana) and keep them barricaded until then.
+      5. Courts hold the municipality liable: the Bombay High Court set ₹6 lakh for a death from a pothole or open manhole and ₹50,000 to ₹2.5 lakh for injuries, decided by a committee that includes the commissioner, and recoverable from the officers or contractors responsible. Agencies that argue over who owns the road share the cost.
+      6. After every accident, find why the spot was left open and fix the cause with a named person and a date.
+  - id: building-permission-process
+    title: Building permissions and unauthorised construction
+    source: Model Building Bye-laws, 2016 (Ministry of Urban Development, as reported); Haryana Right to Service Act notified list; your state's municipal act and building bye-laws
+    body: |
+      1. Take building plans only through the online building permission system, with plans signed by a registered architect or engineer, ownership papers and the fee.
+      2. Check the whole file once and list every missing paper in one message.
+      3. Inspect the site and check the plan against the bye-laws: setbacks, FAR, height, parking and rainwater harvesting.
+      4. Decide within the notified time: 20 days for most plots and 60 days for large commercial or institutional sites in Haryana; the model bye-laws set 30 days, and some states treat a late file as approved.
+      5. The town planning officer signs the permission or the rejection with reasons; occupancy certificates follow the completion inspection (18 days in Haryana).
+      6. For unauthorised construction, issue a notice under the municipal act, give a hearing, then a stop-work or demolition order. Ownership disputes go to the civil court.
+
+kpis:
+  - id: within-notified-time
+    name: Services within the notified time
+    description: Share of service applications and complaints this month closed within the time limit notified under the state Right to Services Act.
+    unit: percent
+    direction: up
+    target: 95
+  - id: garbage-cleared-in-time
+    name: Garbage complaints cleared in time
+    description: Share of garbage and sanitation complaints cleared within the notified hours with an after-photo.
+    unit: percent
+    direction: up
+    target: 95
+  - id: reopened-complaints
+    name: Reopened complaints
+    description: Share of closed complaints the citizen reopened because the work was not done.
+    unit: percent
+    direction: down
+    target: 5
+  - id: births-registered-21-days
+    name: Births registered within 21 days
+    description: Share of births in our area registered within 21 days of the event.
+    unit: percent
+    direction: up
+    target: 98
+  - id: property-tax-collected
+    name: Property tax collected
+    description: Property tax collected this year as a share of the demand raised.
+    unit: percent
+    direction: up
+    target: 85
+  - id: rts-appeals
+    name: Right to Services appeals
+    description: First appeals filed this month because a service was late or refused.
+    unit: count
+    direction: down
+    target: 0
