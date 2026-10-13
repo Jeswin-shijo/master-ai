@@ -61,7 +61,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   visit(pack);
 
   const { lifecycle: _ownLifecycle, ...ownPack } = pack;
-  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], labels: {} };
+  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], labels: {}, playbooks: [] };
   const entities = new Map<string, EntityDef>();
   const agents = new Map<string, Pack['agents'][number]>();
   const tools = new Map<string, Pack['tools'][number]>();
@@ -69,6 +69,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   const routines = new Map<string, Pack['routines'][number]>();
   const policies = new Map<string, Pack['policies'][number]>();
   const kpis = new Map<string, Pack['kpis'][number]>();
+  const playbooks = new Map<string, Pack['playbooks'][number]>();
   const connectors = new Set<string>();
 
   for (const p of chain) {
@@ -79,6 +80,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
     (p.routines ?? []).forEach((r) => routines.set(r.id, r));
     p.policies.forEach((r) => policies.set(policyKey(r), r));
     p.kpis.forEach((k) => kpis.set(k.id, k));
+    (p.playbooks ?? []).forEach((b) => playbooks.set(b.id, b));
     p.connectors.forEach((c) => connectors.add(c));
     Object.assign(merged.labels, p.labels);
   }
@@ -97,6 +99,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   merged.routines = [...routines.values()];
   merged.policies = [...policies.values()];
   merged.kpis = [...kpis.values()];
+  merged.playbooks = [...playbooks.values()];
   merged.connectors = [...connectors];
 
   return applyLabels({ ...merged, lifecycle, lineage: chain.map((p) => p.id), source });

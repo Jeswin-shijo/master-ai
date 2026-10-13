@@ -29,6 +29,25 @@ export const SECTORS: readonly { id: SectorId; name: string; examples: string }[
   { id: 'public-services', name: 'Essential Public & Service', examples: 'Hospitals, schools, citizen services' },
 ];
 
+/** The ready-made organization types offered at signup, three per sector. Each has a pack with the same id. */
+export const ORG_TYPES: readonly { id: string; name: string; sector: SectorId }[] = [
+  { id: 'power-plant', name: 'Power plant & utilities', sector: 'energy-heavy-industry' },
+  { id: 'manufacturing-plant', name: 'Manufacturing plant', sector: 'energy-heavy-industry' },
+  { id: 'construction', name: 'Construction & infrastructure', sector: 'energy-heavy-industry' },
+  { id: 'logistics', name: 'Logistics & transport', sector: 'trade-logistics-tourism' },
+  { id: 'wholesale-retail', name: 'Wholesale & retail trade', sector: 'trade-logistics-tourism' },
+  { id: 'travel-agency', name: 'Travel agency & tour operator', sector: 'trade-logistics-tourism' },
+  { id: 'lender', name: 'Lender (NBFC, microfinance, co-op bank)', sector: 'finance-development' },
+  { id: 'accounting-firm', name: 'Accounting & tax firm', sector: 'finance-development' },
+  { id: 'ngo', name: 'NGO & development programme', sector: 'finance-development' },
+  { id: 'software-saas', name: 'Software & SaaS company', sector: 'technology-innovation' },
+  { id: 'it-services', name: 'IT services & support', sector: 'technology-innovation' },
+  { id: 'digital-agency', name: 'Digital agency', sector: 'technology-innovation' },
+  { id: 'hospital', name: 'Hospital & clinic', sector: 'public-services' },
+  { id: 'education', name: 'School, college & coaching', sector: 'public-services' },
+  { id: 'municipal', name: 'Municipal & citizen services', sector: 'public-services' },
+];
+
 export const PRIORITY_IDS = ['P1', 'P2', 'P3', 'P4'] as const;
 export const PriorityIdSchema = z.enum(PRIORITY_IDS);
 export type PriorityId = z.infer<typeof PriorityIdSchema>;

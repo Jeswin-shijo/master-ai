@@ -194,6 +194,8 @@ export function composeOfflinePack(industry: string): Pack {
     policies: [],
     kpis: [],
     connectors: [],
+    playbooks: [],
+    other_org_types: [],
   };
 }
 

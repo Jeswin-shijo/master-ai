@@ -28,7 +28,7 @@ const pack = {
   routines: [],
   policies: [],
   kpis: [],
-  connectors: [],
+  connectors: [], playbooks: [], other_org_types: [],
   lineage: ['test'],
   source: 'registry',
 } satisfies ResolvedPack;

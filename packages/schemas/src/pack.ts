@@ -242,6 +242,24 @@ export const KpiDefSchema = z.object({
 });
 export type KpiDef = z.infer<typeof KpiDefSchema>;
 
+/** A procedure agents follow and cite. Loaded into the company's knowledge base at install. */
+export const PlaybookSchema = z.strictObject({
+  id: SlugSchema,
+  title: z.string().min(1),
+  /** Markdown: the procedure in plain steps. */
+  body: z.string().min(80),
+  source: z.string().optional(),
+});
+export type Playbook = z.infer<typeof PlaybookSchema>;
+
+/** On a sector base pack: an organization type people may type in, and the ready-made type it is closest to. */
+export const OtherOrgTypeSchema = z.strictObject({
+  name: z.string().min(1),
+  keywords: z.array(z.string().min(1)).min(1),
+  closest: SlugSchema,
+});
+export type OtherOrgType = z.infer<typeof OtherOrgTypeSchema>;
+
 export const PackSchema = z.object({
   id: SlugSchema,
   version: SemverSchema,
@@ -267,6 +285,10 @@ export const PackSchema = z.object({
   kpis: z.array(KpiDefSchema).default([]),
   /** Integrations the sector needs (booking engines, ERP, EHR...). */
   connectors: z.array(z.string()).default([]),
+  /** Procedures for the company's knowledge base (permit-to-work, KYC, triage...). */
+  playbooks: z.array(PlaybookSchema).default([]),
+  /** Sector base packs only: typed-in organization types and the ready-made type each borrows offline. */
+  other_org_types: z.array(OtherOrgTypeSchema).default([]),
 });
 export type Pack = z.infer<typeof PackSchema>;
 export type PackInput = z.input<typeof PackSchema>;
