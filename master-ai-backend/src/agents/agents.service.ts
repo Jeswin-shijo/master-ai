@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { AgentView, AutonomyOverride, AutonomyOverrideInput, AutonomySuggestion, UpdateAgentInput } from '@onehuman/schemas';
+import { CASE_COORDINATOR_ROLE } from '@onehuman/agent-kit';
 import { AuditService } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { DbService, type Tx } from '../db/db.service';
@@ -58,7 +59,7 @@ export class AgentsService {
 
   /** Kill switch for one agent. Its running tasks pause at the next step. */
   async setPaused(session: Session, id: string, paused: boolean): Promise<AgentView> {
-    const { view, taskIds } = await this.db.tenant(session.tenantId, async (tx) => {
+    const { view, taskIds, stageIds } = await this.db.tenant(session.tenantId, async (tx) => {
       await this.row(tx, id);
       const [row] = await tx.update(agents).set({ status: paused ? 'paused' : 'active', updatedAt: new Date() }).where(eq(agents.id, id)).returning();
       await this.audit.append(tx, session.tenantId, {
@@ -67,9 +68,14 @@ export class AgentsService {
         refId: id,
         payload: { name: row!.name },
       });
-      return { view: await this.view(tx, row!), taskIds: await this.tenancy.activeTasks(tx, { agentId: id, runnableOnly: !paused }) };
+      return {
+        view: await this.view(tx, row!),
+        taskIds: await this.tenancy.activeTasks(tx, { agentId: id, runnableOnly: !paused }),
+        // The Case coordinator holds every stage of its workspace.
+        stageIds: row!.role === CASE_COORDINATOR_ROLE ? await this.tenancy.activeStages(tx, { workspaceId: row!.workspaceId }) : [],
+      };
     });
-    await this.tenancy.signal(taskIds, paused);
+    await this.tenancy.signal(taskIds, paused, stageIds);
     return view;
   }
 

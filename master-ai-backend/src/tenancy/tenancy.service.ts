@@ -1,16 +1,17 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
-import type { TenantSettingsInput, TenantSummary, Workspace } from '@onehuman/schemas';
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import type { CaseStageStatus, TenantSettingsInput, TenantSummary, Workspace } from '@onehuman/schemas';
 import { AuditService } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { toTenant, toWorkspace } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
-import { agents, goals, tasks, tenants, workspaces } from '../db/schema';
+import { agents, cases, caseStages, goals, tasks, tenants, workspaces } from '../db/schema';
 import { TemporalService } from '../orchestration/temporal.service';
 import { PolicyService } from '../policy/policy.service';
 import { TwilioService } from '../voice/twilio';
 
 const ACTIVE_TASK_STATES = ['running', 'waiting_approval', 'waiting_on_team', 'paused'];
+const ACTIVE_STAGE_STATES: CaseStageStatus[] = ['running', 'needs_info', 'waiting_approval'];
 
 /** Tenant settings, workspaces and the kill switch. */
 @Injectable()
@@ -46,12 +47,12 @@ export class TenancyService {
 
   /** Kill switch for the whole company: every running agent stops at its next step. */
   async setTenantPaused(session: Session, paused: boolean): Promise<TenantSummary> {
-    const { tenant, taskIds } = await this.db.tenant(session.tenantId, async (tx) => {
+    const { tenant, taskIds, stageIds } = await this.db.tenant(session.tenantId, async (tx) => {
       const [row] = await tx.update(tenants).set({ status: paused ? 'paused' : 'active' }).where(eq(tenants.id, session.tenantId)).returning();
       await this.audit.append(tx, session.tenantId, { type: paused ? 'tenant.paused' : 'tenant.resumed', actor: { id: session.principalId, kind: 'human' }, payload: {} });
-      return { tenant: toTenant(row!), taskIds: await this.activeTasks(tx, { runnableOnly: !paused }) };
+      return { tenant: toTenant(row!), taskIds: await this.activeTasks(tx, { runnableOnly: !paused }), stageIds: await this.activeStages(tx) };
     });
-    await this.signal(taskIds, paused);
+    await this.signal(taskIds, paused, stageIds);
     return tenant;
   }
 
@@ -75,7 +76,7 @@ export class TenancyService {
   }
 
   async setWorkspacePaused(session: Session, id: string, paused: boolean): Promise<Workspace> {
-    const { ws, taskIds } = await this.db.tenant(session.tenantId, async (tx) => {
+    const { ws, taskIds, stageIds } = await this.db.tenant(session.tenantId, async (tx) => {
       const [row] = await tx.update(workspaces).set({ status: paused ? 'paused' : 'active' }).where(eq(workspaces.id, id)).returning();
       if (!row) throw new NotFoundException('Workspace not found');
       await this.audit.append(tx, session.tenantId, {
@@ -84,9 +85,13 @@ export class TenancyService {
         refId: id,
         payload: { name: row.name },
       });
-      return { ws: toWorkspace(row), taskIds: await this.activeTasks(tx, { workspaceId: id, runnableOnly: !paused }) };
+      return {
+        ws: toWorkspace(row),
+        taskIds: await this.activeTasks(tx, { workspaceId: id, runnableOnly: !paused }),
+        stageIds: await this.activeStages(tx, { workspaceId: id }),
+      };
     });
-    await this.signal(taskIds, paused);
+    await this.signal(taskIds, paused, stageIds);
     return ws;
   }
 
@@ -107,9 +112,26 @@ export class TenancyService {
     return rows.map((r) => r.id);
   }
 
-  async signal(taskIds: string[], paused: boolean) {
-    if (paused) await this.temporal.pauseTasks(taskIds);
-    else await this.temporal.resumeTasks(taskIds);
+  /** Stage workflows still in play, for pause and resume signals. */
+  async activeStages(tx: Tx, scope: { workspaceId?: string } = {}): Promise<string[]> {
+    const conditions = [inArray(caseStages.status, ACTIVE_STAGE_STATES), isNotNull(caseStages.workflowId)];
+    if (scope.workspaceId) conditions.push(eq(cases.workspaceId, scope.workspaceId));
+    const rows = await tx
+      .select({ id: caseStages.workflowId })
+      .from(caseStages)
+      .innerJoin(cases, eq(cases.id, caseStages.caseId))
+      .where(and(...conditions));
+    return rows.map((r) => r.id!);
+  }
+
+  async signal(taskIds: string[], paused: boolean, stageIds: string[] = []) {
+    if (paused) {
+      await this.temporal.pauseTasks(taskIds);
+      await this.temporal.pauseStages(stageIds);
+    } else {
+      await this.temporal.resumeTasks(taskIds);
+      await this.temporal.resumeStages(stageIds);
+    }
   }
 
   private async tenantRow(tx: Tx, tenantId: string) {
