@@ -1,0 +1,103 @@
+# Schools, colleges and coaching institutes: realistic requests from parents,
+# students, staff, other schools, campus systems and the management, with what
+# the stages should decide.
+pack: education
+cases:
+  - id: class-1-admission
+    request: "Namaste. We want admission for our daughter Ananya in Class 1 for the 2027-28 session. She turns 6 on 14 January 2027. Attaching her birth certificate, our electricity bill as address proof and her UKG progress report. Is a seat available?"
+    source: customer
+    expect:
+      category: admission
+      priority: P3
+      review: complete
+      approval: { required: true, role: head-of-institution }
+      signoff: { required: false }
+    why: Admission, UKG and seat mark an admission (P3). The class is named and age and address proofs are in. Every admission needs the principal's approval; there is no sign-off. No test or interview for a Class 1 child.
+  - id: rte-seat-class-3
+    request: "Sir, I drive an auto and cannot afford private school fees. Please give my son Rahul a free seat under RTE in Class 3 from this month. He is 8 years old."
+    source: customer
+    expect:
+      category: admission
+      priority: P3
+      review: not_eligible
+    why: Free seat and RTE mark an admission. RTE seats come only through the state lottery for the entry class, so the school cannot give one in Class 3 mid-year. The father is told the portal dates, that a government school must admit Rahul free, and that he can apply for a regular seat with a concession.
+  - id: late-fee-gateway
+    request: "Accounts desk: Kavya Iyer (Class 9-A) paid her Term 2 fees on 12 October, two days late, because the payment gateway failed on the 10th. Failed-payment screenshot attached. Please waive the Rs 600 late fee."
+    source: staff
+    amount_inr: 600
+    expect:
+      category: billing
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: accounts-head }
+    why: Late fee and waive mark a fee concession or waiver. ₹600 is not above the ₹10,000 limit, so accounts applies it without approval; the accounts head signs off the ledger entry.
+  - id: neet-refund
+    request: "I joined your 2-year NEET classroom programme in April 2026 and paid Rs 1,92,000 for the full course, hostel included. I am leaving the course at the end of October because of my health. Please refund the balance to my father's account, the one the fees came from."
+    source: customer
+    amount_inr: 136000
+    expect:
+      category: billing
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: accounts-head }
+    why: Leaving the course and refund mark a refund. A coaching student who leaves mid-course gets the unused part back within 10 days, ₹8,000 a month for 17 unused months is ₹1,36,000. That is above ₹10,000, so the management approves; the money goes back to the account it came from and the accounts head signs off.
+  - id: missed-unit-test
+    request: "Hello ma'am, Riya from 7-C missed the science unit test on Monday. Can she write it this week?"
+    source: customer
+    expect:
+      category: exam
+      priority: P2
+      review: needs_info
+    why: Unit test marks an exam request (P2). No reason or proof is given for missing it, so ask why, and for a doctor's note if she was ill.
+  - id: tc-to-new-school
+    request: "From the office of Orchid Valley School, Balewadi, Pune: Kabir Mehta (your GR no. 4471, Class 5-B) has joined our Class 5. His parents' signed request is attached. Please send his transfer certificate. They tell us about Rs 18,000 of last term's fees is still pending with you."
+    source: partner
+    expect:
+      category: certificate
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: head-of-institution }
+    why: Transfer certificate marks a certificate request. The new school sent the parents' signed request. The TC goes out promptly with no remark about fees, and the ₹18,000 is followed up with the parents separately. No approval; the principal signs.
+  - id: van-driver-touching
+    request: "My daughter Sana (Class 6-A) told me last night that the van driver on route 5 touches her shoulder and legs and tells her not to tell anyone. She is scared to go to school. Please do something today."
+    source: customer
+    expect:
+      category: child-protection
+      priority: P1
+      review: complete
+      approval: { required: true, role: head-of-institution }
+      signoff: { required: true, role: owner }
+    why: Touching and being told not to tell anyone mark child protection (P1), ahead of the van and route words. What the child said is enough; the police or Special Juvenile Police Unit are told today without the school's own checking (POCSO Section 19), and that never waits for approval. The principal approves taking the driver off the route; the management signs off the closure.
+  - id: maternity-leave
+    request: "I am Dr Sneha Patil, Assistant Professor, Chemistry. I am 7 months pregnant with my first child and want maternity leave from 1 December 2026 for 26 weeks. Doctor's certificate attached. Prof. Kulkarni will take my B.Sc second-year classes."
+    source: staff
+    expect:
+      category: staff-leave
+      priority: P2
+      review: complete
+      approval: { required: true, role: head-of-institution }
+      signoff: { required: false }
+    why: Maternity leave marks staff leave (P2). It is her first child, so 26 weeks is within the Maternity Benefit Act, the dates are given and her classes are covered. The principal approves after the head of department recommends; no sign-off.
+  - id: cctv-offline
+    request: "CCTV system alert: camera 4 at the main gate offline since 07:10, recorder shows 'no signal'. Camera is under AMC with SecureVision till March 2027."
+    source: system
+    expect:
+      category: facility
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: estate-officer }
+    why: CCTV, camera and AMC mark a repair (P3) at the main gate. The AMC covers it, so nothing is spent and no approval is needed; a quote above ₹25,000 would go to the management. The admin officer signs off once the camera records again.
+  - id: school-shop-complaint
+    request: "Mrs Deshmukh (Class 4 parent) called me, very upset. She says the class teacher told parents that books and uniforms must be bought only from the school shop, at higher prices than outside. Look into it and send her a proper written reply."
+    source: owner
+    expect:
+      category: complaint
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: grievance-officer }
+    why: School shop and very upset mark a complaint (P3). Complaints need no approval; the grievance committee checks what the class teacher said, and signs off the written reply. The class teacher does not handle it.

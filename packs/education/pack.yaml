@@ -1,0 +1,690 @@
+# Ready-made pack: schools (CBSE, ICSE and state board), colleges and coaching
+# institutes in India. Built from researched Indian practice: the RTE Act 2009
+# (Sections 5, 12 to 17), the POCSO Act 2012, UGC rules on student grievances
+# (2023), ragging (2009) and fee refunds (2018), CBSE bus and exam rules, the
+# Ministry of Education coaching centre guidelines (2024) and state fee laws.
+id: education
+version: 1.0.0
+name: School, college & coaching
+description: Admissions and RTE seats, fees, concessions and refunds, exams and results, certificates and TCs, child protection, emergencies, staff leave, repairs and transport, and complaints for schools, colleges and coaching institutes.
+kind: industry
+sector: public-services
+extends: [sector-public-services, bookings-base]
+match:
+  keywords: [school, schools, cbse school, icse school, state board school, international school, public school, high school, higher secondary school, junior college, college, degree college, engineering college, coaching institute, coaching centre, coaching center, coaching classes, coaching class, neet coaching, jee coaching, iit jee coaching, upsc coaching, tuition centre, tuition center, tuition classes, tutorial classes, educational institution, educational institute]
+
+labels:
+  Customer: Student
+  Booking: Enrolment
+  Service: Course
+
+entities:
+  - name: Customer
+    label: Student
+    plural_label: Students
+    description: A student or applicant, with the parent or guardian who speaks for a minor.
+    title_field: name
+    list_columns: [name, admissionNumber, classSection, parentName, status]
+    fields:
+      - { name: name, label: Full name, type: string, required: true }
+      - { name: phone, label: Registered mobile, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: city, label: City or village, type: string }
+      - name: source
+        label: Came through
+        type: enum
+        options: [walk-in, phone, whatsapp, website, rte-portal, counselling, referral, other]
+      - { name: admissionNumber, label: Admission or GR number, type: string }
+      - { name: apaarId, label: APAAR ID, type: string }
+      - { name: dateOfBirth, label: Date of birth, type: date }
+      - { name: classSection, label: Class and section (or course and batch), type: string }
+      - name: seatType
+        label: Seat
+        type: enum
+        options: [regular, rte, scholarship, staff-ward, management-quota]
+      - { name: parentName, label: Parent or guardian, type: string }
+      - { name: address, label: Address, type: text }
+      - { name: admittedOn, label: Admitted on, type: date }
+      - { name: attendancePercent, label: Attendance (%), type: number }
+      - name: status
+        label: Status
+        type: enum
+        options: [applicant, studying, left, passed-out]
+      - { name: notes, label: Notes, type: text }
+  - name: FeeAccount
+    label: Fee account
+    plural_label: Fee accounts
+    title_field: studentName
+    list_columns: [studentName, academicYear, totalFee, paid, due, nextDueDate]
+    fields:
+      - { name: studentName, label: Student, type: string, required: true }
+      - { name: admissionNumber, label: Admission or GR number, type: string }
+      - { name: academicYear, label: Academic year, type: string, required: true }
+      - { name: totalFee, label: Fee for the year, type: money }
+      - { name: concession, label: Concession given, type: money }
+      - { name: concessionReason, label: Concession reason, type: string }
+      - { name: paid, label: Paid so far, type: money }
+      - { name: due, label: Still due, type: money }
+      - { name: nextDueDate, label: Next due date, type: date }
+      - { name: lateFee, label: Late fee, type: money }
+      - { name: refundAmount, label: Refund, type: money }
+      - { name: refundPaidOn, label: Refund paid on, type: date }
+  - name: StaffMember
+    label: Staff member
+    plural_label: Staff
+    title_field: fullName
+    list_columns: [fullName, employeeId, role, subjects, casualLeaveLeft]
+    fields:
+      - { name: fullName, label: Full name, type: string, required: true }
+      - { name: employeeId, label: Employee ID, type: string }
+      - name: role
+        label: Role
+        type: enum
+        options: [teacher, lecturer, counsellor, office, driver, attendant, support, other]
+      - { name: subjects, label: Subjects or department, type: string }
+      - { name: mobile, label: Mobile, type: phone }
+      - { name: joinedOn, label: Joined on, type: date }
+      - { name: casualLeaveLeft, label: Casual leave left (days), type: number }
+      - { name: earnedLeaveLeft, label: Earned leave left (days), type: number }
+      - { name: policeVerified, label: Police verification done, type: boolean }
+      - { name: safetyTrained, label: Child-safety training done, type: boolean }
+  - name: Asset
+    label: Bus, room or equipment
+    plural_label: Buses, rooms and equipment
+    title_field: assetName
+    list_columns: [assetName, assetType, location, status, fitnessUntil]
+    fields:
+      - { name: assetName, label: Name or number, type: string, required: true }
+      - name: assetType
+        label: Type
+        type: enum
+        required: true
+        options: [bus, van, classroom, lab, ac, cctv, ro-plant, generator, fire-equipment, smart-board, other]
+      - { name: location, label: Location or route, type: string }
+      - { name: vendor, label: Vendor or AMC company, type: string }
+      - { name: amcUntil, label: AMC valid until, type: date }
+      - { name: fitnessUntil, label: Bus fitness valid until, type: date }
+      - { name: insuranceUntil, label: Insurance valid until, type: date }
+      - { name: permitUntil, label: Permit valid until, type: date }
+      - { name: gpsWorking, label: GPS working, type: boolean }
+      - { name: cctvWorking, label: Camera working, type: boolean }
+      - { name: attendantOnBoard, label: Woman attendant on board, type: boolean }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [working, under-repair, off-road]
+
+tools:
+  - name: students.search
+    description: Search students and applicants by name, admission number, class or parent.
+    uses: records.search
+    with: { entity: Customer }
+  - name: fees.search
+    description: Search fee accounts by student, admission number or year.
+    uses: records.search
+    with: { entity: FeeAccount }
+  - name: staff.search
+    description: Search staff by name, subject, role or leave left.
+    uses: records.search
+    with: { entity: StaffMember }
+  - name: assets.search
+    description: Search buses, rooms and equipment by name, route, AMC or status.
+    uses: records.search
+    with: { entity: Asset }
+  - name: asset.take_off_road
+    description: Take a bus, room or machine out of use until it is fixed. Reversible.
+    uses: records.update
+    with: { entity: Asset, patch: { status: off-road } }
+    level: 2
+
+agents:
+  - role: admissions-desk
+    name: Admissions and fees desk
+    description: Answers admission enquiries, checks age, documents and RTE allotments, holds the enrolment, drafts the admission letter and fee schedule, and works out concessions and refunds from the fee account and the written policy.
+    instructions: Never ask for a donation or capitation fee, and never set a test or interview for a child up to Class 8. Never refuse an allotted RTE child; send any doubt about papers to the principal. Never promise ranks, marks or selection. Accounts pays refunds, only into the payer's own bank account.
+    autonomy: 3
+    tools: [students.search, fees.search, records.search, records.create, records.update, booking.hold, enquiry.mark_contacted, knowledge.search, document.generate, schedule.create, message.draft, message.send, payment.request, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: school-office
+    name: School office desk
+    description: Handles certificates and TCs, exam and result requests, staff leave and substitute timetables, repairs and transport faults, and complaints, and hands each job to the teacher, office or vendor in charge by phone.
+    instructions: Never mark a certificate as issued; the principal signs it. Never hold back a TC or write unpaid fees on it. Never change marks; the exam in-charge approves every change after a second teacher rechecks. Take a bus off the route when its GPS, camera, speed governor or woman attendant is missing.
+    autonomy: 3
+    tools: [students.search, staff.search, assets.search, asset.take_off_road, records.search, records.create, records.update, knowledge.search, document.generate, schedule.create, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: safety-desk
+    name: Safety and welfare desk
+    description: Keeps the timeline and the reporting clock for emergencies and child-protection cases, drafts the police intimation and the reports to the board, university or education office, and reminds the principal and the safety in-charge until every step is done.
+    instructions: Children first. Never question a child, never contact the person accused, and never share a child's name or photo beyond those who must know. Reports the law requires, such as to the police, never wait for an approval. A person signs and sends every report.
+    autonomy: 2
+    tools: [students.search, staff.search, records.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: restricted }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: admission-intake
+    name: Admission or enrolment
+    description: Check the class, age and papers, hold the seat and send the admission letter once the principal approves.
+    keywords: [admission, enrolment, seat, rte, batch, nursery]
+    steps:
+      - key: check-papers
+        title: Check the papers and hold the seat
+        agent: admissions-desk
+        instructions: Find or create the Student record, check the age for the class against the state's cut-off date, the documents received and, for an RTE seat, the allotment letter. Hold the Enrolment and list anything still missing for the family.
+      - key: confirm
+        title: Send the admission letter and fee schedule
+        agent: admissions-desk
+        depends_on: [check-papers]
+        instructions: Draft the admission letter with the fee schedule and refund rules (no fee at all for an RTE seat), send it to the family, and remind the office to confirm RTE admissions on the state portal before its deadline.
+  - id: fee-concession-refund
+    name: Concession, waiver or refund
+    description: Work out the concession or refund from the fee account and the written policy, and get accounts to post or pay it.
+    keywords: [concession, waiver, refund, late fee, scholarship, instalment]
+    steps:
+      - key: work-out
+        title: Work out the amount
+        agent: admissions-desk
+        instructions: Pull the fee account, check the request against the written concession policy or the refund rule that applies (UGC scale for a college, unused months for a coaching course) and draft the letter with the amount and how it was worked out.
+      - key: post-or-pay
+        title: Get accounts to post or pay it
+        agent: admissions-desk
+        depends_on: [work-out]
+        instructions: Hand the ledger entry or the refund to the accounts clerk by phone, with the payer's own bank account for a refund, and tell the family when it is done.
+  - id: exam-request
+    name: Exam or result request
+    description: Pull the marks, attendance and timetable, plan the re-test or recheck and tell the family the outcome.
+    keywords: [re-test, recheck, marks, hall ticket, result, attendance]
+    steps:
+      - key: gather
+        title: Gather marks and plan
+        agent: school-office
+        instructions: Pull the student's marks, attendance and the exam timetable, check the proof given, and draft the re-test plan, the recheck sheet or the board or university form for the exam in-charge.
+      - key: teacher
+        title: Hand it to the teacher and reply
+        agent: school-office
+        depends_on: [gather]
+        instructions: Hand the re-test or the recheck to the subject teacher by phone with the date, and send the family the outcome once the exam in-charge approves.
+  - id: certificate-issue
+    name: Certificate or TC
+    description: Check the register, draft the certificate and get it signed by the principal.
+    keywords: [tc, certificate, bonafide, transcript, migration]
+    steps:
+      - key: draft
+        title: Check the register and draft it
+        agent: school-office
+        instructions: Check the details against the admission register and marks records, draft the certificate on letterhead with its serial number, and never add any remark about fees.
+      - key: sign
+        title: Get it signed and handed over
+        agent: school-office
+        depends_on: [draft]
+        instructions: Hand the draft to the office superintendent by phone for the principal's signature and stamp, then send it to the family or the new school and file a copy.
+  - id: staff-leave-cover
+    name: Staff leave and substitutes
+    description: Check the leave balance and duties and arrange a substitute for every period.
+    keywords: [leave, substitute, arrangement, timetable]
+    steps:
+      - key: cover
+        title: Check balance and arrange cover
+        agent: school-office
+        instructions: Check the leave balance, exam and evaluation duties on those dates, propose a substitute for each period, send the substitute timetable once approved and update the leave register.
+  - id: campus-repair
+    name: Repair or transport fault
+    description: Log the fault, check the AMC and get the technician, vendor or transport in-charge to fix it.
+    keywords: [repair, broken, bus, cctv, amc, not working]
+    steps:
+      - key: log
+        title: Log the fault and check the AMC
+        agent: school-office
+        instructions: Find the bus, room or equipment, log the fault with place and time, check warranty and AMC, and collect quotes when money must be spent. Take a bus off the route if a safety item is not working.
+      - key: fix
+        title: Get it fixed
+        agent: school-office
+        depends_on: [log]
+        instructions: Hand the job to the admin officer or the AMC vendor by phone with the place, the fault and the target time, and report when it is working again.
+  - id: complaint-handling
+    name: Complaint reply
+    description: Log the complaint, gather the facts and draft the written reply for the grievance committee.
+    keywords: [complaint, grievance, reply]
+    steps:
+      - key: facts
+        title: Log it and gather the facts
+        agent: school-office
+        instructions: Log the complaint with a number, acknowledge it within one working day, and pull the records that matter. Never give it to anyone named in the complaint.
+      - key: reply
+        title: Arrange the meeting and draft the reply
+        agent: school-office
+        depends_on: [facts]
+        instructions: Ask the coordinator or counsellor by phone to meet the family or student, then draft the written reply saying what will change and where to appeal.
+  - id: child-protection-response
+    name: Child protection response
+    description: Start the reporting clock, draft the police intimation and follow up until every step is done.
+    keywords: [pocso, abuse, ragging, beaten, harassment]
+    steps:
+      - key: clock
+        title: Start the timeline and draft the reports
+        agent: safety-desk
+        instructions: Record what was reported, by whom and when. Draft the intimation to the police or Special Juvenile Police Unit and, for ragging, the FIR request and the note to the district committee and university, for the principal to sign the same day.
+      - key: follow-up
+        title: Follow up every step
+        agent: safety-desk
+        depends_on: [clock]
+        instructions: Hand the follow-up to the principal by phone and track that the child is safe, the parents are told, the accused is kept away from children and the inquiry is under way.
+  - id: emergency-response
+    name: Emergency response
+    description: Get the person on duty to the spot, keep the timeline and draft the messages to parents.
+    keywords: [emergency, fire, injured, missing, accident]
+    steps:
+      - key: alert
+        title: Alert the person on duty
+        agent: safety-desk
+        instructions: Hand it at once by phone to the safety in-charge or the teacher on duty with the place and what happened, keep the timeline, and draft the message to the parents and the report the board or education office needs.
+
+routines:
+  - id: daily-transport-check
+    name: Daily bus and safety check-in
+    description: The transport in-charge reports the buses that ran, any child not picked up or dropped on time, and any bus missing a safety item.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "16:30"
+    questions:
+      - { key: busesRan, label: "Buses and vans run", ask: "How many buses and vans ran today?", type: number, unit: vehicles }
+      - { key: childrenLate, label: "Children not dropped on time", ask: "Was any child not picked up or not dropped home on time?", type: text, flag: true }
+      - { key: safetyKit, label: "Bus safety items missing", ask: "Is any bus missing its GPS, camera, speed governor or woman attendant?", type: text, flag: true }
+      - { key: incidents, label: "Problems on the bus", ask: "Did any child get hurt or report a problem on a bus today?", type: text, flag: true, required: false }
+
+policies:
+  - id: facility-spend-above-25000
+    action: case.proceed
+    approver: owner
+    require_approval_above: { amount: 25000, currency: INR }
+    when: { category: [facility] }
+    reason: Repairs and purchases above ₹25,000 need the management's approval of the quote before work starts.
+
+kpis:
+  - id: fee-collection
+    name: Fees collected on time
+    description: Fees received by the due date as a share of fees due for the term after concessions.
+    unit: percent
+    direction: up
+    target: 95
+  - id: classes-covered
+    name: Classes covered during leave
+    description: Periods of absent teachers taken by a substitute, as a share of all periods of absent teachers in the month.
+    unit: percent
+    direction: up
+    target: 98
+  - id: certificates-on-time
+    name: Certificates in 3 working days
+    description: TCs and other certificates handed over within 3 working days of a complete request, as a share of all certificates issued in the month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: complaints-on-time
+    name: Complaints answered in 15 days
+    description: Complaints given a final written reply within 15 working days, as a share of all complaints that fell due in the month.
+    unit: percent
+    direction: up
+    target: 100
+  - id: safety-reported-24h
+    name: Safety cases reported in 24 hours
+    description: Child-protection and ragging cases where the parents and, where the law needs it, the police were told within 24 hours, as a share of all such cases.
+    unit: percent
+    direction: up
+    target: 100
+  - id: seats-filled
+    name: Seats filled
+    description: Students enrolled as a share of approved seats across classes, courses or batches. RTE seats are counted on their own, and every allotted RTE child should be admitted.
+    unit: percent
+    direction: up
+    target: 95
+
+connectors: [whatsapp-business, razorpay, gmail]
+
+lifecycle:
+  case: { label: Request, plural: Requests, prefix: REQ }
+  stages:
+    request:
+      name: Request received
+      description: A request, complaint or alert comes in from a parent, student, applicant, staff member, the board or university, a state portal or a campus system (CCTV, bus GPS, fee software), gets a number, and the sender is told it has been received.
+    review:
+      name: Documents and eligibility check
+      description: Office staff and agents confirm who sent it, find the student or staff record, check the documents and the rules that apply, and ask for anything missing; child-safety cases skip this and go straight to the principal.
+      checks:
+        - "Sender confirmed: parent or student from the registered mobile, staff from their own login, a school or board from its official email"
+        - "Student or staff record found: admission or GR number, class and section or course and batch, employee ID"
+        - Documents for this type of request received and readable
+        - "Rules checked: age for the class, attendance, income or category proof, fee account, leave balance"
+        - "Nothing asked breaks the law: no donation for a seat, no test for children up to Class 8, no fee remark on a TC"
+        - "Safety first: abuse, beating, ragging, or an injured or missing child go to the principal at once and never wait for papers"
+    classify:
+      name: Type, urgency and department
+      description: The request gets its type, priority, risk and owning department (admissions office, accounts, exam cell, school office, grievance committee, principal's office, or admin and transport), which starts its clock.
+    assign:
+      name: Assign in-charge and deadline
+      description: The principal or office head names the person in charge (class teacher, exam in-charge, accounts clerk, counsellor, transport in-charge) and sets the deadline; agents send the reminders.
+    approve:
+      name: Principal or management approval
+      description: The right person decides within their powers (the principal for admissions, staff leave and action in child-protection cases, the exam in-charge for exam changes, the management for concessions, refunds and spending above the limit); reports the law requires, such as to the police, never wait for an approval.
+    execute:
+      name: Action and follow-up
+      description: Staff and agents do the work and track it (admission and fee records, certificates, re-tests, substitute timetables, repairs and bus checks, replies to families), keeping costs, papers and dates on the request.
+    close:
+      name: Final check and sign-off
+      description: Someone other than the person who did the work checks the result, the named role signs off, the family or staff member gets a written reply and the request is closed.
+      checks:
+        - Outcome matches what was asked or decided
+        - "Records updated: admission register, fee ledger, marks, leave register, asset log, and the state portal where needed (RTE, UDISE+, APAAR)"
+        - Certificates signed and stamped by the principal, with a serial number and a copy filed
+        - "Money: concession shown in the fee ledger, refund in the payer's own bank account"
+        - Police, board, university or education office told where the law needs it
+        - Written reply sent, saying where to appeal if it is a complaint
+    report:
+      name: Reports and term review
+      description: Weekly and term reports show open requests, deadlines met, fee collection, leave cover, complaints and safety cases; repeat problems go to the staff meeting, the management or the college's quality cell (IQAC), and the same records feed yearly returns such as UDISE+ and AISHE.
+  priorities:
+    - { id: P1, name: "Urgent: child safety or emergency", respond_within_hours: 0.25, resolve_within_hours: 24 }
+    - { id: P2, name: "High: exam or class time at stake", respond_within_hours: 2, resolve_within_hours: 72 }
+    - { id: P3, name: Normal, respond_within_hours: 24, resolve_within_hours: 120 }
+    - { id: P4, name: Low, respond_within_hours: 48, resolve_within_hours: 240 }
+  roles:
+    - { id: head-of-institution, name: Principal or centre head, approves: "Every admission including RTE seats, staff leave, and action against staff or students in child-protection cases such as removal from duty or suspension; signs every certificate and TC" }
+    - { id: exam-in-charge, name: Exam in-charge (Controller of Examinations in a college), approves: "Re-tests, mark changes after rechecking, attendance shortage cases, board or university registration corrections and any change to exam dates" }
+    - { id: safety-officer, name: Safety in-charge, approves: "Signs off emergencies once every child is safe and cared for, parents are told and the police or authority are informed (vice-principal or head of the school safety committee; the proctor in a college)" }
+    - { id: grievance-officer, name: Grievance committee, approves: "Signs off the written reply to every complaint and says where to appeal (in a school the principal with two senior teachers; in a college the Students' Grievance Redressal Committee, with appeal to the Ombudsperson)" }
+    - { id: accounts-head, name: Accounts head, approves: "Signs off concessions, waivers and refunds once the fee ledger is updated, receipts match and refunds have reached the payer's own bank account" }
+    - { id: estate-officer, name: Admin officer (estate and transport), approves: "Signs off repairs, purchases and transport fixes once the work is checked, the bills match and bus papers and safety kit are in order" }
+  urgent_keywords: [caught fire, on fire, fire broke out, fire accident, fire alarm went off, smoke coming, short circuit, electric shock, electrocuted, live wire, gas leak, collapse, collapsed, unconscious, not breathing, heart attack, chest pain, heavy bleeding, convulsions, had a seizure, having a seizure, snake bite, dog bite, poisoning, food poisoning, drowning, drowned, child injured, student injured, seriously injured, badly injured, head injury, road accident, bus accident, van accident, met with an accident, child missing, missing child, student missing, went missing, not reached home, not reached school, kidnapped, abducted, assaulted, attacked, beaten up, violence, sexual assault, sexually abused, molested, rape, pocso, bad touch, suicide, self harm, kill myself, end my life, bomb threat, stampede, threat to life]
+  categories:
+    - id: emergency
+      name: Emergency on campus or transport
+      keywords: [emergency, ambulance, unconscious, fainted, not breathing, collapsed, collapse, fell down, chest pain, heart attack, heavy bleeding, bleeding, had a seizure, having a seizure, convulsions, asthma attack, allergic reaction, snake bite, dog bite, food poisoning, poisoning, caught fire, on fire, fire broke out, fire accident, fire alarm went off, smoke coming, burning smell, short circuit, electric shock, electrocuted, live wire, gas leak, injured, child injured, student injured, got hurt, head injury, fracture, road accident, bus accident, van accident, met with an accident, child missing, missing child, student missing, went missing, not reached home, not reached school, not returned to the hostel, off route, kidnapped, abducted, bomb threat, bomb, stampede, drowning, suicide, self harm, kill myself, end my life]
+      priority: P1
+      risk: high
+      department: Principal's office and safety committee
+      required_checks:
+        - "Child first: first aid, 112 or 108 called, or the child taken to hospital at once; never wait for papers or a parent's consent"
+        - "Place made safe: power or gas off, building cleared by the drill route and every class teacher has counted their children"
+        - Parents told at once and a teacher stays with the child until they arrive
+        - "Police told for a missing child, a road accident, poisoning or burns; bus GPS and CCTV checked at once for a missing child"
+        - "Evidence kept: CCTV, bus GPS, registers, photos and names of witnesses"
+        - Board, university or education office told where its rules need a report
+      approval: { required: never }
+      signoff: { required: true, role: safety-officer }
+      workflow: emergency-response
+      execution: team
+    - id: facility
+      name: Repair, transport or campus service
+      keywords: [repair, broken, not working, stopped working, leaking, leakage, seepage, plumber, electrician, carpenter, fan, fans, tube light, light, ac, projector, smart board, smartboard, computer lab, internet, wifi, wi-fi, drinking water, water cooler, ro, ro plant, toilet, washroom, not cleaned, cleaning, housekeeping, pest control, generator, dg set, diesel generator, inverter, power cut, no power, lift, furniture, bench, benches, desk, lab equipment, cctv, camera, gps, school bus, bus, van, transport, route, pickup point, pick up point, bus stop, bus late, bus did not come, hostel room, canteen, amc, fire extinguisher, maintenance]
+      priority: P3
+      risk: low
+      department: Admin and transport
+      required_details:
+        - key: location
+          label: Where it is (class, room, block, bus or route)
+          kind: keywords
+          keywords: [class, classroom, room, block, floor, wing, building, lab, laboratory, library, office, staff room, hostel, corridor, toilet, washroom, canteen, gate, campus, ground, playground, hall, auditorium, stairs, bus, van, route, bus no, branch, centre, center]
+      required_checks:
+        - "Danger checked first: exposed wires, cracks, fire, smoke or gas are made safe and raised as an emergency"
+        - Warranty or AMC checked before paying for a repair
+        - "A quote for any spend; two quotes and the management's approval above ₹25,000 before work starts"
+        - Fire NOC, building safety and drinking-water test certificates kept valid
+        - "Buses: fitness, permit and insurance valid; GPS and CCTV working; speed governor at 40 km/h; trained woman attendant; driver with a clean record"
+      approval: { required: never }
+      signoff: { required: true, role: estate-officer }
+      workflow: campus-repair
+      execution: both
+    - id: certificate
+      name: Certificate, TC or record request
+      keywords: [tc, transfer certificate, leaving certificate, school leaving certificate, slc, bonafide, bonafide certificate, bona fide, character certificate, study certificate, conduct certificate, migration certificate, course completion certificate, attendance certificate, duplicate marksheet, marksheet, mark sheet, marks card, transcript, transcripts, provisional certificate, degree certificate, original certificates, original documents, id card, name correction, correction in name, date of birth correction, dob correction, fee receipt, fee certificate, no dues certificate]
+      priority: P3
+      risk: low
+      department: School office (records)
+      required_details:
+        - key: student
+          label: Which student (class, course or year of passing)
+          kind: keywords
+          keywords: [class, std, standard, grade, section, batch, course, programme, program, semester, sem, roll no, roll number, gr no, admission no, admission number, enrolment no, enrollment no, registration no, registration number, passed out, year of passing, alumni, former student, ex student, first year, second year, third year, final year, 1st year, 2nd year, 3rd year, nursery, lkg, ukg, b com, b sc, ba, bba, bca, b tech]
+      required_checks:
+        - "Asked by the student, a parent of a minor, a former student, or the new school with the parent's signed request"
+        - Details match the admission register, marks records and the UDISE+ or APAAR entry
+        - "TC issued promptly; never held back to collect fees and no remark about unpaid fees on it"
+        - "Name or date-of-birth change only with proof (birth certificate, gazette notice or affidavit); board certificates are corrected only through the board"
+        - "College: a student's original certificates are never kept back"
+        - Certificate on letterhead with a serial number, signed and stamped by the principal, copy filed
+      not_eligible:
+        - keywords: [someone else's, another person's, other person's, my neighbour's, my neighbor's, my friend's, my colleague's]
+          reason: We give certificates and records only to the student, a parent or guardian of a minor, someone the student has authorised in writing, or the new school with the parent's signed request. Ask that person to request it.
+      approval: { required: never }
+      signoff: { required: true, role: head-of-institution }
+      workflow: certificate-issue
+      execution: both
+    - id: billing
+      name: Fee concession, waiver or refund
+      keywords: [fee concession, concession, discount, sibling discount, staff ward, scholarship, freeship, fee waiver, waive, waiver, late fee, late fine, instalment, installment, instalments, cannot pay, can't pay, unable to pay, cannot afford, can't afford, reduce the fees, reduce the fee, fee reduction, refund, fee refund, money back, paid twice, charged twice, double payment, excess payment, cancel admission, cancel the admission, withdraw admission, admission cancellation, leave the course, leaving the course, left the course, quit the course, caution money, caution deposit, security deposit, fees maaf, fees kam]
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_details:
+        - key: student
+          label: Which student (class, course or batch)
+          kind: keywords
+          keywords: [class, std, standard, grade, section, batch, course, programme, program, semester, sem, roll no, roll number, gr no, admission no, admission number, enrolment no, registration no, first year, second year, third year, final year, 1st year, 2nd year, 3rd year, nursery, lkg, ukg, b com, b sc, ba, bba, bca, b tech]
+      required_checks:
+        - "Fee account checked: fee for the year, paid, due and earlier concessions"
+        - "Fee charged is the one approved under the state's fee law (fee committee or parent-teacher committee), with no charge outside it"
+        - "Concession fits the written policy (sibling, staff ward, merit, single parent, death or job loss of the earning parent), with proof for hardship"
+        - "College refund on leaving follows the UGC scale: full fee less a processing charge of at most 5% or ₹5,000 if 15 or more days before the last admission date, 90% if less, 80% up to 15 days after, 50% from 16 to 30 days after, nothing later"
+        - "Coaching student leaving mid-course: unused part of tuition, hostel and mess fees refunded within 10 days"
+        - RTE-seat children are charged no fee of any kind
+        - Refund paid only into the payer's own bank account
+      not_eligible:
+        - keywords: [someone else's account, another person's account, third party account, third-party account, my friend's account, my relative's account]
+          reason: Refunds go only to the account the fees came from or to the payer's own bank account. Ask the payer to share their own account details.
+      approval: { required: above_amount, role: owner, amount_inr: 10000 }
+      signoff: { required: true, role: accounts-head }
+      workflow: fee-concession-refund
+      execution: both
+    - id: staff-leave
+      name: Staff leave or HR request
+      keywords: [casual leave, cl, sick leave, medical leave, earned leave, maternity leave, paternity leave, child care leave, emergency leave, apply for leave, need leave, take leave, days leave, days of leave, half day leave, leave without pay, lwp, duty leave, on duty leave, comp off, compensatory off, substitute teacher, arrangement period, arrangement class, duty swap, salary slip, salary not credited, resignation, relieving letter, chutti, chutti chahiye]
+      priority: P2
+      risk: low
+      department: Principal's office (staff)
+      required_details:
+        - { key: dates, label: Leave dates, kind: date }
+      required_checks:
+        - Leave type and balance checked in the leave register under the service rules
+        - Medical certificate for sick leave longer than the rules allow without one
+        - "Maternity leave: 26 weeks for the first two children, 12 weeks from the third (Maternity Benefit Act)"
+        - "Dates checked against exams, board practicals, evaluation duty and parent-teacher meetings"
+        - "Every class covered: a substitute named for each period"
+        - Leave without pay only after the balance is used up, told to the staff member in writing
+      approval: { required: always, role: head-of-institution }
+      signoff: { required: false }
+      workflow: staff-leave-cover
+      execution: agents
+    - id: complaint
+      name: Complaint or grievance
+      keywords: [complaint, complain, complained, grievance, shikayat, rude, misbehaved, misbehaviour, misbehavior, shouted, insulted, unfair, partiality, favouritism, favoritism, discrimination, discriminated, bullied, teased, teasing, not satisfied, no reply, no response, nobody replied, not resolved, escalate, forced to buy, school shop, must buy from, uniform shop, fee hike, fees increased, extra charges, hidden charges, guaranteed selection, false promise, misleading, negligence, careless, very upset, ombudsperson, ombudsman, sgrc, consumer court, consumer forum, legal notice]
+      priority: P3
+      risk: medium
+      department: Grievance committee
+      required_checks:
+        - Logged with a number and acknowledged within one working day
+        - "Checked for safety first: abuse, beating, ragging, sexual harassment or self-harm become a child-protection or emergency case at once"
+        - "Facts gathered from both sides: family or student, staff, records, CCTV where useful"
+        - Nobody named in the complaint handles it
+        - "College: grievance committee report within 15 working days; the student can appeal to the Ombudsperson within 15 days"
+        - "Written reply saying what will change and where to appeal (the Ombudsperson for a college, the education officer or local authority for a school)"
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: complaint-handling
+      execution: both
+    - id: admission
+      name: Admission, enrolment or RTE seat
+      keywords: [admission, new admission, want admission, seek admission, seeking admission, admission form, admission enquiry, admission inquiry, admission process, admissions open, seat, seats, seat available, seats available, nursery, lkg, ukg, pre-primary, entrance test, entrance exam, merit list, seat allotment, allotment letter, allotted, counselling round, management quota, enrol, enroll, enrolment, enrollment, join the batch, new batch, batch starting, demo class, rte, rte seat, 25% quota, free seat, ews, lottery, rte lottery, dakhila, pravesh, prospectus, anti-ragging affidavit, anti-ragging undertaking]
+      priority: P3
+      risk: medium
+      department: Admissions office
+      required_details:
+        - key: classWanted
+          label: Class or course wanted
+          kind: keywords
+          keywords: [class, std, standard, grade, nursery, lkg, ukg, pre-primary, pre kg, playgroup, kg, course, batch, programme, program, b com, b sc, ba, bba, bca, b tech, b ed, mba, 11th, 12th, junior college, fyjc, neet, jee, cuet, foundation, crash course, repeater]
+      required_checks:
+        - Seat free in the class or batch; RTE seats (at least 25% of the entry class) counted separately
+        - "Age right for the class on the state's cut-off date (Class 1: usually 6 years; the date differs by state)"
+        - "Age and address proof received; a child is not refused only for lack of a birth certificate (RTE Section 14)"
+        - "No donation or capitation fee, and no test or interview of the child or parents for classes up to 8 (RTE Section 13)"
+        - "Classes 1 to 8: admission not held up only because the old school's TC is late (RTE Section 5)"
+        - "RTE seat: allotment letter from the state lottery, residence proof, and income or category proof as the state lists; no fee of any kind; doubts go to the education officer, not a refusal"
+        - "College: eligibility marks, merit list or seat allotment, category certificate, migration certificate if from another board, and the yearly anti-ragging undertaking on antiragging.in"
+        - "Coaching: student is 16 or older or has passed Class 10; fees, refund rules, course length and teachers' qualifications given in writing; no promise of ranks or marks"
+      not_eligible:
+        - keywords: [rte in class 2, rte in class 3, rte in class 4, rte in class 5, rte in class 6, rte in class 7, rte in class 8, rte in class 9, rte in class 10, rte in class 11, rte in class 12, rte seat in class 2, rte seat in class 3, rte seat in class 4, rte seat in class 5, rte seat in class 6, rte seat in class 7, rte seat in class 8, rte in the middle of the year, rte from this month, rte mid year, rte without the lottery, outside the rte lottery]
+          reason: "RTE free seats (at least 25% of the entry class: pre-primary or Class 1) are given only through the state's online lottery once a year; the school cannot give one directly, mid-year or in a higher class unless the state portal opens such seats. Tell the family the next portal dates, that the nearest government school must admit the child free, and that they can apply for a regular seat with a fee concession."
+      approval: { required: always, role: head-of-institution }
+      signoff: { required: false }
+      workflow: admission-intake
+      execution: both
+    - id: exam
+      name: Exam, marks or result
+      keywords: [the exam, the exams, exam date, exam dates, exam fee, exam form, final exam, semester exam, board exam, board exams, practical exam, practicals, missed the exam, missed the test, missed the paper, unit test, class test, weekly test, mock test, re-test, retest, re-exam, reexam, mid-term, midterm, half-yearly, half yearly, annual exam, pre-board, hall ticket, admit card, exam result, result withheld, result not declared, wrong marks, marks not counted, not counted, totalling, rechecking, recheck, re-evaluation, revaluation, answer sheet, copy checking, grace marks, compartment, supplementary, backlog, atkt, attendance shortage, short attendance, detained, loc, board registration, cheating in exam, copying in exam, unfair means, pariksha]
+      priority: P2
+      risk: medium
+      department: Exam cell
+      required_details:
+        - key: grounds
+          label: Reason for the request, with proof where needed
+          kind: keywords
+          keywords: [fever, ill, illness, sick, unwell, dengue, typhoid, malaria, jaundice, chickenpox, viral, hospital, hospitalised, hospitalized, admitted, surgery, operation, accident, fracture, doctor, medical certificate, discharge summary, prescription, death, passed away, funeral, bereavement, sports, tournament, competition, ncc, nss, scouts, olympiad, not counted, not totalled, wrong total, added wrongly, totalling, not evaluated, not checked, unchecked, unmarked, wrong marks, marks not added, mistake, not received, not issued, wrong name, spelling, wrong photo, wrong subject, subject code, clash, same day]
+      required_checks:
+        - Student, exam and subject confirmed from the exam timetable and marks register
+        - "Reason proved for a missed exam: medical certificate or discharge summary, death in the family, or sports or NCC duty"
+        - "Attendance rule of the board or university met (often 75%); a shortage is excused only for reasons its rules allow, with proof sent before its last date"
+        - "Rechecking: a second teacher checks totals and unmarked answers before any mark changes; old and new marks kept on record"
+        - "Board and university dates not missed: registration (LOC), practical marks upload, verification and re-evaluation windows"
+        - "Classes 5 and 8 where the no-detention rule has ended: a child who fails gets extra teaching and a re-exam within 2 months, and is never expelled before finishing Class 8"
+      approval: { required: always, role: exam-in-charge }
+      signoff: { required: false }
+      workflow: exam-request
+      execution: both
+    - id: child-protection
+      name: Child protection, abuse or ragging
+      keywords: [pocso, bad touch, touched her, touched him, touches her, touches him, touching her, touching him, touched me, inappropriately, inappropriate touch, sexual, sexually, sexual harassment, sexual assault, molest, molested, rape, private parts, obscene, nude photos, not to tell anyone, keep it a secret, stalking, ragging, ragged, beaten, beaten up, beat him, beat her, beat my, slapped, hit him, hit her, hit my son, hit my daughter, caned, corporal punishment, physical punishment, mental harassment, humiliated, made to kneel, threatened to hurt, threatening messages, drugs]
+      priority: P1
+      risk: high
+      department: Principal's office and safety committee
+      required_checks:
+        - "Child safe now: away from the person accused, first aid or hospital if hurt, a woman teacher or counsellor stays with the child"
+        - Parents told at once, unless a parent is the person accused
+        - "Sexual abuse, even only suspected: police or Special Juvenile Police Unit told the same day without our own checking first; telling the management is not enough (POCSO Section 19)"
+        - "Ragging: FIR within 24 hours, anti-ragging squad inquiry, district committee and university told"
+        - "Physical punishment or mental harassment by staff: the staff member kept away from children during the inquiry (RTE Section 17)"
+        - "Evidence kept: CCTV, bus GPS, messages, written statements; the child tells it once, not again and again"
+        - Child's name and photo shared only with those who must know
+        - "If the principal or a trustee is the person accused, the management or trust board takes their place"
+      approval: { required: always, role: head-of-institution }
+      signoff: { required: true, role: owner }
+      workflow: child-protection-response
+      execution: team
+  examples:
+    - { request: "Fire alarm went off in the chemistry lab and there is smoke in the second floor corridor, we are taking the children out", category: emergency, priority: P1, approval: false }
+    - { request: A Class 2 child fell from the slide during lunch break and is bleeding from the head, category: emergency, priority: P1, approval: false }
+    - { request: "Aarav of Class 3 has not reached home from the school bus and the driver's phone is switched off", category: emergency, priority: P1, approval: false }
+    - { request: Three fans and the tube light in Class 8B are not working, category: facility, priority: P3, approval: false }
+    - { request: The RO water cooler near the primary block is leaking and the floor is wet, category: facility, priority: P3, approval: false }
+    - { request: "Quote of ₹48,000 for repairing the smart boards in four classrooms, please approve", category: facility, priority: P3, approval: true }
+    - { request: Please issue a bonafide certificate for Ishaan of Class 7-B for his passport application, category: certificate, priority: P3, approval: false }
+    - { request: "I passed out of B.Com in 2019 and need my migration certificate and transcripts for a master's abroad", category: certificate, priority: P3, approval: false }
+    - { request: "My younger daughter joined Class 1 this year, please apply the sibling discount of ₹4,000 on her fees", category: billing, priority: P3, approval: false }
+    - { request: "Our family shop shut down in June; we request a fee concession for both our children in Class 4 and Class 7", category: billing, priority: P3, approval: true }
+    - { request: "My son finished B.Tech in May, please refund his caution money of ₹25,000", category: billing, priority: P3, approval: true }
+    - { request: "I need 3 days sick leave from tomorrow for viral fever; Mrs Joshi can take my Class 6 science periods", category: staff-leave, priority: P2, approval: true }
+    - { request: Requesting earned leave from 10 to 20 November for my brother's wedding in Lucknow, category: staff-leave, priority: P2, approval: true }
+    - { request: Bus driver Ramesh wants leave without pay for two weeks from Monday to go to his village, category: staff-leave, priority: P2, approval: true }
+    - { request: I have written twice to the coordinator about homework not being checked in Class 3 and got no reply, category: complaint, priority: P3, approval: false }
+    - { request: "The brochure promised guaranteed selection, but the physics faculty has changed three times this term; I want to complain", category: complaint, priority: P3, approval: false }
+    - { request: "We are looking for admission in LKG for our son for next year, what is the process?", category: admission, priority: P3, approval: true }
+    - { request: "Our son was allotted an RTE seat in your school for Class 1 in the lottery round, when should we bring the papers?", category: admission, priority: P3, approval: true }
+    - { request: Is there a seat in the two-year JEE batch starting in April for a student who has just passed Class 10?, category: admission, priority: P3, approval: true }
+    - { request: "Aditya had typhoid during the half-yearly exams, doctor's certificate attached; can he write the papers he missed?", category: exam, priority: P2, approval: true }
+    - { request: "The total on my son's chemistry pre-board answer sheet is added wrongly, please recheck", category: exam, priority: P2, approval: true }
+    - { request: "The hall ticket for the semester exam shows the wrong subject code, please correct it before Monday", category: exam, priority: P2, approval: true }
+    - { request: "A Class 5 girl told her class teacher that the PT sir touched her and asked her to keep it a secret", category: child-protection, priority: P1, approval: true }
+    - { request: Seniors in the boys' hostel are ragging the first-year students at night and making them do sit-ups, category: child-protection, priority: P1, approval: true }
+    - { request: Parents say the maths teacher slapped their son and made him kneel outside the class for an hour, category: child-protection, priority: P1, approval: true }
+
+playbooks:
+  - id: admissions-and-rte-seats
+    title: Admissions and RTE seats
+    source: Right of Children to Free and Compulsory Education Act, 2009 (Sections 5, 12, 13, 14 and 15) and your state's RTE rules; Supreme Court, Pramati Educational and Cultural Trust v. Union of India (2014); UGC Regulations on Curbing the Menace of Ragging in Higher Educational Institutions, 2009; UGC notification on Refund of Fees and Non-Retention of Original Certificates, 2018
+    body: |
+      1. Before admissions open, publish the seats in each class, the fee for the year, the documents needed, the age cut-off and how seats are given (often a lottery).
+      2. Never take a donation or capitation fee. The fine is up to 10 times the money taken.
+      3. Up to Class 8, never test or interview a child or the parents to choose them. The fine is ₹25,000 the first time and ₹50,000 each time after.
+      4. Check the age on your state's cut-off date (Class 1 is usually 6 years). Never refuse a child only because there is no birth certificate (a hospital or anganwadi record or a parent's declaration will do), and never hold up admission up to Class 8 because the old school's TC is late.
+      5. Unaided schools that are not minority schools keep at least 25% of entry-class seats (pre-primary or Class 1) for RTE children. The state lottery picks them, not the school. Check the allotment letter, residence and income or category proof, and confirm the admission on the state portal before its deadline. Send any doubt to the block or district education officer; never refuse an allotted child. An RTE child pays no fee; the state pays the school back per child.
+      6. Colleges: check eligibility marks, the merit list or seat allotment and category certificates, collect the yearly anti-ragging undertaking from the student and a parent on antiragging.in, and check original certificates and hand them back the same day.
+      7. The principal (the centre head in coaching, the admission committee in a college) approves each admission. Enter it in the admission register, UDISE+ and the APAAR record.
+  - id: child-protection-reporting
+    title: Keep children safe and report at once
+    source: Protection of Children from Sexual Offences (POCSO) Act, 2012 (Sections 19, 21 and 23); Supreme Court, Shankar Kisanrao Khade v. State of Maharashtra (2013); RTE Act, 2009 (Section 17); NCPCR Guidelines for Eliminating Corporal Punishment in Schools, 2014; UGC anti-ragging regulations, 2009 (clause 9); Ministry of Education Guidelines on School Safety and Security, 2021
+    body: |
+      1. Make the child safe first: away from the person accused, first aid or hospital if hurt, and a woman teacher or counsellor stays with the child. Tell the parents at once, unless a parent is the person accused.
+      2. Anyone who hears of or suspects sexual abuse of a child tells the police or the Special Juvenile Police Unit the same day (Childline 1098 or 112 also work). Telling the principal or the management is not enough. What the child says is enough to report; do not check it yourselves first.
+      3. Not reporting is a crime: up to 6 months in jail for anyone, and up to 1 year for the head of an institution who fails to report about staff under them. Reporting in good faith is protected.
+      4. The child tells what happened once, to the police or a counsellor, not again and again to staff. Never share the child's name, photo or school in a way that identifies them.
+      5. Keep the accused staff member away from children (off duty or off the bus route) while the inquiry runs. The principal orders it; if the principal or a trustee is accused, the management or trust board takes over.
+      6. No physical punishment or mental harassment of any child, ever. Treat every report as a case, keep a record and act under the service rules.
+      7. Ragging in a college or hostel: the head files an FIR within 24 hours, the anti-ragging squad inquires, and the district anti-ragging committee and the university are told. The national helpline is 1800-180-5522.
+      8. Keep the evidence: CCTV, bus GPS, messages and written statements. Police-verify and give child-safety training to every staff member who meets children, including drivers and attendants.
+  - id: fees-refunds-and-tc
+    title: Fees, concessions, refunds and TCs
+    source: State fee regulation laws (for example the Maharashtra Educational Institutions (Regulation of Fee) Act, 2011, the Gujarat Self-Financed Schools (Regulation of Fees) Act, 2017 and the Uttar Pradesh Self-Financed Independent Schools (Fee Regulation) Act, 2018); UGC notification on Refund of Fees and Non-Retention of Original Certificates, 2018; Ministry of Education Guidelines for Regulation of Coaching Centres, 2024; Madras High Court on transfer certificates and fee arrears, July 2024
+    body: |
+      1. Charge only the fee approved under your state's fee law (by the fee regulatory committee, the district committee or the parent-teacher executive committee, as your state requires). Publish it, raise it only as the law allows, and add no charge outside it.
+      2. Give concessions only under a written policy (sibling, staff ward, merit, single parent, death or job loss of the earning parent) and with proof for hardship. Accounts applies amounts up to ₹10,000 that fit the policy; anything larger or outside the policy goes to the management.
+      3. An RTE-seat child pays no fee of any kind.
+      4. Colleges refund on the UGC scale: full fee less a processing charge of at most 5% or ₹5,000 if the student leaves 15 or more days before the last admission date, 90% if less, 80% up to 15 days after, 50% from 16 to 30 days after, and nothing later. Check UGC's circular for the year, which has sometimes allowed a wider full refund.
+      5. Coaching: a student who leaves mid-course gets back the unused part of the tuition, hostel and mess fees within 10 days.
+      6. Pay every refund only into the payer's own bank account, and match the receipt and the ledger.
+      7. Issue a TC promptly. Never hold it back for unpaid fees and never write the dues on it; recover dues from the parents separately, by reminders or a legal notice. Colleges never keep a student's original certificates.
+      8. Never make parents buy books or uniforms from the school shop or one named vendor.
+  - id: fair-exams-and-results
+    title: Fair exams and results
+    source: RTE (Amendment) Act, 2019 (Section 16) and the RTE (Amendment) Rules, 2024 (PIB, 23 Dec 2024); CBSE Examination Bye-Laws on attendance and condonation; UGC (Redressal of Grievances of Students) Regulations, 2023
+    body: |
+      1. Publish the exam timetable, the attendance rule and the re-test rules at the start of the year.
+      2. Allow a re-test only for a proved reason (illness with a doctor's certificate, a death in the family, or sports or NCC duty), with the exam in-charge's approval.
+      3. Before any mark changes, a second teacher rechecks the totals and any unmarked answers; keep the old and new marks on record and tell the family.
+      4. Board exams need 75% attendance. Send shortage cases with medical or other proof to the board before its last date; a university follows its own rule, often also 75%.
+      5. Classes 5 and 8 in central government schools and in states that ended the no-detention rule: a child who fails gets extra teaching and a re-exam within 2 months, may be held back, but is never expelled before finishing Class 8.
+      6. Keep a calendar of board and university dates (registration or LOC, practical marks upload, verification and re-evaluation windows) so no student misses one.
+      7. Marks given by a board or university change only through its own process. Unfair-means cases go to the exam committee, and the student is heard before any decision.
+  - id: student-grievances
+    title: Answer every complaint in writing
+    source: UGC (Redressal of Grievances of Students) Regulations, 2023; AICTE (Establishment of Mechanism for Grievance Redressal) Regulations, 2019; RTE Act, 2009 (Section 32); Central Consumer Protection Authority Guidelines for Prevention of Misleading Advertisement in Coaching Sector, 2024
+    body: |
+      1. Log every complaint from any channel with a number and acknowledge it within one working day. Never ask the family to write it again in a set format.
+      2. Check for safety first. A complaint about abuse, beating, ragging, sexual harassment or self-harm becomes a child-protection or emergency case the same hour.
+      3. Nobody named in the complaint handles it. Get both sides: the family or student, the staff member, the records and CCTV where useful.
+      4. School: a committee of the principal and two senior teachers replies within 15 days. For rights under the RTE Act the family can go to the local authority or the education officer.
+      5. College: the Students' Grievance Redressal Committee reports within 15 working days. The student can appeal to the Ombudsperson within 15 days, who aims to decide within 30 days.
+      6. Coaching: answer complaints about fees, refunds or teaching in writing. Ads must never promise ranks or selection or show a topper without saying which course they really took; misleading claims can be taken to the consumer commission.
+      7. Every reply is in writing, says what was found, what will change and where to appeal. Each term, count complaints by cause and fix the cause that keeps coming back.
+  - id: coaching-centre-rules
+    title: Running a coaching centre by the rules
+    source: Ministry of Education Guidelines for Registration and Regulation of Coaching Centres, 2024 (advice to states, binding where a state has adopted them); state coaching laws such as the Bihar Coaching Institute (Control and Regulation) Act, 2010; Central Consumer Protection Authority Guidelines for Prevention of Misleading Advertisement in Coaching Sector, 2024
+    body: |
+      1. Register the centre with the state authority where your state requires it, and show the courses, fees, teachers' qualifications, refund rules and hostel charges on the website and in the prospectus.
+      2. Enrol only students who are 16 or older or have passed Class 10.
+      3. Never promise ranks, marks or guaranteed selection, and never use a topper's name or photo without saying which course they took and with their written consent.
+      4. Teachers are at least graduates, and nobody with a conviction for an offence involving moral turpitude teaches.
+      5. Do not hold classes during school hours, keep to about 5 hours a day, and give a weekly off.
+      6. Keep a counsellor, watch for students under stress, and share help lines such as Tele-MANAS 14416.
+      7. Give receipts for every payment, do not raise fees during a course, and refund the unused part of the fees, hostel and mess included, within 10 days of a student leaving.
+      8. Keep the fire NOC, building safety, first aid and CCTV in order. Under the guidelines the fine is ₹25,000 the first time, ₹1 lakh the second, and registration can be cancelled after that.
