@@ -1,0 +1,1383 @@
+# Ready-made pack: IT services and managed support companies (MSPs, IT support
+# and AMC firms, system integrators, network and server support teams) that
+# look after client companies under contract. Built from researched Indian
+# practice: CERT-In Directions 2022, the DPDP Act 2023 and Rules 2025, the
+# E-Waste (Management) Rules 2022, bank and government AMC tenders, ITIL 4
+# incident, change and problem practice, and ISO/IEC 27001:2022 access controls.
+id: it-services
+version: 1.0.0
+name: IT services & support
+description: Outages, security incidents and CERT-In reports, server, network and backup faults, laptop and printer support, new users and exits, purchases and AMC renewals, changes to client systems, complaints and root-cause reports for IT services and managed support companies.
+kind: industry
+sector: technology-innovation
+extends: [sector-technology-innovation, projects-base]
+match:
+  keywords:
+    - it services
+    - it services company
+    - it company
+    - it support
+    - it support company
+    - it support services
+    - managed it services
+    - managed it support
+    - managed services provider
+    - managed service provider
+    - msp
+    - it solutions
+    - it solutions company
+    - it infrastructure
+    - it infrastructure services
+    - it service provider
+    - it helpdesk
+    - it outsourcing
+    - it amc
+    - computer amc
+    - computer maintenance
+    - desktop support
+    - network support
+    - network and server support
+    - server support
+    - server and network support
+    - networking solutions
+    - it hardware and networking
+    - system integrator
+    - systems integrator
+    - remote it support
+    - it facility management
+
+labels:
+  Customer: Client
+
+entities:
+  - name: Contract
+    label: Client contract
+    plural_label: Client contracts
+    description: The AMC or managed services contract with a client company, with what it covers, its SLA times and who may approve and be told.
+    title_field: clientName
+    list_columns: [clientName, contractType, supportHours, endsOn, status]
+    fields:
+      - { name: clientName, label: Client company, type: string, required: true }
+      - { name: contractNumber, label: Contract number, type: string, required: true }
+      - name: contractType
+        label: Contract type
+        type: enum
+        required: true
+        options: [comprehensive-amc, non-comprehensive-amc, managed-services, resident-engineer, per-call]
+      - { name: startsOn, label: Starts on, type: date }
+      - { name: endsOn, label: Ends on, type: date }
+      - name: supportHours
+        label: Support hours
+        type: enum
+        options: [24x7, business-hours, extended-hours]
+      - name: areaType
+        label: Area
+        type: enum
+        options: [metro, urban, other]
+      - { name: devicesCovered, label: Devices covered, type: integer }
+      - { name: monthlyFee, label: Monthly fee, type: money }
+      - { name: p1FixHours, label: P1 fix within (hours), type: number }
+      - { name: penaltyPerDay, label: Penalty per late day, type: money }
+      - { name: escalationContact, label: Client escalation contact, type: string }
+      - { name: escalationPhone, label: Escalation contact phone, type: phone }
+      - { name: authorisedApprovers, label: People who can approve access and purchases, type: text }
+      - { name: dataProtectionEmail, label: Who to tell about a data breach, type: email }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [active, renewal-due, ended, on-hold]
+  - name: Asset
+    label: Device
+    plural_label: Devices
+    description: A laptop, desktop, printer, server, network device or other equipment we look after for a client.
+    title_field: assetTag
+    list_columns: [assetTag, clientName, deviceType, usedBy, coveredBy, status]
+    fields:
+      - { name: assetTag, label: Asset tag, type: string, required: true }
+      - { name: clientName, label: Client company, type: string, required: true }
+      - name: deviceType
+        label: Type
+        type: enum
+        required: true
+        options: [laptop, desktop, printer, scanner, server, nas, switch, firewall, access-point, cctv, ups, biometric, other]
+      - { name: makeModel, label: Make and model, type: string }
+      - { name: serialNumber, label: Serial number or service tag, type: string }
+      - { name: usedBy, label: Used by, type: string }
+      - { name: location, label: Location, type: string }
+      - name: coveredBy
+        label: Covered by
+        type: enum
+        options: [comprehensive-amc, non-comprehensive-amc, warranty, none]
+      - { name: warrantyEndsOn, label: Warranty ends on, type: date }
+      - { name: lastServicedOn, label: Last serviced on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [in-use, in-repair, standby, retired, recycled]
+      - { name: wipeCertificate, label: Data wipe certificate number, type: string }
+  - name: ClientUser
+    label: Client staff member
+    plural_label: Client staff
+    description: A person at a client company whose accounts and access we manage.
+    title_field: fullName
+    list_columns: [fullName, clientName, department, status, lastWorkingDay]
+    fields:
+      - { name: fullName, label: Full name, type: string, required: true }
+      - { name: clientName, label: Client company, type: string, required: true }
+      - { name: email, label: Work email, type: email }
+      - { name: mobile, label: Registered mobile, type: phone }
+      - { name: department, label: Department, type: string }
+      - { name: reportingManager, label: Reporting manager, type: string }
+      - { name: joinedOn, label: Joined on, type: date }
+      - { name: lastWorkingDay, label: Last working day, type: date }
+      - { name: accessList, label: Systems and folders they can open, type: text }
+      - { name: approvedBy, label: Access approved by, type: string }
+      - { name: mfaOn, label: Two-step login (MFA) on, type: boolean }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [joining, active, leaving, disabled]
+  - name: Incident
+    label: Outage or security incident
+    plural_label: Outages and security incidents
+    description: A major outage or security incident at a client, with the clocks that matter for the SLA, CERT-In and the root-cause report.
+    title_field: title
+    list_columns: [title, clientName, kind, noticedAt, status]
+    fields:
+      - { name: title, label: What happened, type: string, required: true }
+      - { name: clientName, label: Client company, type: string, required: true }
+      - name: kind
+        label: Kind
+        type: enum
+        required: true
+        options: [outage, security, data-breach]
+      - { name: noticedAt, label: Noticed or reported at, type: datetime, required: true }
+      - { name: restoredAt, label: Work restarted or contained at, type: datetime }
+      - { name: usersAffected, label: Users affected, type: integer }
+      - { name: personalDataInvolved, label: Personal data involved, type: boolean }
+      - { name: clientToldAt, label: Client told in writing at, type: datetime }
+      - { name: certInReportedAt, label: Reported to CERT-In at, type: datetime }
+      - { name: certInReference, label: CERT-In reference, type: string }
+      - { name: rootCause, label: Root cause, type: text }
+      - { name: rcaSentOn, label: Root-cause report sent on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [open, contained, restored, rca-sent, closed]
+
+tools:
+  - name: contracts.search
+    description: Search client contracts by client, contract number, type or status, to see what is covered and the SLA times.
+    uses: records.search
+    with: { entity: Contract }
+  - name: assets.search
+    description: Search client devices by asset tag, serial number, user, type or cover.
+    uses: records.search
+    with: { entity: Asset }
+  - name: client_users.search
+    description: Search a client's staff by name, department or status, with the access each person has.
+    uses: records.search
+    with: { entity: ClientUser }
+  - name: client_user.record
+    description: Record a client staff member who is joining or leaving, with the access asked for and who approved it. It records the request; an engineer makes the account change.
+    uses: records.create
+    with: { entity: ClientUser }
+  - name: incidents.search
+    description: Search outages and security incidents by client, kind or status.
+    uses: records.search
+    with: { entity: Incident }
+  - name: incident.log
+    description: Record an outage or security incident with the time it was noticed, which starts the SLA and CERT-In clocks.
+    uses: records.create
+    with: { entity: Incident }
+
+agents:
+  - role: service-desk
+    name: Service desk
+    description: Logs client calls and mails as tickets, checks the contract and device cover, walks users through simple fixes, handles new users, exits and access after the written OK, prepares quotes and AMC renewals, handles complaints, and sends field engineers by phone.
+    instructions: Give every caller the ticket number and when they will hear from us next. Reset passwords only after calling back the registered mobile. Never create, change or remove access without the written OK the rules ask for, and never order anything before the client's written OK on the quote. Connect to a user's computer only with their OK, every time.
+    autonomy: 3
+    tools: [contracts.search, assets.search, client_users.search, client_user.record, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: noc-desk
+    name: Network and server desk (NOC)
+    description: Watches monitoring alerts, runs outages and server, network and backup faults, keeps the client's escalation contact updated, logs cases with internet providers and device makers, prepares change records and downtime notices, and drafts root-cause reports.
+    instructions: In an outage, get people working first with a workaround and find the cause after. Never restart, fail over or change a client system yourself; the change manager okays it and an engineer does it. Update the client every 30 minutes on a P1 until work has restarted. If you see signs of an attack, raise a security incident at once.
+    autonomy: 3
+    tools: [contracts.search, assets.search, incidents.search, incident.log, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: security-desk
+    name: Security desk
+    description: Records security incidents with the time they were noticed, phones the security lead and the client at once, lists the containment steps and the evidence to keep, and drafts the CERT-In report and the client's written notice.
+    instructions: Start the CERT-In 6-hour clock from the moment anyone noticed or told us, not when it is confirmed. Never send the CERT-In report or the client notice yourself; the security lead approves and sends them. Do not wipe or rebuild anything before the evidence is kept.
+    autonomy: 2
+    tools: [incidents.search, incident.log, contracts.search, assets.search, client_users.search, records.update, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: outage-response
+    name: Outage response
+    description: Open the major incident, alert the client, get people working again and book the root-cause report.
+    keywords: [outage, down, work stopped, billing stopped, nobody can work, major incident, failover]
+    steps:
+      - key: open
+        title: Open the major incident and alert the client
+        agent: noc-desk
+        instructions: Log the incident with the time it was noticed, the site, the system and how many people are stopped, and check for signs of an attack. Phone the client's escalation contact within 15 minutes and hand the incident to the on-call engineer by phone.
+      - key: restore
+        title: Get people working and keep the client posted
+        agent: noc-desk
+        depends_on: [open]
+        instructions: Push for a workaround first (backup link, standby server or device, manual billing), log the case with the internet provider or device maker and note the docket number, and ask the change manager to okay any failover, restart or rollback. Post an update every 30 minutes and escalate by the matrix before the fix time runs out.
+      - key: after
+        title: Record the downtime and book the root-cause report
+        agent: noc-desk
+        depends_on: [restore]
+        instructions: Record when work restarted for the SLA report and any penalty, and open a root-cause ticket with the report due to the client within 5 working days.
+  - id: fault-fix
+    name: Server, network or backup fault
+    description: Confirm the alert, try the safe runbook fix and get the engineer or vendor on the rest.
+    keywords: [backup, disk space, server slow, wifi, vpn, link down, nas, ups, cctv]
+    steps:
+      - key: check
+        title: Confirm the alert and try the safe fix
+        agent: noc-desk
+        instructions: Find the device and the contract, confirm the alert or report, and check whether people have stopped working; if they have, raise it as an outage. Try only the safe runbook fixes, such as freeing disk space, re-running a failed backup or restarting a stuck service.
+      - key: hand-over
+        title: Get the engineer or vendor on it
+        agent: noc-desk
+        depends_on: [check]
+        instructions: Hand anything else to the network and server engineer by phone, log the case with the internet provider or device maker with its docket number, and raise configuration changes as a planned change. For backups, ask for a test restore. Close only when monitoring is normal.
+  - id: security-response
+    name: Security incident response
+    description: Start the clock, contain the attack with the security lead and get the CERT-In report and client notice ready.
+    keywords: [hacked, ransomware, phishing, malware, data leak, suspicious login, stolen laptop, cert-in]
+    steps:
+      - key: contain
+        title: Start the clock and contain it
+        agent: security-desk
+        instructions: Log the incident with the time we noticed it or were told, phone the security lead and the client's named contact at once, and list the containment steps (cut the device off the network, block sign-in, reset passwords, end sessions, remove mail rules) and the logs, mails and screenshots to keep as evidence.
+      - key: report
+        title: Draft the CERT-In report and the client notice
+        agent: security-desk
+        depends_on: [contain]
+        instructions: Draft the CERT-In report to go within 6 hours of noticing, and the written notice to the client saying what happened, which systems and data, whether personal data is involved and what we have done, for the security lead to approve and send.
+      - key: clean-up
+        title: Clean up and follow through
+        agent: security-desk
+        depends_on: [report]
+        instructions: Hand the cleaning or rebuild to the engineer by phone with the rule to restore only from clean backups, record the CERT-In reference, and open a root-cause ticket for the way in.
+  - id: desk-support
+    name: Laptop, printer or user support
+    description: Check the cover, try a remote fix and send the field engineer when a visit is needed.
+    keywords: [laptop, desktop, printer, scanner, outlook, tally, password, install, visit]
+    steps:
+      - key: triage
+        title: Check the cover and try a remote fix
+        agent: service-desk
+        instructions: Find the user, the device and the contract, and check AMC or warranty cover. Walk the user through simple fixes or connect remotely with their OK, and reset passwords only after calling back the registered mobile.
+      - key: visit
+        title: Send the field engineer
+        agent: service-desk
+        depends_on: [triage]
+        instructions: If it needs a visit, hand it to the field engineer for that area by phone with the device, the fault and the contract time. Log warranty cases with the maker, arrange a standby device if the repair will run past the contract time, and close with the signed service report or OTP.
+  - id: access-request
+    name: New user, exit or access request
+    description: Check the written OK, then set up or remove the accounts and record the access.
+    keywords: [new joiner, new user, email id, access, exit, last working day, resigned]
+    steps:
+      - key: verify
+        title: Check the written OK
+        agent: service-desk
+        instructions: Check the request carries a written OK from the client's HR, the reporting manager or a person on the authorised approver list, and list the exact accounts, groups, folders and apps asked for.
+      - key: act
+        title: Set up or remove the access
+        agent: service-desk
+        depends_on: [verify]
+        instructions: Record the person and the access in the client's staff list and hand the account work to the helpdesk engineer by phone. For exits, confirm access is off at the end of the last working day, mail and files are handed over and the laptop is collected.
+  - id: purchase-quote
+    name: Purchase, quote or renewal
+    description: Prepare the quote, get the client's written OK, then order, deliver and bill.
+    keywords: [quote, quotation, purchase, po, licences, toner, renewal, amc renewal, e-waste]
+    steps:
+      - key: quote
+        title: Prepare the quote
+        agent: service-desk
+        instructions: Check stock and distributor prices and prepare the quote with GST, delivery time and warranty, or the AMC renewal with the device list. Send it to the client for a written OK or a purchase order.
+      - key: order
+        title: Order, deliver and bill
+        agent: service-desk
+        depends_on: [quote]
+        instructions: After the client's written OK, and the owner's for orders above ₹50,000, hand the order to the purchase person by phone, have the devices or licences set up and delivered, and add them to the client's bill.
+  - id: change-plan
+    name: Planned change
+    description: Check the change plan, send the downtime notice, and carry it out in the window once approved.
+    keywords: [change, firmware, upgrade, migration, patching, firewall rule, dns, maintenance window]
+    steps:
+      - key: prepare
+        title: Check the change plan
+        agent: noc-desk
+        instructions: Prepare the change record with the client, system, window, steps, users affected, test and rollback, and the client's written OK. Check the window is not in a busy period such as month-end or GST return days, and draft the downtime notice.
+      - key: carry-out
+        title: Carry it out and check
+        agent: noc-desk
+        depends_on: [prepare]
+        instructions: After the change manager approves, hand the change to the engineer by phone with the window and the rollback, confirm a configuration backup is taken first, and run the before-and-after checks with the client.
+  - id: rca-report
+    name: Root-cause report
+    description: Gather the history of a repeat problem, draft the root-cause report and raise the permanent fix.
+    keywords: [rca, root cause, permanent fix, recurring, repeat]
+    steps:
+      - key: gather
+        title: Gather the history
+        agent: noc-desk
+        instructions: List the linked tickets with dates, symptoms and fixes, and collect the logs, monitoring graphs and vendor reports.
+      - key: report
+        title: Draft the report and the permanent fix
+        agent: noc-desk
+        depends_on: [gather]
+        instructions: Draft the root-cause report with the cause, the evidence, the workaround for the helpdesk and the permanent fix. Raise the fix as a planned change and anything to buy as a purchase request, and send the draft to the service delivery manager.
+  - id: complaint-handling
+    name: Complaint handling
+    description: Check the facts, draft the reply and get the service delivery manager to call the client.
+    keywords: [complaint, escalation, unhappy, nobody came, sla breach, rude]
+    steps:
+      - key: facts
+        title: Check the facts and draft the reply
+        agent: service-desk
+        instructions: Acknowledge within 1 hour with the ticket number, pull the ticket history, SLA timers, visit log, calls and emails, and draft a reply saying what went wrong, what we will do and by when, with any service credit the contract gives.
+      - key: call
+        title: Get the service delivery manager to call
+        agent: service-desk
+        depends_on: [facts]
+        instructions: Hand the complaint and the draft to the service delivery manager by phone to call the client and push the underlying ticket through the escalation matrix, and record what was promised.
+
+routines:
+  - id: daily-work-report
+    name: Daily service desk update
+    description: Each team lead reports tickets closed, open critical tickets, SLA risks and pending visits at the end of the working day.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "18:30"
+    questions:
+      - { key: ticketsClosed, label: "Tickets closed", ask: "How many tickets did your team close today?", type: number, unit: tickets }
+      - { key: openCritical, label: "Open P1 or P2", ask: "Is any outage, security incident or P1 or P2 ticket still open?", type: text, flag: true }
+      - { key: slaAtRisk, label: "SLA at risk", ask: "Which tickets may miss their SLA by tomorrow?", type: text, flag: true }
+      - { key: pending, label: "Visits and parts pending", ask: "Are any site visits, parts or vendor cases still pending?", type: text, flag: true }
+      - { key: backups, label: "Backups and alerts", ask: "Did any backup fail or any monitoring alert stay red today?", type: text, flag: true }
+      - { key: needs, label: "Needs from owner", ask: "Do you need anything from the owner or another team?", type: text, flag: true, required: false }
+
+lifecycle:
+  case: { label: Ticket, plural: Tickets, prefix: TKT }
+  stages:
+    request:
+      name: Ticket raised
+      description: A fault, request, change, complaint or monitoring alert comes in by phone, email, WhatsApp, the portal or a partner such as our security (SOC) partner, an internet provider or a device maker, and the caller gets a ticket number at once as the SLA clock starts.
+    review:
+      name: Check contract and details
+      description: The helpdesk checks who is asking, which client and device it is and whether the contract (AMC, warranty or paid visit) covers it, and asks for anything missing before work starts.
+      checks:
+        - "Caller is a known client contact: registered email or mobile, or a call-back"
+        - Contract active and covering this device or service (AMC, warranty or paid visit)
+        - "Device identified: asset tag or serial number, user and location"
+        - "Enough detail to act: what is wrong or needed, since when, how many people are affected"
+        - New user, access and exit requests carry a written OK from the client's HR, reporting manager or authorised approver
+        - "Chargeable work: client's written OK on the quote, or a purchase order for larger orders"
+        - Signs of an attack (ransom note, strange logins, mail forwarding, data going out) raised as a security incident at once
+    classify:
+      name: Set priority and SLA
+      description: The ticket gets its type, a priority from P1 to P4 by how many people are stopped, SLA times from the client's contract, and the owning team (helpdesk, field support, network and servers, security or service delivery).
+    assign:
+      name: Assign engineer and deadline
+      description: The helpdesk names the engineer, team or outside vendor and the deadline, and starts the escalation timers for the team lead, then the service delivery manager, then the owner.
+    approve:
+      name: Change, cost or security approval
+      description: The named person says yes before the risky step, with the change manager for changes and emergency fixes on client systems, the security lead for containment and the CERT-In report, and the owner for purchases above ₹50,000.
+      checks:
+        - Change manager for every change to a client system, and by phone for failover, restarts or rollbacks during an outage (written up within 1 working day)
+        - Security lead for containment steps, the CERT-In report and the written notice to the client
+        - Owner for purchases and quotes above ₹50,000 or not yet priced, and any ticket above ₹5 lakh
+        - Nobody approves their own work, and a promise to a client never replaces approval
+    execute:
+      name: Fix, deliver and track
+      description: Engineers and agents do the remote fix, site visit, setup, purchase or change, track SLA timers, parts and time, escalate by the matrix before the deadline passes and keep the client updated.
+      checks:
+        - "Escalate before the clock runs out: team lead at half the fix time, service delivery manager at three quarters, owner when breached"
+        - Client updated every 30 minutes on P1 tickets until work restarts
+        - Remote sessions only with the user's OK
+        - Parts, time spent and vendor docket numbers logged on the ticket
+    close:
+      name: Confirm and close
+      description: The user or client contact confirms the result with a signed service report or OTP, and the named role signs off outages, security incidents, changes, root-cause reports and complaints.
+      checks:
+        - "User or client contact confirms: signed service report or OTP"
+        - "Result tested: service working, monitoring normal, backups running"
+        - "Ticket notes complete: cause, what was done, parts used, time spent"
+        - Parts and chargeable work added to the monthly bill
+        - "Outages: root-cause report due to the client within 5 working days"
+        - "Security incidents: CERT-In report sent and updated, client told in writing"
+        - Sign-off recorded by the named role where the ticket type needs it
+    report:
+      name: SLA report and review
+      description: Each client gets a monthly SLA report with tickets, SLA met, uptime, open items and repeat problems, and the team reviews trends and opens root-cause work for problems that keep coming back.
+      checks:
+        - Every client's SLA report sent, with penalties or service credits owed
+        - Devices or causes with 3 or more tickets in 30 days opened as root-cause tickets
+        - Firewall, server, VPN and mail logs kept for a rolling 180 days for CERT-In
+        - Contracts ending in the next 60 days listed for renewal
+  priorities:
+    - { id: P1, name: "Critical: work stopped or under attack", respond_within_hours: 0.25, resolve_within_hours: 4 }
+    - { id: P2, name: "High: many users affected or client upset", respond_within_hours: 1, resolve_within_hours: 8 }
+    - { id: P3, name: "Normal: one user or device", respond_within_hours: 4, resolve_within_hours: 24 }
+    - { id: P4, name: "Low: requests and planned work", respond_within_hours: 8, resolve_within_hours: 120 }
+  roles:
+    - { id: engineering-manager, name: Change manager (technical head), approves: "Changes to client systems after checking the plan, rollback, time window and the client's written OK; failover, restarts and rollbacks during an outage by phone; signs off changes after the post-change check" }
+    - { id: service-delivery-manager, name: Service delivery manager, approves: "Signs off outages and root-cause reports; second level of the escalation matrix; owns SLA timers and the monthly SLA reports" }
+    - { id: security-lead, name: Security lead (CERT-In point of contact), approves: "Containment steps, the CERT-In report and the written notice to the client before they go; signs off security incidents once the threat is removed and the report is filed" }
+  # Bare "outage", "down", "server down" and "maintenance" are left out: planned
+  # downtime notices use them every week. Bare "fire" and "smoke" are left out
+  # too: system integrators quote and install fire alarm and smoke detectors.
+  urgent_keywords:
+    - unplanned outage
+    - major outage
+    - complete outage
+    - everything is down
+    - down for everyone
+    - nobody can work
+    - no one can work
+    - nobody can log in
+    - no one can log in
+    - work has stopped
+    - billing has stopped
+    - production has stopped
+    - data breach
+    - data leak
+    - hacked
+    - ransomware
+    - ransom note
+    - files encrypted
+    - defaced
+    - ddos
+    - cyber attack
+    - account takeover
+    - unauthorised access
+    - unauthorized access
+    - laptop stolen
+    - stolen laptop
+    - laptop was stolen
+    - server room temperature
+    - server room ac
+    - water in the server room
+    - caught fire
+    - fire broke out
+    - fire in the server room
+    - burning smell
+    - sparking
+    - electric shock
+    - injured
+    - injury
+  categories:
+    - id: outage
+      name: "Outage: work stopped"
+      keywords:
+        - outage
+        - unplanned outage
+        - major outage
+        - complete outage
+        - major incident
+        - server down
+        - server is down
+        - server went down
+        - servers down
+        - mail server down
+        - mail server is down
+        - email down
+        - email is down
+        - internet down
+        - internet is down
+        - internet went down
+        - network down
+        - network is down
+        - website down
+        - website is down
+        - erp down
+        - erp is down
+        - pos down
+        - pos is down
+        - down for everyone
+        - down for all users
+        - not working for anyone
+        - not working for everyone
+        - all users affected
+        - whole office is down
+        - entire office is down
+        - all branches down
+        - all branches are down
+        - everything is down
+        - nobody can work
+        - no one can work
+        - nobody can log in
+        - no one can log in
+        - work stopped
+        - work has stopped
+        - billing stopped
+        - billing has stopped
+        - cannot bill
+        - can't bill
+        - unable to bill
+        - dispatch stopped
+        - dispatch has stopped
+        - production stopped
+        - production has stopped
+        - kaam band
+        - billing band
+      priority: P1
+      risk: high
+      department: Helpdesk and NOC (on call)
+      required_checks:
+        - What is down, which sites and how many users, since when
+        - No sign of an attack; if there is one, raise a security incident at once
+        - Client's escalation contact called within 15 minutes, then updates every 30 minutes until work restarts
+        - "Workaround first: backup internet link, standby server or device, manual billing"
+        - Failover, restarts and rollbacks okayed by the change manager by phone and written up within 1 working day
+        - Client confirms work has restarted; downtime recorded for the SLA report
+        - Root-cause report due within 5 working days
+      approval: { required: high_risk_or_p1, role: engineering-manager }
+      signoff: { required: true, role: service-delivery-manager }
+      workflow: outage-response
+      execution: both
+    - id: security-incident
+      name: Security incident or data leak
+      keywords:
+        - virus
+        - malware
+        - ransomware
+        - ransom
+        - ransom note
+        - files encrypted
+        - encrypted files
+        - hacked
+        - hacker
+        - hack into
+        - hack my
+        - phishing
+        - phishing email
+        - phishing mail
+        - phishing link
+        - fake email
+        - fake mail
+        - suspicious email
+        - suspicious mail
+        - suspicious link
+        - clicked a link
+        - clicked on a link
+        - spoofed
+        - spoofing
+        - sending spam
+        - bank details changed
+        - changed bank details
+        - data leak
+        - data breach
+        - leaked
+        - stolen
+        - lost laptop
+        - lost phone
+        - lost mobile
+        - laptop stolen
+        - unauthorised access
+        - unauthorized access
+        - suspicious login
+        - suspicious sign in
+        - unknown login
+        - signed in from
+        - forwards all mail
+        - forwarding rule
+        - mail forwarding rule
+        - compromised
+        - account compromised
+        - defaced
+        - ddos
+        - cyber attack
+        - trojan
+        - spyware
+        - keylogger
+        - has a virus
+        - got a virus
+        - virus attack
+        - virus in
+        - virus on
+        - infected
+        - infected with
+        - virus detected
+        - malware detected
+        - laptop was stolen
+        - phone was stolen
+        - laptop got stolen
+        - unauthorised access to
+        - unauthorized access to
+        - without permission
+        - someone accessed
+        - someone logged in
+        - cert-in
+      priority: P1
+      risk: high
+      department: Security
+      required_checks:
+        - "Contained at once with the security lead: device cut off the network, sign-in blocked or password reset, sessions ended, mail rules removed, sender or IP address blocked"
+        - "Evidence kept before anything is wiped: logs, mails with headers, screenshots, list of affected systems, accounts and data"
+        - CERT-In report within 6 hours of noticing (incident@cert-in.org.in, 1800-11-4949), with updates later; who files it agreed with the client
+        - "Client's named contact told in writing at once: what happened, which data and people, what we have done"
+        - Personal data involved? Client told at once so it can tell affected people and, from 13 May 2027, the Data Protection Board (full report within 72 hours)
+        - Restored only from clean backups; passwords reset and MFA turned on
+        - Money lost? Client reports it at cybercrime.gov.in or on helpline 1930 at once
+      not_eligible:
+        - keywords:
+            - hack into someone's
+            - hack into someone else's
+            - hack someone's
+            - hack someone else's
+            - hack my ex's
+            - hack into my ex's
+            - hack my wife's
+            - hack my husband's
+            - hack my girlfriend's
+            - hack my boyfriend's
+            - hack my competitor's
+            - hack into my competitor's
+            - hack into a competitor's
+            - get into someone else's
+            - read my employee's personal
+            - employee's personal whatsapp
+            - employee's personal gmail
+            - track my wife's phone
+            - track my husband's phone
+          reason: We protect only systems and accounts that belong to you or to a client who has asked us in writing. We never break into anyone else's account, phone or computer, or read a staff member's personal accounts. If someone is misusing yours, report it on cybercrime.gov.in or call 1930.
+      approval: { required: always, role: security-lead }
+      signoff: { required: true, role: security-lead }
+      workflow: security-response
+      execution: both
+    - id: server-network-fault
+      name: Server, network or backup fault
+      keywords:
+        - backup failed
+        - backup failure
+        - backup job
+        - backup error
+        - backup not running
+        - veeam
+        - not enough space
+        - disk full
+        - disk space
+        - storage full
+        - low disk space
+        - raid
+        - raid degraded
+        - disk failed
+        - server slow
+        - server is slow
+        - server not responding
+        - ping to
+        - ping failed
+        - ping timeout
+        - no ping
+        - host down
+        - device down
+        - server not reachable
+        - unreachable
+        - packet loss
+        - restore from backup
+        - restore the backup
+        - data recovery
+        - recover the data
+        - corrupted
+        - files deleted
+        - deleted by mistake
+        - mails bouncing
+        - mail bouncing
+        - emails bouncing
+        - mails are bouncing
+        - mail bounced
+        - mails bounced
+        - email bounced
+        - bounce back
+        - mail delivery failed
+        - delivery failure
+        - mail queue
+        - spf
+        - dkim
+        - high cpu
+        - memory usage
+        - slow internet
+        - internet slow
+        - internet is slow
+        - internet very slow
+        - internet is very slow
+        - internet not working
+        - network slow
+        - network is slow
+        - wifi
+        - wi-fi
+        - wifi not working
+        - wi-fi not working
+        - link down
+        - isp link
+        - leased line
+        - broadband
+        - vpn down
+        - vpn not working
+        - vpn not connecting
+        - firewall down
+        - firewall alert
+        - switch down
+        - access point
+        - nas not
+        - nas is
+        - nas down
+        - nas offline
+        - nas full
+        - nas alert
+        - nas storage
+        - nas disk
+        - tally server
+        - server room ac
+        - server room temperature
+        - temperature alert
+        - temperature high
+        - ups battery
+        - ups beeping
+        - ups alarm
+        - cctv
+        - nvr
+        - dvr
+        - camera offline
+        - cameras offline
+        - biometric
+        - attendance machine
+      priority: P2
+      risk: medium
+      department: Network and servers (NOC)
+      required_checks:
+        - "Alert or report confirmed: device, site and error"
+        - "Impact checked: if people have stopped working, raise it as an outage"
+        - "Backups: last good backup known; failed job re-run and a test restore done"
+        - Internet provider or device maker case logged with its docket number
+        - Configuration changes raised as a planned change
+        - Monitoring back to normal before closing
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: fault-fix
+      execution: both
+    - id: device-fault
+      name: Laptop, printer or user support
+      keywords:
+        - printer not working
+        - printer is not
+        - printer not
+        - printer offline
+        - printer showing
+        - printer error
+        - printer shows
+        - shows offline
+        - printer driver
+        - can't print
+        - cannot print
+        - unable to print
+        - not able to print
+        - nobody can print
+        - print not coming
+        - not printing
+        - paper jam
+        - printing blank
+        - scanner not working
+        - scanner is not
+        - not scanning
+        - laptop not
+        - laptop is not
+        - laptop is slow
+        - laptop slow
+        - laptop hanging
+        - laptop is hanging
+        - desktop not
+        - desktop is not
+        - computer not
+        - computer is not
+        - pc not
+        - pc is not
+        - system is slow
+        - system slow
+        - not starting
+        - not booting
+        - not turning on
+        - won't start
+        - won't turn on
+        - no display
+        - blue screen
+        - black screen
+        - hanging
+        - hangs
+        - not working
+        - not opening
+        - not syncing
+        - not connecting
+        - error
+        - error message
+        - outlook
+        - tally
+        - excel
+        - teams not
+        - zoom not
+        - keyboard not working
+        - mouse not working
+        - monitor not working
+        - monitor flickering
+        - webcam not working
+        - mic not working
+        - headset not working
+        - charger
+        - battery drains
+        - battery draining
+        - battery not charging
+        - power light
+        - password reset
+        - reset password
+        - reset the password
+        - forgot password
+        - forgot my password
+        - locked out
+        - account locked
+        - unlock
+        - can't log in
+        - cannot log in
+        - unable to log in
+        - unable to login
+        - install
+        - installation
+        - reinstall
+        - uninstall
+        - shift the desktops
+        - shift the computers
+        - relocate
+        - maintenance visit
+        - preventive maintenance visit
+        - quarterly maintenance visit
+        - planned maintenance visit
+        - scheduled maintenance visit
+        - pm visit
+        - amc visit
+        - service visit
+      priority: P3
+      risk: low
+      department: Helpdesk and field support
+      required_checks:
+        - Caller, company, device (asset tag or serial number) and problem noted
+        - Device covered by an active AMC or warranty
+        - Remote session only with the user's OK, every time
+        - Password resets and unlocks only after a call-back to the user's registered mobile
+        - "Parts: a comprehensive AMC covers spares; consumables (toner, cartridges, printer heads, UPS batteries) are charged, with the client's written OK first"
+        - Software installed only if genuine and licensed to the client
+        - Standby device if the repair will pass the contract time (often 24 hours in metros, 48 hours elsewhere)
+        - "User confirms the fix: signed service report or OTP"
+      not_eligible:
+        - keywords:
+            - amc ended
+            - amc has ended
+            - amc expired
+            - amc has expired
+            - amc lapsed
+            - amc is over
+            - amc not renewed
+            - not renewed the amc
+            - not under amc
+            - no amc
+            - out of amc
+            - contract ended
+            - contract has ended
+            - contract expired
+          reason: This device is not under an active AMC or warranty with us, so we cannot send a free visit. We can send a quote for a paid visit, or for renewing the AMC.
+        - keywords:
+            - personal laptop
+            - personal computer at home
+            - my own laptop
+            - home laptop
+            - home computer
+            - son's laptop
+            - daughter's laptop
+            - kids' laptop
+            - children's laptop
+          reason: We support only devices that belong to the client company and are listed in its contract. Personal and family devices are not covered unless the contract says so; we can quote a paid visit.
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: desk-support
+      execution: both
+    - id: user-access
+      name: New user, exit or access request
+      keywords:
+        - new joiner
+        - new joinee
+        - joinee
+        - is joining
+        - joining on
+        - joining date
+        - new user
+        - new employee
+        - new staff
+        - new hire
+        - onboarding
+        - create email
+        - create an email
+        - create email id
+        - create mail id
+        - new email id
+        - new mail id
+        - email id for
+        - mail id for
+        - give access
+        - give him access
+        - give her access
+        - provide access
+        - grant access
+        - need access
+        - access rights
+        - folder access
+        - shared folder
+        - shared folder access
+        - drive access
+        - tally access
+        - erp access
+        - vpn access
+        - admin rights
+        - admin access
+        - remove access
+        - revoke access
+        - disable the account
+        - disable his email
+        - disable her email
+        - disable his account
+        - disable her account
+        - block his email
+        - block her email
+        - is leaving
+        - leaving the company
+        - last working day
+        - resigned
+        - has resigned
+        - exit formalities
+        - offboarding
+        - relieved
+        - absconding
+        - distribution list
+        - folder
+        - add him to
+        - add her to
+        - add to the group
+        - remove him from
+        - remove her from
+      priority: P3
+      risk: medium
+      department: Helpdesk (user accounts)
+      required_details:
+        - key: writtenOk
+          label: Written OK from the client's HR, reporting manager or authorised approver
+          kind: keywords
+          keywords: [approved, approved by, approval, approval from, approval attached, approval mail, approval email, as approved, as per approval, hr approved, hr has approved, as per hr, from hr, hr manager, hr head, hr department, hr executive, manager approved, manager has approved, reporting manager, okayed, okayed by, ok from, sanctioned by, authorised by, authorized by, with the approval, director approved, partner approved, cc hr, copying hr]
+      required_checks:
+        - Request from a known client contact (registered email or mobile)
+        - Written OK from the client's HR, reporting manager or authorised approver, giving only the access the job needs
+        - Admin rights, VPN and finance systems (Tally, banking, payroll) approved by name
+        - New accounts get two-step login (MFA) before hand-over
+        - "Exit: access turned off at the end of the last working day (at once if the person was asked to leave), mail and files handed over, laptop collected"
+        - Access given or removed recorded against the person
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: access-request
+      execution: both
+    - id: purchase-request
+      name: Purchase, quote or renewal
+      keywords:
+        - quote
+        - quotation
+        - quote for
+        - send a quote
+        - send quote
+        - need a quote
+        - please quote
+        - quote us
+        - quotation for
+        - need a quotation
+        - send a quotation
+        - send the quotation
+        - purchase
+        - purchase order
+        - po
+        - buy
+        - need to buy
+        - distributor
+        - licence
+        - licences
+        - license
+        - licenses
+        - licence renewal
+        - license renewal
+        - renewal
+        - renew
+        - amc renewal
+        - renew the amc
+        - renew our amc
+        - renewal quote
+        - annual maintenance contract
+        - amc quote
+        - new laptop
+        - new desktop
+        - new printer
+        - new server
+        - toner
+        - cartridge
+        - ink
+        - refill
+        - consumables
+        - ram upgrade
+        - ssd upgrade
+        - dispose
+        - disposal
+        - e-waste
+        - ewaste
+        - old laptops
+        - old computers
+        - buyback
+      priority: P4
+      risk: low
+      department: Sales and purchase
+      required_checks:
+        - Request from a known client contact (registered email or mobile)
+        - "Client's written OK on our quote, or a purchase order or advance for larger orders, before we order"
+        - Owner approves orders above ₹50,000 before we order from the distributor
+        - Software and licences genuine and in the client's name
+        - AMC renewals list every device covered and the support hours
+        - "Old devices: data wiped with a certificate and handed only to a CPCB-registered recycler or refurbisher"
+      approval: { required: above_amount, role: owner, amount_inr: 50000 }
+      signoff: { required: false }
+      workflow: purchase-quote
+      execution: both
+    - id: change-release
+      name: Planned change to client systems
+      keywords:
+        - change request
+        - planned change
+        - normal change
+        - emergency change
+        - cab
+        - firmware upgrade
+        - firmware update
+        - upgrade the firmware
+        - server upgrade
+        - os upgrade
+        - version upgrade
+        - migration
+        - migrate
+        - email migration
+        - mail migration
+        - server migration
+        - data migration
+        - move to cloud
+        - migrate to cloud
+        - migrate our
+        - migrate the
+        - migrate from
+        - move to sharepoint
+        - to sharepoint
+        - enable mfa
+        - enforce mfa
+        - mfa for all
+        - conditional access
+        - patching
+        - security patch
+        - security patches
+        - windows patches
+        - firewall rule
+        - open port
+        - open the port
+        - port forwarding
+        - configuration change
+        - config change
+        - dns change
+        - dns record
+        - mx record
+        - vlan
+        - group policy
+        - go live
+        - go-live
+        - rollout
+        - roll out
+        - deploy
+        - deployment
+        - production release
+        - release to production
+        - hotfix
+        - maintenance window
+        - downtime window
+        - planned downtime
+        - scheduled downtime
+        - planned outage
+        - planned maintenance
+        - scheduled maintenance
+        - down for maintenance
+        - rollback
+        - roll back
+        - restart the server
+        - reboot the server
+        - ssl renewal
+        - renew the ssl
+      priority: P4
+      risk: medium
+      department: Network and servers (changes)
+      required_details:
+        - { key: window, label: Planned date or time window, kind: date }
+      required_checks:
+        - Request names the client, the system and the time window, with the client's written OK
+        - "Plan written by the assigned engineer before approval: steps, users affected, test and rollback"
+        - Downtime notice sent to users in advance
+        - Configuration backup taken before starting
+        - "Not in a busy period: month-end or year-end closing, GST return days, the client's peak days"
+        - "Standard changes on the pre-approved list go as service requests; emergency changes get a phone OK and are written up within 1 working day"
+        - "After the change: tests pass, monitoring normal, client confirms; failed changes rolled back"
+      approval: { required: always, role: engineering-manager }
+      signoff: { required: true, role: engineering-manager }
+      workflow: change-plan
+      execution: both
+    - id: repeat-problem
+      name: Repeat problem (root cause)
+      keywords:
+        - rca
+        - root cause
+        - root-cause
+        - root cause analysis
+        - permanent fix
+        - permanent solution
+        - recurring
+        - recurring issue
+        - keeps happening
+        - keeps coming back
+        - repeated
+        - repeat issue
+        - repeat problem
+        - same issue
+        - same problem
+        - again and again
+        - three times
+        - 3 times
+        - four times
+        - 4 times
+        - every week
+        - every day
+        - every monday
+        - every morning
+        - every evening
+        - for a month
+        - since a month
+        - daily issue
+      priority: P4
+      risk: medium
+      department: Service delivery
+      required_checks:
+        - Linked tickets listed with dates, symptoms and fixes
+        - "Cause found with evidence: logs, monitoring graphs, vendor report"
+        - Workaround written down for the helpdesk
+        - Permanent fix raised as a planned change; anything to buy as a purchase request
+        - Root-cause report to the client within 5 working days of an outage
+      approval: { required: never }
+      signoff: { required: true, role: service-delivery-manager }
+      workflow: rca-report
+      execution: both
+    - id: complaint
+      name: Complaint or escalation
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - escalate
+        - escalating
+        - escalation
+        - escalated
+        - not satisfied
+        - unhappy
+        - not happy
+        - disappointed
+        - poor service
+        - worst service
+        - pathetic
+        - no response
+        - no reply
+        - nobody came
+        - no one came
+        - nobody called
+        - no one called
+        - nobody called back
+        - did not come
+        - didn't come
+        - did not turn up
+        - didn't turn up
+        - sla breach
+        - sla missed
+        - sla penalty
+        - missed the deadline
+        - missed deadline
+        - rude
+        - misbehaved
+        - unprofessional
+        - cancel the contract
+        - terminate the contract
+        - end the contract
+        - third reminder
+        - third mail
+        - third email
+        - still not fixed
+        - still not resolved
+        - legal notice
+        - shikayat
+      priority: P2
+      risk: medium
+      department: Service delivery
+      required_checks:
+        - Acknowledged within 1 hour with the ticket number
+        - "Facts checked: ticket history, SLA timers, engineer visit log, calls and emails"
+        - Underlying ticket escalated by the matrix and fixed, or given a firm time
+        - "Written reply: what went wrong and what we will change"
+        - Service credit or penalty worked out as the contract says
+        - Complaints about an engineer's conduct handled by the service delivery manager
+      approval: { required: never }
+      signoff: { required: true, role: owner }
+      workflow: complaint-handling
+      execution: both
+  examples:
+    - { request: "Mail server is down since 8 am, no one in the company can send or receive mail", category: outage, priority: P1, approval: true }
+    - { request: Billing has stopped at all four outlets of Sri Krishna Sweets after the power came back, category: outage, priority: P1, approval: true }
+    - { request: "Leased line and the backup broadband are both gone at the Bhiwandi warehouse, dispatch has stopped", category: outage, priority: P1, approval: true }
+    - { request: Found a mail forwarding rule on the CFO's mailbox that sends every invoice mail to an unknown Gmail address, category: security-incident, priority: P1, approval: true }
+    - { request: "Sales laptop stolen from the car at a client site in Whitefield, it had the full price list", category: security-incident, priority: P1, approval: true }
+    - { request: Antivirus flagged a trojan on the accounts PC and it keeps opening unknown websites, category: security-incident, priority: P1, approval: true }
+    - { request: "Monitoring alert: RAID 5 on SRV-DC01 degraded, disk 2 failed at 04:40", category: server-network-fault, priority: P2, approval: false }
+    - { request: "Wi-Fi on the third floor drops every few minutes, LAN users are fine", category: server-network-fault, priority: P2, approval: false }
+    - { request: CCTV NVR at the Vapi factory gate shows no recording since yesterday, category: server-network-fault, priority: P2, approval: false }
+    - { request: Accounts PC shows a blue screen every time Tally opens, category: device-fault, priority: P3, approval: false }
+    - { request: HR laptop battery drains in an hour and the charger gets very hot, category: device-fault, priority: P3, approval: false }
+    - { request: Please schedule the quarterly preventive maintenance visit for the 18 desktops at our Nashik office, category: device-fault, priority: P3, approval: false }
+    - { request: "Rohit Verma's last working day is 31 October. Please disable his email and VPN that evening and forward his mail to Neha. Approved by Suresh, HR manager", category: user-access, priority: P3, approval: false }
+    - { request: "New joinee Kavya starts in accounts on Monday; create her mail ID and give read-only Tally access as approved by the finance head", category: user-access, priority: P3, approval: false }
+    - { request: "Please give Arjun the Projects shared folder, his manager Ritu has approved it on mail", category: user-access, priority: P3, approval: false }
+    - { request: Send a quote for 15 Microsoft 365 Business Basic licences for Patil Constructions, category: purchase-request, priority: P4, approval: true }
+    - { request: "Annual maintenance contract for Sai Clinic ends on 30 November, prepare the renewal quote for 12 desktops and 2 printers", category: purchase-request, priority: P4, approval: true }
+    - { request: "Two black cartridges for the Canon printer at reception please, ₹1,850 each", category: purchase-request, priority: P4, approval: false }
+    - { request: Plan the email migration for Mehta Associates from their old Exchange server to Microsoft 365 on the weekend of 8 November, category: change-release, priority: P4, approval: true }
+    - { request: Add a firewall rule at Rathi Textiles so the new ERP vendor can connect by VPN from Monday, category: change-release, priority: P4, approval: true }
+    - { request: Apply this month's Windows security patches to the three servers at Om Logistics on Sunday 7 to 9 am, category: change-release, priority: P4, approval: true }
+    - { request: "Internet at the Surat branch drops every evening around 7, we need the root cause and a permanent fix", category: repeat-problem, priority: P4, approval: false }
+    - { request: "The same Outlook password prompt keeps coming back on six laptops, please find out why", category: repeat-problem, priority: P4, approval: false }
+    - { request: "Second complaint this week: your engineer left the server rack unlocked after the visit", category: complaint, priority: P2, approval: false }
+    - { request: "We pay ₹45,000 a month for the AMC and still wait two days for every visit. Explain this or we will cancel the contract", category: complaint, priority: P2, approval: false }
+    - { request: "Engineer Rakesh was rude to our director on the phone, I want to escalate this", category: complaint, priority: P2, approval: false }
+
+playbooks:
+  - id: major-outage
+    title: "Major outage: get people working first"
+    source: ITIL 4 incident management and change enablement practices; common escalation-matrix practice at Indian managed service providers (house defaults; each client's contract decides the times)
+    body: |
+      1. Raise a P1 when a client's business has stopped or many people cannot work: billing, dispatch, mail, internet or a main server. One named engineer leads until it is fixed.
+      2. Call the client's escalation contact within 15 minutes and open a bridge call or WhatsApp group. Update them every 30 minutes, even when there is no news.
+      3. Check for signs of an attack first (ransom note, strange logins, data going out). If there are any, open a security incident too, because the CERT-In 6-hour clock is running.
+      4. Get people working with a workaround first: the backup internet link, a standby server or device, manual billing. Find the cause after.
+      5. Failover, restarting a production server or rolling back a change needs the change manager's OK by phone, written up within 1 working day.
+      6. Log a case with the internet provider or device maker at once and write the docket number on the ticket.
+      7. Escalate before the clock runs out: team lead at half the fix time, service delivery manager at three quarters, owner when it is breached.
+      8. When the client confirms work has restarted, record the downtime for the SLA report and send the root-cause report within 5 working days.
+  - id: amc-fix-times
+    title: Fix it within the contract time
+    source: AMC tenders of Indian Bank (2021), ELCOT, CBSE and a central government AMC tender on mpa.gov.in; BIS RFP corrigendum, 7 January 2019 (severity 1 answered in 30 minutes, fixed or worked around in 2 hours)
+    body: |
+      1. The SLA clock starts when the call is logged. Give the caller the ticket number at once.
+      2. Check the cover. A comprehensive AMC covers on-site service and spare parts; a non-comprehensive AMC covers labour only. Consumables such as toner, cartridges, printer heads and UPS batteries are always charged.
+      3. Devices that are not covered (AMC ended, not on the device list, personal devices) get a quote for a paid visit or an AMC renewal, not free service.
+      4. Chargeable parts need the client's written OK on the quote before they are fitted.
+      5. Bank and government AMCs usually want desktop and printer faults fixed within 24 hours in metro and urban areas and 48 hours elsewhere. If a repair will take longer, leave a standby device. Critical systems often have much tighter times, such as an answer in 30 minutes and a fix or workaround in 2 hours.
+      6. Late fixes cost money: tenders charge a penalty per device per day (often ₹100 to ₹500) or a share of the fee. Know each client's terms.
+      7. Connect to a user's computer only with their OK, every time.
+      8. Close the call only when the user signs the service report or gives the closing OTP.
+  - id: client-security-incident
+    title: Security incident on a client's systems
+    source: CERT-In Directions under section 70B(6) of the IT Act, 2000 (28 April 2022) and CERT-In FAQs (May 2022); IT Act section 70B(7); Digital Personal Data Protection Act, 2023, section 8, and DPDP Rules, 2025, rule 7 (in force from 13 May 2027)
+    body: |
+      1. Treat every suspected attack on a client's systems as P1 from the moment anyone notices it, including an alert from our security (SOC) partner.
+      2. Contain it with the security lead on the phone: cut the device off the network, block sign-in and reset the password, end sessions, remove mail forwarding rules and unknown admins, and block the sender or IP address. Do not wipe anything yet.
+      3. Keep the evidence: logs, mails with headers, screenshots, and the list of affected systems, accounts and data.
+      4. Tell the client's named contact in writing at once: what happened, which systems, data and people, and what we have done. On client systems we usually handle personal data for the client, so the client decides what is told to whom.
+      5. Report to CERT-In within 6 hours of noticing (incident@cert-in.org.in, 1800-11-4949) with what we know, and send updates later. Agree with the client who files it; whoever notices the incident must make sure it is reported, and a contract cannot pass that duty away. The security lead approves the report.
+      6. If personal data is involved, give the client what it needs the same day: from 13 May 2027 it must tell affected people and the Data Protection Board without delay and send the Board a full report within 72 hours.
+      7. If money was lost, the client reports it at cybercrime.gov.in or on helpline 1930 at once.
+      8. Restore only from clean backups, reset passwords, turn on MFA, close the way in and open a root-cause ticket. Not reporting to CERT-In can mean up to 1 year in jail, a fine of up to ₹1 lakh, or both.
+  - id: joiners-and-exits
+    title: New users, exits and access
+    source: ISO/IEC 27001:2022 Annex A controls 5.15 to 5.18 (access control, identity, passwords and access rights) and 8.2 (privileged access); Digital Personal Data Protection Act, 2023, section 8(5) (reasonable security safeguards)
+    body: |
+      1. Act on new user, access and exit requests only with a written OK from the client's HR, the reporting manager or a person on the client's list of authorised approvers.
+      2. Give only the access the job needs. Admin rights, VPN, finance systems (Tally, banking, payroll) and folders with personal data need the approver's OK by name.
+      3. New users: create the account with a temporary password sent separately, turn on two-step login (MFA) before hand-over, and record the access given against the person.
+      4. Password resets and unlocks: confirm who is asking by calling back the registered mobile, never the number given in the request.
+      5. Exits: turn off email, VPN and app access at the end of the last working day, or at once if the person was asked to leave. Hand mail and files to the named person, collect the laptop and change any shared passwords the person knew.
+      6. Each quarter, review every client's users and admins with the client and remove accounts nobody claims.
+      7. Keep the written OK with the ticket.
+  - id: old-devices-ewaste
+    title: Retiring old devices and e-waste
+    source: E-Waste (Management) Rules, 2022 (in force from 1 April 2023) and CPCB FAQs on the rules; NIST SP 800-88, Guidelines for Media Sanitization
+    body: |
+      1. Retire a device only on the client's written instruction, listing each asset tag and serial number.
+      2. Back up and hand over any data the client wants to keep.
+      3. Wipe every disk with a tool that overwrites or securely erases the whole disk, or destroy the disk. Give the client a wipe certificate that lists the serial numbers.
+      4. Hand e-waste only to a CPCB-registered recycler or refurbisher, or the maker's take-back scheme, never to a scrap dealer, and keep the receipt. Most client companies, banks, hospitals and offices are bulk consumers under the rules and must do this.
+      5. Mark the device as retired or recycled in the device list, with the date and the certificate number.
+      6. Sell, return or donate working devices only after the wipe and with the client's written OK.
+
+kpis:
+  - id: sla-met
+    name: Tickets fixed within SLA
+    description: Tickets closed before the fix time in the client's contract (or the default for their priority), as a share of all tickets closed this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: p1-restore-time
+    name: Time to get people working in a P1
+    description: Average hours from a P1 ticket being raised to the client's people working again; a workaround counts.
+    unit: hours
+    direction: down
+    target: 4
+  - id: first-contact-fix
+    name: Fixed on first contact
+    description: Fault tickets fixed on the first call, chat or remote session, with no hand-over or visit, as a share of all fault tickets this month.
+    unit: percent
+    direction: up
+    target: 70
+  - id: client-satisfaction
+    name: Client satisfaction
+    description: Closed tickets rated good or very good, as a share of all ratings received this month.
+    unit: percent
+    direction: up
+    target: 90
+  - id: open-incidents
+    name: Open outages and security incidents
+    description: Major outages and security incidents still open.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Incident, where: { status: open } }
+  - id: renewals-due
+    name: Contracts due for renewal
+    description: Client contracts marked as due for renewal and not yet renewed.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Contract, where: { status: renewal-due } }
+
+connectors: [gmail, whatsapp-business]

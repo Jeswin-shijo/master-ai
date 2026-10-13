@@ -1,0 +1,103 @@
+# IT services & support: realistic requests from client staff, monitoring, our
+# security (SOC) partner, our own staff and the owner, with what the stages
+# should decide.
+pack: it-services
+cases:
+  - id: tally-server-billing-stopped
+    request: "URGENT: Tally server down since 10:15. Billing stopped at all 6 counters and customers are waiting. – Ravi, Agarwal Sweets, Jayanagar"
+    source: customer
+    expect:
+      category: outage
+      priority: P1
+      review: complete
+      approval: { required: true, role: engineering-manager }
+      signoff: { required: true, role: service-delivery-manager }
+    why: Server down and billing stopped make it an outage (P1) because the shop cannot bill. Caller, client, site and system are named. Every P1 outage needs the change manager's quick OK for the failover or restart that gets billing going; the service delivery manager signs off once the client confirms, and the root-cause report is due within 5 working days.
+  - id: soc-m365-mail-forwarding
+    request: "Alert from our SOC partner: the Microsoft 365 admin account of Kapoor Diagnostics signed in from Romania at 03:12 IST without MFA, and a new rule now forwards all mail to an outside Gmail address. Ref SOC-55821."
+    source: partner
+    expect:
+      category: security-incident
+      priority: P1
+      review: complete
+      approval: { required: true, role: security-lead }
+      signoff: { required: true, role: security-lead }
+    why: Signed in from, forwards all mail and the foreign login point to a taken-over admin account, a security incident (P1). The CERT-In clock started when the SOC partner told us. The security lead okays the containment (block sign-in, reset the password, remove the rule) and the CERT-In report and client notice, and signs off once the threat is removed.
+  - id: veeam-backup-no-space
+    request: "Veeam alert: backup job 'Nightly-SRV-ACC01' failed at 02:14 IST. Error: not enough space on target NAS-01 (98% used). Last good backup: 3 days ago."
+    source: system
+    expect:
+      category: server-network-fault
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Backup job, not enough space and the NAS make it a server, network or backup fault (P2). Nobody has stopped working, but 3 days without a good backup is a real risk. Free space, re-run the job and test a restore; no approval or sign-off.
+  - id: printer-amc-ended
+    request: "Sai Dental Clinic called: the reception printer is not printing since morning and they want an engineer today. Note: their AMC ended on 31 August and they have not paid for another year."
+    source: staff
+    expect:
+      category: device-fault
+      priority: P3
+      review: not_eligible
+    why: Printer and not printing make it a laptop, printer or user support ticket (P3), but the AMC ended on 31 August, so the printer is not covered. The ticket ends at review and the clinic is offered a paid visit or an AMC renewal quote.
+  - id: joiner-without-name-or-ok
+    request: "Hi, a new person is joining our accounts team on Monday. Please create an email ID and give Tally and shared folder access. – Office admin, Shah & Associates"
+    source: customer
+    expect:
+      category: user-access
+      priority: P3
+      review: needs_info
+    why: Joining, create an email and shared folder access make it a new user request (P3). The joiner's name and role are missing, and so is the written OK from the firm's HR or the reporting manager for Tally and folder access, so review asks for them before anything is created.
+  - id: laptops-against-po
+    request: "Kapoor Diagnostics needs 6 Dell Latitude 3450 laptops for their new Kharadi branch. Distributor quote is Rs 4,20,000 plus GST, and the client's PO KD/PO/2026/118 has come in."
+    source: staff
+    amount_inr: 420000
+    expect:
+      category: purchase-request
+      priority: P4
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: Distributor, quote and PO make it a purchase (P4). The client's PO is in, so review is complete. ₹4,20,000 is above ₹50,000, so the owner approves before we order from the distributor; it is under ₹5 lakh, so no other rule applies. No sign-off.
+  - id: toner-at-agreed-rate
+    request: "Please send one toner for the HP LaserJet in our billing room. Your rate of Rs 3,200 is fine, add it to this month's bill. – Meera, Balaji Stores"
+    source: customer
+    amount_inr: 3200
+    expect:
+      category: purchase-request
+      priority: P4
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Toner is a consumable the AMC does not cover, so it is a purchase (P4). The client has accepted the rate in writing. ₹3,200 is not above ₹50,000, so no approval; agents send it and add it to the monthly bill.
+  - id: owner-says-skip-cab
+    request: "Gupta Exports wants a FortiGate firmware upgrade tonight after 10 pm, and their IT head OK'd it by email. I've promised them, so skip the CAB and just get it done."
+    source: owner
+    expect:
+      category: change-release
+      priority: P4
+      review: complete
+      approval: { required: true, role: engineering-manager }
+      signoff: { required: true, role: engineering-manager }
+    why: Firmware upgrade and CAB make it a planned change to a client system (P4). Client, system, window and the client's written OK are given; the engineer adds the steps and rollback. Nothing is broken, so it is not an emergency, and the owner's promise does not skip approval. The change manager approves and signs off after the post-change check.
+  - id: switch-restarts-rca
+    request: "Vardhman Polymers: their network dropped three times this month, and each time the main switch restarted on its own. The client wants a root cause report and a permanent fix in writing."
+    source: staff
+    expect:
+      category: repeat-problem
+      priority: P4
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: service-delivery-manager }
+    why: Three times, root cause and permanent fix make it a repeat problem (P4). Finding the cause needs no approval; the service delivery manager signs off the root-cause report. Replacing the switch would go as a planned change and its purchase as a purchase request.
+  - id: third-mail-nobody-came
+    request: "This is my third mail. Your engineer was supposed to come yesterday for our scanner. Nobody came, nobody called. Very poor service, please escalate this to your manager. – Anita, HR, Sunrise Hospital"
+    source: customer
+    expect:
+      category: complaint
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: owner }
+    why: Third mail, nobody came, poor service and escalate make it a complaint (P2), well ahead of the one device word. The scanner visit is pushed through the escalation matrix. No approval is needed; the owner signs off the written reply and any service credit.
