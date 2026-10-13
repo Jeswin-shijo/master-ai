@@ -16,6 +16,8 @@ export interface SessionUser {
   name: string;
   email: string;
   role: HumanRole;
+  /** Lifecycle roles this person approves for, e.g. safety-officer. */
+  approverRoles: string[];
 }
 
 export interface AuthResponse {
@@ -677,4 +679,50 @@ export interface PublicForm {
   companyName: string;
   /** e.g. "Service request". */
   caseLabel: string;
+}
+
+/** A person with a login in this company. */
+export interface Member {
+  id: string;
+  name: string;
+  email: string;
+  role: HumanRole;
+  approverRoles: string[];
+  status: 'active' | 'paused' | 'retired';
+  /** The team-directory record this person also answers calls as, if linked. */
+  staffId: string | null;
+  createdAt: string;
+}
+
+export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+
+export interface Invite {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'member';
+  approverRoles: string[];
+  status: InviteStatus;
+  expiresAt: string;
+  createdAt: string;
+}
+
+/** Returned once, when the invite is made. */
+export interface CreatedInvite extends Invite {
+  /** `/invite/<tenantId>/<token>`. */
+  path: string;
+  /** The full link on the web app, for the owner to send. */
+  link: string;
+}
+
+/** What the invite page shows before the person joins. */
+export interface InviteView {
+  companyName: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'member';
+  approverRoles: { id: string; name: string }[];
+  /** The email already has a login: sign in instead of choosing a password. */
+  hasAccount: boolean;
+  expiresAt: string;
 }

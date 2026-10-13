@@ -65,6 +65,11 @@ export const AUDIT_EVENT_TYPES = [
   'case.cancelled',
   'intake_key.created',
   'intake_key.revoked',
+  'member.invited',
+  'member.joined',
+  'member.updated',
+  'member.removed',
+  'invite.revoked',
 ] as const;
 
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
@@ -160,6 +165,16 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `New ${p.kind === 'form' ? 'request form link' : 'intake key'}: ${p.label ?? ''}`;
     case 'intake_key.revoked':
       return `Intake key revoked: ${p.label ?? ''}`;
+    case 'member.invited':
+      return `Invited ${p.name ?? 'someone'}`;
+    case 'member.joined':
+      return `${p.name ?? 'Someone'} joined the company`;
+    case 'member.updated':
+      return `${p.name ?? 'A person'}'s access changed`;
+    case 'member.removed':
+      return `${p.name ?? 'A person'} no longer has access`;
+    case 'invite.revoked':
+      return `Invite for ${p.name ?? 'someone'} withdrawn`;
     default:
       return type.replace('.', ' ').replace(/_/g, ' ');
   }

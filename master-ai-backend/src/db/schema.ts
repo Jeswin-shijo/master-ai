@@ -268,6 +268,27 @@ export const intakeKeys = pgTable('intake_keys', {
   createdAt: createdAt(),
 });
 
+/** A person invited to join with an access role and approver roles. Only the token's hash is kept. */
+export const invites = pgTable(
+  'invites',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    email: citext('email').notNull(),
+    name: text('name').notNull(),
+    role: text('role', { enum: ['admin', 'member'] }).notNull(),
+    approverRoles: text('approver_roles').array().notNull().default(sql`'{}'::text[]`),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdBy: uuid('created_by'),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by'),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('invites_tenant_email_idx').on(t.tenantId, t.email)],
+);
+
 export const goals = pgTable(
   'goals',
   {

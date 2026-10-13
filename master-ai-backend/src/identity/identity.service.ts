@@ -58,7 +58,7 @@ export class IdentityService {
       const session: Session = { userId: user!.id, principalId: owner!.id, tenantId, role: 'owner' };
       return {
         token: issueToken(session),
-        user: { ...session, name: user!.name, email: user!.email },
+        user: { ...session, name: user!.name, email: user!.email, approverRoles: [] },
         tenant: toTenant(tenant!),
       };
     });
@@ -84,13 +84,28 @@ export class IdentityService {
       role: membership.role,
     };
     const tenant = await this.tenant(session.tenantId);
-    return { token: issueToken(session), user: { ...session, name: user.name, email: user.email }, tenant };
+    return {
+      token: issueToken(session),
+      user: { ...session, name: user.name, email: user.email, approverRoles: await this.approverRoles(session.tenantId, session.principalId) },
+      tenant,
+    };
   }
 
   async me(session: Session): Promise<{ user: SessionUser; tenant: TenantSummary }> {
     const [user] = await this.db.global.select().from(users).where(eq(users.id, session.userId));
     if (!user) throw new UnauthorizedException();
-    return { user: { ...session, name: user.name, email: user.email }, tenant: await this.tenant(session.tenantId) };
+    return {
+      user: { ...session, name: user.name, email: user.email, approverRoles: await this.approverRoles(session.tenantId, session.principalId) },
+      tenant: await this.tenant(session.tenantId),
+    };
+  }
+
+  /** The approver roles a person holds in a company, read fresh. */
+  private async approverRoles(tenantId: string, principalId: string): Promise<string[]> {
+    return this.db.tenant(tenantId, async (tx) => {
+      const [p] = await tx.select({ roles: principals.approverRoles }).from(principals).where(eq(principals.id, principalId));
+      return p?.roles ?? [];
+    });
   }
 
   private async tenant(tenantId: string): Promise<TenantSummary> {

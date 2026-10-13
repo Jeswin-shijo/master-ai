@@ -1,5 +1,12 @@
 import type {
   AgentView,
+  AcceptInviteInput,
+  CreateInviteInput,
+  CreatedInvite,
+  Invite,
+  InviteView,
+  Member,
+  UpdateMemberInput,
   CancelCaseInput,
   Case,
   CaseDetail,
@@ -215,8 +222,25 @@ export function createClient(options: ClientOptions) {
       submit: (tenantId: string, key: string, input: IntakeCaseInput) =>
         request<{ caseId: string; code: string; duplicate: boolean }>('POST', `/intake/${tenantId}/cases`, input, { Authorization: `Bearer ${key}` }),
     },
+    members: {
+      list: () => get<Member[]>('/members'),
+      update: (id: string, input: UpdateMemberInput) => patch<Member>(`/members/${id}`, input),
+      remove: (id: string) => post<Member>(`/members/${id}/remove`),
+    },
+    invites: {
+      list: () => get<Invite[]>('/members/invites'),
+      create: (input: CreateInviteInput) => post<CreatedInvite>('/members/invites', input),
+      revoke: (id: string) => post<Invite>(`/members/invites/${id}/revoke`),
+      /** Public: what the invite page shows. */
+      view: (tenantId: string, token: string) => get<InviteView>(`/invites/${tenantId}/${encodeURIComponent(token)}`),
+      /** Public: join the company; returns a session for it. */
+      accept: (tenantId: string, token: string, input: AcceptInviteInput) =>
+        post<AuthResponse>(`/invites/${tenantId}/${encodeURIComponent(token)}/accept`, input),
+    },
     approvals: {
-      list: (status: 'pending' | 'all' = 'pending') => get<ApprovalRequest[]>(`/approvals${qs({ status })}`),
+      /** `mine`: only what this person may decide (the default in the apps). */
+      list: (status: 'pending' | 'all' = 'pending', opts: { mine?: boolean } = {}) =>
+        get<ApprovalRequest[]>(`/approvals${qs({ status, ...(opts.mine && { mine: 'true' }) })}`),
       get: (id: string) => get<ApprovalRequest>(`/approvals/${id}`),
       decide: (id: string, input: ApprovalDecisionInput) => post<ApprovalRequest>(`/approvals/${id}/decide`, input),
       batch: (input: BatchApprovalInput) =>

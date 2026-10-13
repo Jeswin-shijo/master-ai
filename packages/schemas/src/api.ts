@@ -277,3 +277,31 @@ export const CreateIntakeKeyInputSchema = z
   })
   .refine((k) => k.kind === 'form' || !!k.source, 'An API key needs a source: system or partner');
 export type CreateIntakeKeyInput = z.input<typeof CreateIntakeKeyInputSchema>;
+
+const ApproverRoleIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
+
+/** Owner or admin: invite a person by email. The link goes to them however the owner likes. */
+export const CreateInviteInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.email().transform((e) => e.toLowerCase()),
+  role: z.enum(['admin', 'member']).default('member'),
+  approverRoles: z.array(ApproverRoleIdSchema).max(20).default([]),
+});
+export type CreateInviteInput = z.input<typeof CreateInviteInputSchema>;
+
+/** The invited person: a new password, or their existing one when the email already has a login. */
+export const AcceptInviteInputSchema = z.object({
+  password: z.string().min(8).max(200),
+  name: z.string().trim().min(1).max(120).optional(),
+});
+export type AcceptInviteInput = z.input<typeof AcceptInviteInputSchema>;
+
+export const UpdateMemberInputSchema = z
+  .object({
+    role: z.enum(['admin', 'member']).optional(),
+    approverRoles: z.array(ApproverRoleIdSchema).max(20).optional(),
+    /** Link the team-directory record this person answers calls as; null unlinks. */
+    staffId: z.uuid().nullable().optional(),
+  })
+  .refine((m) => m.role !== undefined || m.approverRoles !== undefined || m.staffId !== undefined, 'Nothing to change');
+export type UpdateMemberInput = z.input<typeof UpdateMemberInputSchema>;
