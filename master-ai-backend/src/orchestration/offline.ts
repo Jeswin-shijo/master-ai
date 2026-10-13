@@ -40,7 +40,16 @@ function overlap(a: Set<string>, b: Set<string>): number {
 
 // ---------- planning ----------
 
-export function offlinePlan(goalText: string, pack: ResolvedPack): { rationale: string; tasks: PlannedTask[] } {
+export function offlinePlan(goalText: string, pack: ResolvedPack, preferredWorkflow?: string): { rationale: string; tasks: PlannedTask[] } {
+  const roles = new Set(workAgents(pack).map((a) => a.role));
+  const runnable = (wf: ResolvedPack['workflows'][number]) => wf.steps.every((step) => roles.has(step.agent));
+  const asTasks = (wf: ResolvedPack['workflows'][number]) =>
+    wf.steps.map((s) => ({ key: s.key, title: s.title, description: `${s.instructions}\nOwner's goal: ${goalText}`, agentRole: s.agent, dependsOn: s.depends_on }));
+
+  // A case names its type's workflow: use it when the workspace can run it.
+  const preferred = preferredWorkflow ? pack.workflows.find((w) => w.id === preferredWorkflow && runnable(w)) : undefined;
+  if (preferred) return { rationale: `Used the "${preferred.name}" workflow, which this kind of request follows.`, tasks: asTasks(preferred) };
+
   const goalWords = words(goalText);
   const scored = pack.workflows
     .map((wf) => ({
@@ -51,21 +60,12 @@ export function offlinePlan(goalText: string, pack: ResolvedPack): { rationale: 
         overlap(goalWords, words(wf.keywords.join(' '))) * 2 +
         overlap(goalWords, words(wf.description)),
     }))
-    .filter((s) => s.wf.steps.every((step) => workAgents(pack).some((a) => a.role === step.agent)))
+    .filter((s) => runnable(s.wf))
     .sort((a, b) => b.score - a.score);
 
   const best = scored[0];
   if (best && best.score > 0) {
-    return {
-      rationale: `Matched the "${best.wf.name}" workflow from the ${pack.name} pack.`,
-      tasks: best.wf.steps.map((s) => ({
-        key: s.key,
-        title: s.title,
-        description: `${s.instructions}\nOwner's goal: ${goalText}`,
-        agentRole: s.agent,
-        dependsOn: s.depends_on,
-      })),
-    };
+    return { rationale: `Matched the "${best.wf.name}" workflow from the ${pack.name} pack.`, tasks: asTasks(best.wf) };
   }
 
   const agent = bestAgent(goalText, workAgents(pack));

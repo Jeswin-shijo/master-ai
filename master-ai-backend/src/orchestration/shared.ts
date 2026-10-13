@@ -117,3 +117,14 @@ export interface CancelCaseSignal {
 
 export const caseWorkflowId = (caseId: string) => `case-${caseId}`;
 export const stageWorkflowId = (caseId: string, stage: string, attempt: number) => `case-${caseId}-${stage}-${attempt}`;
+
+/** How a case ends. Each has a matching case status. */
+export type CaseEnding = 'closed' | 'rejected' | 'cancelled' | 'escalated';
+
+export type GateName = 'proceed' | 'close';
+
+/** What a stage activity tells its workflow. */
+export type StageRunResult = { outcome: 'done' } | { outcome: 'needs_info'; waitMs: number } | { outcome: 'not_eligible'; reason: string };
+
+/** What opening a gate found: nothing to approve, not allowed, or an approval to wait for. */
+export type GateOpened = { status: 'not_required' } | { status: 'blocked'; reason: string } | { status: 'waiting'; approvalId: string; ttlMs: number };

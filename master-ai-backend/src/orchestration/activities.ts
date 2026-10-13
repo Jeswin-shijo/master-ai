@@ -1,10 +1,14 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import type { DelegationStatus } from '@onehuman/schemas';
+import { CaseStagesService } from '../cases/stages.service';
 import { RoutinesService } from '../routines/routines.service';
 import { DelegationService, type CallResult, type DelegationResult } from '../voice/delegation.service';
 import { AgentRuntimeService } from './agent-runtime.service';
 import { OrchestratorService } from './orchestrator.service';
 import type {
+  CaseEnding,
+  GateName,
+  StageWorkflowInput,
   CallStageName,
   CheckinCallInput,
   DelegationWorkflowInput,
@@ -25,6 +29,7 @@ export function createActivities(app: INestApplicationContext) {
   const lifecycle = app.get(TaskLifecycleService);
   const delegation = app.get(DelegationService);
   const routines = app.get(RoutinesService);
+  const stages = app.get(CaseStagesService);
 
   return {
     planGoal: (i: GoalWorkflowInput) => orchestrator.planGoal(i.tenantId, i.goalId, !!i.autoStart),
@@ -73,6 +78,20 @@ export function createActivities(app: INestApplicationContext) {
     checkinResult: (i: CheckinCallInput & { callId: string | null }) => routines.callResult(i.tenantId, i.entryId, i.callId),
     endCheckinCall: (i: CheckinCallInput & { callId: string }) => routines.endUnanswered(i.tenantId, i.callId),
     markCheckinMissed: (i: CheckinCallInput) => routines.markMissed(i.tenantId, i.entryId),
+
+    // Cases: one activity per piece of stage work
+    beginStage: (i: StageWorkflowInput) => stages.beginStage(i),
+    isPaused: (i: StageWorkflowInput) => stages.isPaused(i),
+    runStage: (i: StageWorkflowInput) => stages.runStage(i),
+    completeStage: (i: StageWorkflowInput & { status: 'done' | 'skipped' | 'failed'; summary?: string }) => stages.completeStage(i),
+    openGate: (i: StageWorkflowInput & { gate: GateName }) => stages.openGate(i),
+    closeGate: (i: StageWorkflowInput & { gate: GateName; approvalId: string; decision: 'approved' | 'rejected' | 'expired'; notes?: string }) =>
+      stages.closeGate(i),
+    startExecution: (i: StageWorkflowInput) => stages.startExecution(i),
+    finishExecution: (i: StageWorkflowInput & { goalId: string }) => stages.finishExecution(i),
+    cancelExecution: (i: StageWorkflowInput & { goalId: string }) => stages.cancelExecution(i),
+    verifyClose: (i: StageWorkflowInput) => stages.verifyClose(i),
+    finishCase: (i: { tenantId: string; caseId: string; ending: CaseEnding; reason: string | null }) => stages.finishCase(i),
   };
 }
 

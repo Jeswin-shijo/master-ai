@@ -8,7 +8,7 @@ import { llmCalls } from '../db/schema';
 import { costUsd, supportsServerFallback, type Usage } from './pricing';
 import { Redactor } from './redaction';
 
-export type LlmPurpose = 'agent_step' | 'plan' | 'pack_generate' | 'quality' | 'summary' | 'call';
+export type LlmPurpose = 'agent_step' | 'plan' | 'pack_generate' | 'quality' | 'summary' | 'call' | 'case_stage';
 
 export interface LlmToolCall {
   name: string;

@@ -41,6 +41,17 @@ describe('offline planner', () => {
     expect(plan.tasks).toHaveLength(1);
   });
 
+  it("uses the case type's workflow when one is given", () => {
+    const plan = offlinePlan('Zzzz qqqq', travel, 'disruption-response');
+    const wf = travel.workflows.find((w) => w.id === 'disruption-response')!;
+    expect(plan.rationale).toContain(wf.name);
+    expect(plan.tasks.map((t) => t.key)).toEqual(wf.steps.map((s) => s.key));
+  });
+
+  it('ignores a preferred workflow the workspace does not have', () => {
+    expect(offlinePlan('Zzzz qqqq', travel, 'no-such-workflow')).toEqual(offlinePlan('Zzzz qqqq', travel));
+  });
+
   it('plans for a generated pack too', () => {
     const clinic = resolvePack(composeOfflinePack('Dental clinic'), (id) => registry.get(id), 'generated');
     const plan = offlinePlan('Book a cleaning appointment for Rahul Nair tomorrow', clinic);

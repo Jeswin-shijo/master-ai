@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { PlannedTask, ResolvedPack } from '@onehuman/schemas';
-import { workAgents } from '@onehuman/agent-kit';
+import { lifecycleOf, normalizeSnapshot, workAgents } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import { truncate } from '../common/mappers';
 import { DbService } from '../db/db.service';
-import { agents, goals, tasks, tenants, workspaces } from '../db/schema';
+import { agents, cases, goals, tasks, tenants, workspaces } from '../db/schema';
 import { LlmService } from '../llm/llm.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { addUsage } from './context';
@@ -69,7 +69,15 @@ export class OrchestratorService {
     const existing = await this.db.tenant(tenantId, (tx) => tx.select().from(tasks).where(eq(tasks.goalId, goalId)).orderBy(asc(tasks.createdAt)));
     if (existing.length) return { tasks: existing.map((t) => ({ id: t.id, key: t.key, dependsOn: t.dependsOn })) };
 
-    const { plan, tokens, costInr } = await this.makePlan(tenantId, goalId, goal.text, pack, tenantName);
+    // A case's goal follows its case type's workflow when it has one.
+    const preferred = goal.caseId
+      ? await this.db.tenant(tenantId, async (tx) => {
+          const [c] = await tx.select({ file: cases.file }).from(cases).where(eq(cases.id, goal.caseId!));
+          const category = c?.file.classify?.category;
+          return lifecycleOf(normalizeSnapshot(pack)).categories.find((x) => x.id === category)?.workflow;
+        })
+      : undefined;
+    const { plan, tokens, costInr } = await this.makePlan(tenantId, goalId, goal.text, pack, tenantName, preferred);
 
     return this.db.tenant(tenantId, async (tx) => {
       const agentRows = await tx.select().from(agents).where(eq(agents.workspaceId, goal.workspaceId));
@@ -116,8 +124,8 @@ export class OrchestratorService {
     });
   }
 
-  private async makePlan(tenantId: string, goalId: string, goalText: string, pack: ResolvedPack, tenantName: string) {
-    const offline = offlinePlan(goalText, pack);
+  private async makePlan(tenantId: string, goalId: string, goalText: string, pack: ResolvedPack, tenantName: string, preferred?: string) {
+    const offline = offlinePlan(goalText, pack, preferred);
     if (this.llm.mode === 'offline') return { plan: offline, tokens: 0, costInr: 0 };
 
     const agentsText = workAgents(pack)
@@ -135,7 +143,7 @@ export class OrchestratorService {
         fallbackTier: 'small',
         dataClass: 'confidential',
         system: `${PLANNER_SYSTEM}\n\nCompany: ${tenantName} (${pack.name}).\n\nAgents:\n${agentsText}\n\nWorkflows:\n${workflowsText}`,
-        user: `Goal from the owner: ${goalText}\nToday: ${new Date().toISOString().slice(0, 10)}`,
+        user: `Goal from the owner: ${goalText}\nToday: ${new Date().toISOString().slice(0, 10)}${preferred ? `\nPreferred workflow: ${preferred}. Use it unless it clearly does not fit.` : ''}`,
         jsonSchema: PLAN_JSON_SCHEMA,
         effort: 'medium',
         maxTokens: 8000,

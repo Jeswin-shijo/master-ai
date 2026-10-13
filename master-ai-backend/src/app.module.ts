@@ -7,6 +7,8 @@ import { ApprovalsService } from './approvals/approvals.service';
 import { AuditController } from './audit/audit.controller';
 import { AuditModule } from './audit/audit.service';
 import { CasesController, CasesService } from './cases/cases.service';
+import { StageModel } from './cases/stage-model';
+import { CaseStagesService } from './cases/stages.service';
 import { AuthGuard } from './common/auth';
 import { ConnectorsService } from './connectors/connectors.service';
 import { DbModule } from './db/db.service';
@@ -83,6 +85,8 @@ import { TeamController, TeamService } from './voice/team.service';
     GoalsService,
     // Cases
     CasesService,
+    CaseStagesService,
+    StageModel,
     ApprovalsService,
     PolicyService,
     OrchestratorService,

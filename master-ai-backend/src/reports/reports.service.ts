@@ -177,7 +177,8 @@ export class ReportsService {
     });
   }
 
-  private async reportsFor(tx: Tx, goalRows: GoalRow[]): Promise<GoalReport[]> {
+  /** Goal reports for these goals, built in one pass. */
+  async reportsFor(tx: Tx, goalRows: GoalRow[]): Promise<GoalReport[]> {
     if (goalRows.length === 0) return [];
     const ids = goalRows.map((g) => g.id);
     const [taskRows, callRows, approvalRows, team, wsRows] = await Promise.all([
