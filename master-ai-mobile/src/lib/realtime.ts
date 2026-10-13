@@ -24,6 +24,10 @@ export function useRealtime() {
         if (area === 'tenant') void queryClient.invalidateQueries({ queryKey: ['tenant'] });
         if (area === 'call' || area === 'delegation') void queryClient.invalidateQueries({ queryKey: ['delegations'] });
         if (area === 'routine' || area === 'checkin' || area === 'call') void queryClient.invalidateQueries({ queryKey: ['routines'] });
+        if (area === 'case' || area === 'approval') {
+          void queryClient.invalidateQueries({ queryKey: ['cases'] });
+          void queryClient.invalidateQueries({ queryKey: ['case'] });
+        }
         void queryClient.invalidateQueries({ queryKey: ['pulse'] });
       },
     });

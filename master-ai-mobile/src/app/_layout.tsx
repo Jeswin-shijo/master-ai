@@ -58,6 +58,7 @@ function RootStack() {
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="case/[id]" options={{ ...header, title: '' }} />
+          <Stack.Screen name="case/new" options={{ ...header, title: 'New request', presentation: 'modal' }} />
           <Stack.Screen name="approval/[id]" options={{ ...header, title: 'Decision', presentation: 'modal' }} />
         </Stack.Protected>
       </Stack>
