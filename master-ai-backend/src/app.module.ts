@@ -7,6 +7,7 @@ import { ApprovalsService } from './approvals/approvals.service';
 import { AuditController } from './audit/audit.controller';
 import { AuditModule } from './audit/audit.service';
 import { CasesController, CasesService } from './cases/cases.service';
+import { MembersController, MembersService } from './members/members.service';
 import { IntakeController, IntakeService } from './cases/intake.service';
 import { StageModel } from './cases/stage-model';
 import { CaseStagesService } from './cases/stages.service';
@@ -57,6 +58,7 @@ import { TeamController, TeamService } from './voice/team.service';
   controllers: [
     HealthController,
     IdentityController,
+    MembersController,
     TenancyController,
     AgentsController,
     GoalsController,
@@ -77,6 +79,7 @@ import { TeamController, TeamService } from './voice/team.service';
     { provide: APP_GUARD, useClass: AuthGuard },
     // Identity & tenancy
     IdentityService,
+    MembersService,
     TenancyService,
     OnboardingService,
     // Industry Packs

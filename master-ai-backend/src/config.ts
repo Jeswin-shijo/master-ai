@@ -24,6 +24,8 @@ const EnvSchema = z.object({
   LLM_MODEL_SMALL: z.string().default('claude-haiku-5-5'),
   USD_INR_RATE: z.coerce.number().positive().default(88),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  /** Where the web app lives, for links people are sent (invites). */
+  WEB_URL: z.string().default('http://localhost:5173'),
   /** Behind a reverse proxy or tunnel: hop count, true, or trusted addresses (see common/proxy.ts). */
   TRUST_PROXY: z.string().optional(),
   // Real phone calls (Twilio). PUBLIC_URL is where Twilio reaches this API (a tunnel in development).
