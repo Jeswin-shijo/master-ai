@@ -1,0 +1,106 @@
+# Lender (NBFC, microfinance, co-op bank): realistic requests from borrowers,
+# field staff, DSAs, the loan system and the owner, with what the stages should decide.
+pack: lender
+cases:
+  - id: personal-loan-wedding
+    request: "Hi, I need a personal loan of Rs 1.5 lakh for my daughter's wedding in December. I work at a spinning mill in Tiruppur, salary Rs 26,000 a month. Sending Aadhaar, PAN and my last 3 salary slips."
+    source: customer
+    amount_inr: 150000
+    expect:
+      category: small-loan
+      priority: P3
+      review: complete
+      approval: { required: true, role: credit-manager }
+      signoff: { required: true, role: operations-manager }
+    why: Personal loan marks a small loan (P3). Aadhaar and PAN are in, so review is complete. Every loan needs a sanction, so the credit manager decides; operations signs off the disbursal.
+  - id: lap-without-kyc
+    request: "DSA here, logging a LAP case: Rajesh Traders, Indore, Rs 45 lakh against their shop in Siyaganj. 3 years ITR, GST returns and 12 months bank statement uploaded. Sale deed and property tax receipts will come next week."
+    source: partner
+    amount_inr: 4500000
+    expect:
+      category: business-loan
+      priority: P3
+      review: needs_info
+    why: LAP marks a business or property loan (P3). No KYC of the firm or its partners is given and the sale deed is still to come, so the title check and valuation cannot start; review asks for them.
+  - id: nach-first-bounce
+    request: "NACH return: loan LN-20931, EMI Rs 4,250 due 05-Oct-2026 returned 'insufficient funds'. First bounce on this account."
+    source: system
+    amount_inr: 4250
+    expect:
+      category: emi-follow-up
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: NACH return and insufficient funds mark a missed EMI (P3). Reminders, calls and re-presenting the mandate need no approval and no sign-off.
+  - id: agent-night-visit
+    request: "Your recovery agent came to my house at 10 pm yesterday, shouted at my wife in front of the neighbours and threatened to take the bike. This is harassment. My loan is LN-18842 and I already paid Rs 3,000 last week."
+    source: customer
+    expect:
+      category: complaint
+      priority: P1
+      review: complete
+      approval: { required: true, role: compliance-officer }
+      signoff: { required: true, role: grievance-officer }
+    why: Recovery-agent misconduct is a serious grievance under RBI's fair practices and recovery rules, not a fraud. Threatened and harassment raise the complaint to P1, so collection contact stops at once and the compliance officer approves the action against the agent; the grievance officer signs the written reply, due within 30 days.
+  - id: noc-after-last-emi
+    request: "I paid my last EMI on 28 September. When will I get the NOC and my original property papers back? Loan no. LN-11207."
+    source: customer
+    expect:
+      category: loan-closure
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: operations-manager }
+    why: Last EMI, NOC and property papers mark a loan closure (P2). Returning papers after full repayment needs no approval; the operations manager signs off. Papers are due by 28 October, after which we owe ₹5,000 a day.
+  - id: mfi-over-limit
+    request: "Kalaburagi centre 12: new member Shantamma wants a Rs 60,000 group loan. Husband drives an auto, she does tailoring, about Rs 32,000 a month together. Bureau shows 3 running microfinance loans with other lenders. KYC done."
+    source: staff
+    amount_inr: 60000
+    expect:
+      category: small-loan
+      priority: P3
+      review: not_eligible
+    why: Group loan marks a small loan. Household income of about ₹3.84 lakh a year is above the ₹3 lakh microfinance limit, and we would be her 4th microfinance lender (MFIN cap is 3), so she is not eligible; she is told the reason.
+  - id: double-debit-refund
+    request: "Meena Devi's EMI of Rs 38,500 was debited twice this month (NACH plus her UPI payment). Bank statement attached. Please refund the extra Rs 38,500 to her account."
+    source: staff
+    amount_inr: 38500
+    expect:
+      category: refund-waiver
+      priority: P3
+      review: complete
+      approval: { required: true, role: branch-manager }
+      signoff: { required: false }
+    why: Debited twice and refund mark a refund. ₹38,500 is above the ₹5,000 limit, so the branch manager approves before operations pays it back to her own account.
+  - id: cibil-not-updated
+    request: "My CIBIL report still shows loan LN-15520 as active, though I paid it off on 14 July. I've emailed twice with no reply. Please correct it, my bank won't process my application."
+    source: customer
+    expect:
+      category: complaint
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: grievance-officer }
+    why: CIBIL and no reply mark a complaint (P2). No approval is needed; the grievance officer signs off the reply. Corrected data goes to the bureaus within 21 days, and after 30 days we owe ₹100 a day.
+  - id: owner-working-capital
+    request: "Sharma Steels needs Rs 15 lakh more working capital before Diwali. Latest GST returns and 6 months bank statement are uploaded. Old client, I've already told them yes, so just get it done today."
+    source: owner
+    amount_inr: 1500000
+    expect:
+      category: business-loan
+      priority: P3
+      review: complete
+      approval: { required: true, role: credit-committee }
+      signoff: { required: true, role: operations-manager }
+    why: Working capital marks a business loan (P3); an old client has KYC on file. The owner's word does not skip the sanction, so the credit committee (a named role) is asked before the owner even above ₹5 lakh, and "today" does not change the priority.
+  - id: truck-repossession
+    request: "Loan LN-07731 (truck) is NPA now: 97 days, 4 EMIs unpaid. The borrower hasn't picked up calls for 3 weeks and the truck is still running on the Nagpur route. We want to repossess. The 7-day notice in the agreement hasn't gone out yet."
+    source: staff
+    expect:
+      category: recovery-action
+      priority: P2
+      review: complete
+      approval: { required: true, role: credit-committee }
+      signoff: { required: true, role: collections-head }
+    why: NPA and repossess mark recovery (P2). Repossession always needs the credit committee; the notice in the agreement goes first, with no night-time or forced pickup. The collections head signs off.

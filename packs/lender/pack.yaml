@@ -1,0 +1,707 @@
+# Ready-made pack: lenders in India (NBFCs, microfinance institutions, gold
+# loan companies, co-operative banks). Built from RBI rules: the KYC Master
+# Direction, the 2025 conduct, digital lending and gold-collateral directions,
+# the microfinance framework, release of property documents (Sep 2023), the
+# Internal Ombudsman and Integrated Ombudsman schemes, and the 2023 settlement
+# framework. Agents prepare and track; people sanction, pay out and recover.
+id: lender
+version: 1.0.0
+name: Lender (NBFC, microfinance, co-op bank)
+description: Loan applications, missed EMIs, recovery and settlements, closures and papers, refunds, complaints and fraud alerts for NBFCs, microfinance institutions, gold loan companies and co-operative banks.
+kind: industry
+sector: finance-development
+extends: [sector-finance-development]
+match:
+  keywords:
+    - nbfc
+    - non banking finance company
+    - non-banking financial company
+    - gold loan
+    - gold loan company
+    - gold finance
+    - jewel loan
+    - microfinance
+    - microfinance institution
+    - mfi
+    - nbfc mfi
+    - co-operative bank
+    - cooperative bank
+    - urban co-operative bank
+    - urban cooperative bank
+    - district central co-operative bank
+    - lending company
+    - money lending
+    - moneylender
+    - loan provider
+    - two wheeler finance
+    - vehicle finance
+
+labels:
+  Customer: Borrower
+
+entities:
+  - name: Customer
+    label: Borrower
+    plural_label: Borrowers
+    description: A person or firm that has applied for or holds a loan with us.
+    title_field: name
+    list_columns: [name, phone, branch, kycRisk, kycDueOn]
+    fields:
+      - { name: name, label: Full name, type: string, required: true }
+      - { name: phone, label: Registered mobile, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: city, label: City or village, type: string }
+      - name: source
+        label: Came through
+        type: enum
+        options: [walk-in, field-officer, dsa, phone, whatsapp, website, app, referral, other]
+      - { name: pan, label: PAN (or Form 60), type: string }
+      - { name: ckycNumber, label: CKYC number, type: string }
+      - name: kycRisk
+        label: KYC risk
+        type: enum
+        options: [low, medium, high]
+      - { name: kycDueOn, label: Next KYC update due, type: date }
+      - { name: householdIncome, label: Yearly household income, type: money }
+      - { name: branch, label: Home branch or centre, type: string }
+      - { name: isRelatedParty, label: "Director, staff or their relative", type: boolean }
+      - { name: notes, label: Notes, type: text }
+  - name: Loan
+    label: Loan
+    plural_label: Loans
+    title_field: loanNumber
+    list_columns: [loanNumber, borrowerName, product, principalOutstanding, bucket, status]
+    fields:
+      - { name: loanNumber, label: Loan number, type: string, required: true }
+      - { name: borrowerName, label: Borrower, type: string, required: true }
+      - name: product
+        label: Product
+        type: enum
+        required: true
+        options: [personal, gold, two-wheeler, vehicle, group-microfinance, crop, business, property, housing, other]
+      - { name: amountAsked, label: Amount asked, type: money }
+      - { name: amountSanctioned, label: Sanctioned amount, type: money }
+      - { name: apr, label: Interest rate (APR %), type: number }
+      - { name: tenureMonths, label: Tenure (months), type: integer }
+      - { name: emi, label: EMI, type: money }
+      - { name: sanctionedBy, label: Sanctioned by, type: string }
+      - { name: disbursedOn, label: Disbursed on, type: date }
+      - { name: principalOutstanding, label: Principal outstanding, type: money }
+      - { name: daysPastDue, label: Days past due, type: integer }
+      - name: bucket
+        label: Overdue bucket
+        type: enum
+        options: [regular, sma-0, sma-1, sma-2, npa]
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [applied, sanctioned, declined, disbursed, closed, settled, written-off]
+      - { name: onHold, label: On hold (fraud or harassment check), type: boolean }
+      - { name: closedOn, label: Closed on, type: date }
+  - name: Repayment
+    label: EMI and repayment
+    plural_label: EMIs and repayments
+    title_field: loanNumber
+    list_columns: [loanNumber, dueDate, amountDue, amountPaid, status]
+    fields:
+      - { name: loanNumber, label: Loan number, type: string, required: true }
+      - { name: dueDate, label: Due date, type: date, required: true }
+      - { name: amountDue, label: Amount due, type: money }
+      - { name: amountPaid, label: Amount paid, type: money }
+      - { name: paidAt, label: Paid at, type: datetime }
+      - name: mode
+        label: Paid by
+        type: enum
+        options: [nach, upi, cash, branch, cheque, other]
+      - { name: bounceReason, label: Bounce reason, type: string }
+      - { name: penalCharge, label: Penal charge, type: money }
+      - { name: promiseToPayOn, label: Promised payment date, type: date }
+      - { name: receiptNumber, label: Receipt number, type: string }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [due, paid, part-paid, bounced, promised]
+  - name: Collateral
+    label: Security
+    plural_label: Securities
+    description: Gold, property papers or a vehicle held against a loan.
+    title_field: description
+    list_columns: [loanNumber, securityType, description, value, status]
+    fields:
+      - { name: loanNumber, label: Loan number, type: string, required: true }
+      - name: securityType
+        label: Type
+        type: enum
+        required: true
+        options: [gold, property, vehicle, deposit, machinery, other]
+      - { name: description, label: Description, type: text, required: true }
+      - { name: value, label: Value, type: money }
+      - { name: valuedOn, label: Valued on, type: date }
+      - { name: goldNetWeightGrams, label: Gold net weight (grams), type: number }
+      - { name: goldCarat, label: Gold purity (carat), type: number }
+      - { name: packetNumber, label: Gold packet or seal number, type: string }
+      - { name: originalsKeptAt, label: Originals kept at, type: string }
+      - { name: chargeRegistered, label: "Charge registered (CERSAI, RTO, ROC)", type: boolean }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [held, release-due, returned, auctioned, sold]
+      - { name: returnedOn, label: Returned to borrower on, type: date }
+
+tools:
+  - name: borrowers.search
+    description: Search borrowers by name, mobile, PAN, branch or KYC due date.
+    uses: records.search
+    with: { entity: Customer }
+  - name: borrower.update
+    description: Update a borrower's address, mobile, email or KYC dates after the change has been verified.
+    uses: records.update
+    with: { entity: Customer }
+  - name: loans.search
+    description: Search loans by number, borrower, product, overdue bucket or status.
+    uses: records.search
+    with: { entity: Loan }
+  - name: loan.prepare
+    description: Open a loan application file with the product and amount asked. It stays "applied" until the sanctioning authority decides.
+    uses: records.create
+    with: { entity: Loan, data: { status: applied } }
+  - name: loan.hold
+    description: Put a loan on hold so nothing is paid out and no collection contact is made while a person looks into a fraud or harassment report. Only a person lifts the hold.
+    uses: records.update
+    with: { entity: Loan, patch: { onHold: true } }
+  - name: repayments.search
+    description: Search EMIs and repayments by loan number, due date or status.
+    uses: records.search
+    with: { entity: Repayment }
+  - name: promise.record
+    description: Record a borrower's promise to pay on an EMI, with the date they gave.
+    uses: records.update
+    with: { entity: Repayment, patch: { status: promised } }
+  - name: collateral.search
+    description: Search gold packets, property papers and vehicles held against loans.
+    uses: records.search
+    with: { entity: Collateral }
+
+agents:
+  - role: loan-desk
+    name: Loan desk
+    description: Collects documents, runs the KYC, CKYC and credit bureau checks, drafts the appraisal note, Key Facts Statement and sanction letter for the sanctioning authority, keeps applicants updated, and handles closures, statements, certificates and detail changes.
+    instructions: Never mark a loan sanctioned, declined or disbursed, and never promise a loan or an amount; only the sanctioning authority decides and operations pays out. Quote the loan number in everything you write. Never ask for a full Aadhaar number in a message, and keep it masked.
+    autonomy: 3
+    tools: [borrowers.search, borrower.update, loans.search, loan.prepare, collateral.search, records.search, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: collections-desk
+    name: Collections desk
+    description: Follows up missed EMIs with polite reminders and payment links, records promises to pay, prepares notices, settlement letters and the recovery file for the credit committee, and hands calls and visits to the collection officer by phone.
+    instructions: Contact borrowers only between 8 am and 7 pm (microfinance 9 am to 6 pm). Never threaten or shame anyone, and never contact relatives, neighbours or the employer. Never start a repossession, auction or legal case and never agree a settlement; prepare the file for the credit committee. If a borrower says they were harassed or threatened, stop all contact on that loan and hand it to a person.
+    autonomy: 3
+    tools: [loans.search, repayments.search, promise.record, collateral.search, records.search, knowledge.search, document.generate, message.draft, message.send, payment.request, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+  - role: grievance-desk
+    name: Complaints and fraud desk
+    description: Logs and acknowledges complaints, pulls loan records, call recordings and visit logs, tracks the 30-day reply and credit bureau corrections, drafts replies with the RBI Ombudsman details, puts loans on hold during harassment or fraud checks, and drafts the reports the compliance officer files.
+    instructions: Never close a complaint and never call anyone a fraud; the grievance officer signs every reply and the compliance officer decides fraud action. Put the loan on hold at once when a borrower reports harassment, threats or a loan they never took. Keep the name of anyone who reports staff wrongdoing private.
+    autonomy: 2
+    tools: [borrowers.search, loans.search, repayments.search, collateral.search, loan.hold, records.search, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 25 }
+
+workflows:
+  - id: loan-disbursal
+    name: Small loan documents and disbursal
+    description: After the sanction decision, get the papers signed, have operations pay the right account and set up the EMIs; tell a declined applicant why.
+    keywords: [personal loan, gold loan, group loan, jlg, sanction, disbursal, key facts statement]
+    steps:
+      - key: papers
+        title: Prepare the papers for signing
+        agent: loan-desk
+        instructions: If the loan was declined, draft the letter giving the main reason. If sanctioned, prepare the sanction letter, the Key Facts Statement in the borrower's language and the loan agreement exactly as sanctioned, and send the borrower the time and place to sign.
+      - key: disburse
+        title: Hand the disbursal to operations
+        agent: loan-desk
+        depends_on: [papers]
+        instructions: Once the papers are signed, hand the disbursal to the operations officer by phone with the loan number, amount and the borrower's verified own bank account (or the dealer or college for an end-use loan), and confirm the EMI mandate is registered.
+      - key: welcome
+        title: Send the repayment schedule
+        agent: loan-desk
+        depends_on: [disburse]
+        instructions: When operations confirms the money reached the account, send the borrower the repayment schedule, the EMI date and the grievance officer's contact, and file the signed papers with the loan.
+  - id: secured-loan-disbursal
+    name: Business or property loan release
+    description: Complete the sanction conditions and security, then have operations release the money.
+    keywords: [business loan, loan against property, home loan, working capital, mortgage, security creation]
+    steps:
+      - key: conditions
+        title: Track the sanction conditions and security
+        agent: loan-desk
+        instructions: List the sanction conditions, the legal and valuation reports, the mortgage or hypothecation papers to sign and the CERSAI registration, and hand the collection of missing papers to the credit officer by phone.
+      - key: release
+        title: Hand the release to operations
+        agent: loan-desk
+        depends_on: [conditions]
+        instructions: When every condition is met and the security is created, hand the release to the operations officer by phone with the amount and the borrower's or seller's verified bank account, then send the borrower the Key Facts Statement copy and repayment schedule.
+  - id: emi-follow-up
+    name: Missed EMI follow-up
+    description: Remind politely, take a promise to pay, re-present the mandate and send the collection officer when needed.
+    keywords: [missed emi, bounce, nach return, overdue, promise to pay, reminder]
+    steps:
+      - key: remind
+        title: Check the dues and remind
+        agent: collections-desk
+        instructions: Confirm the overdue amount and days past due, check it was not already paid by UPI or at the branch, then send a polite reminder with a payment link between 8 am and 7 pm and record any promise to pay.
+      - key: call-or-visit
+        title: Hand calls or visits to the collection officer
+        agent: collections-desk
+        depends_on: [remind]
+        instructions: If there is no payment or promise in 3 days, hand a call or visit to the collection officer by phone with the dues and the contact hours. For microfinance, collect at the centre; a home visit only after two missed meetings in a row. Flag hardship (job loss, illness, death in the family) to the branch manager for a restructuring talk.
+  - id: recovery-file
+    name: Recovery or settlement file
+    description: Prepare the account file and notices for the credit committee, then hand the approved step to the collections team.
+    keywords: [npa, repossession, settlement, one time settlement, sarfaesi, legal notice, auction, restructuring]
+    steps:
+      - key: file
+        title: Prepare the account file and notice
+        agent: collections-desk
+        instructions: Build the file with days past due, the NPA date, payments, past notices and the latest security value, and draft the notice the loan agreement or SARFAESI needs, or the settlement letter with the amount and pay-by date, for the credit committee.
+      - key: act
+        title: Hand the approved step to the collections team
+        agent: collections-desk
+        depends_on: [file]
+        instructions: After approval, hand the step to the collections head by phone. Notices are served first; repossession only in daytime with the borrower's signed inventory and the local police told; gold auctions only after notice. Report a settled loan to the credit bureaus as settled.
+  - id: loan-closure
+    name: Loan closure and papers
+    description: Give the closing amount, issue the NOC, return papers or gold and remove our charge on time.
+    keywords: [noc, foreclosure, closure, original documents, release gold, form 35]
+    steps:
+      - key: statement
+        title: Closing amount, NOC and closure letter
+        agent: loan-desk
+        instructions: Confirm the dues are zero or prepare the exact foreclosure amount with no charge where none is allowed, then prepare the NOC and closure letter and note the deadline, 30 days for papers and 7 working days for gold.
+      - key: return
+        title: Hand back the papers or gold
+        agent: loan-desk
+        depends_on: [statement]
+        instructions: Hand the return of the original papers or gold to the branch team by phone, at the branch the borrower chose, against the borrower's signature. Draft the charge removal (CERSAI, sub-registrar, ROC or Form 35 for the RTO) and tell the credit bureaus the loan is closed.
+  - id: account-service
+    name: Account service and refunds
+    description: Make statements and certificates, update verified details, and prepare refunds or waivers for operations to pay.
+    keywords: [statement, interest certificate, address change, mandate change, refund, waiver]
+    steps:
+      - key: serve
+        title: Do the service or prepare the refund
+        agent: loan-desk
+        instructions: Confirm the request came from the borrower (OTP on the registered mobile or a signed request). Make the statement or certificate and send it only to the registered email or address; update a changed detail only after checking the document. For a refund or waiver, check it in the loan and bank records and prepare the voucher; after approval, hand the payment to operations by phone, to the borrower's own bank account only.
+  - id: complaint-handling
+    name: Complaint handling
+    description: Log, protect the borrower, find the facts, put it right and send the final reply within 30 days.
+    keywords: [complaint, grievance, recovery agent, harassment, cibil, ombudsman]
+    steps:
+      - key: log
+        title: Log, acknowledge and protect
+        agent: grievance-desk
+        instructions: Acknowledge the complaint the same day with its number and the reply date. If it says a recovery agent or staff member threatened, abused or harassed the borrower or came at odd hours, put the loan on hold and hand stopping the agent to the collections head by phone the same day.
+      - key: facts
+        title: Get the facts and draft the reply
+        agent: grievance-desk
+        depends_on: [log]
+        instructions: Pull the loan records, receipts, call recordings and visit logs, and ask the staff member or agency for their side. Send corrected data to the credit bureaus within 21 days for bureau errors. Draft the final reply for the grievance officer; if any part is rejected, it names the RBI Ombudsman (cms.rbi.org.in, 14448), after the Internal Ombudsman has seen it where that applies.
+  - id: fraud-response
+    name: Fraud response
+    description: Stop the loss, keep the evidence and prepare the reports for the compliance officer.
+    keywords: [fraud, fake gold, forged, identity theft, without receipt, suspicious]
+    steps:
+      - key: contain
+        title: Stop the loss and keep the evidence
+        agent: grievance-desk
+        instructions: Put the loan on hold, list the evidence to keep (documents, gold packets, call recordings, visit logs, bank trail) and hand stopping any payment or sealing the gold packets to the branch manager by phone.
+      - key: report
+        title: Draft the reports
+        agent: grievance-desk
+        depends_on: [contain]
+        instructions: Draft the police complaint where money is lost, the suspicious transaction report for the principal officer (due within 7 working days of deciding), the show-cause notice giving at least 21 days to reply before anyone is called a fraud, and the reply to the customer.
+
+lifecycle:
+  case: { label: Loan case, plural: Loan cases, prefix: LN }
+  stages:
+    request:
+      name: Case received
+      description: A loan application, missed EMI, closure or service request, complaint or system alert (such as a bounced EMI) comes in from a borrower, field staff, a DSA or the loan system, gets a case number and is acknowledged.
+    review:
+      name: KYC and document check
+      description: Agents and staff check the person's identity, documents, credit bureau report and loan records, and ask for anything missing before the case moves on.
+      checks:
+        - "Identity verified: Aadhaar e-KYC or offline check (number kept masked), DigiLocker, video KYC or an officially valid document, plus PAN or Form 60"
+        - CKYC searched and every name checked against the UN and Indian sanctions lists
+        - Credit bureau report pulled (for microfinance, for the whole household)
+        - "Eligibility met: income, existing loans and overdues; microfinance income and lender limits; gold value and purity"
+        - All documents for the product received and readable
+        - Loan account, dues and payments confirmed for repayment, closure, service and complaint cases
+    classify:
+      name: Risk grade and priority
+      description: The case gets its type, risk grade, priority, due date and owning desk (credit, collections, operations, grievance cell or compliance), which starts the response clock.
+    assign:
+      name: Assign officer and deadline
+      description: The branch or head office names the credit officer, field officer, collection officer or grievance handler responsible and sets the deadline, ahead of any RBI time limit.
+    approve:
+      name: Sanction or approval
+      description: The authorised person decides within their delegated power, never the person who prepared the file. The credit manager sanctions small loans, the credit committee business and property loans, recovery and settlements, the branch manager larger refunds and waivers, the compliance officer fraud action; the Board takes what is above the committee and loans to directors or their relatives.
+      checks:
+        - Approver is within their delegated power and took no part in preparing the file
+        - "Related party (director, staff or their relative): sent to the Board"
+        - "Settlement: approver is at least one level above whoever sanctioned the loan"
+    execute:
+      name: Disburse and follow up
+      description: The team and agents carry out the decision and track it, whether signing the Key Facts Statement and paying out, reminders and visits, notices, refunds, or returning papers and gold.
+      checks:
+        - Signed Key Facts Statement on file before any money goes out
+        - "Money paid only into the borrower's own bank account, or straight to the seller for an end-use loan; never in cash for ₹20,000 or more"
+        - "Collection contact only from 8 am to 7 pm (microfinance 9 am to 6 pm), with no threats"
+    close:
+      name: Final check and close
+      description: Someone other than the person who did the work checks the outcome, the named role signs off, the borrower gets a written reply and the case is closed.
+      checks:
+        - "Loan papers signed and filed: sanction letter, signed Key Facts Statement, loan agreement"
+        - Money reached the right account and the EMI mandate is active
+        - Loan system, receipts and bank records match
+        - "Closures: dues zero, NOC issued, papers or gold returned on time, charge removed, credit bureaus told"
+        - "Complaints: final written reply within 30 days, with the RBI Ombudsman details if not fully resolved"
+    report:
+      name: Reports and portfolio review
+      description: Daily and monthly reports track collections, overdue buckets (SMA and NPA), time to disburse, complaints and repeat problems; credit bureau uploads and RBI returns go out on time and the board reviews them.
+      checks:
+        - Collection efficiency, PAR 30 and NPA reviewed by branch
+        - Papers or gold returned late, and the compensation paid, listed
+        - Complaints about recovery agents counted by agency
+  priorities:
+    - { id: P1, name: "Urgent: borrower or money at risk", respond_within_hours: 1, resolve_within_hours: 48 }
+    - { id: P2, name: "High: RBI deadline or penalty at stake", respond_within_hours: 4, resolve_within_hours: 168 }
+    - { id: P3, name: Normal, respond_within_hours: 24, resolve_within_hours: 240 }
+    - { id: P4, name: Low, respond_within_hours: 48, resolve_within_hours: 360 }
+  roles:
+    - { id: credit-manager, name: Credit manager (sanctioning officer), approves: "Sanctions or declines personal, gold, vehicle, crop and group loans within the delegated power; in a gold loan branch, the branch head who holds that power" }
+    - { id: credit-committee, name: Credit committee (loan committee in a co-op bank), approves: "Sanctions business, housing and property loans and policy exceptions; approves restructuring, repossession, auctions, legal action and settlements" }
+    - { id: branch-manager, name: Branch manager, approves: "Refunds and charge waivers above ₹5,000, within the board's waiver policy" }
+    - { id: operations-manager, name: Operations manager, approves: "Signs off disbursals and closures: money in the right account, papers filed, NOC issued, papers or gold returned" }
+    - { id: collections-head, name: Collections head, approves: "Signs off recovery and settlement cases: notice served, repossession or auction done by the rules, money received, credit bureaus told" }
+    - { id: grievance-officer, name: Grievance redressal officer, approves: "Signs off every complaint reply; sends complaints we would partly or fully reject to the Internal Ombudsman first, where that rule applies" }
+    - { id: compliance-officer, name: Compliance officer (PMLA principal officer), approves: "Fraud classification and reports to FIU-IND, the police or RBI, and action against staff or recovery agents after a harassment or threat complaint" }
+  urgent_keywords: [fraud, fraudulent, forged, forgery, fake gold, spurious gold, scam, phishing, hacked, data leak, leaked, theft, stolen, robbery, burglary, dacoity, embezzlement, misappropriation, siphoned, unauthorised transaction, unauthorized transaction, threatened, threatening, threat, dhamki, harassment, harassed, harassing, abused, abusing, assaulted, beaten, manhandled, goons, morphed, suicide, end my life, fire, injured, injury]
+  categories:
+    - id: small-loan
+      name: Personal, gold, vehicle or group loan
+      keywords: [personal loan, gold loan, jewel loan, nagai kadan, loan on gold, loan against gold, pledge my gold, two wheeler loan, bike loan, scooty loan, car loan, used car loan, consumer durable loan, education loan, crop loan, kcc, kisan credit card, group loan, jlg, jlg loan, joint liability group, shg loan, microfinance loan, mfi loan, new member, cgt, grt, need a loan, need loan, want a loan, give me a loan, get a loan, require a loan, loan required, loan needed, loan chahiye, loan application, apply for a loan, top up loan, salary loan]
+      priority: P3
+      risk: medium
+      department: Credit
+      required_details:
+        - key: identity
+          label: Identity proof or KYC
+          kind: keywords
+          keywords: [kyc, ekyc, e-kyc, ckyc, video kyc, aadhaar, aadhar, pan, pan card, form 60, voter id, passport, driving licence, driving license, digilocker, job card]
+      required_checks:
+        - "KYC: Aadhaar e-KYC, DigiLocker, video KYC or a valid ID, plus PAN or Form 60; CKYC searched and sanctions lists checked"
+        - "Credit bureau report checked (microfinance: the whole household)"
+        - "Microfinance: household income up to ₹3 lakh a year and all loan EMIs within 50% of monthly household income; at most 3 microfinance lenders including us and ₹2 lakh in all (MFIN)"
+        - House or business visit; group training and group test (CGT and GRT) for group loans
+        - "Gold: tested in front of the borrower; loan within 85% of the gold value up to ₹2.5 lakh, 80% up to ₹5 lakh, 75% above"
+        - Key Facts Statement given in the borrower's language and signed
+      not_eligible:
+        - keywords: [3 running, three running, 4 running, 3 active loans, 3 live loans, 3 mfi loans, three mfi loans, 4 mfi loans, 3 microfinance loans, three microfinance loans, 4 microfinance loans, 3 other lenders, three other lenders, 4 lenders, four lenders, 4th lender, fourth lender, more than 3 lenders, lender cap, over indebted, overindebted, income above 3 lakh, income more than 3 lakh]
+          reason: "A microfinance loan is only for households earning up to ₹3 lakh a year, and MFIN members lend only where the borrower has at most 3 microfinance lenders including us and owes up to ₹2 lakh in all. Tell the applicant the reason kindly; a different product may fit."
+        - keywords: [buy gold, buying gold, purchase gold, purchase of gold, gold purchase, buy jewellery, buying jewellery, jewellery purchase, buy gold coins, gold bar, gold bars, gold biscuit, bullion, gold etf, digital gold]
+          reason: "RBI does not let lenders finance the purchase of gold in any form, or lend against bars, bullion, gold ETFs or digital gold. We lend only against gold jewellery and small bank-sold coins."
+        - keywords: [in cash, cash in hand, full cash, cash disbursal, cash disbursement, give cash, pay cash, cash only]
+          amount_above_inr: 19999
+          reason: "A loan of ₹20,000 or more cannot be paid out in cash (Income-tax Act, section 269SS). It goes to the borrower's own bank account; ask for the account details."
+        - keywords: [applicant is a minor, he is a minor, she is a minor, under 18, below 18, not yet 18, 17 years old, 16 years old]
+          reason: "A loan agreement with someone under 18 is void (Indian Contract Act, section 11). A parent or guardian can apply instead."
+      approval: { required: always, role: credit-manager }
+      signoff: { required: true, role: operations-manager }
+      workflow: loan-disbursal
+      execution: both
+    - id: business-loan
+      name: Business or property loan
+      keywords: [business loan, msme loan, msme, udyam, mudra loan, mudra, working capital, cash credit, cc limit, od limit, overdraft limit, limit enhancement, term loan, loan against property, lap, lap case, lap file, loan against shop, mortgage loan, home loan, housing loan, house construction loan, plot loan, machinery loan, equipment loan, commercial vehicle loan, cv loan, truck loan, tractor loan]
+      priority: P3
+      risk: high
+      department: Credit
+      required_details:
+        - { key: amount, label: Loan amount asked, kind: amount }
+        - key: kyc
+          label: KYC of the borrower and partners, or an existing borrower with KYC on file
+          kind: keywords
+          keywords: [kyc, ckyc, pan, pan card, aadhaar, aadhar, partnership deed, incorporation certificate, gst registration, gst certificate, existing customer, existing client, existing borrower, old client, old customer, repeat customer, repeat borrower, regular customer]
+      required_checks:
+        - KYC of every applicant, co-applicant and guarantor, plus business proof (GST, Udyam or registration)
+        - Credit bureau reports of the business and all promoters
+        - Cash flow checked from ITR, GST returns and 12 months of bank statements
+        - Site visit and personal discussion at the business
+        - "Property: legal title report, approved valuer's report and CERSAI search"
+        - "Related party (director, staff or their relative): sent to the Board"
+        - Key Facts Statement given and signed
+      not_eligible:
+        - keywords: [in cash, cash in hand, full cash, cash disbursal, cash disbursement, give cash, pay cash, cash only]
+          amount_above_inr: 19999
+          reason: "A loan of ₹20,000 or more cannot be paid out in cash (Income-tax Act, section 269SS). It goes to the borrower's bank account, or straight to the seller for an end-use loan."
+      approval: { required: always, role: credit-committee }
+      signoff: { required: true, role: operations-manager }
+      workflow: secured-loan-disbursal
+      execution: both
+    - id: refund-waiver
+      name: Refund or charge waiver
+      keywords: [refund, refund the extra, excess amount, excess payment, excess emi, paid extra, paid twice, debited twice, deducted twice, charged twice, double debit, double deduction, waive, waiver, waive off, reverse, reversal, charges reversal, reverse the charges, reversal of charges, bounce charges, reverse the bounce charges, penal charges, late payment charges, late fee, foreclosure charges, prepayment charges, prepayment penalty]
+      priority: P3
+      risk: medium
+      department: Operations
+      required_details:
+        - { key: amount, label: Amount to refund or waive, kind: amount }
+      required_checks:
+        - Extra amount or wrong charge confirmed in the bank and loan records
+        - "Waiver: within the board-approved waiver policy"
+        - "Money goes back only to the borrower's own bank account, the one it came from"
+        - The person who pays the refund is not the person who prepared it
+      not_eligible:
+        - keywords: [someone else's account, another account, different account, my brother's account, my son's account, my friend's account, relative's account, third party account]
+          reason: "We return money only to the borrower's own bank account, the one it came from. Ask the borrower for a cancelled cheque or statement of their own account."
+      approval: { required: above_amount, role: branch-manager, amount_inr: 5000 }
+      signoff: { required: false }
+      workflow: account-service
+      execution: both
+    - id: emi-follow-up
+      name: Missed EMI follow-up
+      keywords: [missed emi, emi missed, missed my emi, missed instalment, missed installment, emi bounce, emi bounced, bounced emi, bounced, nach return, nach bounce, nach failed, ecs return, ecs bounce, mandate return, returned unpaid, insufficient funds, insufficient balance, overdue, emi overdue, dues pending, emi pending, payment failed, cannot pay, can't pay, cant pay, unable to pay, will pay, will pay later, more time to pay, promise to pay, ptp, sma 0, sma 1, sma 2, kisht, kist, centre meeting, missed meeting]
+      priority: P3
+      risk: medium
+      department: Collections
+      required_checks:
+        - Overdue amount and days past due confirmed in the loan system
+        - Not already paid (UPI, branch cash and receipts checked)
+        - "Bounce reason noted: no funds, mandate problem or bank error"
+        - "Contact only 8 am to 7 pm (microfinance 9 am to 6 pm), polite, no threats, no calls to relatives or the employer"
+        - Only the penal charges shown in the Key Facts Statement, never added to principal
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: emi-follow-up
+      execution: both
+    - id: recovery-action
+      name: Recovery or settlement
+      keywords: [repossess, repossession, seize, seized, seizure, legal notice, demand notice, recall notice, loan recall, sarfaesi, 13 2 notice, possession notice, section 138, 138 case, arbitration, lok adalat, one time settlement, ots, settlement offer, settle my loan, settle the loan, compromise settlement, restructure, restructuring, moratorium, write off, written off, npa, auction, gold auction, auction notice, wilful defaulter, absconding, absconded]
+      priority: P2
+      risk: high
+      department: Collections and legal
+      required_checks:
+        - "Account facts: days past due, NPA date, payments and past notices"
+        - Written notice as per the loan agreement, with a last chance to pay, before any repossession; SARFAESI 13(2) notice with 60 days where it applies
+        - Recovery agent carries an ID card, authorisation letter and a copy of the notice
+        - "Repossession only in daytime, never by force, with an inventory the borrower signs and the local police told"
+        - "Settlement: fresh security value compared with the offer; approver at least one level above whoever sanctioned the loan; Board for loans the committee or MD sanctioned and for fraud or wilful-defaulter accounts"
+        - "Gold auction: notice to the borrower, reserve price at least 90% of the current value, surplus refunded within 7 working days"
+      approval: { required: always, role: credit-committee }
+      signoff: { required: true, role: collections-head }
+      workflow: recovery-file
+      execution: both
+    - id: loan-closure
+      name: Loan closure and NOC
+      keywords: [noc, no dues, no dues certificate, no objection certificate, foreclose, foreclosure, foreclosure amount, foreclosure statement, preclose, preclosure, pre closure, prepay, prepayment, close my loan, close the loan, loan closure, closure letter, last emi, final emi, last instalment, last installment, fully paid, paid in full, original documents, original papers, original title deed, property papers, property documents, close my gold loan, release my gold, release of gold, gold release, return my gold, get my gold back, jewels back, ornaments back, borrower died, borrower expired, passed away, death claim, hypothecation removal, remove hypothecation, hp removal, form 35, release of charge, satisfaction of charge, cersai]
+      priority: P2
+      risk: low
+      department: Operations
+      required_checks:
+        - Dues zero in the loan system, or the exact foreclosure amount given in writing
+        - No foreclosure charge on floating-rate loans to individuals for non-business use or on any microfinance loan
+        - NOC issued
+        - "Original papers returned within 30 days of full repayment (₹5,000 a day if we are late)"
+        - Pledged gold returned the same day where possible and within 7 working days at most
+        - "Charge removed: CERSAI, sub-registrar, ROC or RTO (Form 35 for vehicles)"
+        - Credit bureaus told the loan is closed
+        - "Borrower died: credit life insurance claim filed, no collection calls to the family, papers to the legal heirs"
+      not_eligible:
+        - keywords: [my friend's loan, friend's loan, my neighbour's loan, my neighbor's loan, someone else's loan, another person's loan, my relative's loan]
+          reason: "Papers, gold and the NOC go only to the borrower, someone they have authorised in writing, or the legal heirs with proof. Ask the borrower to request it."
+      approval: { required: never }
+      signoff: { required: true, role: operations-manager }
+      workflow: loan-closure
+      execution: both
+    - id: service-request
+      name: Account service request
+      keywords: [loan statement, account statement, statement of my loan, interest certificate, provisional interest certificate, repayment schedule, emi schedule, amortisation schedule, amortization schedule, welcome letter, copy of my loan agreement, loan agreement copy, copy of sanction letter, sanction letter copy, kyc update, update my kyc, re kyc, rekyc, periodic kyc, change of address, address change, update my address, new address, change of mobile number, change my mobile number, update my mobile number, mobile number change, new mobile number, change my email, emi date change, change emi date, change my emi date, mandate change, change of mandate, new mandate, change my bank account, change of bank account, bank account change, name correction, correct my name]
+      priority: P4
+      risk: low
+      department: Operations
+      required_checks:
+        - "Request really from the borrower: OTP on the registered mobile or a signed request"
+        - "Address, mobile or bank change: valid document checked and CKYC updated within 7 days"
+        - Mobile or bank account change confirmed by calling the old registered number
+        - Statements and certificates sent only to the registered email or address
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: account-service
+      execution: agents
+    - id: complaint
+      name: Customer complaint
+      keywords: [complaint, complain, complained, complaining, grievance, shikayat, ombudsman, rbi ombudsman, internal ombudsman, no reply, no response, not resolved, nobody replied, escalate, wrongly charged, extra charges, hidden charges, extra interest, rude, misbehaved, misbehaviour, misbehavior, poor service, consumer forum, consumer court, cibil, cibil score, cibil report, credit score, credit report, crif, experian, equifax, your recovery agent, your collection agent, your agent, your field officer, your staff, your collection boy, came to my house, came to my home, came to my office, calling my office, called my office, called my relatives, calling my relatives, called my employer, late night, at night, midnight, odd hours, shouted, shouting, abused, abusive, abuse, gaali, insulted, humiliated, in front of the neighbours, in front of neighbours, harassment, harassed, harassing, stop harassing, stop calling, keep calling, calling my parents, called my parents, calling my family, called my family, repeated calls, too many calls, morphed, my contacts, contact list, threatened, threatening, dhamki, goons, without informing, without telling me, without my consent, without asking, without notice, without any notice, interest rate increased, emi increased, emi went up, forced insurance]
+      priority: P2
+      risk: medium
+      department: Grievance cell
+      required_checks:
+        - Logged with a complaint number and acknowledged the same day
+        - "Recovery agent or staff misconduct: collection contact stopped the same day and the agent taken off the loan"
+        - "Facts checked: loan records, receipts, call recordings, visit logs and the staff member's side"
+        - "Credit bureau errors: corrected data sent to the bureau within 21 days"
+        - Final written reply within 30 days of receipt
+        - "Partly or fully rejected: Internal Ombudsman review where it applies, and the reply names the RBI Ombudsman (cms.rbi.org.in, 14448)"
+      approval: { required: high_risk_or_p1, role: compliance-officer }
+      signoff: { required: true, role: grievance-officer }
+      workflow: complaint-handling
+      execution: both
+    - id: fraud-alert
+      name: Fraud or staff misconduct alert
+      keywords: [fraud, fraudulent, fake, fake gold, spurious gold, spurious, gold plated, plated gold, fake ornaments, purity mismatch, forged, forgery, fake documents, fake kyc, fake signature, fake receipt, identity theft, not my loan, never took, never taken, never applied, loan in my name, impersonation, impersonating, benami, ghost borrower, ghost loan, bribe, bribery, kickback, asked for commission, without receipt, gave no receipt, no receipt given, cash not deposited, misappropriation, embezzlement, siphoned, suspicious, suspicious transaction, data leak, hacked, phishing, scam, unauthorised transaction, unauthorized transaction, same bank account, gold missing, packet tampered, seal broken, short weight, weight short, weight mismatch, less weight, less than what i pledged, less than what she pledged, less than what he pledged, stones removed, gold replaced, personal upi, personal gpay, personal phonepe, personal paytm, speed money, chai pani, under the table, asked for money, demanded money, cash shortage, vault shortage]
+      priority: P1
+      risk: high
+      department: Risk and compliance
+      required_checks:
+        - "Loss stopped at once: disbursal held, gold packets sealed, staff taken off the work or access blocked"
+        - "Evidence kept: documents, gold packets, call recordings, visit logs, payment trail"
+        - Customer told what we are doing, in writing
+        - Police complaint filed where money is lost
+        - Principal officer decides on a suspicious transaction report to FIU-IND within 7 working days
+        - "Before calling anyone a fraud: show-cause notice with at least 21 days to reply; report to RBI within 14 days of the decision"
+        - The person who raised it is protected and their name kept private
+      approval: { required: always, role: compliance-officer }
+      signoff: { required: true, role: owner }
+      workflow: fraud-response
+      execution: both
+  examples:
+    - { request: "Need a gold loan on my 32 gram necklace, will come to the Madurai branch with Aadhaar tomorrow", category: small-loan, priority: P3, approval: true }
+    - { request: "Raichur field officer: new JLG of 5 women, Rs 35,000 each, CGT done and KYC uploaded", category: small-loan, priority: P3, approval: true }
+    - { request: "Two-wheeler loan for an Activa, on-road price Rs 92,000, PAN and Aadhaar attached", category: small-loan, priority: P3, approval: true }
+    - { request: "Mudra loan of Rs 8 lakh for a second printing machine at our Sivakasi press, Udyam certificate attached", category: business-loan, priority: P3, approval: true }
+    - { request: "Home loan of Rs 22 lakh to buy a flat in Nashik, salary slips and PAN uploaded", category: business-loan, priority: P3, approval: true }
+    - { request: "Raise our cash credit from Rs 25 lakh to Rs 40 lakh for the cotton season", category: business-loan, priority: P3, approval: true }
+    - { request: "ECS return on loan LN-33012, reason account closed, EMI Rs 6,180 due 10 Nov", category: emi-follow-up, priority: P3, approval: false }
+    - { request: "Lakshmi from Hosur centre has not paid her kisht of Rs 1,150 for two weeks", category: emi-follow-up, priority: P3, approval: false }
+    - { request: "Customer called, lost his job last month and cannot pay the EMI till January", category: emi-follow-up, priority: P3, approval: false }
+    - { request: "Borrower in Sangli offers Rs 1.8 lakh as one time settlement on an NPA account of Rs 3.1 lakh", category: recovery-action, priority: P2, approval: true }
+    - { request: "Gold loan GL-4471 is 14 months old with interest unpaid, auction notice to be sent", category: recovery-action, priority: P2, approval: true }
+    - { request: "Send the SARFAESI 13(2) notice on the Pune property account, 110 days past due", category: recovery-action, priority: P2, approval: true }
+    - { request: "Please send the foreclosure amount for my car loan, I want to close it next week", category: loan-closure, priority: P2, approval: false }
+    - { request: "Paid the full amount on my jewel loan today, please release my gold", category: loan-closure, priority: P2, approval: false }
+    - { request: "Need the hypothecation removal letter and Form 35 for my tractor, loan closed in August", category: loan-closure, priority: P2, approval: false }
+    - { request: Please email the provisional interest certificate for my home loan for this year, category: service-request, priority: P4, approval: false }
+    - { request: "Change my EMI date from the 5th to the 10th, my salary comes late", category: service-request, priority: P4, approval: false }
+    - { request: "Update my address, we moved to Ward 9 in Kozhikode, rent agreement attached", category: service-request, priority: P4, approval: false }
+    - { request: "Bounce charges of Rs 590 were added though my EMI went through on time, please reverse them", category: refund-waiver, priority: P3, approval: false }
+    - { request: "Processing fee of Rs 7,500 was charged twice on my LAP, please refund one", category: refund-waiver, priority: P3, approval: true }
+    - { request: "Please waive the late payment charges, I was in hospital that month", category: refund-waiver, priority: P3, approval: true }
+    - { request: Your collection agent keeps calling my office and told my manager about my loan, category: complaint, priority: P2, approval: false }
+    - { request: "I complained 5 weeks back about extra interest on my two-wheeler loan, no reply yet", category: complaint, priority: P2, approval: false }
+    - { request: Your field officer came at 9.30 pm and threatened to shame me before the whole village, category: complaint, priority: P1, approval: true }
+    - { request: Two chains pledged at our Thrissur branch last month turned out to be gold plated copper, category: fraud-alert, priority: P1, approval: true }
+    - { request: "SMS says a loan of Rs 50,000 was disbursed to me, but I never applied for any loan", category: fraud-alert, priority: P1, approval: true }
+    - { request: "Collection boy took Rs 2,400 cash from three borrowers in Hapur and gave no receipt", category: fraud-alert, priority: P1, approval: true }
+
+playbooks:
+  - id: kyc-before-loan
+    title: KYC before any loan
+    source: RBI Master Direction - Know Your Customer (KYC) Direction, 2016, as updated; Prevention of Money-laundering (Maintenance of Records) Rules, 2005
+    body: |
+      1. Verify identity before any loan: Aadhaar e-KYC or offline verification (with consent, number stored masked), DigiLocker, video KYC or another officially valid document, plus PAN or Form 60.
+      2. Search CKYC with the customer's consent before asking for papers again. Upload a new customer's KYC to CKYC within 10 days and send any change within 7 days.
+      3. Check every applicant, co-applicant and guarantor against the UN and Indian sanctions lists. On a match, stop and tell the principal officer the same day.
+      4. For a firm or company, take its PAN, registration or partnership deed, GST registration where it has one, and the KYC of the people who own and run it.
+      5. Grade each borrower low, medium or high risk, and refresh KYC at least every 10, 8 and 2 years respectively, and whenever details change.
+      6. If someone will not give ID or the money does not fit the person, tell the principal officer, never the customer.
+      7. Keep KYC and loan records for at least 5 years after the loan is closed.
+  - id: fair-sanction-disbursal
+    title: Fair sanction and disbursal
+    source: RBI (Non-Banking Financial Companies - Responsible Business Conduct) Directions, 2025; RBI (Digital Lending) Directions, 2025; RBI circular on the Key Facts Statement for loans, 15 Apr 2024; RBI circular on penal charges in loan accounts, 18 Aug 2023; Income-tax Act, section 269SS
+    body: |
+      1. Acknowledge every loan application in writing and say when to expect a decision.
+      2. Before the borrower signs, give the Key Facts Statement in a language they understand, with the APR, every fee and the repayment schedule. Keep it valid for at least 3 working days (1 working day for loans under 7 days) and file the signed copy. Charge nothing that is not in it.
+      3. Only the sanctioning authority decides, within their delegated power and never on a file they prepared. Loans to directors, staff or their relatives go to the Board. Tell a declined applicant the main reason in writing.
+      4. Pay the loan only into the borrower's own bank account, or straight to the seller for an end-use loan (vehicle dealer, builder, college). Never through an agent's or another person's account, and never in cash for ₹20,000 or more.
+      5. Digital loans: give a cooling-off period of at least 1 day in which the borrower can leave by repaying the principal and the proportionate APR with no penalty, never raise a credit limit without consent, and collect only the data the loan needs.
+      6. Late payment brings only the penal charges shown in the Key Facts Statement. Never add them to the principal or charge interest on them.
+  - id: microfinance-and-gold-limits
+    title: Microfinance and gold loan limits
+    source: RBI Master Direction - Regulatory Framework for Microfinance Loans, 2022; MFIN Guardrails 2.0 (from 1 April 2025); RBI (Lending Against Gold and Silver Collateral) Directions, 2025
+    body: |
+      1. A microfinance loan is a loan without security to a household earning up to ₹3 lakh a year. All the household's loan EMIs, ours included, must stay within 50% of its monthly income. Check the bureau report for the whole household before every loan.
+      2. MFIN members also lend only when the borrower has at most 3 microfinance lenders including us and owes no more than ₹2 lakh in all. If a limit is crossed, decline kindly and say why.
+      3. No prepayment penalty on any microfinance loan. Collect at the agreed centre; visit the home or workplace only after the borrower misses two centre meetings in a row.
+      4. Gold loans: test the gold in front of the borrower and value it at the lower of the 30-day average and the previous day's price of 22 carat gold. Lend at most 85% of the value up to ₹2.5 lakh, 80% up to ₹5 lakh and 75% above.
+      5. Lend only against gold jewellery and small bank-sold coins (up to 1 kg of jewellery and 50 g of coins per borrower). Never lend against bars, bullion, gold ETFs or digital gold, and never lend to buy gold.
+      6. Return pledged gold the same day the loan is closed where possible and within 7 working days at most; after that we pay ₹5,000 a day.
+      7. Before an auction, send notice to the borrower. Hold the first auction in the branch's district at a reserve price of at least 90% of the current value (85% after two failed auctions), and refund any surplus within 7 working days.
+  - id: lawful-collection
+    title: Collect politely and lawfully
+    source: RBI (Non-Banking Financial Companies - Responsible Business Conduct) Directions, 2025; RBI circular on recovery agents, 12 Aug 2022; RBI Master Direction on microfinance loans, 2022; RBI framework for compromise settlements and technical write-offs, 8 Jun 2023; SARFAESI Act, 2002, section 13(2); Supreme Court, ICICI Bank v. Prakash Kaur (2007)
+    body: |
+      1. Call or visit only between 8 am and 7 pm (microfinance: 9 am to 6 pm), and not during a death, illness or wedding in the family.
+      2. No threats, abuse, shaming or force, and no calls to relatives, friends, neighbours or the employer. Never use muscle power to recover a loan.
+      3. A recovery agent carries an ID card, our authorisation letter and a copy of the notice, and the borrower gets the agent's and our contact details.
+      4. Before any repossession, send the written notice the loan agreement asks for, with a last chance to pay. Repossess only in daytime and never by force, list everything taken in an inventory the borrower signs, and tell the local police station.
+      5. SARFAESI is for secured loans of ₹20 lakh and above (for NBFCs with ₹100 crore or more in assets); the 13(2) notice gives the borrower 60 days.
+      6. Restructuring, settlement, repossession and legal action need the credit committee. A settlement approver sits at least one level above whoever sanctioned the loan; loans the committee or the MD sanctioned, and fraud or wilful-defaulter accounts, go to the Board. Report a settled loan to the credit bureaus as settled.
+      7. If a borrower complains of harassment, stop all collection contact on that loan at once and raise it as a P1 complaint.
+  - id: closure-and-papers
+    title: Close loans and return papers on time
+    source: RBI circular RBI/2023-24/60 on release of movable and immovable property documents, 13 Sep 2023; RBI (Non-Banking Financial Companies - Responsible Business Conduct) Directions, 2025; RBI (Pre-payment Charges on Loans) Directions, 2025; RBI (Lending Against Gold and Silver Collateral) Directions, 2025
+    body: |
+      1. When the loan is fully paid or settled, issue the NOC and return every original document within 30 days, at the branch where the loan was serviced or another office the borrower prefers where the papers are kept.
+      2. Remove our charge (CERSAI, sub-registrar, ROC, or the RTO through Form 35 for vehicles) within the same 30 days.
+      3. If we are late for reasons on our side, pay the borrower ₹5,000 for each day of delay and say why. If papers are lost, help get certified copies at our cost within another 30 days.
+      4. Return pledged gold the same day where possible and within 7 working days at most (₹5,000 a day after that).
+      5. No foreclosure charge on floating-rate loans to individuals for non-business use or on any microfinance loan. Give the exact foreclosure amount in writing.
+      6. If the borrower has died, return the papers to the legal heirs under our written procedure.
+      7. Tell every credit bureau the loan is closed in the next upload.
+  - id: complaints-in-30-days
+    title: Answer every complaint within 30 days
+    source: RBI Internal Ombudsman Directions for NBFCs (2023, as reissued); RBI Integrated Ombudsman Scheme, 2021; RBI framework for compensation on credit information complaints, RBI/2023-24/72, 26 Oct 2023
+    body: |
+      1. Log every complaint from any channel with a complaint number, and acknowledge it the same day in the borrower's language where possible.
+      2. A recovery agent or staff member who threatened, abused or harassed a borrower, or came at odd hours, is a serious complaint and is raised to P1. Stop collection contact on the loan the same day and take the agent off it; the compliance officer decides the action against the agent or agency.
+      3. Get the facts: loan records, receipts, call recordings and visit logs, and the staff member's side.
+      4. Fix what is wrong first (reverse a wrong charge, correct a record) and tell the borrower what you did.
+      5. Credit bureau errors: send corrected data to the bureau within 21 days. After 30 days in all, we owe ₹100 a day.
+      6. Before rejecting a complaint fully or in part, send it to the Internal Ombudsman within 20 days, where that rule applies to us.
+      7. Send a final written reply within 30 days, signed off by the grievance redressal officer. A reply that does not fully resolve it names the RBI Ombudsman (cms.rbi.org.in, toll-free 14448).
+      8. Money lost through forgery, a fake receipt or a loan the person never took is a fraud alert, not a complaint.
+
+kpis:
+  - id: collection-efficiency
+    name: Collection efficiency
+    description: EMI money collected this month as a share of EMI money due this month, not counting advance payments or old arrears.
+    unit: percent
+    direction: up
+    target: 98
+  - id: par-30
+    name: Portfolio at risk (30+ days)
+    description: Principal outstanding on loans with any payment more than 30 days late, as a share of all principal outstanding.
+    unit: percent
+    direction: down
+    target: 4
+  - id: gross-npa
+    name: Gross NPA
+    description: Principal outstanding on loans more than 90 days overdue, as a share of all loans outstanding.
+    unit: percent
+    direction: down
+    target: 3
+  - id: time-to-disburse
+    name: Time to disburse
+    description: Average hours from a complete loan file to money in the borrower's bank account.
+    unit: hours
+    direction: down
+    target: 168
+  - id: papers-on-time
+    name: Papers and gold returned on time
+    description: Closed loans whose original papers came back within 30 days (gold within 7 working days), as a share of all loans closed in the month.
+    unit: percent
+    direction: up
+    target: 100
