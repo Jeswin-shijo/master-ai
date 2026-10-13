@@ -1,0 +1,26 @@
+import type { HumanRole } from '@onehuman/schemas';
+
+/**
+ * Who may decide an approval routed to `approver` (a lifecycle role id such
+ * as safety-officer, or "owner"):
+ * - the owner may decide anything;
+ * - an admin may decide anything routed to the owner, plus their own roles;
+ * - a member may decide only approvals for roles they hold.
+ * The roles are read from the database at decision time, so a change takes
+ * effect without signing in again.
+ */
+export function mayDecide(person: { role: HumanRole; approverRoles: string[] }, approver: string): boolean {
+  if (person.role === 'owner') return true;
+  if (approver === person.role) return true;
+  if (approver === 'owner') return person.role === 'admin';
+  return person.approverRoles.includes(approver);
+}
+
+/**
+ * Where a gate goes: to the rule's role when an active person holds it,
+ * otherwise to the owner, with a note saying why.
+ */
+export function routeApprover(role: string, holders: number, roleLabel: string): { approver: string; note: string | null } {
+  if (role === 'owner' || holders > 0) return { approver: role, note: null };
+  return { approver: 'owner', note: `Nobody holds the ${roleLabel} role yet, so it came to the owner.` };
+}

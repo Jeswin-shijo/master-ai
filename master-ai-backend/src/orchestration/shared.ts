@@ -10,6 +10,7 @@ export const SIGNALS = {
   pause: 'pause',
   resume: 'resume',
   callUpdate: 'callUpdate',
+  gateDecision: 'gateDecision',
 } as const;
 
 export interface GoalWorkflowInput {
@@ -83,4 +84,11 @@ export interface CheckinCallInput {
 export interface ApprovalCreated {
   approvalId: string;
   ttlMs: number;
+}
+
+/** A person approved or rejected a case gate (stage 5 approval or stage 7 sign-off). */
+export interface GateDecisionSignal {
+  approvalId: string;
+  decision: 'approved' | 'rejected';
+  notes?: string;
 }

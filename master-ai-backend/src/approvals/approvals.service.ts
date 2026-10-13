@@ -6,7 +6,8 @@ import type { Session } from '../common/auth';
 import { verifyEd25519 } from '../common/crypto';
 import { toApproval } from '../common/mappers';
 import { DbService } from '../db/db.service';
-import { agents, approvalRequests, deviceKeys, toolCalls } from '../db/schema';
+import { agents, approvalRequests, caseStages, deviceKeys, principals, toolCalls } from '../db/schema';
+import { mayDecide } from './may-decide';
 import { addFeedback } from '../orchestration/context';
 import { TemporalService } from '../orchestration/temporal.service';
 
@@ -48,19 +49,23 @@ export class ApprovalsService {
   }
 
   /**
-   * Record a signed decision, then wake the sleeping task workflow. The
-   * signature proves which registered device (and person) approved what.
+   * Record a signed decision, then wake whatever waits for it: the task
+   * workflow for an action, the stage workflow for a case gate. The signature
+   * proves which registered device (and person) decided what.
    */
   async decide(session: Session, approvalId: string, input: ApprovalDecisionInput): Promise<ApprovalRequest> {
-    const decided = await this.db.tenant(session.tenantId, async (tx) => {
+    const { view, stageWorkflowId } = await this.db.tenant(session.tenantId, async (tx) => {
       const [approval] = await tx.select().from(approvalRequests).where(eq(approvalRequests.id, approvalId)).for('update');
       if (!approval) throw new NotFoundException('Approval not found');
       if (approval.status !== 'pending') throw new ConflictException(`Approval is already ${approval.status}`);
       if (approval.expiresAt.getTime() < Date.now()) throw new ConflictException('Approval has expired');
-      if (approval.approver !== 'owner' && approval.approver !== session.role) {
-        throw new ForbiddenException(`This approval is routed to ${approval.approver}`);
+      const [me] = await tx.select({ approverRoles: principals.approverRoles }).from(principals).where(eq(principals.id, session.principalId));
+      if (!mayDecide({ role: session.role, approverRoles: me?.approverRoles ?? [] }, approval.approver)) {
+        throw new ForbiddenException(`This approval is for the ${approval.approver.replace(/-/g, ' ')}.`);
       }
-      if (session.role === 'member') throw new ForbiddenException('Members cannot approve agent actions');
+      if (approval.kind === 'case_gate' && input.decision === 'edited') {
+        throw new BadRequestException('Approve or reject this step. Only agent actions can be edited.');
+      }
 
       const [key] = await tx
         .select()
@@ -94,17 +99,19 @@ export class ApprovalsService {
         .where(eq(approvalRequests.id, approvalId))
         .returning();
 
-      if (input.decision === 'rejected') {
-        await tx.update(toolCalls).set({ status: 'rejected' }).where(eq(toolCalls.id, approval.toolCallId!));
-        await addFeedback(tx, approval.taskId!, {
-          source: 'approval',
-          text: `The owner rejected "${approval.summary}"${input.notes ? ` with this note: "${input.notes}"` : ''}. Revise your approach.`,
-        });
-      } else if (input.decision === 'edited') {
-        await addFeedback(tx, approval.taskId!, {
-          source: 'approval',
-          text: `The owner edited "${approval.summary}" before approving${input.notes ? `: "${input.notes}"` : ''}. The edited version was used.`,
-        });
+      if (approval.kind === 'action') {
+        if (input.decision === 'rejected') {
+          await tx.update(toolCalls).set({ status: 'rejected' }).where(eq(toolCalls.id, approval.toolCallId!));
+          await addFeedback(tx, approval.taskId!, {
+            source: 'approval',
+            text: `The owner rejected "${approval.summary}"${input.notes ? ` with this note: "${input.notes}"` : ''}. Revise your approach.`,
+          });
+        } else if (input.decision === 'edited') {
+          await addFeedback(tx, approval.taskId!, {
+            source: 'approval',
+            text: `The owner edited "${approval.summary}" before approving${input.notes ? `: "${input.notes}"` : ''}. The edited version was used.`,
+          });
+        }
       }
       await this.audit.append(tx, session.tenantId, {
         type: 'approval.decided',
@@ -113,26 +120,50 @@ export class ApprovalsService {
         taskId: approval.taskId,
         refId: approvalId,
         payload: {
+          kind: approval.kind,
           tool: approval.tool,
+          summary: approval.summary,
           decision: input.decision,
           notes: input.notes ?? null,
           editedArgs: input.editedArgs ?? null,
           signature: input.signature,
           keyId: key.id,
           signedAt: input.signedAt,
+          ...(approval.caseId && { caseId: approval.caseId, stage: approval.stage }),
         },
       });
       const [agent] = await tx.select({ name: agents.name }).from(agents).where(eq(agents.id, approval.agentId));
-      return toApproval(updated!, agent?.name ?? 'Agent');
+
+      let stageWorkflowId: string | null = null;
+      if (approval.kind === 'case_gate') {
+        const [stage] = await tx
+          .select({ workflowId: caseStages.workflowId })
+          .from(caseStages)
+          .where(and(eq(caseStages.caseId, approval.caseId!), eq(caseStages.stage, approval.stage!)))
+          .orderBy(desc(caseStages.attempt))
+          .limit(1);
+        stageWorkflowId = stage?.workflowId ?? null;
+      }
+      return { view: toApproval(updated!, agent?.name ?? 'Agent'), stageWorkflowId };
     });
 
     try {
-      await this.temporal.deliverApproval(decided.taskId!, { approvalId, decision: input.decision as 'approved' | 'rejected' | 'edited' });
+      if (view.kind === 'case_gate') {
+        if (stageWorkflowId) {
+          await this.temporal.deliverGateDecision(stageWorkflowId, {
+            approvalId,
+            decision: input.decision as 'approved' | 'rejected',
+            ...(input.notes && { notes: input.notes }),
+          });
+        }
+      } else {
+        await this.temporal.deliverApproval(view.taskId!, { approvalId, decision: input.decision });
+      }
     } catch (err) {
       // The decision is saved; the workflow picks it up when signalled again.
-      this.logger.error(`Could not signal task ${decided.taskId}: ${(err as Error).message}`);
+      this.logger.error(`Could not signal the workflow for approval ${approvalId}: ${(err as Error).message}`);
     }
-    return decided;
+    return view;
   }
 
   /** Mobile batch review: many low-risk approvals in one go, each signed. */

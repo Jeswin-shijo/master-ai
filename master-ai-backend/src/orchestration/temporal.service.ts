@@ -5,6 +5,7 @@ import {
   SIGNALS,
   type ApprovalDecisionSignal,
   type CallUpdateSignal,
+  type GateDecisionSignal,
   type GoalWorkflowInput,
   type PlanDecisionSignal,
   type RoutineRunInput,
@@ -48,6 +49,11 @@ export class TemporalService implements OnModuleDestroy {
 
   async deliverApproval(taskId: string, decision: ApprovalDecisionSignal) {
     await this.signal(taskWorkflowId(taskId), SIGNALS.approvalDecision, decision);
+  }
+
+  /** Wake the stage workflow waiting on a gate. The id comes from case_stages.workflow_id. */
+  async deliverGateDecision(stageWorkflowId: string, decision: GateDecisionSignal) {
+    await this.signal(stageWorkflowId, SIGNALS.gateDecision, decision);
   }
 
   /** A simulated or real call was answered or ended: wake the delegation workflow. */

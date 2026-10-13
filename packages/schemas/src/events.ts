@@ -111,7 +111,7 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
     case 'approval.requested':
       return `Approval needed: ${p.summary ?? p.tool ?? ''}`;
     case 'approval.decided':
-      return `Approval ${p.decision ?? 'decided'} for ${p.tool ?? 'action'}`;
+      return `Approval ${p.decision ?? 'decided'}: ${p.summary ?? p.tool ?? 'action'}`;
     case 'delegation.created':
       return `Delegated to ${p.staffName ?? 'staff'}: ${p.title ?? ''}`;
     case 'delegation.updated':

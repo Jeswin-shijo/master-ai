@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { PolicyDecision, PolicyRule, TenantSettings } from '@onehuman/schemas';
 import type { ResolvedTool } from '@onehuman/agent-kit';
-import { PolicyEngine, type TrackRecord } from '@onehuman/policy';
+import { PolicyEngine, type PolicyRequest, type TrackRecord } from '@onehuman/policy';
 import type { Tx } from '../db/db.service';
 import { agents, approvalRequests, autonomyOverrides, policies } from '../db/schema';
 
@@ -15,6 +15,8 @@ export interface DecideInput {
   tenant: { id: string; status: 'active' | 'paused'; settings: TenantSettings };
   moneySpentInr: number;
   untrustedOrigin: boolean;
+  /** Set for case gates: what lifecycle rules match on. */
+  caseContext?: PolicyRequest['caseContext'];
 }
 
 /**
@@ -73,6 +75,7 @@ export class PolicyService {
       override: override ? { level: override.level as 1 | 2 | 3 } : null,
       moneySpentInr: input.moneySpentInr,
       untrustedOrigin: input.untrustedOrigin,
+      caseContext: input.caseContext ?? null,
     });
   }
 
@@ -85,7 +88,7 @@ export class PolicyService {
         count(*) filter (where status = 'edited')::int as edited
       from (
         select status from ${approvalRequests}
-        where agent_id = ${agentId} and status in ('approved', 'rejected', 'edited')
+        where agent_id = ${agentId} and kind = 'action' and status in ('approved', 'rejected', 'edited')
         order by decided_at desc limit 50
       ) recent
     `).then((r) => r.rows);

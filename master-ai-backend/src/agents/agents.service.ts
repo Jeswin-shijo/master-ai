@@ -83,7 +83,7 @@ export class AgentsService {
       const rows = await tx
         .select({ agentId: approvalRequests.agentId, tool: approvalRequests.tool, status: approvalRequests.status, level: sql<number>`(${approvalRequests.decision}->>'level')::int` })
         .from(approvalRequests)
-        .where(sql`${approvalRequests.status} in ('approved', 'rejected', 'edited')`)
+        .where(sql`${approvalRequests.status} in ('approved', 'rejected', 'edited') and ${approvalRequests.kind} = 'action'`)
         .orderBy(desc(approvalRequests.decidedAt));
       const overrides = await tx.select().from(autonomyOverrides);
       const has = new Set(overrides.map((o) => `${o.agentId}:${o.tool}`));
@@ -150,8 +150,8 @@ export class AgentsService {
     const [stats] = await tx.execute<{ completed: number; requested: number; rejected: number; spend: number }>(sql`
       select
         (select count(*)::int from ${tasks} where agent_id = ${a.id} and status = 'completed') as completed,
-        (select count(*)::int from ${approvalRequests} where agent_id = ${a.id}) as requested,
-        (select count(*)::int from ${approvalRequests} where agent_id = ${a.id} and status = 'rejected') as rejected,
+        (select count(*)::int from ${approvalRequests} where agent_id = ${a.id} and kind = 'action') as requested,
+        (select count(*)::int from ${approvalRequests} where agent_id = ${a.id} and kind = 'action' and status = 'rejected') as rejected,
         (select coalesce(sum(l.cost_inr), 0)::float from ${llmCalls} l join ${tasks} t on t.id = l.task_id where t.agent_id = ${a.id}) as spend
     `).then((r) => r.rows);
     const overrides = await tx.select().from(autonomyOverrides).where(eq(autonomyOverrides.agentId, a.id));
