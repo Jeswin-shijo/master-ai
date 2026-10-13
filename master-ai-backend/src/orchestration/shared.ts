@@ -4,6 +4,8 @@
  * sandbox.
  */
 
+import type { StageKey } from '@onehuman/schemas';
+
 export const SIGNALS = {
   planDecision: 'planDecision',
   approvalDecision: 'approvalDecision',
@@ -11,6 +13,8 @@ export const SIGNALS = {
   resume: 'resume',
   callUpdate: 'callUpdate',
   gateDecision: 'gateDecision',
+  infoAdded: 'infoAdded',
+  cancelCase: 'cancelCase',
 } as const;
 
 export interface GoalWorkflowInput {
@@ -92,3 +96,24 @@ export interface GateDecisionSignal {
   decision: 'approved' | 'rejected';
   notes?: string;
 }
+
+export interface CaseWorkflowInput {
+  tenantId: string;
+  caseId: string;
+}
+
+export interface StageWorkflowInput {
+  tenantId: string;
+  caseId: string;
+  stage: StageKey;
+  attempt: number;
+  /** Execute, attempt 2: why the first result was not accepted. */
+  reworkNote?: string;
+}
+
+export interface CancelCaseSignal {
+  reason?: string;
+}
+
+export const caseWorkflowId = (caseId: string) => `case-${caseId}`;
+export const stageWorkflowId = (caseId: string, stage: string, attempt: number) => `case-${caseId}-${stage}-${attempt}`;

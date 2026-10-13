@@ -2,6 +2,7 @@ import {
   CanActivate,
   createParamDecorator,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   SetMetadata,
   UnauthorizedException,
@@ -56,6 +57,11 @@ export class AuthGuard implements CanActivate {
     req.session = session;
     return true;
   }
+}
+
+/** Settings, intake keys and cancelling cases are for the owner and admins. */
+export function requireManager(session: Session): void {
+  if (session.role !== 'owner' && session.role !== 'admin') throw new ForbiddenException('Only the owner or an admin can do this.');
 }
 
 export const CurrentSession = createParamDecorator((_: unknown, ctx: ExecutionContext): Session => {

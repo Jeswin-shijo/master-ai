@@ -6,6 +6,7 @@ import { ApprovalsController } from './approvals/approvals.controller';
 import { ApprovalsService } from './approvals/approvals.service';
 import { AuditController } from './audit/audit.controller';
 import { AuditModule } from './audit/audit.service';
+import { CasesController, CasesService } from './cases/cases.service';
 import { AuthGuard } from './common/auth';
 import { ConnectorsService } from './connectors/connectors.service';
 import { DbModule } from './db/db.service';
@@ -56,6 +57,7 @@ import { TeamController, TeamService } from './voice/team.service';
     TenancyController,
     AgentsController,
     GoalsController,
+    CasesController,
     ApprovalsController,
     AuditController,
     RecordsController,
@@ -79,6 +81,8 @@ import { TeamController, TeamService } from './voice/team.service';
     // Agents, orchestration and policy
     AgentsService,
     GoalsService,
+    // Cases
+    CasesService,
     ApprovalsService,
     PolicyService,
     OrchestratorService,

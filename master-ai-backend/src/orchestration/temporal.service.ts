@@ -1,8 +1,19 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Client, Connection, DAYS_OF_WEEK, ScheduleNotFoundError, ScheduleOverlapPolicy, WorkflowNotFoundError } from '@temporalio/client';
+import {
+  Client,
+  Connection,
+  DAYS_OF_WEEK,
+  ScheduleNotFoundError,
+  ScheduleOverlapPolicy,
+  WorkflowExecutionAlreadyStartedError,
+  WorkflowNotFoundError,
+} from '@temporalio/client';
 import { config } from '../config';
 import {
+  caseWorkflowId,
   SIGNALS,
+  type CancelCaseSignal,
+  type CaseWorkflowInput,
   type ApprovalDecisionSignal,
   type CallUpdateSignal,
   type GateDecisionSignal,
@@ -100,6 +111,38 @@ export class TemporalService implements OnModuleDestroy {
       policies: { overlap: ScheduleOverlapPolicy.SKIP },
       state: { paused: !r.active, note: r.active ? undefined : 'Routine paused by the owner' },
     });
+  }
+
+  /** Start a case's workflow. Safe to call twice: the second call finds it running. */
+  async startCase(input: CaseWorkflowInput): Promise<string> {
+    const client = await this.client();
+    const workflowId = caseWorkflowId(input.caseId);
+    try {
+      await client.workflow.start('caseWorkflow', { taskQueue: config.TEMPORAL_TASK_QUEUE, workflowId, args: [input] });
+    } catch (err) {
+      if (!(err instanceof WorkflowExecutionAlreadyStartedError)) throw err;
+    }
+    return workflowId;
+  }
+
+  /** More details arrived: the review stage runs again. */
+  async addCaseInfo(stageWorkflowId: string) {
+    await this.signal(stageWorkflowId, SIGNALS.infoAdded, undefined);
+  }
+
+  /** Stop a case: the case workflow ends it, and a stage that is waiting stops waiting. */
+  async cancelCase(caseId: string, stageWorkflowId: string | null, reason?: string) {
+    const arg: CancelCaseSignal = reason ? { reason } : {};
+    await this.signal(caseWorkflowId(caseId), SIGNALS.cancelCase, arg);
+    if (stageWorkflowId) await this.signal(stageWorkflowId, SIGNALS.cancelCase, arg);
+  }
+
+  async pauseStages(stageWorkflowIds: string[]) {
+    await Promise.all(stageWorkflowIds.map((id) => this.signal(id, SIGNALS.pause, undefined)));
+  }
+
+  async resumeStages(stageWorkflowIds: string[]) {
+    await Promise.all(stageWorkflowIds.map((id) => this.signal(id, SIGNALS.resume, undefined)));
   }
 
   async pauseTasks(taskIds: string[]) {
