@@ -1,4 +1,5 @@
-import type { Pack } from '@onehuman/schemas';
+import type { Pack, SectorId } from '@onehuman/schemas';
+import { PackError } from './pack';
 
 /**
  * Turn an owner's free-text industry ("we run 3 dental clinics in Kochi") into
@@ -206,4 +207,49 @@ function titleCase(s: string): string {
     .split(' ')
     .map((w, i) => (i > 0 && SMALL_WORDS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(' ');
+}
+
+export function industryPacksInSector(packs: Pack[], sector: SectorId): Pack[] {
+  return packs.filter((p) => p.kind === 'industry' && p.sector === sector);
+}
+
+export interface SectorComposition {
+  pack: Pack;
+  /** The pack it builds on: a ready-made type or the sector base pack. */
+  basedOn: string;
+  via: 'ready-made' | 'similar' | 'sector';
+}
+
+/**
+ * Offline setup for an organization type typed in after choosing a sector:
+ * build on a ready-made type of that sector when the words match one, else on
+ * the closest one the sector lists as similar, else on the sector base pack.
+ * Other sectors are never considered: the owner chose this one.
+ */
+export function composeForSector(industry: string, sector: SectorId, packs: Pack[]): SectorComposition {
+  const baseId = `sector-${sector}`;
+  const base = packs.find((p) => p.id === baseId);
+  if (!base) throw new PackError(`No base pack for sector ${sector}`);
+  const inSector = industryPacksInSector(packs, sector);
+  const available = new Set(inSector.map((p) => p.id));
+
+  let basedOn = baseId;
+  let via: SectorComposition['via'] = 'sector';
+  const direct = matchIndustry(industry, inSector);
+  if (direct) {
+    basedOn = direct.pack.id;
+    via = 'ready-made';
+  } else {
+    let best: { closest: string; score: number } | null = null;
+    for (const t of base.other_org_types) {
+      if (!available.has(t.closest)) continue;
+      const score = Math.max(0, ...t.keywords.filter((k) => containsPhrase(industry, k)).map((k) => tokens(k).length));
+      if (score > 0 && (!best || score > best.score)) best = { closest: t.closest, score };
+    }
+    if (best) {
+      basedOn = best.closest;
+      via = 'similar';
+    }
+  }
+  return { pack: { ...composeOfflinePack(industry), sector, extends: [basedOn] }, basedOn, via };
 }
