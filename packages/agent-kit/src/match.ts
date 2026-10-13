@@ -23,7 +23,8 @@ export function normalizeIndustry(text: string): string {
 function tokens(text: string): string[] {
   return normalizeIndustry(text)
     .split(/[\s-]+/)
-    .filter((t) => t.length > 1 && !STOPWORDS.has(t))
+    // Single digits count ("Section 8"); other one-letter tokens are noise.
+    .filter((t) => (t.length > 1 || /^\d$/.test(t)) && !STOPWORDS.has(t))
     .map(stem);
 }
 

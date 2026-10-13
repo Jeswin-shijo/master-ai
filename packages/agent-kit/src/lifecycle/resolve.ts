@@ -36,6 +36,9 @@ export function mergeLifecycles(parts: Lifecycle[]): ResolvedLifecycle {
     }
     part.priorities.forEach((p) => priorities.set(p.id, p));
     part.roles.forEach((r) => roles.set(r.id, r));
+    // A case type redefined here takes its worked examples from here, not from the parent.
+    const redefined = new Set(part.categories.map((c) => c.id));
+    for (let i = examples.length - 1; i >= 0; i--) if (redefined.has(examples[i]!.category)) examples.splice(i, 1);
     part.categories.forEach((c) => categories.set(c.id, c));
     // A pack that sets urgent keywords replaces the inherited list (an IT firm's
     // planned "outage" is routine; a power plant's is not).
