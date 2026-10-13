@@ -5,25 +5,24 @@ cases:
   - id: kirana-repeat-order
     request: "Bhaiya, Sharma Kirana Lajpat Nagar se bol raha hoon. Kal subah tak 20 cases ₹5 wale glucose biscuit aur 10 bags 10kg atta bhej do, rate same as last time."
     source: customer
-    amount_inr: 18600
     expect:
       category: customer-order
       priority: P3
       review: complete
       approval: { required: false }
       signoff: { required: false }
-    why: Bhej do and same as last time mark a customer order with items and quantities. About ₹18,600 at list rates is under the ₹2,00,000 limit, so no approval; customer orders need no sign-off.
+    why: Bhej do and same as last time mark a customer order with items and quantities. Like most WhatsApp orders it states no order value (₹5 wale is the pack price), and ordinary orders need no approval; the order desk checks stock and the party's credit before confirming. Customer orders need no sign-off.
   - id: bank-stationery-po
-    request: "Dear Sir, please supply 400 reams of A4 paper (75 GSM) and 150 boxes of blue ball pens to our Pune warehouse by 20 October. PO HO/2026/118 attached, total ₹3,46,000 incl. GST. - Purchase Dept, Sahyadri Sahakari Bank"
+    request: "Dear Sir, please supply 1,500 reams of A4 paper (75 GSM) and 300 boxes of blue ball pens to our Pune warehouse by 20 October. PO HO/2026/118 attached, total ₹5,46,000 incl. GST. - Purchase Dept, Sahyadri Sahakari Bank"
     source: customer
-    amount_inr: 346000
+    amount_inr: 546000
     expect:
       category: customer-order
       priority: P3
       review: complete
-      approval: { required: true, role: sales-manager }
+      approval: { required: true, role: owner }
       signoff: { required: false }
-    why: A customer's own PO for goods is a customer order. ₹3,46,000 is above ₹2,00,000, so the sales manager approves. It is over ₹50,000, so the e-way bill is needed before loading.
+    why: A customer's own PO for goods is a customer order. Orders need no approval of their own, but this one states ₹5,46,000, above the ₹5 lakh line where every case needs the owner before stock and credit are tied up. It is over ₹50,000, so the e-way bill is needed before loading.
   - id: credit-limit-diwali
     request: "Sir, Gupta Traders wants their credit limit raised from ₹3 lakh to ₹5 lakh for Diwali stock. They have paid every bill on time this year."
     source: staff

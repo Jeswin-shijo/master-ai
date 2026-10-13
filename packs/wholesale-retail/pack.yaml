@@ -23,12 +23,25 @@ match:
     - distribution agency
     - stockist
     - super stockist
-    - dealer
     - dealership
     - authorised dealer
+    - authorized dealer
     - sub dealer
-    - trading company
-    - trading firm
+    - goods dealer
+    - fmcg dealer
+    - electrical dealer
+    - hardware dealer
+    - paint dealer
+    - tyre dealer
+    - cement dealer
+    - steel dealer
+    - fertiliser dealer
+    - fertilizer dealer
+    - mobile dealer
+    - wholesale trading
+    - general trading
+    - general traders
+    - import export
     - general merchant
     - retail shop
     - retail store
@@ -42,7 +55,8 @@ match:
     - departmental store
     - hardware store
     - electronics showroom
-    - mobile shop
+    - mobile phone shop
+    - mobile store
     - garment shop
     - cloth merchant
     - footwear shop
@@ -350,7 +364,7 @@ lifecycle:
       description: A person at sales, accounts, purchase or the godown, or an agent, is named with a clear deadline.
     approve:
       name: Owner or manager okay
-      description: Big orders, credit changes, large refunds and purchase orders, supplier payments, GST corrections and urgent incidents wait for the named person's okay.
+      description: Credit changes, orders worth more than ₹5 lakh, refunds and credit notes above ₹10,000, purchase orders above ₹1 lakh, supplier payments above ₹50,000, GST corrections and urgent incidents wait for the named person's okay; ordinary orders go straight to packing.
       checks:
         - Amount within the approver's limit
         - "Credit changes: ledger, ageing and bounce history in front of the owner"
@@ -382,14 +396,13 @@ lifecycle:
     - { id: P4, name: Routine, respond_within_hours: 24, resolve_within_hours: 168 }
   roles:
     - { id: accounts-manager, name: Accounts manager, approves: "Every correction to a GST invoice, credit note or e-way bill (and signs it off once filed); returns, refunds and credit notes above ₹10,000" }
-    - { id: sales-manager, name: Sales manager, approves: "Customer orders above ₹2,00,000, or with no value given, before stock and credit are tied up" }
     - { id: purchase-manager, name: Purchase manager, approves: "Purchase orders to suppliers above ₹1,00,000, or with no value given" }
     - { id: godown-in-charge, name: Godown or store in-charge, approves: "Signs off goods received against a purchase order: count, damage, batch and expiry dates (GRN)" }
   urgent_keywords: [emergency, fire, caught fire, smoke, short circuit, explosion, gas leak, flood, flooded, accident, collision, overturned, injured, injury, ambulance, unconscious, fatal, death, theft, stolen, chori, robbery, robbed, burglary, looted, hijacked, fraud, seized, detained, raid, food poisoning]
   categories:
     - id: customer-order
       name: Customer order
-      keywords: [new order, fresh order, bulk order, repeat order, place an order, requirement, our requirement, please supply, kindly supply, supply us, send us, bhej do, bhejo, bhej dena, maal chahiye, maal bhejo, same rate, same as last time, as per last rate, our po, po attached, purchase order attached, quotation for, rate list, price list, rate enquiry, price enquiry, need a quote, deliver to our, deliver by, bina bill, kachha bill]
+      keywords: [new order, fresh order, bulk order, repeat order, place an order, requirement, our requirement, please supply, kindly supply, supply us, send, send us, bhej do, bhejo, bhej dena, bhejna, bhej dijiye, bhijwa do, maal chahiye, maal bhejo, same rate, same as last time, as per last rate, our po, po attached, purchase order attached, quotation for, rate list, price list, rate enquiry, price enquiry, need a quote, deliver to our, deliver by, bina bill, kachha bill]
       priority: P3
       risk: low
       department: Sales
@@ -402,24 +415,27 @@ lifecycle:
         - Business buyer's GSTIN is Active on the GST portal
         - Stock is available, or a part-supply date is agreed
         - Rate matches the current price list or scheme and is never above MRP
-        - "Order fits the party's credit limit and no bill is past its credit days (otherwise hold it and raise a credit request)"
+        - "Order fits the party's credit limit and no bill is past its credit days (otherwise hold it and raise a credit request for the owner)"
         - "Walk-in buyer's name, address and state on the bill when it is ₹50,000 or more"
         - "E-way bill details ready (vehicle number, distance) when the goods are worth over ₹50,000"
       not_eligible:
         - keywords: [without bill, bina bill, bina bill ke, kachha bill, kacha bill, kachcha bill, kachi parchi, no bill needed, bill not needed, don't make a bill, dont make bill, without gst, no gst bill, skip the gst, skip gst, bill mat banao, cash without bill]
           reason: "We sell only on a proper GST bill. Selling without one is tax evasion under the CGST Act, and goods moving without a bill can be detained on the road."
-      approval: { required: above_amount, role: sales-manager, amount_inr: 200000 }
+      # Ordinary orders go straight through: parties rarely state a rupee value, and the
+      # real risk is credit, which the order desk checks and sends to the owner as a
+      # credit request. Orders that state a value above ₹5 lakh still need the owner.
+      approval: { required: never }
       signoff: { required: false }
       workflow: order-dispatch
       execution: both
     - id: credit-limit
       name: Credit limit or hold
-      keywords: [credit limit, raise the limit, increase the limit, raise limit, increase limit, limit increase, limit badha, limit badhao, credit days, more credit, extra credit, credit hold, on hold, release the hold, release their hold, release hold, remove the hold, remove hold, hold release, unblock, account blocked, billing blocked, cheque bounce, cheque bounced, bounced, bounce, cheque returned, cheque return, returned unpaid, dishonoured, dishonored, insufficient funds, funds insufficient, exceeds arrangement, security cheque, pdc, post dated cheque, new credit account, open a credit account, udhaar limit, udhar limit, hand loan, cash loan, personal loan, loan of]
+      keywords: [credit limit, raise the limit, increase the limit, raise limit, increase limit, limit increase, limit badha, limit badhao, over the limit, over their limit, over his limit, above the limit, above their limit, beyond the limit, beyond their limit, crossed the limit, crossed their limit, limit crossed, limit exceeded, exceeds the limit, credit days, more credit, extra credit, credit hold, on hold, release the hold, release their hold, release hold, remove the hold, remove hold, hold release, unblock, account blocked, billing blocked, cheque bounce, cheque bounced, bounced, bounce, cheque returned, cheque return, returned unpaid, dishonoured, dishonored, insufficient funds, funds insufficient, exceeds arrangement, security cheque, pdc, post dated cheque, new credit account, open a credit account, udhaar limit, udhar limit, hand loan, cash loan, personal loan, loan of]
       priority: P2
       risk: high
       department: Accounts
       required_details:
-        - { key: amount, label: Limit asked for or cheque amount, kind: amount }
+        - { key: amount, label: "Limit asked for, order value or cheque amount", kind: amount }
       required_checks:
         - Party's GSTIN and PAN checked and active
         - Current outstanding and bill-wise ageing pulled from the ledger
@@ -437,7 +453,7 @@ lifecycle:
       execution: agents
     - id: dues-statement
       name: Dues reminder or statement
-      keywords: [payment reminder, send reminder, reminder for dues, outstanding, overdue, past due, pending dues, old dues, dues, baki, baaki, bakaya, udhaar, udhar, khata, hisaab, hisab, ledger, statement of account, account statement, balance confirmation, confirmation of balance, invoice copy, copy of bill, bill copy, duplicate bill, payment not showing, payment not reflecting, payment not updated, collection, recovery]
+      keywords: [payment reminder, send reminder, send a reminder, reminder for dues, outstanding, overdue, past due, pending dues, old dues, dues, baki, baaki, bakaya, udhaar, udhar, khata, hisaab, hisab, ledger, send the ledger, send ledger, send their ledger, ledger copy, statement of account, account statement, send the statement, send statement, bill wise, billwise, payment link, balance confirmation, confirmation of balance, invoice copy, copy of bill, bill copy, send the bill copy, duplicate bill, has not paid, not yet paid, still not paid, payment not showing, payment not reflecting, payment not updated, collection, recovery]
       priority: P4
       risk: low
       department: Accounts
@@ -476,7 +492,7 @@ lifecycle:
       execution: both
     - id: return-refund
       name: Return, refund or cancellation
-      keywords: [return, want to return, return the goods, sales return, take back, wapas, wapas lo, paisa wapas, money back, refund, exchange, replacement, sent back, send back, sending back, brought back, damaged, defective, not working, stopped working, expired, expiry, near expiry, leaking, broken, torn, wrong item, wrong product, wrong size, credit note, cancel my order, cancel the order, cancel order, order cancel]
+      keywords: [return, returned, returning, want to return, return the goods, sales return, take back, wapas, wapas lo, paisa wapas, money back, refund, exchange, replacement, sent back, send back, sending back, brought back, damaged, defective, not working, stopped working, expired, expiry, near expiry, leaking, broken, broke, breakage, torn, wrong item, wrong product, wrong size, credit note, cancel my order, cancel the order, cancel order, order cancel]
       priority: P3
       risk: medium
       department: Sales
@@ -501,7 +517,7 @@ lifecycle:
       execution: both
     - id: restock-order
       name: Restock order to supplier
-      keywords: [low stock, stock low, running low, out of stock, stock khatam, maal khatam, stock finished, stock over, reorder, re-order, reorder level, below reorder level, restock, replenish, order from company, order from the company, order from supplier, place an order with, place order with, order with the company, order with the supplier, order with the cfa, raise po, raise a po, place po, po to, purchase order to, indent, stock alert, minimum stock]
+      keywords: [low stock, stock low, running low, out of stock, stock khatam, maal khatam, stock finished, stock over, reorder, re-order, reorder level, below reorder level, restock, replenish, order from company, order from the company, order from supplier, place an order with, place order with, order with the company, order with the supplier, order with the cfa, order to the company, order to company, raise po, raise a po, place po, send po, send the po, po to, purchase order to, raise a purchase order, indent, stock alert, minimum stock]
       priority: P4
       risk: medium
       department: Purchase
@@ -518,7 +534,7 @@ lifecycle:
       execution: both
     - id: supplier-payment
       name: Supplier bill and payment
-      keywords: [supplier, vendor, supplier bill, supplier invoice, supplier payment, vendor bill, vendor payment, vendor invoice, purchase bill, release payment, release the payment, payment release, our bill, our invoice, our payment, pending payment, payment pending, payment due, bills due, payment list, msme, udyam, micro unit, small enterprise, 45 days, transporter bill, freight bill, remittance, payment advice]
+      keywords: [supplier, vendor, supplier bill, supplier invoice, supplier payment, vendor bill, vendor payment, vendor invoice, purchase bill, release payment, release the payment, payment release, send the payment, send payment, make the payment, pay the supplier, our bill, our invoice, our payment, payment due, bills due, payment list, company dues, dues to the company, outstanding with the company, company outstanding, stopped supply, supply stopped, stopped our supply, msme, udyam, micro unit, small enterprise, 45 days, transporter bill, freight bill, remittance, payment advice]
       priority: P3
       risk: medium
       department: Accounts
@@ -559,8 +575,8 @@ lifecycle:
       workflow: incident-response
       execution: both
   examples:
-    - { request: "Need 60 bags of 25 kg Sona Masoori rice and 30 tins of groundnut oil at Ganesh Stores by Saturday, approx ₹1.9 lakh", category: customer-order, priority: P3, approval: false }
-    - { request: "Hotel Sagar wants a fresh order of 120 cartons of sunflower oil for their three outlets, value ₹4.2 lakh, delivery next Monday", category: customer-order, priority: P3, approval: true }
+    - { request: "Ganesh Stores: please send 60 bags of 25 kg Sona Masoori rice and 30 tins of groundnut oil by Saturday", category: customer-order, priority: P3, approval: false }
+    - { request: "Hotel Sagar wants a fresh order of 160 cartons of sunflower oil for their three outlets, value ₹5.6 lakh, delivery next Monday", category: customer-order, priority: P3, approval: true }
     - { request: "Maal bhejo: 15 dozen toothpaste 100g and 10 cases detergent 1 kg for Shiv Shakti General Store, ₹46,500", category: customer-order, priority: P3, approval: false }
     - { request: "Balaji Medicals has asked for 45 credit days instead of 30 from next month, their ₹2 lakh limit stays the same", category: credit-limit, priority: P2, approval: true }
     - { request: "Bank SMS: cheque 117842 of New Laxmi Traders for ₹62,000 returned unpaid, reason exceeds arrangement", category: credit-limit, priority: P2, approval: true }

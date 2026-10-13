@@ -76,7 +76,7 @@ lifecycle:
       execution: both
     - id: transit-delay
       name: Delay or breakdown on the way
-      keywords: [not delivered, not yet delivered, delivery delayed, delayed delivery, late delivery, shipment delayed, consignment delayed, pickup delayed, goods not reached, truck not reached, parcel not reached, goods not arrived, parcel not arrived, cab not arrived, bus not arrived, running late, driver late, cab late, driver did not come, driver didn't come, cab did not come, vehicle not placed, broke down, vehicle breakdown, truck breakdown, bus breakdown, puncture, tyre burst, stuck in traffic, held up at, checkpost, route diverted, where is my order, where is my parcel, where is my shipment, where is the truck]
+      keywords: [not delivered, not yet delivered, delivery delayed, delayed delivery, late delivery, shipment delayed, consignment delayed, pickup delayed, goods not reached, truck not reached, parcel not reached, goods not arrived, parcel not arrived, goods not received, order not received, delivery not received, material not received, stock not received, maal nahi aaya, maal nahi pahuncha, cab not arrived, bus not arrived, running late, driver late, cab late, driver did not come, driver didn't come, delivery boy did not come, cab did not come, vehicle not placed, broke down, vehicle breakdown, truck breakdown, bus breakdown, van breakdown, puncture, tyre burst, stuck in traffic, held up at, checkpost, route diverted, where is my order, where is my parcel, where is my shipment, where is the truck]
       priority: P2
       risk: medium
       department: Operations
@@ -84,7 +84,7 @@ lifecycle:
         - key: reference
           label: Which order, consignment or vehicle
           kind: keywords
-          keywords: [order, lr, docket, awb, tracking, consignment, shipment, parcel, booking, pnr, invoice, truck, lorry, tempo, vehicle, container, bus, coach, cab, taxi, driver]
+          keywords: [order, lr, docket, awb, tracking, consignment, shipment, parcel, booking, pnr, invoice, bill, truck, lorry, tempo, van, vehicle, container, bus, coach, cab, taxi, driver, delivery boy, maal]
       required_checks: [Driver or partner reached and the reason found, Customer told of the delay and the new time, Extra cost agreed before it is spent]
       not_eligible:
         - { keywords: [not booked with us, booked elsewhere, another transporter, other transporter, another courier company, other courier company, booked through another agent, booked with another agent, not our consignment, not our booking], reason: "The order or trip was not booked with us; the customer should contact the company that took the booking." }
@@ -220,11 +220,11 @@ other_org_types:
   - { name: Freight forwarder or customs broker, keywords: [freight forwarder, freight forwarding, customs broker, customs clearance, cha, clearing agent, shipping agent, nvocc], closest: logistics }
   - { name: Warehouse or 3PL, keywords: [warehouse, warehousing, godown, 3pl, fulfilment centre, fulfillment center], closest: logistics }
   - { name: Packers and movers, keywords: [packers and movers, packers movers, relocation, house shifting, office shifting], closest: logistics }
-  - { name: Distributor or stockist, keywords: [distributor, distributorship, stockist, super stockist, dealer, wholesaler], closest: wholesale-retail }
+  - { name: Distributor or stockist, keywords: [distributor, distributorship, stockist, super stockist, authorised dealer, sub dealer, dealership, wholesaler], closest: wholesale-retail }
   - { name: "Shop, supermarket or showroom", keywords: [supermarket, kirana, grocery, provision store, departmental store, hypermarket, mini mart, showroom, retail store, electronics store, mobile store, garment store, hardware store, furniture store, jewellery store, footwear store], closest: wholesale-retail }
   - { name: E-commerce seller, keywords: [e-commerce, ecommerce, online store, online seller, amazon seller, flipkart seller, d2c brand], closest: wholesale-retail }
   - { name: Pharmacy or medical store, keywords: [pharmacy, medical store, chemist, druggist, pharma distributor], closest: wholesale-retail }
-  - { name: Import-export trader, keywords: [exporter, importer, export house, import export, trading company], closest: wholesale-retail }
+  - { name: Import-export trader, keywords: [exporter, importer, export house, import export, general trading], closest: wholesale-retail }
   - { name: Hotel or resort, keywords: [hotel, resort, lodge, service apartment, boutique hotel], closest: travel-agency }
   - { name: Homestay or guest house, keywords: [homestay, home stay, guest house, bed and breakfast, hostel, farm stay], closest: travel-agency }
   - { name: Tour guide or activity operator, keywords: [tour guide, guide service, adventure sports, trekking, rafting, safari, activity operator], closest: travel-agency }

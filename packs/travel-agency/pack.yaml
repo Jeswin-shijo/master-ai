@@ -224,7 +224,7 @@ lifecycle:
         - Emergency help already under way, not waiting for the approval
     execute:
       name: Book, pay and track
-      description: Agents and staff quote, hold, confirm suppliers (each confirmation approved under the confirm-booking rule), send payment links, tickets and vouchers, give 24x7 trip support, rebook, refund and pay suppliers, and every cost, message and deadline goes in the file.
+      description: Agents and staff quote, hold, confirm suppliers (each supplier confirmation needs approval), send payment links, tickets and vouchers, give 24x7 trip support, rebook, refund and pay suppliers, and every cost, message and deadline goes in the file.
     close:
       name: Settle and close file
       description: Someone other than the person who did the work checks the result and the money, the named role signs off where the rules ask for it, and the file is closed.
@@ -246,11 +246,11 @@ lifecycle:
   roles:
     - { id: operations-manager, name: Operations manager, approves: "Extra rebooking costs above ₹10,000 when a flight or trip is disrupted; signs off group tours and traveller emergencies once everyone is home safe" }
     - { id: accounts-manager, name: Accounts manager, approves: "Signs off every cancellation and refund once airline and supplier refunds are in and the traveller is paid back to the original payment method" }
-  urgent_keywords: [fire, explosion, accident, collision, injured, injury, ambulance, unconscious, heart attack, drowned, drowning, gone missing, went missing, kidnapped, assaulted, molested, robbed, robbery, theft, stolen, food poisoning, gas leak, evacuate, evacuation, terror attack, bomb threat]
+  urgent_keywords: [fire, explosion, accident, collision, injured, injury, ambulance, unconscious, heart attack, drowned, drowning, gone missing, went missing, kidnapped, assaulted, molested, robbed, robbery, theft, stolen, food poisoning, gas leak, evacuate, evacuation, earthquake, avalanche, flash flood, cloudburst, tsunami, stampede, terror attack, bomb threat]
   categories:
     - id: customer-order
       name: Holiday or tour package
-      keywords: [package, holiday, holiday package, tour package, package price, honeymoon, family trip, family holiday, family tour, trip, nights, itinerary, quote, quotation, best price, houseboat, hotel booking, resort, sightseeing, yatra, pilgrimage, char dham, darshan, weekend getaway, plan a trip, plan our trip, ghumne jana]
+      keywords: [package, holiday, holiday package, tour package, package price, honeymoon, family trip, family holiday, family tour, trip, nights, itinerary, quote, quotation, best price, houseboat, hotel booking, book a hotel, need a hotel, resort, sightseeing, book a cab, cab booking, taxi booking, airport transfer, airport pickup, airport drop, car with driver, tempo traveller, yatra, pilgrimage, char dham, darshan, weekend getaway, plan a trip, plan our trip, ghumne jana]
       priority: P3
       risk: low
       department: Sales
@@ -259,7 +259,7 @@ lifecycle:
         - key: travellers
           label: Number of travellers
           kind: keywords
-          keywords: [adult, child, children, kid, infant, pax, people, traveller, couple, member, guest, family of, senior citizen]
+          keywords: [adult, child, children, kid, infant, pax, people, persons, traveller, couple, member, guest, family of, parents, senior citizen]
       required_checks:
         - "Dates, places, number of adults and children (with ages), rooms and budget"
         - Lead traveller's name, mobile and email
@@ -277,7 +277,7 @@ lifecycle:
       execution: both
     - id: group-tour
       name: Group, school or adventure tour
-      keywords: [package, trip, itinerary, quote, quotation, group, group tour, group trip, group booking, group of, school trip, school tour, college trip, college tour, educational tour, study tour, industrial visit, excursion, students, teachers, corporate offsite, corporate tour, corporate group, offsite, employees, staff trip, mice, incentive trip, incentive tour, conference, destination wedding, wedding guests, room block, rooming list, trek, trekking, rafting, camping, adventure, paragliding, bike trip, per head, per student]
+      keywords: [package, trip, itinerary, quote, quotation, group tour, group trip, group booking, group package, group of, school trip, school tour, college trip, college tour, educational tour, study tour, industrial visit, excursion, students, teachers, corporate offsite, corporate tour, corporate group, offsite, employees, staff trip, mice, incentive trip, incentive tour, conference, destination wedding, wedding guests, room block, rooming list, trek, trekking, rafting, camping, adventure, paragliding, bike trip, per head, per student]
       priority: P3
       risk: medium
       department: Operations (groups)
@@ -285,7 +285,7 @@ lifecycle:
         - key: headCount
           label: How many people
           kind: keywords
-          keywords: [student, employee, people, pax, persons, member, guest, participant, delegate, teacher, adult]
+          keywords: [student, employee, people, pax, persons, member, guest, participant, delegate, teacher, adult, group of, pilgrim, yatri, devotee, senior citizen]
         - { key: travelDates, label: Travel dates, kind: date }
       required_checks:
         - "Head count, dates, room plan and budget per person; name-list and deposit deadlines from airlines and hotels"
@@ -354,7 +354,7 @@ lifecycle:
       execution: both
     - id: transit-delay
       name: Flight or trip disruption
-      keywords: [flight cancelled, flight canceled, flight cancellation, flight got cancelled, flight has been cancelled, flight is cancelled, flight was cancelled, flight got delayed, train got cancelled, train is cancelled, cancelled by the airline, cancelled by airline, flight delayed, flight delay, flight is delayed, delayed by, train delayed, train cancelled, train is late, schedule change, rescheduled, missed connection, missed flight, missed the flight, denied boarding, offloaded, overbooked, rebook, landslide, road closed, road blocked, heavy rain, snowfall, cyclone, strike, bandh, hartal, hotel cancelled, hotel has cancelled, cancelled our booking, cancelled our rooms, hotel overbooked, no booking at the hotel, cab not arrived, cab did not come, cab didn't come, driver did not come, driver didn't come, driver not reachable, no pickup, pickup not done, vehicle breakdown, bus breakdown, broke down, stuck in traffic]
+      keywords: [flight cancelled, flight canceled, flight cancellation, flight got cancelled, flight has been cancelled, flight is cancelled, flight was cancelled, flight got delayed, train got cancelled, train is cancelled, cancelled by the airline, cancelled by airline, flight delayed, flight delay, flight is delayed, delayed by, train delayed, train cancelled, train is late, schedule change, rescheduled, missed connection, missed flight, missed the flight, denied boarding, offloaded, overbooked, rebook, we are stuck, stuck due to, stuck because of, stuck at the airport, stuck at airport, stranded at the airport, stranded at airport, stuck at the station, stranded at the station, lost luggage, luggage lost, baggage lost, baggage delayed, bag not arrived, luggage not arrived, landslide, road closed, road blocked, heavy rain, snowfall, cyclone, strike, bandh, hartal, hotel cancelled, hotel has cancelled, cancelled our booking, cancelled our rooms, hotel overbooked, no booking at the hotel, no booking under, booking not found, reservation not found, no reservation, rooms not available, room not available, hotel refused, cab not arrived, cab did not come, cab didn't come, driver did not come, driver didn't come, driver not reachable, no pickup, pickup not done, vehicle breakdown, bus breakdown, broke down, stuck in traffic]
       priority: P2
       risk: medium
       department: Operations
@@ -362,7 +362,7 @@ lifecycle:
         - key: booking
           label: Which flight, train, vehicle or booking
           kind: keywords
-          keywords: [flight, pnr, train, bus, coach, cab, taxi, driver, vehicle, hotel, booking, package, tour, trip, group, guest, family]
+          keywords: [flight, airline, pnr, pir, baggage, luggage, train, bus, coach, cab, taxi, driver, vehicle, hotel, booking, package, tour, trip, group, guest, family]
       required_checks:
         - Every affected traveller, booking and onward connection listed
         - "Airline or supplier notice saved: time, reason, new plan"
@@ -378,7 +378,7 @@ lifecycle:
       execution: both
     - id: traveller-emergency
       name: Traveller emergency
-      keywords: [emergency, medical emergency, urgent help, help urgently, need help urgently, accident, met with an accident, injured, hurt, slipped, fracture, bleeding, hospital, hospitalised, hospitalized, ambulance, fainted, collapsed, heart attack, chest pain, breathless, altitude sickness, unconscious, food poisoning, lost passport, passport lost, passport stolen, passport missing, stolen, robbed, gone missing, went missing, not reachable, stranded, we are stuck, flood, flash flood, earthquake, avalanche, riot, curfew, evacuate, unsafe, harassed, molested, assaulted, died, madad chahiye, bachao]
+      keywords: [emergency, medical emergency, urgent help, help urgently, need help urgently, accident, met with an accident, injured, hurt, slipped, fracture, bleeding, hospital, hospitalised, hospitalized, ambulance, fainted, collapsed, heart attack, chest pain, breathless, altitude sickness, unconscious, food poisoning, lost passport, passport lost, passport stolen, passport missing, lost my wallet, lost his wallet, lost her wallet, lost my purse, lost her purse, lost wallet, lost purse, stolen, robbed, gone missing, went missing, not reachable, stranded, we are trapped, nowhere to stay, no place to stay, are they safe, is everyone safe, are you safe, is he safe, is she safe, safe or not, are they ok, are they okay, is everyone ok, is everyone okay, lost contact, no news of, no news from, not heard from, cannot reach them, can't reach them, flood, flash flood, cloudburst, earthquake, avalanche, tsunami, stampede, riot, curfew, evacuate, unsafe, harassed, molested, assaulted, died, madad chahiye, bachao]
       priority: P1
       risk: high
       department: Operations (24x7 duty desk)
@@ -395,7 +395,7 @@ lifecycle:
       execution: both
     - id: supplier-payment
       name: Supplier bill or payment
-      keywords: [supplier bill, supplier invoice, supplier payment, vendor bill, vendor invoice, vendor payment, hotel bill, hotel invoice, coach bill, cab bill, transport bill, transporter bill, dmc invoice, dmc payment, attaching invoice, attached invoice, our invoice, pending invoice, release the payment, release payment, payment release, payment due, deposit, bsp, adm, agency debit memo, allotment, rate contract, bank details, change of bank account, payment not received, transfer did not reach, msme, udyam]
+      keywords: [supplier bill, supplier invoice, supplier payment, vendor bill, vendor invoice, vendor payment, hotel bill, hotel invoice, coach bill, cab bill, transport bill, transporter bill, dmc, dmc invoice, dmc payment, pending from us, due from us, outstanding from us, outstanding with us, we owe, hotel dues, hotel outstanding, asking for their payment, stop rooms, stop the rooms, will release the rooms, rooms will be released, attaching invoice, attached invoice, our invoice, pending invoice, release the payment, release payment, payment release, payment due, deposit, bsp, adm, agency debit memo, allotment, rate contract, bank details, change of bank account, payment not received, transfer did not reach, msme, udyam]
       priority: P3
       risk: medium
       department: Accounts
@@ -468,12 +468,12 @@ playbooks:
       7. Move onward hotels, cabs and tours to the new timing. Extra cost up to ₹10,000 can be spent at once; above that, or when the cost is not known yet, the operations manager approves first. If anyone is hurt, unsafe or without a place to stay, open a traveller emergency file.
   - id: travel-cancellations-refunds
     title: Cancellations, refunds and who approves them
-    source: DGCA CAR Section 3, Series M, Part II (refund of airline tickets), as revised on 24 Feb 2026 and reported by PTI; Consumer Protection (E-Commerce) Rules, 2020, rule 4; this pack's approval rules (trip file gate, confirm-booking, cancel-booking, refund-above-5000 and the ₹2 lakh refund cap)
+    source: DGCA CAR Section 3, Series M, Part II (refund of airline tickets), as revised on 24 Feb 2026 and reported by PTI; Consumer Protection (E-Commerce) Rules, 2020, rule 4; this pack's approval rules (the trip file approval, approval to confirm or cancel a supplier booking, owner approval for refunds above ₹5,000, and the ₹2 lakh refund cap)
     body: |
       1. Take the cancellation in writing from the person who booked, and cancel with each supplier at once: hotel and cab charges rise as the travel date comes closer, and a no-show loses most of the money.
       2. Work out the refund from each supplier's rules and the fare rules, and send the traveller a written breakdown: what was paid, each charge kept and the refund due.
       3. Two approvals apply, and one does not cover the other. The first is the trip file's gate: above ₹5,000, or when the amount is not known yet, the owner approves the cancellation and the refund worked out, before anyone acts. The second comes when the money moves: the refund rule asks the owner again for any refund above ₹5,000, and cancelling a confirmed supplier booking always needs approval because it cannot be undone. The first approval says the refund is right; the second releases the money. Refunds above ₹2,00,000 are paid by a person outside the system.
-      4. Airline tickets: the airline owns the refund for agent bookings and must finish it within 14 working days. Taxes and airport fees come back even on non-refundable fares and no-shows. Pass the money on as soon as it arrives.
+      4. Airline tickets: under the revised DGCA rule the airline owns the refund for agent bookings and must finish it within 14 working days. Taxes and airport fees come back even on non-refundable fares and no-shows. Pass the money on as soon as it arrives. Check the current DGCA refund rule, as it has changed more than once.
       5. Within 48 hours of booking a ticket can be cancelled or changed free except for any fare difference, unless the flight is less than 7 days (domestic) or 15 days (international) away. Check each airline's rule for agent bookings.
       6. Offer money back by default and a credit shell only if the traveller chooses it. Never charge a cancellation fee we would not bear ourselves if we cancelled.
       7. Pay back to the original payment method within 14 days, issue a GST credit note, and the accounts manager signs off once the money is with the traveller.

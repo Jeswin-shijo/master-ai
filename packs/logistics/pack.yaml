@@ -7,12 +7,12 @@
 id: logistics
 version: 1.0.0
 name: Logistics & transport
-description: Load and parcel bookings, hazardous and oversize loads, e-way bills, accidents and thefts on the road, delays and breakdowns, lorry hire payments, damage claims and truck papers for transporters, couriers and freight companies.
+description: Load and parcel bookings, hazardous and oversize loads, e-way bills, accidents and thefts on the road, delays and breakdowns, cancellations and freight refunds, lorry hire payments, damage claims and truck papers for transporters, couriers and freight companies.
 kind: industry
 sector: trade-logistics-tourism
 extends: [sector-trade-logistics-tourism, orders-base]
 match:
-  keywords: [transport company, transporter, transporters, transport business, goods transport, trucks, truck fleet, truck owner, fleet owner, fleet operator, lorries, lorry service, roadlines, road lines, roadways, road carriers, carriers, freight carrier, logistics, logistics company, 3pl, third party logistics, freight forwarder, freight forwarding, courier, courier service, parcel service, cargo service, container trucking, trailer operator, tanker operator, warehousing, packers and movers, customs broker]
+  keywords: [transport company, transporter, transporters, transport business, goods transport, trucking, truck transport, truck operator, truck fleet, truck owner, truck rental, fleet owner, fleet operator, lorries, lorry service, roadlines, road lines, roadways, road carriers, carriers, freight carrier, logistics, logistics company, 3pl, third party logistics, freight forwarder, freight forwarding, courier, courier service, parcel service, cargo service, container trucking, trailer operator, tanker operator, warehousing, warehouse operator, packers and movers, customs broker]
 
 labels:
   Customer: Party
@@ -382,7 +382,7 @@ lifecycle:
     - { id: P3, name: Normal, respond_within_hours: 4, resolve_within_hours: 168 }
     - { id: P4, name: Planned, respond_within_hours: 24, resolve_within_hours: 336 }
   roles:
-    - { id: operations-manager, name: Operations manager, approves: "Loads worth more than ₹5 lakh before the truck is placed, delays and breakdowns that are P1 or high risk, and extra spend above ₹15,000 on the road; signs off accident and theft jobs" }
+    - { id: operations-manager, name: Operations manager, approves: "Loads worth more than ₹5 lakh with a quick check before the truck is placed (closed body or container, GPS working, insurance cover, market truck papers), delays and breakdowns that are P1 or high risk, and extra spend above ₹15,000 on the road; signs off accident and theft jobs" }
     - { id: accounts-manager, name: Accounts manager, approves: "Truck owner and supplier payments above ₹50,000 and refunds above ₹10,000; signs off every refund and claim settlement once it is paid" }
     - { id: safety-officer, name: Safety officer (HSE in-charge), approves: "Every hazardous or over-dimensional load before it moves; signs it off after safe delivery" }
     - { id: fleet-manager, name: Fleet manager, approves: "Truck repairs, tyres and paper renewals above ₹25,000" }
@@ -390,7 +390,7 @@ lifecycle:
   categories:
     - id: customer-order
       name: Load or parcel booking
-      keywords: [new booking, want to book, wish to book, book a truck, book a load, book a parcel, parcel booking, need a truck, need truck, truck required, trucks required, vehicle required, vehicle requirement, need a vehicle, place a truck, truck placement, vehicle placement, full load, full truck load, ftl, part load, ptl, load available, loading point, please pick up, pick up from, pickup from, send goods, send a parcel, freight rate, rate enquiry, need a quote, freight quotation, forwarding note, to pay basis, paid basis, to be billed, 14 ft, 17 ft, 19 ft, 20 ft, 22 ft, 24 ft, 32 ft, 40 ft, sxl, mxl, multi axle, open body, closed body, container required, trailer required]
+      keywords: [new booking, want to book, wish to book, book a truck, book a load, book a parcel, parcel booking, need a truck, need truck, truck required, trucks required, vehicle required, vehicle requirement, need a vehicle, place a truck, truck placement, vehicle placement, full load, full truck load, ftl, part load, ptl, load available, loading point, please pick up, pick up, pick up from, pickup from, send goods, send a parcel, by courier, courier booking, book a courier, freight rate, rate enquiry, need a quote, freight quotation, forwarding note, to pay basis, paid basis, to be billed, 14 ft, 17 ft, 19 ft, 20 ft, 22 ft, 24 ft, 32 ft, 40 ft, sxl, mxl, multi axle, open body, closed body, container required, trailer required]
       priority: P3
       risk: low
       department: Booking desk
@@ -406,19 +406,20 @@ lifecycle:
         - Goods, packages and weight, and the truck type that fits
         - "Invoice value, and an e-way bill when it is over ₹50,000"
         - Forwarding note signed with the declared value, and carrier's or owner's risk agreed
-        - No dangerous, banned or undeclared goods
+        - "No banned or undeclared goods; anything hazardous (gas cylinders, acids, solvents, chemicals, lithium batteries) is moved to a hazardous load job for the safety officer"
         - "Freight, GST on freight and payment terms (paid, to-pay or to be billed)"
-        - "Loads worth more than ₹5 lakh: closed body or container, GPS working and insurance cover confirmed"
+        - "Loads worth more than ₹5 lakh: the operations manager's quick check (closed body or container, GPS working, insurance cover, and for a market truck the owner's RC, PAN and ID) done while the truck is being lined up"
       not_eligible:
         - { keywords: [without bill, bina bill, kachha bill, kacha bill, without invoice, without gst bill], reason: "We move goods only with a GST invoice or delivery challan, as the law requires for every consignment." }
         - { keywords: [without e-way bill, without eway bill, no e-way bill, no eway bill, skip the e-way bill, avoid e-way bill, e-way bill not needed, no need of e-way bill], amount_above_inr: 50000, reason: "Goods worth more than ₹50,000 need an e-way bill before they move, so we cannot load them without one." }
+        - { keywords: [explosives, detonators, gelatine sticks, fireworks, firecrackers, fire crackers, diwali crackers, radioactive], reason: "Explosives, fireworks and radioactive material need a PESO or AERB licensed carrier and vehicle, which we do not hold; the consignor must book a licensed carrier." }
       approval: { required: above_amount, role: operations-manager, amount_inr: 500000 }
       signoff: { required: false }
       workflow: load-booking
       execution: both
     - id: special-cargo
       name: Hazardous or oversize load
-      keywords: [hazardous, hazardous goods, dangerous goods, hazchem, un number, un no, class 2, class 3, class 8, flammable, inflammable, corrosive, gas cylinders, lpg cylinders, lpg tanker, chemical tanker, acid, solvent, thinner, paint thinner, msds, trem, trem card, odc, over dimensional, oversize, heavy machinery, low bed trailer, hydraulic axle, transformer, boiler drum, wind blade, project cargo, explosives, detonators, fireworks, crackers, radioactive]
+      keywords: [hazardous, hazardous goods, hazardous cargo, hazardous material, hazardous chemicals, dangerous goods, dangerous cargo, hazchem, un number, un no, class 2, class 3, class 8, class 9, flammable, inflammable, flammable liquid, inflammable liquid, corrosive, gas cylinders, lpg cylinders, oxygen cylinders, nitrogen cylinders, acetylene cylinders, industrial gas cylinders, lpg tanker, chemical tanker, acid, acid drums, sulphuric acid, hydrochloric acid, nitric acid, chemical drums, solvent, solvent drums, thinner, paint thinner, thinner drums, lithium batteries, lithium ion batteries, msds, trem, trem card, odc, over dimensional, oversize, heavy machinery, low bed trailer, hydraulic axle, transformer, boiler drum, wind blade, project cargo, explosives, detonators, fireworks, firecrackers, fire crackers, diwali crackers, radioactive]
       priority: P3
       risk: high
       department: Safety and compliance
@@ -430,14 +431,14 @@ lifecycle:
           keywords: [un, class, msds, sds, tonne, ton, mt, kg, length, width, height, dimension, metre, meter, ft, feet]
       required_checks:
         - UN number, hazard class and safety data sheet from the consignor
-        - Forwarding note and LR marked dangerous goods (red top-left corner)
+        - Forwarding note and LR clearly marked as dangerous goods
         - Driver licence endorsed for hazardous goods and driver trained
         - Class labels, emergency information panel and TREM card on the truck
         - Goods insured under a Public Liability Insurance Act policy
         - Route and timing fixed with the consignor
         - "Oversize cargo: size and weight, road permissions and escort, and an e-way bill made as over-dimensional cargo"
       not_eligible:
-        - { keywords: [explosives, detonators, gelatine sticks, fireworks, crackers, radioactive], reason: "Explosives, fireworks and radioactive material need a PESO or AERB licensed carrier and vehicle, which we do not hold; the consignor must book a licensed carrier." }
+        - { keywords: [explosives, detonators, gelatine sticks, fireworks, firecrackers, fire crackers, diwali crackers, radioactive], reason: "Explosives, fireworks and radioactive material need a PESO or AERB licensed carrier and vehicle, which we do not hold; the consignor must book a licensed carrier." }
       approval: { required: always, role: safety-officer }
       signoff: { required: true, role: safety-officer }
       workflow: hazardous-load
@@ -488,7 +489,7 @@ lifecycle:
       execution: both
     - id: transit-delay
       name: Delay, breakdown or failed delivery
-      keywords: [not delivered, not yet delivered, delivery delayed, delayed delivery, late delivery, shipment delayed, consignment delayed, delayed, pickup delayed, goods not reached, truck not reached, parcel not reached, not reached, not arrived, running late, driver late, vehicle not placed, truck not placed, broke down, broken down, breakdown, break down, vehicle breakdown, truck breakdown, puncture, tyre burst, engine failure, stuck in traffic, traffic jam, held up at, held at, stuck at, detained, seized, overloading, checkpost, check post, route diverted, route deviation, gps not working, gps stopped, driver not answering, driver phone off, transport strike, chakka jam, landslide, consignee not available, godown closed, refused delivery, refused to take delivery, re-delivery, return to origin, where is my parcel, where is my shipment, where is my consignment, where is the truck, eta]
+      keywords: [not delivered, not yet delivered, delivery delayed, delayed delivery, late delivery, shipment delayed, consignment delayed, delayed, pickup delayed, pick up delayed, pickup not done, pick up not done, goods not reached, truck not reached, parcel not reached, not reached, not arrived, goods not received, consignment not received, parcel not received, material not received, shows delivered, marked delivered, wrong delivery, delivered to the wrong, delivered wrong, wrong item delivered, wrong goods delivered, wrong cartons, wrong consignee, wrong address, unloaded the wrong, unloaded at the wrong, running late, driver late, vehicle not placed, truck not placed, broke down, broken down, breakdown, break down, vehicle breakdown, truck breakdown, puncture, tyre burst, engine failure, stuck in traffic, traffic jam, held up at, held at, stuck at, detained, seized, overloading, checkpost, check post, route diverted, route deviation, gps not working, gps stopped, truck stopped, vehicle stopped, not moving, driver not answering, driver phone off, phone switched off, transport strike, chakka jam, landslide, consignee not available, godown closed, refused delivery, refused to take delivery, consignee refused, party refused, re-delivery, return to origin, back to origin, where is my parcel, where is my shipment, where is my consignment, where is the truck, eta]
       priority: P2
       risk: medium
       department: Control room
@@ -503,16 +504,38 @@ lifecycle:
         - "Cost to fix (repair, crane, extra truck, waiting or return), and the operations manager's OK before spending more than ₹15,000"
         - E-way bill still valid for the new arrival time
         - Party told the new arrival time
-        - "Failed delivery: consignee given written notice and the goods held safely"
+        - "Failed or wrong delivery: consignee given written notice, goods held safely or brought back, and the party told"
       not_eligible:
         - { keywords: [not booked with us, booked elsewhere, another transporter, other transporter, another courier company, other courier company, not our consignment, not our lr], reason: "The load was not booked with us; the party should contact the transporter who issued the LR." }
       approval: { required: high_risk_or_p1, role: operations-manager }
       signoff: { required: false }
       workflow: delay-recovery
       execution: both
+    - id: return-refund
+      name: Cancelled booking or freight refund
+      keywords: [refund, freight refund, refund the advance, refund our advance, money back, paisa wapas, excess freight, charged extra, extra charged, double charged, paid twice, double payment, credit note, revised freight bill, wrong freight bill, cancel the booking, cancel our booking, cancel my booking, booking cancelled, cancelled booking, cancel the truck, cancel the vehicle, truck cancelled, cancel the pickup, cancel pickup, truck not required, vehicle not required, truck not needed, do not send the truck, don't send the truck, loading cancelled, cancellation, cancellation charges, empty trip]
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_details:
+        - key: reference
+          label: Which booking, LR or freight bill
+          kind: keywords
+          keywords: [lr, docket, awb, bilty, gr, cn, booking, bill, invoice, receipt, consignment, truck, vehicle, pickup]
+      required_checks:
+        - Booking, LR or freight bill found, with what the party has paid
+        - "Truck already placed or loaded: the empty-trip or waiting charge agreed on the hire slip settled with the truck owner and billed to the party as agreed at booking"
+        - LR cancelled, and the e-way bill cancelled within 24 hours if the goods never moved
+        - Refund worked out from the freight paid and what was actually carried
+        - Refund paid to the original payment method, with a GST credit note against our freight invoice
+      not_eligible:
+        - { keywords: [not booked with us, booked elsewhere, another transporter, other transporter, another courier company, other courier company, not our lr, not our consignment], reason: "The booking was not made with us; the party should ask the transporter or courier that took the money." }
+      approval: { required: above_amount, role: accounts-manager, amount_inr: 10000 }
+      signoff: { required: true, role: accounts-manager }
+      execution: both
     - id: supplier-payment
       name: Lorry hire and bills to pay
-      keywords: [lorry hire, truck hire, balance hire, hire balance, balance lorry hire, hire charges, market truck payment, truck owner payment, fleet owner payment, broker payment, broker commission, advance for the truck, trip advance, diesel bill, fuel bill, pump bill, tyre bill, toll bill, workshop bill, garage bill, hamali bill, supplier bill, vendor bill, supplier payment, vendor payment, transporter bill, release payment, release the payment, release my payment, payment release, msme, udyam]
+      keywords: [lorry hire, truck hire, balance hire, hire balance, balance lorry hire, hire charges, bhada, bhada baki, gaadi bhada, lorry bhada, truck bhada, my balance, his balance, balance pending, pending balance, balance payment, truck owner, lorry owner, gaadi malik, market truck payment, truck owner payment, fleet owner payment, broker payment, broker commission, advance for the truck, trip advance, diesel bill, fuel bill, pump bill, tyre bill, toll bill, workshop bill, garage bill, hamali bill, supplier bill, vendor bill, supplier payment, vendor payment, transporter bill, release payment, release the payment, release my payment, payment release, msme, udyam]
       priority: P3
       risk: medium
       department: Accounts
@@ -530,7 +553,7 @@ lifecycle:
       execution: both
     - id: damage-claim
       name: Damage or shortage claim
-      keywords: [damage, damaged, broken, breakage, wet, water damage, torn, leaking, leakage, crushed, dented, shortage, short delivery, short received, received short, delivered short, cartons short, boxes short, bags short, packages short, missing cartons, cartons missing, missing boxes, pilferage, pilfered, tampered, seal broken, claim, claim amount, compensation, goods lost]
+      keywords: [damage, damaged, broken, breakage, wet, water damage, torn, leaking, leakage, crushed, dented, cartons damaged, boxes damaged, bags damaged, goods damaged, material damaged, received damaged, damaged in transit, transit damage, shortage, shortage of, short delivery, short received, received short, delivered short, cartons short, boxes short, bags short, packages short, missing cartons, cartons missing, missing boxes, boxes missing, bags missing, packages missing, pilferage, pilfered, tampered, seal broken, claim, claim amount, compensation, goods lost]
       priority: P3
       risk: medium
       department: Claims desk
@@ -591,6 +614,9 @@ lifecycle:
     - { request: "Truck GJ 01 KT 5512 held at the Rajasthan checkpost by the GST squad since morning, LR 30219", category: transit-delay, priority: P2, approval: false }
     - { request: "Consignee godown closed till Monday for Diwali at Indore, truck waiting with LR 88213", category: transit-delay, priority: P2, approval: false }
     - { request: "Party refused to take delivery at Guwahati saying wrong material, what do we do with LR 51190", category: transit-delay, priority: P2, approval: false }
+    - { request: "Loading cancelled at the Ranjangaon plant after our truck reached; the truck owner wants ₹4,500 for the empty trip", category: return-refund, priority: P3, approval: false }
+    - { request: "Refund the ₹18,000 advance freight Shree Agencies paid for booking BK-2291, their load did not go", category: return-refund, priority: P3, approval: true }
+    - { request: Freight bill 7741 charged 12 tonnes but only 9 tonnes were loaded; issue a credit note for the difference, category: return-refund, priority: P3, approval: true }
     - { request: "Balance lorry hire of ₹42,000 for HR 55 AK 7201, POD received clean, please pay the truck owner", category: supplier-payment, priority: P3, approval: false }
     - { request: "Diesel bill from Shree Balaji fuel station for September is ₹3.6 lakh, please release the payment", category: supplier-payment, priority: P3, approval: true }
     - { request: Broker wants the advance for the truck of ₹35000 before loading at Kolkata tomorrow, category: supplier-payment, priority: P3, approval: false }
@@ -622,12 +648,12 @@ playbooks:
       3. Issue the LR (goods receipt) once the goods are loaded, with our common carrier registration number, in copies for the consignor, the consignee (travels with the truck) and the office.
       4. Write the declared value and whether it moves at carrier's risk or owner's risk. For total loss we pay up to ten times the freight, never more than the value of the goods, unless the consignor declared a higher value and paid the risk charge.
       5. Keep the load within the truck's permitted weight. Overloading costs ₹20,000 plus ₹2,000 per extra tonne and the truck is held until the extra load is taken off.
-      6. For loads worth more than ₹5 lakh, use a closed body or container truck with working GPS and confirm the insurance cover before placing it.
+      6. For loads worth more than ₹5 lakh (most full loads), the operations manager checks four things before the truck is placed: closed body or container, GPS working, insurance cover (the consignor's transit policy or ours), and for a market truck the owner's RC, PAN and ID. It is a quick check on the phone while the truck is being lined up, not a reason to hold the booking.
   - id: hazardous-goods
     title: Send hazardous or oversize goods safely
     source: Carriage by Road Act, 2007, section 13; Carriage by Road Rules, 2011, rules 10 to 12; Central Motor Vehicles Rules, 1989, rules 9 and 129 to 137
     body: |
-      1. The consignor declares dangerous goods on the forwarding note; the forwarding note and LR go on paper with a red top-left corner.
+      1. The consignor declares dangerous goods on the forwarding note, and the forwarding note and LR are clearly marked as dangerous goods (check the format the Carriage by Road Rules, 2011 ask for).
       2. Before loading, check the goods are insured under a Public Liability Insurance Act policy.
       3. The driver must hold a licence endorsed for hazardous goods and have done the hazardous goods training.
       4. Put the class labels and the emergency information panel on the truck, and give the driver the TREM card with emergency phone numbers.
@@ -647,10 +673,10 @@ playbooks:
       7. Open a damage or shortage claim job for the cargo.
   - id: damage-shortage-claim
     title: Handle a damage or shortage claim
-    source: Carriage by Road Act, 2007, sections 10, 11 and 16; Carriage by Road Rules, 2011, rule 12; Amrit Transport Co. v. Oriental Insurance Co. (Rajasthan High Court, 16 December 2024)
+    source: Carriage by Road Act, 2007, sections 10, 11 and 16; Carriage by Road Rules, 2011, rule 12
     body: |
       1. Damage or shortage should be written on the POD at delivery. For damage found only after unpacking, the consignee must write to us soon after delivery, within the days printed on our LR terms.
-      2. The written claim must reach us within 180 days of booking and say what was lost or damaged and how much is asked; a bare claim bill is not enough.
+      2. The written notice of claim must reach us within 180 days of booking and say what was lost or damaged and how much is asked. A bill alone may not count as notice, so ask for a letter or email; check the current reading of section 16 with your lawyer before refusing a claim on this ground.
       3. Partial damage is valued by an independent licensed surveyor agreed with the consignor.
       4. Work out our limit: up to ten times the freight, never more than the value of the goods, unless a higher value was declared and the risk charge paid.
       5. If the goods came in a sealed container on a said-to-contain LR with the seal intact, the shortage is for the shipper and the cargo insurer.

@@ -81,7 +81,7 @@ cases:
       review: complete
       approval: { required: true, role: owner }
       signoff: { required: false }
-    why: Attaching invoice and release the payment make it a supplier bill, ahead of the single group match. ₹2,16,000 is above the ₹50,000 limit, so the owner approves once the bill is matched to the confirmation and the bank details are checked.
+    why: Attaching invoice and release the payment make it a supplier bill; mentioning the group it was for does not make it a new group tour. ₹2,16,000 is above the ₹50,000 limit, so the owner approves once the bill is matched to the confirmation and the bank details are checked.
   - id: ooty-complaint
     request: "Very disappointed with the Ooty trip. The 'deluxe' hotel had no hot water and the room smelled of damp, and your driver refused to take us to Pykara though it was in the itinerary you sent. This is not what we paid for. I want a part refund."
     source: customer
