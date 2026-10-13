@@ -4,13 +4,21 @@ import { ApiError } from '@onehuman/sdk';
 import type { ApprovalRequest } from '@onehuman/schemas';
 import { api, isNetworkError, queryClient } from './api';
 import type { SignedDecision } from './device-key';
+import { useSession } from './session';
 
 /**
  * Offline-first approvals: the pending list is cached in SQLite so it can be
  * read with no signal, and decisions signed offline are queued and sent as soon
  * as the phone is back online. Signatures carry their own timestamp, so a
  * queued decision is still provably the owner's.
+ *
+ * Several people can use one phone, one after the other, so every row belongs
+ * to the person (principal) who was signed in: nobody sees another person's
+ * saved list, and a queued decision is only ever sent from its signer's session.
  */
+
+/** The signed-in person; rows are kept per person. */
+const owner = () => useSession.getState().user?.principalId ?? '';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -18,8 +26,10 @@ function db() {
   dbPromise ??= SQLite.openDatabaseAsync('onehuman.db').then(async (d) => {
     await d.execAsync(`
       PRAGMA journal_mode = WAL;
-      CREATE TABLE IF NOT EXISTS approvals_cache (id TEXT PRIMARY KEY NOT NULL, json TEXT NOT NULL, created_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS decision_queue (approval_id TEXT PRIMARY KEY NOT NULL, json TEXT NOT NULL, queued_at TEXT NOT NULL);
+      DROP TABLE IF EXISTS approvals_cache;
+      DROP TABLE IF EXISTS decision_queue;
+      CREATE TABLE IF NOT EXISTS saved_approvals (owner TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (owner, id));
+      CREATE TABLE IF NOT EXISTS queued_decisions (owner TEXT NOT NULL, approval_id TEXT NOT NULL, json TEXT NOT NULL, queued_at TEXT NOT NULL, PRIMARY KEY (owner, approval_id));
     `);
     return d;
   });
@@ -28,21 +38,22 @@ function db() {
 
 export async function cacheApprovals(list: ApprovalRequest[]) {
   const d = await db();
+  const who = owner();
   await d.withTransactionAsync(async () => {
-    await d.runAsync('DELETE FROM approvals_cache');
+    await d.runAsync('DELETE FROM saved_approvals WHERE owner = ?', who);
     for (const a of list) {
-      await d.runAsync('INSERT INTO approvals_cache (id, json, created_at) VALUES (?, ?, ?)', a.id, JSON.stringify(a), a.createdAt);
+      await d.runAsync('INSERT INTO saved_approvals (owner, id, json, created_at) VALUES (?, ?, ?, ?)', who, a.id, JSON.stringify(a), a.createdAt);
     }
   });
 }
 
 export async function cachedApprovals(): Promise<ApprovalRequest[]> {
-  const rows = await (await db()).getAllAsync<{ json: string }>('SELECT json FROM approvals_cache ORDER BY created_at DESC');
+  const rows = await (await db()).getAllAsync<{ json: string }>('SELECT json FROM saved_approvals WHERE owner = ? ORDER BY created_at DESC', owner());
   return rows.map((r) => JSON.parse(r.json) as ApprovalRequest);
 }
 
 export async function queuedDecisions(): Promise<SignedDecision[]> {
-  const rows = await (await db()).getAllAsync<{ json: string }>('SELECT json FROM decision_queue ORDER BY queued_at');
+  const rows = await (await db()).getAllAsync<{ json: string }>('SELECT json FROM queued_decisions WHERE owner = ? ORDER BY queued_at', owner());
   return rows.map((r) => JSON.parse(r.json) as SignedDecision);
 }
 
@@ -54,7 +65,8 @@ export async function submitDecision(d: SignedDecision): Promise<'sent' | 'queue
   } catch (err) {
     if (!isNetworkError(err)) throw err;
     await (await db()).runAsync(
-      'INSERT OR REPLACE INTO decision_queue (approval_id, json, queued_at) VALUES (?, ?, ?)',
+      'INSERT OR REPLACE INTO queued_decisions (owner, approval_id, json, queued_at) VALUES (?, ?, ?, ?)',
+      owner(),
       d.approvalId,
       JSON.stringify(d),
       new Date().toISOString(),
@@ -80,7 +92,7 @@ export async function flushQueue(): Promise<number> {
         if (isNetworkError(err)) break;
         if (!(err instanceof ApiError)) throw err;
       }
-      await d.runAsync('DELETE FROM decision_queue WHERE approval_id = ?', item.approvalId);
+      await d.runAsync('DELETE FROM queued_decisions WHERE owner = ? AND approval_id = ?', owner(), item.approvalId);
     }
   } finally {
     flushing = false;
