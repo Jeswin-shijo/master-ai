@@ -40,7 +40,7 @@ async function onboard(sector: SectorId, orgType: string, industry: string, comp
   token = auth.token;
   const draft = await api.onboarding.preview();
   const ws = await api.onboarding.install({ draftId: draft.id, sampleData: true });
-  return { api, auth, draft, ws };
+  return { api, auth, draft, ws, email };
 }
 
 async function signedDecision(api: ApiClient, seed: string, keyId: string, approvalId: string, decision: 'approved' | 'rejected', notes?: string) {
@@ -233,6 +233,70 @@ async function caseChecks(power: Awaited<ReturnType<typeof sectorRun>>, lender: 
   log('Audit chain verified after the case checks', `${verify.checked} events`);
 }
 
+/** Invites, approver roles, the mine inbox, owner/admin routes and removal. */
+async function roleChecks(otherCompanyOwner: { email: string }) {
+  const plant = await onboard('energy-heavy-industry', 'power-plant', 'Power plant & utilities', 'Smoke Roles Plant');
+  const owner = plant.api;
+  const tenantId = plant.auth.tenant.id;
+  await owner.tenant.updateSettings({ calls: { simulatorMode: 'auto', fastSchedule: true } });
+  const ownerKey = createDeviceKey(new Uint8Array(randomBytes(32)));
+  const ownerDevice = await owner.auth.registerDeviceKey({ publicKey: ownerKey.publicKey, label: 'smoke-owner', platform: 'web' });
+
+  await expectStatus(owner.invites.create({ name: 'Wizard', email: `wizard+${randomBytes(3).toString('hex')}@example.com`, approverRoles: ['chief-wizard'] }), 400, 'An unknown approval role is refused');
+
+  const join = async (name: string, approverRoles: string[], email = `${name.toLowerCase()}+${randomBytes(3).toString('hex')}@example.com`, password = 'correct horse battery') => {
+    const inv = await owner.invites.create({ name, email, approverRoles });
+    const view = await owner.invites.view(tenantId, inv.path.split('/').pop()!);
+    const auth = await owner.invites.accept(tenantId, inv.path.split('/').pop()!, { password });
+    let token: string | null = auth.token;
+    const api = createClient({ baseUrl: API_URL, getToken: () => token });
+    const key = createDeviceKey(new Uint8Array(randomBytes(32)));
+    const device = await api.auth.registerDeviceKey({ publicKey: key.publicKey, label: `smoke-${name}`, platform: 'web' });
+    return { api, auth, key, device, inv, view, signOut: () => (token = null) };
+  };
+  const sunita = await join('Sunita', ['safety-officer']);
+  const manoj = await join('Manoj', []);
+  log('Invites accepted', `${sunita.view.companyName}: Sunita (${sunita.view.approverRoles.map((r) => r.name).join(', ')}), Manoj (member)`);
+
+  // The same link twice, and a withdrawn link, are refused.
+  await expectStatus(owner.invites.accept(tenantId, sunita.inv.path.split('/').pop()!, { password: 'correct horse battery' }), 404, 'An invite works once');
+  const spare = await owner.invites.create({ name: 'Spare', email: `spare+${randomBytes(3).toString('hex')}@example.com` });
+  await owner.invites.revoke(spare.id);
+  await expectStatus(owner.invites.view(tenantId, spare.path.split('/').pop()!), 404, 'A withdrawn invite is refused');
+
+  // An owner of another company joins this one with their own password.
+  const guest = await join('Guest', [], otherCompanyOwner.email, 'correct horse battery');
+  if (!guest.view.hasAccount || guest.auth.tenant.id !== tenantId) throw new Error('existing login did not join the second company');
+  log('Someone with a login joined a second company with their own password');
+
+  // A hot-work case: the gate goes to the safety officer, not the owner.
+  const c = await owner.cases.create({ text: suiteCase('power-plant', 'contractor-welding').request });
+  const atGate = await driveCase(owner, ownerKey.seed, ownerDevice.id, c.id, (d) => d.approvals.some((a) => a.status === 'pending' && a.stage === 'approve'));
+  const gate = atGate.approvals.find((a) => a.status === 'pending' && a.stage === 'approve')!;
+  if (gate.approver !== 'safety-officer') throw new Error(`gate routed to ${gate.approver}`);
+  log('Gate routed to the role holder', gate.summary);
+
+  const manojInbox = await manoj.api.approvals.list('pending', { mine: true });
+  const sunitaInbox = await sunita.api.approvals.list('pending', { mine: true });
+  if (manojInbox.some((a) => a.id === gate.id) || !sunitaInbox.some((a) => a.id === gate.id)) throw new Error('mine inbox lists the wrong approvals');
+  log('Mine inbox', `Sunita ${sunitaInbox.length}, Manoj ${manojInbox.length}`);
+  await expectStatus(signedDecision(manoj.api, manoj.key.seed, manoj.device.id, gate.id, 'approved'), 403, 'A person without the role is refused');
+  await signedDecision(sunita.api, sunita.key.seed, sunita.device.id, gate.id, 'approved', 'Permit HW-118 issued, area checked');
+  log('The safety officer approved the gate');
+
+  // The rest of the case (actions, sign-off) is approved by the owner, who may decide anything.
+  const done = await driveCase(owner, ownerKey.seed, ownerDevice.id, c.id, (d) => ['closed', 'rejected', 'cancelled', 'escalated'].includes(d.case.status) && d.report.stages[7]!.status === 'done', { approve: true });
+  log('Role-approved case finished', `${done.case.code} ${done.case.status}`);
+
+  // Members can't change settings or the team; removal ends access at once.
+  await expectStatus(manoj.api.tenant.updateSettings({ redactPii: false }), 403, 'A member cannot change settings');
+  await expectStatus(manoj.api.members.update(sunita.auth.user.principalId, { approverRoles: [] }), 403, 'A member cannot change the team');
+  const owners = (await owner.members.list()).filter((m) => m.role === 'owner');
+  await expectStatus(sunita.api.members.update(owners[0]!.id, { approverRoles: ['safety-officer'] }), 403, 'Nobody else changes the owner');
+  await owner.members.remove(manoj.auth.user.principalId);
+  await expectStatus(manoj.api.cases.list(), 401, 'A removed person is turned away at once');
+}
+
 async function main() {
   const health = await fetch(`${API_URL}/health`).then((r) => r.json());
   log('API healthy', JSON.stringify(health));
@@ -375,6 +439,8 @@ async function main() {
   const runs = [];
   for (const run of SECTOR_RUNS) runs.push(await sectorRun(run));
   await caseChecks(runs[0]!, runs[2]!, runs[4]!.org.api);
+  // 9. Roles and invites: role holders approve, others can't.
+  await roleChecks({ email: runs[0]!.org.email });
 
   const pulse = await api.ops.pulse();
   log('Daily pulse', `${pulse.headline} | ${pulse.lines.join(' ')}`);
