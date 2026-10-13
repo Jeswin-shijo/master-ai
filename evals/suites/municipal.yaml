@@ -23,6 +23,16 @@ cases:
       approval: { required: false }
       signoff: { required: true, role: ward-officer }
     why: Garbage not lifted with the road, lane and ward given. Sanitation complaints need no approval; the ward officer signs off after the after-photo.
+  - id: garbage-follow-up
+    request: "Garbage complaint from Lakshmi Nagar 2nd cross, ward 14. The pile near the transformer has not been cleared for 5 days. I complained twice on the helpline, no response and nobody attended."
+    source: customer
+    expect:
+      category: sanitation
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: ward-officer }
+    why: Citizens call every request a complaint, and "no response" only says it is overdue. The work is still clearing garbage, so it stays with the sanitary inspector of ward 14 (P2), linked to the earlier complaint; the ward officer signs off after the after-photo.
   - id: death-certificate-no-date
     request: "Namaste, I need 5 copies of my father's death certificate for the bank and his pension. His name was Ramesh Kulkarni. What is the process?"
     source: customer
@@ -81,7 +91,7 @@ cases:
       review: complete
       approval: { required: true, role: owner }
       signoff: { required: true, role: executive-engineer }
-    why: Road repairs have no approval rule of their own, but any case above ₹5 lakh needs the owner (the standing committee's limit). The executive engineer signs off the finished work.
+    why: Works above ₹1 lakh, and any case above ₹5 lakh, need sanction by the owner, who stands in for whoever holds that power under the municipal act. The executive engineer signs off the finished work.
   - id: no-water-lane
     request: "No water supply in Bhim Nagar lane 3 since Sunday morning. Whole lane affected and no tanker came. Please check the main valve."
     source: customer
@@ -101,4 +111,4 @@ cases:
       review: complete
       approval: { required: false }
       signoff: { required: true, role: grievance-officer }
-    why: A complaint past its time with nobody attending becomes a grievance. The public grievance officer signs off the written reply.
+    why: The corporator's office escalates an overdue complaint as a grievance after reminders, so the office itself must answer (P3, no approval). The public grievance officer signs off the written reply.

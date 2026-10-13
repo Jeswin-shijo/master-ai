@@ -28,15 +28,35 @@ match:
     - nursing home
     - maternity home
     - maternity hospital
-    - clinic
     - polyclinic
+    - medical clinic
+    - health clinic
+    - family clinic
+    - gp clinic
+    - general physician
+    - multispeciality clinic
+    - multi speciality clinic
     - dental clinic
     - dental hospital
     - dentist
     - eye hospital
     - eye clinic
     - children's hospital
+    - child clinic
+    - children's clinic
+    - paediatric clinic
+    - pediatric clinic
+    - gynaecology clinic
+    - gynae clinic
+    - maternity clinic
+    - fertility clinic
+    - ivf centre
+    - ivf clinic
+    - diabetes clinic
+    - heart clinic
+    - ortho clinic
     - skin clinic
+    - dermatology clinic
     - ent clinic
     - orthopaedic hospital
     - cardiac hospital
@@ -44,6 +64,10 @@ match:
     - dialysis centre
     - day care surgery centre
     - medical centre
+    - health centre
+    - primary health centre
+    - community health centre
+    - dispensary
     - doctor's clinic
     - nabh hospital
 
@@ -199,6 +223,18 @@ entities:
       - { name: closedOn, label: Closed on, type: date }
 
 tools:
+  - name: appointment.confirm
+    description: Confirm an OPD appointment, test or scan slot in the hospital's own diary, or move it to a new date and time. The patient can still move or cancel it.
+    uses: records.update
+    with: { entity: Booking, patch: { status: confirmed } }
+    level: 2
+    risk: { external_reach: false, reversible: true }
+  - name: appointment.cancel
+    description: Cancel an OPD appointment, test or scan slot in the hospital's own diary when the patient asks or the doctor is away. The slot can be booked again.
+    uses: records.update
+    with: { entity: Booking, patch: { status: cancelled } }
+    level: 2
+    risk: { external_reach: false, reversible: true }
   - name: patients.search
     description: Find a patient by name, UHID or registered mobile.
     uses: records.search
@@ -233,6 +269,18 @@ tools:
     with: { entity: Incident, data: { status: reported } }
 
 agents:
+  - role: enquiry-intake
+    name: Enquiry desk
+    description: Logs every new message from patients and families (WhatsApp, website, phone) and drafts the first reply from the hospital's own information, such as doctors, OPD timings, rates, packages and how to book.
+    instructions: >-
+      Never give medical advice, never suggest a diagnosis, test or medicine, and never tell or hint the sex of an unborn baby.
+      If a message mentions chest pain, breathlessness, heavy bleeding, fits, unconsciousness, poisoning, an accident, thoughts of suicide, or pain or bleeding in pregnancy,
+      tell them to come to casualty or call 108 now and hand it to a person at once.
+      Answer only from the hospital's own information and say the doctor will advise on anything about their health.
+    autonomy: 2
+    tools: [records.search, records.create, knowledge.search, message.draft, human.handoff]
+    model: { tier: standard, fallback: small, data_class: restricted }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 15 }
   - role: booking-coordinator
     name: Appointment desk
     description: Registers patients, books, moves and cancels OPD appointments, tests and scans, sends reminders and preparation instructions, and sends ready reports to the patient's registered mobile or email.
@@ -241,13 +289,14 @@ agents:
       If a message mentions chest pain, breathlessness, heavy bleeding, fits, unconsciousness, or pain or bleeding in pregnancy, stop and hand it to the emergency team at once.
       Search before registering so nobody gets two UHIDs. Send reports only to the registered mobile or email.
     autonomy: 3
-    tools: [patients.search, patient.register, visits.search, records.search, records.create, booking.hold, booking.confirm, booking.cancel, payment.request, refund.issue, knowledge.search, message.draft, message.send, human.handoff]
+    tools: [patients.search, patient.register, visits.search, records.search, records.create, booking.hold, appointment.confirm, appointment.cancel, payment.request, refund.issue, knowledge.search, message.draft, message.send, human.handoff]
     model: { tier: standard, fallback: small, data_class: restricted }
     budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
   - role: billing-insurance-desk
     name: Billing and insurance desk
     description: Prepares cost estimates and cashless, PM-JAY and scheme requests from the doctor's notes, watches the insurer's clock and chases late decisions, checks and explains bills, and raises refunds to the payer's own account.
     instructions: >-
+      Never give medical advice or comment on a diagnosis or treatment; send clinical questions to the treating doctor.
       Take every diagnosis, package and amount from what the treating doctor wrote and signed; never add, upgrade or change one.
       You prepare requests; the insurance desk sends them on the insurer, TPA or PM-JAY portal.
       Never ask a PM-JAY patient to pay for a covered package, and explain any denial or cut in writing before asking anyone to pay.
@@ -293,12 +342,21 @@ workflows:
       - key: book
         title: Book or move the visit
         agent: booking-coordinator
-        instructions: Find or register the patient, book the doctor, test or scan on a free slot, and send the time, the fee and how to prepare (fasting, old reports, the doctor's referral slip for a pregnancy scan). If the doctor is away, offer another date or another doctor of the same department and tell every patient affected.
+        instructions: Find or register the patient, book the doctor, test or scan on a free slot and confirm it in the appointment diary, then send the time, the fee and how to prepare (fasting, old reports, the doctor's referral slip for a pregnancy scan). If the patient cancels, cancel the slot and offer another. If the doctor is away, move each patient to another date or another doctor of the same department and tell every patient affected.
       - key: remind
         title: Remind and share the report
         agent: booking-coordinator
         depends_on: [book]
         instructions: Send a reminder the day before, and when the report is ready send it only to the registered mobile or email. Hand anything that sounds urgent to a person at once.
+  - id: booking-cancellation
+    name: Cancel an appointment
+    description: Cancel a patient's OPD appointment, test or scan when they ask, and offer another slot.
+    keywords: [cancel, cancellation, not coming, cannot come, can't come]
+    steps:
+      - key: cancel
+        title: Cancel the appointment
+        agent: booking-coordinator
+        instructions: Find the patient's appointment, cancel it in the diary and offer another slot. If they paid the fee in advance, say so in your summary so the refund can follow.
   - id: planned-admission
     name: Planned admission or surgery
     description: Give the estimate, settle who pays, book the bed and theatre slot, keep the family updated and get the discharge papers ready.
@@ -389,6 +447,14 @@ workflows:
         depends_on: [record]
         instructions: Collect statements and records, check for repeats in recent months, and draft the review and the note to the family for the medical superintendent. Hand the agreed actions to the quality manager by phone and report the dates agreed.
 
+policies:
+  - id: facility-spend-above-25000
+    action: case.proceed
+    approver: head-of-institution
+    require_approval_above: { amount: 25000, currency: INR }
+    when: { category: [facility] }
+    reason: Repairs and purchases above ₹25,000 need the medical superintendent's approval of the quote before work starts.
+
 routines:
   - id: evening-ward-check
     name: Evening ward check-in
@@ -453,14 +519,14 @@ lifecycle:
     - { id: P3, name: "Normal: within the week", respond_within_hours: 4, resolve_within_hours: 168 }
     - { id: P4, name: "Planned: elective care", respond_within_hours: 24, resolve_within_hours: 720 }
   roles:
-    - { id: head-of-institution, name: Medical superintendent, approves: "Release of medical records, certificates and medico-legal papers; what the family is told and whether a root cause analysis is done after a safety incident; refunds, discounts and concessions above ₹10,000; staff leave" }
+    - { id: head-of-institution, name: Medical superintendent, approves: "Release of medical records, certificates and medico-legal papers; what the family is told and whether a root cause analysis is done after a safety incident; refunds, discounts and concessions above ₹10,000; repairs and purchases above ₹25,000; staff leave (or the nursing superintendent or head of department it is delegated to)" }
     - { id: treating-doctor, name: Treating doctor (consultant), approves: "Admission and surgery, and the diagnosis, plan and estimate in every cashless or scheme request; takes the patient's written consent and signs the discharge summary" }
     - { id: emergency-in-charge, name: Emergency in-charge (casualty medical officer), approves: "Signs off emergencies and critical alerts once the patient is admitted, transferred or sent home, the MLC entry and police intimation are done and the papers are complete" }
     - { id: insurance-manager, name: Insurance and TPA desk manager, approves: "Signs off cashless, PM-JAY and scheme cases when the approval, the final bill and the claim papers match" }
     - { id: quality-manager, name: Quality manager (NABH coordinator), approves: "Signs off patient safety incidents once actions are agreed, and runs the monthly quality indicator review" }
     - { id: grievance-officer, name: Grievance officer (patient relations), approves: "Signs off the written reply to every complaint, within 7 days" }
     - { id: records-officer, name: Medical records officer (MRD in-charge), approves: "Signs record copies and certificates after checking them against the file, and hands them over against a signature" }
-  urgent_keywords: [not breathing, cannot breathe, can't breathe, unconscious, unresponsive, collapsed, cardiac arrest, code blue, code red, code pink, heart attack, chest pain, heavy bleeding, bleeding heavily, having a seizure, convulsions, caught fire, fire broke out, on fire, smoke coming, short circuit, electric shock, electrocuted, gas leak, oxygen leak, oxygen supply failed, oxygen pressure low, low oxygen pressure, assaulted, attacked, beaten up, acid attack, sexual assault, baby missing, newborn missing, child missing, bomb threat, threat to life, critical value]
+  urgent_keywords: [not breathing, cannot breathe, can't breathe, unconscious, unresponsive, collapsed, cardiac arrest, code blue, code red, code pink, heart attack, chest pain, heavy bleeding, bleeding heavily, having a seizure, convulsions, caught fire, fire broke out, on fire, fire in the, fire in a, fire in our, fire at, smoke coming, smoke from, smoke in the, thick smoke, short circuit, electric shock, electrocuted, power failure, gas leak, oxygen leak, oxygen supply failed, oxygen pressure low, low oxygen pressure, blood urgently, urgent blood, urgently need blood, assaulted, attacked, beaten up, knife, weapon, acid attack, sexual assault, suicide, suicidal, self harm, kill myself, kill himself, kill herself, end my life, end his life, end her life, want to die, trapped, stuck in the lift, stuck in lift, lift stuck, lift is stuck, stuck between floors, baby missing, newborn missing, child missing, bomb threat, threat to life, critical value]
   categories:
     - id: emergency
       name: Emergency or critical alert
@@ -509,28 +575,56 @@ lifecycle:
         - critical value
         - critical result
         - critical condition
+        - brought dead
         - collapsed
         - fainted
         - send an ambulance
         - need an ambulance
         - ventilator stopped
+        - blood urgently
+        - urgent blood
+        - urgently need blood
         - oxygen leak
         - oxygen supply failed
         - oxygen pressure low
         - low oxygen pressure
         - caught fire
         - fire broke out
+        - fire in the
+        - fire in a
+        - fire in our
+        - fire at
         - smoke coming
+        - smoke from
+        - smoke in the
+        - thick smoke
         - short circuit
         - electric shock
+        - power failure
         - gas leak
         - assaulted
         - attacked
         - beaten up
+        - knife
+        - weapon
         - violence
         - sexual assault
         - suicide
+        - suicidal
         - self harm
+        - kill myself
+        - kill himself
+        - kill herself
+        - end my life
+        - end his life
+        - end her life
+        - want to die
+        - trapped
+        - stuck in the lift
+        - stuck in lift
+        - lift stuck
+        - lift is stuck
+        - stuck between floors
         - baby missing
         - child missing
         - bomb threat
@@ -564,6 +658,8 @@ lifecycle:
         - follow-up
         - reschedule
         - teleconsultation
+        - home visit
+        - doctor at home
         - video consultation
         - health check-up
         - health checkup
@@ -612,6 +708,7 @@ lifecycle:
         - Right doctor, department or test and a confirmed slot; fee and preparation (fasting, old reports) told upfront
         - Warning signs (chest pain, breathlessness, stroke signs, heavy bleeding, pain or bleeding in pregnancy) sent straight to the emergency team
         - "Pregnancy scan: Form F filled and signed under the PCPNDT Act, and the baby's sex never told or hinted"
+        - "MTP: booked only with the gynaecologist and kept confidential; the doctor decides under the MTP Act, and a pregnancy in a girl under 18 is reported to the police under POCSO by the doctor"
         - Reports sent only to the registered mobile or email, or handed over against ID
       not_eligible:
         - keywords: [boy or girl, boy or a girl, girl or boy, girl or a boy, sex of the baby, baby's sex, gender of the baby, baby's gender, sex determination, gender test, know the sex, tell the sex, baby gender, baby sex, ladka hai ya ladki, ladka ya ladki, beta hai ya beti]
@@ -804,7 +901,6 @@ lifecycle:
       name: Medical records or certificate
       keywords:
         - medical records
-        - medical record
         - case file
         - case papers
         - case sheet
@@ -814,6 +910,12 @@ lifecycle:
         - discharge summary
         - discharge card
         - death summary
+        - died
+        - expired
+        - passed away
+        - body handover
+        - hand over the body
+        - mortuary
         - certificate
         - medical certificate
         - fitness certificate
@@ -888,10 +990,17 @@ lifecycle:
         - negligence
         - negligent
         - medical negligence
+        - doctor's negligence
+        - due to negligence
+        - because of negligence
+        - wrong treatment
         - careless
         - dirty
         - unclean
         - unhygienic
+        - stale
+        - bad food
+        - food quality
         - bad experience
         - worst
         - poor service
@@ -900,8 +1009,14 @@ lifecycle:
         - consumer court
         - consumer forum
         - bribe
+        - demanded
+        - asked for money
+        - asking for money
+        - extra money
         - cpgrams
-        - not releasing the body
+        - not releasing
+        - refusing to release
+        - not handing over
         - holding the body
         - not allowing discharge
       priority: P3
@@ -915,6 +1030,7 @@ lifecycle:
         - Final written reply within 7 days (our own rule), signed by the grievance officer
         - Reply says how to take it further (the hospital's grievance committee, then the district registering authority under the Clinical Establishments Act or the state's own nursing home law)
         - Complaints about treatment also get a clinical review; legal notices go to the medical superintendent and the owner the same day
+        - "A patient or a body held back over a bill: let go at once on the medical superintendent's word, and the bill is settled afterwards"
       approval: { required: never }
       signoff: { required: true, role: grievance-officer }
       workflow: complaint-handling
@@ -947,12 +1063,17 @@ lifecycle:
         - drug reaction
         - adverse reaction
         - allergic reaction
+        - after the injection
+        - after injection
+        - after the medicine
         - bed sore
         - bedsore
         - pressure sore
         - pressure ulcer
         - needle stick
         - needlestick
+        - needle prick
+        - needle pricked
         - sharps injury
         - blood splash
         - near miss

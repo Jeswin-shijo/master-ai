@@ -249,6 +249,14 @@ workflows:
         depends_on: [scrutiny]
         instructions: Hand the site inspection to the building inspector by phone, then prepare the permit, occupancy certificate or notice for the town planning officer with the inspection report.
 
+policies:
+  - id: works-above-1-lakh
+    action: case.proceed
+    approver: owner
+    require_approval_above: { amount: 100000, currency: INR }
+    when: { category: [facility, water-drainage, sanitation] }
+    reason: Works and purchases above ₹1,00,000 need sanction by whoever holds that power under the municipal act before the work order goes out.
+
 routines:
   - id: ward-sanitation-round
     name: Daily ward round
@@ -321,8 +329,8 @@ lifecycle:
     - { id: P3, name: "Normal: within the notified time limit", respond_within_hours: 24, resolve_within_hours: 360 }
     - { id: P4, name: "Planned: permissions and long applications", respond_within_hours: 48, resolve_within_hours: 720 }
   roles:
-    - { id: owner, name: Owner (account holder for the municipal body), approves: "Works, purchases and payments above ₹5,00,000 that no rule gives to a named officer (the standing committee's limit in most corporations), and anything sent to a role nobody holds" }
-    - { id: head-of-institution, name: Municipal commissioner or chief officer, approves: "Staff leave, emergency spending, and action against an officer who missed a notified time limit" }
+    - { id: owner, name: Owner (account holder for the municipal body), approves: "Road, light, park, water, sewer and sanitation works above ₹1,00,000, anything above ₹5,00,000 that no rule gives to a named officer, and anything sent to a role nobody holds. Let the person who holds that sanctioning power under your municipal act (commissioner, standing committee or council) decide these" }
+    - { id: head-of-institution, name: Municipal commissioner or chief officer, approves: "Staff leave (or the head of department it is delegated to), emergency spending, and action against an officer who missed a notified time limit" }
     - { id: ward-officer, name: Ward officer (assistant commissioner or ward in-charge), approves: "Signs off garbage, sanitation and stray animal complaints in the ward after the after-photo and a spot check" }
     - { id: executive-engineer, name: Executive engineer, approves: "Signs off road, streetlight, park, water supply, sewer and drainage work after the site check; hears the first appeal for engineering services" }
     - { id: health-officer, name: Health officer (medical officer of health), approves: "Trade, food stall and meat shop licences and renewals after the inspection" }
@@ -331,7 +339,7 @@ lifecycle:
     - { id: records-officer, name: Registrar of births and deaths, approves: "Signs birth and death certificates and corrections after checking them against the register" }
     - { id: safety-officer, name: Disaster management officer, approves: "Signs off emergencies once the spot is barricaded or made safe, the injured are cared for and the police, fire service or electricity company are told" }
     - { id: grievance-officer, name: Public grievance officer, approves: "Signs off the written reply to every escalated complaint and every CPGRAMS or state portal grievance" }
-  urgent_keywords: [open manhole, manhole open, uncovered manhole, manhole cover missing, fell into, building collapse, collapsed, collapse, wall collapsed, about to collapse, caught fire, on fire, fire broke out, fire accident, short circuit, electric shock, electrocuted, live wire, current in pole, gas leak, tree fell on, tree fallen on, road caved in, sinkhole, landslide, water entered houses, drowning, drowned, unconscious, injured, accident, met with an accident, dog bite, dog bit, bitten by, dogs attacked, mauled, cholera, outbreak, child missing, missing child, assaulted, threat to life, stampede, bomb threat, suicide]
+  urgent_keywords: [open manhole, manhole open, uncovered manhole, manhole cover missing, fell into, building collapse, collapsed, collapse, wall collapsed, about to collapse, about to fall, may fall, might fall, could fall, open borewell, uncovered borewell, open pit, caught fire, on fire, fire broke out, fire accident, fire in the, fire in a, fire in our, fire at, smoke from, short circuit, electric shock, electrocuted, live wire, current in pole, gas leak, tree fell on, tree fallen on, road caved in, sinkhole, landslide, water entered houses, trapped, submerged, washed away, drowning, drowned, unconscious, injured, accident, met with an accident, dog bite, dog bit, bitten by, dogs attacked, mauled, cholera, outbreak, diarrhoea, diarrhea, jaundice, falling sick, fell sick, mixed with sewage, sewage in drinking water, child missing, missing child, assaulted, threat to life, stampede, bomb threat, suicide]
   categories:
     - id: emergency
       name: Emergency or danger to life
@@ -347,11 +355,25 @@ lifecycle:
         - collapse
         - wall collapsed
         - about to collapse
+        - about to fall
+        - may fall
+        - might fall
+        - could fall
+        - dangerous
         - dangerous building
+        - dangerous tree
+        - open borewell
+        - uncovered borewell
+        - open pit
         - caught fire
         - on fire
         - fire broke out
         - fire accident
+        - fire in the
+        - fire in a
+        - fire in our
+        - fire at
+        - smoke from
         - short circuit
         - electric shock
         - electrocuted
@@ -367,6 +389,9 @@ lifecycle:
         - sinkhole
         - landslide
         - water entered houses
+        - trapped
+        - submerged
+        - washed away
         - drowning
         - drowned
         - unconscious
@@ -380,6 +405,13 @@ lifecycle:
         - mauled
         - cholera
         - outbreak
+        - diarrhoea
+        - diarrhea
+        - jaundice
+        - falling sick
+        - fell sick
+        - mixed with sewage
+        - sewage in drinking water
         - child missing
         - missing child
         - assaulted
@@ -430,7 +462,15 @@ lifecycle:
         - dead dog
         - dead cow
         - dead pig
+        - dead cat
+        - dead rat
+        - dead buffalo
         - carcass
+        - lying dead
+        - bad smell
+        - foul smell
+        - stinking
+        - dumping
         - stray cattle
         - stray cows
         - stray dogs
@@ -445,7 +485,10 @@ lifecycle:
         - debris
         - construction debris
         - malba
+        - drain
         - drain not cleaned
+        - not cleaned
+        - desilting
         - nala safai
         - nali
         - gutter cleaning
@@ -460,7 +503,7 @@ lifecycle:
         - key: location
           label: Where it is (ward, street or landmark)
           kind: keywords
-          keywords: [ward, street, road, lane, gali, cross, main road, colony, nagar, sector, block, layout, society, apartment, market, chowk, circle, mohalla, park, bus stop, near, opposite, behind, house no, plot]
+          keywords: [ward, street, road, lane, gali, cross, main road, colony, nagar, sector, block, layout, society, apartment, market, chowk, circle, mohalla, park, bus stop, station, junction, signal, underpass, subway, flyover, bridge, shop, bazar, bazaar, temple, near, opposite, behind, in front of, house no, plot]
       required_checks:
         - "Cleared within the notified time: 12 hours for a garbage point or bin and 48 hours for a dead animal on the Swachhata app, 2 days in Haryana"
         - Before and after photo from the same spot
@@ -478,6 +521,9 @@ lifecycle:
       keywords:
         - no water
         - no water supply
+        - water supply
+        - irregular supply
+        - short supply
         - water not coming
         - paani nahi
         - low pressure
@@ -530,7 +576,7 @@ lifecycle:
         - key: location
           label: Where it is (ward, street, landmark or property ID)
           kind: keywords
-          keywords: [ward, street, road, lane, gali, cross, main road, colony, nagar, sector, block, layout, society, apartment, market, chowk, circle, mohalla, near, opposite, behind, house no, house, plot, property id, consumer no, consumer number]
+          keywords: [ward, street, road, lane, gali, cross, main road, colony, nagar, sector, block, layout, society, apartment, market, chowk, circle, mohalla, station, junction, signal, underpass, subway, flyover, bridge, shop, bazar, bazaar, temple, near, opposite, behind, in front of, house no, house, plot, property id, consumer no, consumer number]
       required_checks:
         - "Leak, blockage or overflow fixed within the notified time (2 days in Haryana); a tanker sent if a lane has no water for more than a day"
         - Water sample taken where people report dirty or smelly water; sewage in drinking water is treated as an emergency
@@ -547,7 +593,6 @@ lifecycle:
       name: Road, streetlight or public place repair
       keywords:
         - pothole
-        - potholes
         - road damaged
         - damaged road
         - broken road
@@ -579,6 +624,9 @@ lifecycle:
         - swings broken
         - community hall
         - bus shelter
+        - tree cutting
+        - tree trimming
+        - tree pruning
       priority: P3
       risk: low
       department: Engineering (roads and lighting)
@@ -586,7 +634,7 @@ lifecycle:
         - key: location
           label: Where it is (ward, road, landmark or pole number)
           kind: keywords
-          keywords: [ward, street, road, lane, gali, cross, main road, marg, colony, nagar, sector, block, layout, market, chowk, circle, mohalla, park, bus stop, near, opposite, behind, pole no, pole number, stretch]
+          keywords: [ward, street, road, lane, gali, cross, main road, marg, colony, nagar, sector, block, layout, market, chowk, circle, mohalla, park, bus stop, station, junction, signal, underpass, subway, flyover, bridge, shop, bazar, bazaar, temple, near, opposite, behind, in front of, pole no, pole number, stretch]
       required_checks:
         - Road is ours, not a national highway, state PWD road or private colony road
         - "Pothole patched within the notified time (5 days in Haryana) and barricaded until then if it is deep"
@@ -635,7 +683,7 @@ lifecycle:
         - { key: eventDate, label: Date of birth or death, kind: date }
       required_checks:
         - Event happened inside our limits; births and deaths are registered where they happen
-        - "Within 21 days: registered free; 21 to 30 days: late fee; 30 days to 1 year: written permission and an affidavit; after 1 year: a magistrate's order"
+        - "Within 21 days: registered free; 21 to 30 days: late fee; 30 days to 1 year: written permission and the declaration the state's rules ask for; after 1 year: an order of the District or Sub-Divisional Magistrate"
         - Details matched with the hospital or cremation ground report; corrections only with a supporting document and a dated note in the register
         - Asked by the person, a parent, a family member or someone they authorised in writing
         - Certificate issued from the CRS portal with the registrar's digital signature
@@ -732,6 +780,11 @@ lifecycle:
         - street vendor
         - vending certificate
         - tehbazari
+        - meat shop
+        - no licence
+        - without licence
+        - without a licence
+        - unlicensed
       priority: P3
       risk: medium
       department: Health and licensing
@@ -751,6 +804,72 @@ lifecycle:
       approval: { required: always, role: health-officer }
       signoff: { required: false }
       workflow: licence-processing
+      execution: both
+    - id: complaint
+      name: Grievance or escalated complaint
+      # Citizens call every request a "complaint", so the bare word, and follow-ups such as
+      # "no response", stay with the service named (garbage, water, roads). These words mean
+      # the citizen wants the office itself answerable.
+      keywords:
+        - grievance
+        - complaint against
+        - complain against
+        - escalate
+        - escalated
+        - escalating
+        - escalation
+        - reminder
+        - reopen
+        - reopened
+        - closed without
+        - wrongly closed
+        - falsely closed
+        - first appeal
+        - second appeal
+        - appellate
+        - right to service
+        - rude
+        - misbehaved
+        - misbehaviour
+        - misbehavior
+        - shouted
+        - insulted
+        - harassed
+        - refused to
+        - bribe
+        - bribe to
+        - bribery
+        - asking for money
+        - asked for money
+        - demanding money
+        - corruption
+        - corrupt
+        - vigilance
+        - negligence
+        - careless
+        - cpgrams
+        - pg portal
+        - cm helpline
+        - cm window
+        - jansunwai
+        - jan sunwai
+        - lokayukta
+        - ombudsman
+        - consumer court
+        - consumer forum
+        - legal notice
+      priority: P3
+      risk: medium
+      department: Public grievance cell
+      required_checks:
+        - Logged with a number and acknowledged the same day, linked to the first complaint number if there was one
+        - Nobody named in the grievance handles it
+        - Work still not done goes back to the ward team at once, and the first complaint is reopened rather than closed
+        - A bribe or corruption complaint goes to the vigilance officer the same day
+        - "Written reply within the time limit (21 days for CPGRAMS, or your state portal's limit), saying what was done and naming the first appeal officer under the Right to Services Act"
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: delegate-work
       execution: both
     - id: building-permission
       name: Building permission or illegal construction
@@ -775,6 +894,11 @@ lifecycle:
         - extra floor
         - additional floor
         - setback violation
+        - encroachment
+        - encroached
+        - encroaching
+        - illegal structure
+        - unauthorised structure
         - obps
         - stop work notice
         - demolition notice
@@ -821,6 +945,9 @@ lifecycle:
     - { request: "Refund ₹12,500 property tax paid twice for shop 3, Main Bazar, property ID 02-118-0071", category: billing, priority: P3, approval: true }
     - { request: "I am opening a bakery in Gandhi Market, shop 9, ward 11. What do I need for the trade licence?", category: trade-licence, priority: P3, approval: true }
     - { request: "Renew the meat shop licence for Al-Noor Chicken Centre, licence no MS/2025/118, Gandhi Road", category: trade-licence, priority: P3, approval: true }
+    - { request: "The clerk at the ward 8 counter shouted at my elderly mother and refused to accept her pension papers", category: complaint, priority: P3, approval: false }
+    - { request: "Escalating my complaint on the state portal: the officer has not replied within the notified time and I want to file a first appeal", category: complaint, priority: P3, approval: false }
+    - { request: The tax inspector is asking for money to correct my property tax assessment and I want to report him, category: complaint, priority: P3, approval: false }
     - { request: "Our ground plus two house plan for plot 41, Sector 3 went on OBPS three weeks ago, application BP-2026-0712, what is pending?", category: building-permission, priority: P4, approval: true }
     - { request: My neighbour at 17 Gulmohar Lane is building an extra floor without any permission, category: building-permission, priority: P4, approval: true }
     - { request: "Apply for occupancy certificate for our finished G+3 building on plot 8, Indira Nagar", category: building-permission, priority: P4, approval: true }
@@ -838,13 +965,13 @@ playbooks:
       6. Each month list every request past its limit by ward and officer, and fix the cause.
   - id: birth-death-registration
     title: Registering births and deaths and issuing certificates
-    source: Registration of Births and Deaths Act, 1969, sections 8 and 13, as amended in 2023 (CRS portal from 1 October 2023); Ghaziabad district birth and death registration page; Bombay High Court on delayed registration (2026)
+    source: Registration of Births and Deaths Act, 1969, sections 8, 13 and 17A, as amended in 2023 (CRS portal from 1 October 2023); Ghaziabad district birth and death registration page
     body: |
       1. Births and deaths are registered by the registrar of the area where they happen. Hospitals report the events that happen there; families report home births and deaths.
       2. Reported within 21 days: register it free and give the informant the certificate free.
       3. Between 21 and 30 days: register it with the late fee.
-      4. Between 30 days and 1 year: register it only with the written permission of the authority and an affidavit.
-      5. After 1 year: register it only on a magistrate's order (the Bombay High Court held in 2026 that this means a judicial magistrate; check your state's current rule).
+      4. Between 30 days and 1 year: register it only with the written permission of the prescribed authority, the late fee and the declaration your state's rules ask for.
+      5. After 1 year: register it only on the order of the District Magistrate, the Sub-Divisional Magistrate or an executive magistrate they authorise (as amended in 2023; check your state's current rule and any court ruling on it).
       6. Every event since 1 October 2023 is registered on the CRS portal. The digital birth certificate is proof of date of birth for school admission, licences, the voter list, Aadhaar and passports.
       7. A correction needs a supporting document and a dated note in the register; never overwrite the original entry. A child's name can be added later on a parent's request.
       8. Caste, income, domicile and EWS certificates are the tehsildar's; tell the citizen where to apply.
@@ -857,7 +984,7 @@ playbooks:
       3. Clear a garbage point, a full bin or a missed vehicle within 12 hours, and a dead animal within 48 hours (Swachhata app levels). Your state's notified limit may be longer, such as 2 days in Haryana.
       4. Close only with an after-photo from the same spot. If the citizen says it is not done, reopen it.
       5. Mark spots that keep filling up: put a bin, post a sweeper, or fine the people dumping there.
-      6. Remind households and shops to keep wet, dry, sanitary and special care waste separate. Bulk waste generators (100 kg a day or more) must register and process their own waste.
+      6. Remind households and shops to keep wet, dry, sanitary and special care waste separate. Bulk waste generators (such as those making 100 kg or more a day; check the current rules) must register and process their own waste.
       7. Stray dogs are caught for sterilisation and vaccination and returned to the same area; a dog bite is an emergency, so send the person for anti-rabies treatment and the dog squad at once.
   - id: dangerous-spots
     title: Open manholes, potholes and other dangerous spots
@@ -867,7 +994,7 @@ playbooks:
       2. Call 112, 108 or 101 if anyone is hurt, trapped or there is a fire, and tell the electricity company about live wires.
       3. Cover the manhole or drain within the day and log the time, the photos and the staff on site.
       4. Patch deep potholes within the notified time (5 days in Haryana) and keep them barricaded until then.
-      5. Courts hold the municipality liable: the Bombay High Court set ₹6 lakh for a death from a pothole or open manhole and ₹50,000 to ₹2.5 lakh for injuries, decided by a committee that includes the commissioner, and recoverable from the officers or contractors responsible. Agencies that argue over who owns the road share the cost.
+      5. Courts can hold the municipality liable (check what your own High Court has ordered): the Bombay High Court set ₹6 lakh for a death from a pothole or open manhole and ₹50,000 to ₹2.5 lakh for injuries, decided by a committee that includes the commissioner, and recoverable from the officers or contractors responsible. Agencies that argue over who owns the road share the cost.
       6. After every accident, find why the spot was left open and fix the cause with a named person and a date.
   - id: building-permission-process
     title: Building permissions and unauthorised construction

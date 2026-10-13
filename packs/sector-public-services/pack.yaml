@@ -62,7 +62,7 @@ lifecycle:
     - { id: accounts-head, name: Accounts head, approves: "Signs off refunds and fee or bill corrections once the money has reached the payer's own account and the ledger matches" }
     - { id: records-officer, name: Records officer, approves: "Signs certificates and record copies after checking them against the register (medical records in-charge, school office superintendent or registrar)" }
     - { id: estate-officer, name: Estate and maintenance officer, approves: Signs off repairs and building services once the work is checked and the bills match }
-  urgent_keywords: [caught fire, on fire, fire broke out, fire accident, smoke coming, short circuit, electric shock, electrocuted, live wire, gas leak, collapse, collapsed, unconscious, not breathing, heart attack, chest pain, heavy bleeding, convulsions, snake bite, dog bite, poisoning, drowning, drowned, injured, head injury, road accident, bus accident, met with an accident, child missing, missing child, went missing, not reached home, assaulted, attacked, beaten up, violence, sexual assault, molested, rape, pocso, suicide, self harm, bomb threat, stampede, threat to life]
+  urgent_keywords: [caught fire, on fire, fire broke out, fire accident, fire in the, fire in a, fire in our, fire at, smoke coming, smoke from, smoke in the, thick smoke, full of smoke, short circuit, electric shock, electrocuted, live wire, gas leak, collapse, collapsed, unconscious, unresponsive, not breathing, heart attack, chest pain, heavy bleeding, convulsions, snake bite, dog bite, poisoning, drowning, drowned, injured, head injury, road accident, bus accident, met with an accident, child missing, missing child, went missing, not reached home, missing since, not returned since, not returned home, did not come home, didn't come home, untraceable, ran away, knife, weapon, assaulted, attacked, beaten up, violence, sexual assault, molested, rape, pocso, suicide, suicidal, self harm, kill myself, kill himself, kill herself, end my life, end his life, end her life, want to die, trapped, stuck in the lift, stuck in lift, lift stuck, lift is stuck, stuck between floors, bomb threat, stampede, threat to life]
   categories:
     - id: emergency
       name: Emergency or safety incident
@@ -70,10 +70,15 @@ lifecycle:
         - emergency
         - ambulance
         - unconscious
+        - unresponsive
         - fainted
         - not breathing
         - collapsed
         - collapse
+        - fell down
+        - fell in
+        - had a fall
+        - fell from
         - chest pain
         - heart attack
         - heavy bleeding
@@ -87,7 +92,15 @@ lifecycle:
         - on fire
         - fire broke out
         - fire accident
+        - fire in the
+        - fire in a
+        - fire in our
+        - fire at
         - smoke coming
+        - smoke from
+        - smoke in the
+        - thick smoke
+        - full of smoke
         - short circuit
         - electric shock
         - electrocuted
@@ -103,6 +116,15 @@ lifecycle:
         - missing child
         - went missing
         - not reached home
+        - missing since
+        - not returned since
+        - not returned home
+        - did not come home
+        - didn't come home
+        - untraceable
+        - ran away
+        - knife
+        - weapon
         - assaulted
         - attacked
         - beaten up
@@ -113,7 +135,21 @@ lifecycle:
         - stampede
         - drowning
         - suicide
+        - suicidal
         - self harm
+        - kill myself
+        - kill himself
+        - kill herself
+        - end my life
+        - end his life
+        - end her life
+        - want to die
+        - trapped
+        - stuck in the lift
+        - stuck in lift
+        - lift stuck
+        - lift is stuck
+        - stuck between floors
         - safety incident
       priority: P1
       risk: high
@@ -163,10 +199,10 @@ lifecycle:
         - key: location
           label: Where it is (room, ward, floor or block)
           kind: keywords
-          keywords: [room, ward, floor, block, wing, building, classroom, class, lab, laboratory, office, hostel, corridor, toilet, washroom, kitchen, canteen, gate, campus, ground, opd, icu, theatre, library, hall, quarters, school, college, clinic, branch, centre, center, zone, road, street, market, park]
+          keywords: [room, ward, floor, block, wing, building, classroom, class, lab, laboratory, office, hostel, mess, dormitory, corridor, stairs, staircase, lobby, reception, entrance, toilet, washroom, bathroom, kitchen, canteen, dining hall, store, store room, gate, main gate, parking, basement, terrace, roof, campus, ground, opd, icu, nicu, casualty, emergency, ot, operation theatre, theatre, labour room, pharmacy, dialysis, radiology, blood bank, cath lab, recovery, mortuary, library, hall, quarters, school, college, clinic, branch, centre, center, zone, road, street, market, park, near, opposite, behind, next to]
       required_checks:
         - Area made safe if anyone could get hurt (cordoned off, power off)
-        - Spend above ₹25,000 approved by the head of institution before work starts
+        - "Spend above the institution's limit (often ₹25,000) approved before work starts, on a written quote"
         - Work checked and bills matched before the request is closed
       approval: { required: never }
       signoff: { required: true, role: estate-officer }
@@ -279,9 +315,15 @@ lifecycle:
         - duty swap
         - shift swap
         - duty roster
-        - salary slip
-        - salary not credited
+        - request leave
+        - requesting leave
+        - request for leave
+        - grant leave
+        - sanction leave
+        - privilege leave
+        - resign
         - resignation
+        - last working day
         - relieving letter
         - chutti chahiye
       priority: P2
@@ -307,9 +349,9 @@ lifecycle:
         - misbehaved
         - misbehaviour
         - misbehavior
-        - no response
-        - no reply
-        - not resolved
+        - shouted
+        - insulted
+        - harassed
         - not attended
         - nobody attended
         - negligence
@@ -382,7 +424,7 @@ playbooks:
       1. Confirm who is asking: the person the record is about, a parent or guardian of a minor, someone with a signed authority letter, or a police or court order. Check an ID; if you take Aadhaar, use it only with consent and keep it masked (last four digits).
       2. Records about a person go only to that person or someone they authorised. Never read them out to an unknown caller; hand them over against signature or send them only to the registered email or address.
       3. Check every detail against the register before signing: name spelling, date of birth, parents' names, dates of admission or treatment. A correction needs a supporting document and a dated note in the register; never overwrite the original entry.
-      4. Issue on time: medical record copies within 72 hours of the request; births and deaths registered within 21 days of the event; a school transfer certificate promptly and never held back for unpaid fees; services notified under your state's Right to Services Act within the notified days.
+      4. Issue on time: medical record copies within 72 hours of the request; births and deaths registered within 21 days of the event; a school transfer certificate promptly (at once for Classes 1 to 8 under the RTE Act) and never held back to collect fees; services notified under your state's Right to Services Act within the notified days.
       5. Public offices answer requests under the Right to Information Act within 30 days, or 48 hours where someone's life or liberty is at stake. Treat these separately from service requests.
       6. The authorised signatory (records officer, registrar, principal or medical superintendent) signs. Keep a copy and an entry in the issue register: who asked, what was given, when and why.
 
@@ -427,4 +469,5 @@ other_org_types:
   - { name: Water board or utility, keywords: [water board, water supply board, jal board, sewerage board, water authority, water works], closest: municipal }
   - { name: Citizen service centre, keywords: [citizen service centre, common service centre, csc, seva kendra, e seva, mee seva, jan seva kendra, aaple sarkar, citizen facilitation centre], closest: municipal }
   - { name: Police or fire station office, keywords: [police station, fire station, traffic police, home guards, civil defence], closest: municipal }
-  - { name: Shelter or welfare home, keywords: [shelter home, night shelter, children's home, orphanage, women's shelter, rescue home, welfare hostel], closest: municipal }
+  - { name: Children's home or hostel for children, keywords: [children's home, orphanage, child care institution, bal ashram, balgram, ashram school, residential school], closest: education }
+  - { name: Shelter or welfare home, keywords: [shelter home, night shelter, women's shelter, rescue home, welfare hostel], closest: municipal }

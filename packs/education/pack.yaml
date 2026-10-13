@@ -132,6 +132,12 @@ tools:
     description: Search buses, rooms and equipment by name, route, AMC or status.
     uses: records.search
     with: { entity: Asset }
+  - name: enrolment.confirm
+    description: Mark a student's enrolment confirmed once the principal has approved the admission. The family is told separately.
+    uses: records.update
+    with: { entity: Booking, patch: { status: confirmed } }
+    level: 3
+    risk: { external_reach: false, reversible: true }
   - name: asset.take_off_road
     description: Take a bus, room or machine out of use until it is fixed. Reversible.
     uses: records.update
@@ -139,12 +145,12 @@ tools:
     level: 2
 
 agents:
-  - role: admissions-desk
+  - role: booking-coordinator
     name: Admissions and fees desk
-    description: Answers admission enquiries, checks age, documents and RTE allotments, holds the enrolment, drafts the admission letter and fee schedule, and works out concessions and refunds from the fee account and the written policy.
-    instructions: Never ask for a donation or capitation fee, and never set a test or interview for a child up to Class 8. Never refuse an allotted RTE child; send any doubt about papers to the principal. Never promise ranks, marks or selection. Accounts pays refunds, only into the payer's own bank account.
+    description: Answers admission enquiries, checks age, documents and RTE allotments, holds the enrolment and confirms it once the principal approves, drafts the admission letter and fee schedule, and works out concessions and refunds from the fee account and the written policy.
+    instructions: Never ask for a donation or capitation fee, and never set a test or interview for a child up to Class 8. Never refuse an allotted RTE child; send any doubt about papers to the principal. Confirm an enrolment only after the principal has approved the admission. Never promise ranks, marks or selection. Accounts pays refunds, only into the payer's own bank account.
     autonomy: 3
-    tools: [students.search, fees.search, records.search, records.create, records.update, booking.hold, enquiry.mark_contacted, knowledge.search, document.generate, schedule.create, message.draft, message.send, payment.request, staff.delegate, human.handoff]
+    tools: [students.search, fees.search, records.search, records.create, records.update, booking.hold, enrolment.confirm, enquiry.mark_contacted, knowledge.search, document.generate, schedule.create, message.draft, message.send, payment.request, staff.delegate, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }
     budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
   - role: school-office
@@ -158,7 +164,7 @@ agents:
   - role: safety-desk
     name: Safety and welfare desk
     description: Keeps the timeline and the reporting clock for emergencies and child-protection cases, drafts the police intimation and the reports to the board, university or education office, and reminds the principal and the safety in-charge until every step is done.
-    instructions: Children first. Never question a child, never contact the person accused, and never share a child's name or photo beyond those who must know. Reports the law requires, such as to the police, never wait for an approval. A person signs and sends every report.
+    instructions: Children first. Never give medical advice; trained staff give first aid and doctors decide treatment. Never question a child, never contact the person accused, and never share a child's name or photo beyond those who must know. Reports the law requires, such as to the police, never wait for an approval. A person signs and sends every report.
     autonomy: 2
     tools: [students.search, staff.search, records.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
     model: { tier: standard, fallback: small, data_class: restricted }
@@ -172,13 +178,13 @@ workflows:
     steps:
       - key: check-papers
         title: Check the papers and hold the seat
-        agent: admissions-desk
+        agent: booking-coordinator
         instructions: Find or create the Student record, check the age for the class against the state's cut-off date, the documents received and, for an RTE seat, the allotment letter. Hold the Enrolment and list anything still missing for the family.
       - key: confirm
-        title: Send the admission letter and fee schedule
-        agent: admissions-desk
+        title: Confirm the seat and send the admission letter
+        agent: booking-coordinator
         depends_on: [check-papers]
-        instructions: Draft the admission letter with the fee schedule and refund rules (no fee at all for an RTE seat), send it to the family, and remind the office to confirm RTE admissions on the state portal before its deadline.
+        instructions: Once the principal has approved, confirm the enrolment, draft the admission letter with the fee schedule and refund rules (no fee at all for an RTE seat), send it to the family, and remind the office to confirm RTE admissions on the state portal before its deadline.
   - id: fee-concession-refund
     name: Concession, waiver or refund
     description: Work out the concession or refund from the fee account and the written policy, and get accounts to post or pay it.
@@ -186,13 +192,22 @@ workflows:
     steps:
       - key: work-out
         title: Work out the amount
-        agent: admissions-desk
+        agent: booking-coordinator
         instructions: Pull the fee account, check the request against the written concession policy or the refund rule that applies (UGC scale for a college, unused months for a coaching course) and draft the letter with the amount and how it was worked out.
       - key: post-or-pay
         title: Get accounts to post or pay it
-        agent: admissions-desk
+        agent: booking-coordinator
         depends_on: [work-out]
         instructions: Hand the ledger entry or the refund to the accounts clerk by phone, with the payer's own bank account for a refund, and tell the family when it is done.
+  - id: booking-cancellation
+    name: Withdraw an admission
+    description: Withdraw a student's admission or batch seat when the family asks, and pass any refund to accounts.
+    keywords: [withdraw, withdrawal, cancel admission, cancel the admission, not joining]
+    steps:
+      - key: withdraw
+        title: Withdraw the seat and pass on the refund
+        agent: booking-coordinator
+        instructions: Find the student's enrolment and mark it cancelled, tell the family in writing, and if fees were paid work out the refund under the rule that applies (UGC scale for a college, unused months for coaching) for accounts to pay into the payer's own bank account.
   - id: exam-request
     name: Exam or result request
     description: Pull the marks, attendance and timetable, plan the re-test or recheck and tell the family the outcome.
@@ -390,17 +405,18 @@ lifecycle:
     - { id: P3, name: Normal, respond_within_hours: 24, resolve_within_hours: 120 }
     - { id: P4, name: Low, respond_within_hours: 48, resolve_within_hours: 240 }
   roles:
+    - { id: owner, name: Management (trust or society), approves: "Concessions, waivers and refunds above ₹10,000, repairs and purchases above ₹25,000, anything above ₹5,00,000, and closing every child-protection case" }
     - { id: head-of-institution, name: Principal or centre head, approves: "Every admission including RTE seats, staff leave, and action against staff or students in child-protection cases such as removal from duty or suspension; signs every certificate and TC" }
     - { id: exam-in-charge, name: Exam in-charge (Controller of Examinations in a college), approves: "Re-tests, mark changes after rechecking, attendance shortage cases, board or university registration corrections and any change to exam dates" }
     - { id: safety-officer, name: Safety in-charge, approves: "Signs off emergencies once every child is safe and cared for, parents are told and the police or authority are informed (vice-principal or head of the school safety committee; the proctor in a college)" }
     - { id: grievance-officer, name: Grievance committee, approves: "Signs off the written reply to every complaint and says where to appeal (in a school the principal with two senior teachers; in a college the Students' Grievance Redressal Committee, with appeal to the Ombudsperson)" }
     - { id: accounts-head, name: Accounts head, approves: "Signs off concessions, waivers and refunds once the fee ledger is updated, receipts match and refunds have reached the payer's own bank account" }
     - { id: estate-officer, name: Admin officer (estate and transport), approves: "Signs off repairs, purchases and transport fixes once the work is checked, the bills match and bus papers and safety kit are in order" }
-  urgent_keywords: [caught fire, on fire, fire broke out, fire accident, fire alarm went off, smoke coming, short circuit, electric shock, electrocuted, live wire, gas leak, collapse, collapsed, unconscious, not breathing, heart attack, chest pain, heavy bleeding, convulsions, had a seizure, having a seizure, snake bite, dog bite, poisoning, food poisoning, drowning, drowned, child injured, student injured, seriously injured, badly injured, head injury, road accident, bus accident, van accident, met with an accident, child missing, missing child, student missing, went missing, not reached home, not reached school, kidnapped, abducted, assaulted, attacked, beaten up, violence, sexual assault, sexually abused, molested, rape, pocso, bad touch, suicide, self harm, kill myself, end my life, bomb threat, stampede, threat to life]
+  urgent_keywords: [caught fire, on fire, fire broke out, fire accident, fire in the, fire in a, fire in our, fire at, fire alarm went off, smoke coming, smoke from, smoke in the, thick smoke, short circuit, electric shock, electrocuted, live wire, gas leak, collapse, collapsed, unconscious, not breathing, heart attack, chest pain, heavy bleeding, convulsions, had a seizure, having a seizure, snake bite, dog bite, poisoning, food poisoning, drowning, drowned, child injured, student injured, seriously injured, badly injured, head injury, road accident, bus accident, van accident, met with an accident, child missing, missing child, student missing, went missing, not reached home, not reached school, missing since, not returned since, not returned home, did not come home, didn't come home, untraceable, ran away, kidnapped, abducted, knife, weapon, gun, pistol, assaulted, attacked, beaten up, violence, sexual assault, sexually abused, molested, rape, pocso, bad touch, suicide, suicidal, self harm, kill myself, kill himself, kill herself, end my life, end his life, end her life, want to die, trapped, stuck in the lift, stuck in lift, lift stuck, lift is stuck, stuck between floors, drunk driver, driver was drunk, driver is drunk, bomb threat, stampede, threat to life]
   categories:
     - id: emergency
       name: Emergency on campus or transport
-      keywords: [emergency, ambulance, unconscious, fainted, not breathing, collapsed, collapse, fell down, chest pain, heart attack, heavy bleeding, bleeding, had a seizure, having a seizure, convulsions, asthma attack, allergic reaction, snake bite, dog bite, food poisoning, poisoning, caught fire, on fire, fire broke out, fire accident, fire alarm went off, smoke coming, burning smell, short circuit, electric shock, electrocuted, live wire, gas leak, injured, child injured, student injured, got hurt, head injury, fracture, road accident, bus accident, van accident, met with an accident, child missing, missing child, student missing, went missing, not reached home, not reached school, not returned to the hostel, off route, kidnapped, abducted, bomb threat, bomb, stampede, drowning, suicide, self harm, kill myself, end my life]
+      keywords: [emergency, ambulance, unconscious, unresponsive, fainted, not breathing, collapsed, collapse, fell down, chest pain, heart attack, heavy bleeding, bleeding, had a seizure, having a seizure, convulsions, asthma attack, allergic reaction, snake bite, dog bite, food poisoning, poisoning, caught fire, on fire, fire broke out, fire accident, fire in the, fire in a, fire in our, fire at, fire alarm went off, smoke coming, smoke from, smoke in the, thick smoke, burning smell, short circuit, electric shock, electrocuted, live wire, gas leak, injured, child injured, student injured, got hurt, head injury, fracture, road accident, bus accident, van accident, met with an accident, child missing, missing child, student missing, went missing, not reached home, not reached school, not returned to the hostel, missing since, not returned since, not returned home, did not come home, didn't come home, untraceable, ran away, off route, kidnapped, abducted, knife, weapon, gun, pistol, trapped, stuck in the lift, stuck in lift, lift stuck, lift is stuck, stuck between floors, drunk driver, driver was drunk, driver is drunk, bomb threat, bomb, stampede, drowning, suicide, suicidal, self harm, kill myself, kill himself, kill herself, end my life, end his life, end her life, want to die]
       priority: P1
       risk: high
       department: Principal's office and safety committee
@@ -417,7 +433,7 @@ lifecycle:
       execution: team
     - id: facility
       name: Repair, transport or campus service
-      keywords: [repair, broken, not working, stopped working, leaking, leakage, seepage, plumber, electrician, carpenter, fan, fans, tube light, light, ac, projector, smart board, smartboard, computer lab, internet, wifi, wi-fi, drinking water, water cooler, ro, ro plant, toilet, washroom, not cleaned, cleaning, housekeeping, pest control, generator, dg set, diesel generator, inverter, power cut, no power, lift, furniture, bench, benches, desk, lab equipment, cctv, camera, gps, school bus, bus, van, transport, route, pickup point, pick up point, bus stop, bus late, bus did not come, hostel room, canteen, amc, fire extinguisher, maintenance]
+      keywords: [repair, broken, not working, stopped working, leaking, leakage, seepage, plumber, electrician, carpenter, fan, tube light, light, ac, projector, smart board, smartboard, computer lab, internet, wifi, wi-fi, drinking water, water cooler, ro, ro plant, toilet, washroom, not cleaned, cleaning, housekeeping, pest control, generator, dg set, diesel generator, inverter, power cut, no power, lift, furniture, bench, benches, desk, lab equipment, cctv, camera, gps, school bus, bus, van, transport, route, pickup point, pick up point, bus stop, bus late, bus did not come, hostel room, canteen, amc, fire extinguisher, maintenance]
       priority: P3
       risk: low
       department: Admin and transport
@@ -438,7 +454,7 @@ lifecycle:
       execution: both
     - id: certificate
       name: Certificate, TC or record request
-      keywords: [tc, transfer certificate, leaving certificate, school leaving certificate, slc, bonafide, bonafide certificate, bona fide, character certificate, study certificate, conduct certificate, migration certificate, course completion certificate, attendance certificate, duplicate marksheet, marksheet, mark sheet, marks card, transcript, transcripts, provisional certificate, degree certificate, original certificates, original documents, id card, name correction, correction in name, date of birth correction, dob correction, fee receipt, fee certificate, no dues certificate]
+      keywords: [tc, transfer certificate, leaving certificate, school leaving certificate, slc, bonafide, bonafide certificate, bona fide, character certificate, study certificate, conduct certificate, migration certificate, course completion certificate, attendance certificate, duplicate marksheet, marksheet, mark sheet, marks card, transcript, provisional certificate, degree certificate, certificate, certificates back, original certificates, original documents, id card, apaar, apaar id, udise, name correction, correction in name, date of birth correction, dob correction, fee receipt, fee certificate, no dues certificate]
       priority: P3
       risk: low
       department: School office (records)
@@ -463,7 +479,7 @@ lifecycle:
       execution: both
     - id: billing
       name: Fee concession, waiver or refund
-      keywords: [fee concession, concession, discount, sibling discount, staff ward, scholarship, freeship, fee waiver, waive, waiver, late fee, late fine, instalment, installment, instalments, cannot pay, can't pay, unable to pay, cannot afford, can't afford, reduce the fees, reduce the fee, fee reduction, refund, fee refund, money back, paid twice, charged twice, double payment, excess payment, cancel admission, cancel the admission, withdraw admission, admission cancellation, leave the course, leaving the course, left the course, quit the course, caution money, caution deposit, security deposit, fees maaf, fees kam]
+      keywords: [fee concession, concession, discount, sibling discount, staff ward, scholarship, freeship, fee waiver, waive, waiver, late fee, late fine, instalment, installment, cannot pay, can't pay, unable to pay, cannot afford, can't afford, reduce the fee, fee reduction, refund, refund of, fee refund, money back, paid twice, charged twice, double payment, excess payment, cancel admission, cancel the admission, withdraw admission, admission cancellation, leave the course, leaving the course, left the course, quit the course, caution money, caution deposit, security deposit, fees maaf, fees kam]
       priority: P3
       risk: medium
       department: Accounts
@@ -471,7 +487,7 @@ lifecycle:
         - key: student
           label: Which student (class, course or batch)
           kind: keywords
-          keywords: [class, std, standard, grade, section, batch, course, programme, program, semester, sem, roll no, roll number, gr no, admission no, admission number, enrolment no, registration no, first year, second year, third year, final year, 1st year, 2nd year, 3rd year, nursery, lkg, ukg, b com, b sc, ba, bba, bca, b tech]
+          keywords: [class, std, standard, grade, section, batch, course, programme, program, semester, sem, roll no, roll number, gr no, admission no, admission number, enrolment no, registration no, first year, second year, third year, final year, 1st year, 2nd year, 3rd year, nursery, lkg, ukg, b com, b sc, ba, bba, bca, b tech, passed out, year of passing, alumni, former student, ex student]
       required_checks:
         - "Fee account checked: fee for the year, paid, due and earlier concessions"
         - "Fee charged is the one approved under the state's fee law (fee committee or parent-teacher committee), with no charge outside it"
@@ -489,7 +505,7 @@ lifecycle:
       execution: both
     - id: staff-leave
       name: Staff leave or HR request
-      keywords: [casual leave, cl, sick leave, medical leave, earned leave, maternity leave, paternity leave, child care leave, emergency leave, apply for leave, need leave, take leave, days leave, days of leave, half day leave, leave without pay, lwp, duty leave, on duty leave, comp off, compensatory off, substitute teacher, arrangement period, arrangement class, duty swap, salary slip, salary not credited, resignation, relieving letter, chutti, chutti chahiye]
+      keywords: [casual leave, cl, sick leave, medical leave, earned leave, maternity leave, paternity leave, child care leave, emergency leave, apply for leave, request leave, requesting leave, request for leave, grant leave, sanction leave, need leave, take leave, days leave, days of leave, half day leave, leave without pay, lwp, duty leave, on duty leave, comp off, compensatory off, substitute teacher, arrangement period, arrangement class, duty swap, resign, resignation, last working day, relieving letter, chutti, chutti chahiye]
       priority: P2
       risk: low
       department: Principal's office (staff)
@@ -508,7 +524,7 @@ lifecycle:
       execution: agents
     - id: complaint
       name: Complaint or grievance
-      keywords: [complaint, complain, complained, grievance, shikayat, rude, misbehaved, misbehaviour, misbehavior, shouted, insulted, unfair, partiality, favouritism, favoritism, discrimination, discriminated, bullied, teased, teasing, not satisfied, no reply, no response, nobody replied, not resolved, escalate, forced to buy, school shop, must buy from, uniform shop, fee hike, fees increased, extra charges, hidden charges, guaranteed selection, false promise, misleading, negligence, careless, very upset, ombudsperson, ombudsman, sgrc, consumer court, consumer forum, legal notice]
+      keywords: [complaint, complain, complained, grievance, shikayat, rude, misbehaved, misbehaviour, misbehavior, shouted, insulted, unfair, partiality, favouritism, favoritism, discrimination, discriminated, bullied, teased, teasing, not satisfied, no reply, no response, nobody replied, not resolved, escalate, forced to buy, forcing, school shop, must buy from, uniform shop, private tuition, donation, capitation, capitation fee, donation for admission, asked for a donation, asking for a donation, asked for donation, asking for donation, fee hike, fees increased, extra charges, hidden charges, guaranteed selection, false promise, misleading, hostel food, mess food, bad food, stale, worms, suspended, expelled, rusticated, without hearing, negligence, careless, very upset, upset with, upset about, unhappy, not happy, disappointed, ombudsperson, ombudsman, sgrc, consumer court, consumer forum, legal notice]
       priority: P3
       risk: medium
       department: Grievance committee
@@ -525,7 +541,7 @@ lifecycle:
       execution: both
     - id: admission
       name: Admission, enrolment or RTE seat
-      keywords: [admission, new admission, want admission, seek admission, seeking admission, admission form, admission enquiry, admission inquiry, admission process, admissions open, seat, seats, seat available, seats available, nursery, lkg, ukg, pre-primary, entrance test, entrance exam, merit list, seat allotment, allotment letter, allotted, counselling round, management quota, enrol, enroll, enrolment, enrollment, join the batch, new batch, batch starting, demo class, rte, rte seat, 25% quota, free seat, ews, lottery, rte lottery, dakhila, pravesh, prospectus, anti-ragging affidavit, anti-ragging undertaking]
+      keywords: [admission, new admission, want admission, seek admission, seeking admission, admission form, admission enquiry, admission inquiry, admission process, admissions open, applied for admission, application for admission, admission status, seat, seat available, fee structure, nursery, lkg, ukg, pre-primary, entrance test, entrance exam, merit list, seat allotment, allotment letter, allotted, counselling round, management quota, enrol, enroll, enrolment, enrollment, join the batch, new batch, batch starting, batch timings, crash course, foundation course, repeater batch, dropper batch, demo class, rte, rte seat, 25% quota, free seat, ews, lottery, rte lottery, dakhila, pravesh, prospectus, anti-ragging affidavit, anti-ragging undertaking]
       priority: P3
       risk: medium
       department: Admissions office
@@ -544,7 +560,7 @@ lifecycle:
         - "College: eligibility marks, merit list or seat allotment, category certificate, migration certificate if from another board, and the yearly anti-ragging undertaking on antiragging.in"
         - "Coaching: student is 16 or older or has passed Class 10; fees, refund rules, course length and teachers' qualifications given in writing; no promise of ranks or marks"
       not_eligible:
-        - keywords: [rte in class 2, rte in class 3, rte in class 4, rte in class 5, rte in class 6, rte in class 7, rte in class 8, rte in class 9, rte in class 10, rte in class 11, rte in class 12, rte seat in class 2, rte seat in class 3, rte seat in class 4, rte seat in class 5, rte seat in class 6, rte seat in class 7, rte seat in class 8, rte in the middle of the year, rte from this month, rte mid year, rte without the lottery, outside the rte lottery]
+        - keywords: [rte in class 2, rte in class 3, rte in class 4, rte in class 5, rte in class 6, rte in class 7, rte in class 8, rte in class 9, rte in class 10, rte in class 11, rte in class 12, rte seat in class 2, rte seat in class 3, rte seat in class 4, rte seat in class 5, rte seat in class 6, rte seat in class 7, rte seat in class 8, rte admission in class 2, rte admission in class 3, rte admission in class 4, rte admission in class 5, rte admission in class 6, rte admission in class 7, rte admission in class 8, rte in the middle of the year, rte mid year, rte without the lottery, outside the rte lottery]
           reason: "RTE free seats (at least 25% of the entry class: pre-primary or Class 1) are given only through the state's online lottery once a year; the school cannot give one directly, mid-year or in a higher class unless the state portal opens such seats. Tell the family the next portal dates, that the nearest government school must admit the child free, and that they can apply for a regular seat with a fee concession."
       approval: { required: always, role: head-of-institution }
       signoff: { required: false }
@@ -552,7 +568,7 @@ lifecycle:
       execution: both
     - id: exam
       name: Exam, marks or result
-      keywords: [the exam, the exams, exam date, exam dates, exam fee, exam form, final exam, semester exam, board exam, board exams, practical exam, practicals, missed the exam, missed the test, missed the paper, unit test, class test, weekly test, mock test, re-test, retest, re-exam, reexam, mid-term, midterm, half-yearly, half yearly, annual exam, pre-board, hall ticket, admit card, exam result, result withheld, result not declared, wrong marks, marks not counted, not counted, totalling, rechecking, recheck, re-evaluation, revaluation, answer sheet, copy checking, grace marks, compartment, supplementary, backlog, atkt, attendance shortage, short attendance, detained, loc, board registration, cheating in exam, copying in exam, unfair means, pariksha]
+      keywords: [exam, the exam, exam date, exam fee, extra time, scribe, cwsn, dyslexia, learning disability, exam form, final exam, semester exam, board exam, practical exam, practicals, missed the exam, missed the test, missed the paper, unit test, class test, weekly test, mock test, re-test, retest, re-exam, reexam, mid-term, midterm, half yearly, annual exam, pre-board, hall ticket, admit card, exam result, result withheld, result not declared, wrong marks, marks not counted, not counted, totalling, rechecking, recheck, re-evaluation, revaluation, answer sheet, copy checking, grace marks, compartment, supplementary, backlog, atkt, attendance shortage, short attendance, detained, loc, board registration, cheating in exam, copying in exam, unfair means, pariksha]
       priority: P2
       risk: medium
       department: Exam cell
@@ -560,7 +576,7 @@ lifecycle:
         - key: grounds
           label: Reason for the request, with proof where needed
           kind: keywords
-          keywords: [fever, ill, illness, sick, unwell, dengue, typhoid, malaria, jaundice, chickenpox, viral, hospital, hospitalised, hospitalized, admitted, surgery, operation, accident, fracture, doctor, medical certificate, discharge summary, prescription, death, passed away, funeral, bereavement, sports, tournament, competition, ncc, nss, scouts, olympiad, not counted, not totalled, wrong total, added wrongly, totalling, not evaluated, not checked, unchecked, unmarked, wrong marks, marks not added, mistake, not received, not issued, wrong name, spelling, wrong photo, wrong subject, subject code, clash, same day]
+          keywords: [because, due to, owing to, disability, dyslexia, cwsn, udid, rechecking, recheck, re-evaluation, revaluation, verification, fever, ill, illness, sick, unwell, dengue, typhoid, malaria, jaundice, chickenpox, viral, hospital, hospitalised, hospitalized, admitted, surgery, operation, accident, fracture, doctor, medical certificate, discharge summary, prescription, death, passed away, funeral, bereavement, sports, tournament, competition, ncc, nss, scouts, olympiad, not counted, not totalled, wrong total, added wrongly, totalling, not evaluated, not checked, unchecked, unmarked, wrong marks, marks not added, mistake, not received, not issued, wrong name, spelling, wrong photo, wrong subject, subject code, clash, same day]
       required_checks:
         - Student, exam and subject confirmed from the exam timetable and marks register
         - "Reason proved for a missed exam: medical certificate or discharge summary, death in the family, or sports or NCC duty"
@@ -574,7 +590,7 @@ lifecycle:
       execution: both
     - id: child-protection
       name: Child protection, abuse or ragging
-      keywords: [pocso, bad touch, touched her, touched him, touches her, touches him, touching her, touching him, touched me, inappropriately, inappropriate touch, sexual, sexually, sexual harassment, sexual assault, molest, molested, rape, private parts, obscene, nude photos, not to tell anyone, keep it a secret, stalking, ragging, ragged, beaten, beaten up, beat him, beat her, beat my, slapped, hit him, hit her, hit my son, hit my daughter, caned, corporal punishment, physical punishment, mental harassment, humiliated, made to kneel, threatened to hurt, threatening messages, drugs]
+      keywords: [pocso, bad touch, touched her, touched him, touches her, touches him, touching her, touching him, touched me, inappropriately, inappropriate touch, sexual, sexually, sexual harassment, sexual assault, molest, molested, rape, private parts, obscene, vulgar, nude photos, photos of girls, photographing girls, not to tell anyone, keep it a secret, inappropriate messages, messages her, messaging her, messaging him, sends her messages, sends him messages, sending her messages, sending him messages, messages at night, messages late at night, calls her at night, calls him at night, meet alone, meet her alone, meet him alone, stalking, following her, following my daughter, following my son, eve teasing, stranger, suspicious man, suspicious person, ragging, ragged, beaten, beaten up, beat him, beat her, beat my, slapped, hit him, hit her, hit my son, hit my daughter, caned, corporal punishment, physical punishment, mental harassment, humiliated, made to kneel, threatened to hurt, threatening messages, drugs]
       priority: P1
       risk: high
       department: Principal's office and safety committee
