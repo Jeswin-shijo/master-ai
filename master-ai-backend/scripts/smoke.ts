@@ -5,10 +5,15 @@
  *   agent proposes → policy → signed approval → execution → audit chain verify
  *
  * Also checks tenant isolation (RLS) and the generated pack for a second,
- * uncurated industry. Run: pnpm smoke  (API_URL defaults to localhost:3000)
+ * uncurated industry, then cases in every sector (8 stages, gates, sign-off,
+ * report), intake form and API, needs-info, cancel, rejected gate, not
+ * eligible, kill switch and RLS on cases. Run: pnpm smoke  (API_URL defaults to localhost:3000)
  */
 import { randomBytes } from 'node:crypto';
-import type { SectorId } from '@onehuman/schemas';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parse } from 'yaml';
+import { ORG_TYPES, type CaseDetail, type SectorId } from '@onehuman/schemas';
 import { ApiError, connectRealtime, createClient, createDeviceKey, signApproval, type ApiClient } from '@onehuman/sdk';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3000';
@@ -42,6 +47,183 @@ async function signedDecision(api: ApiClient, seed: string, keyId: string, appro
   const signedAt = new Date().toISOString();
   const signature = signApproval(seed, { approvalId, decision, editedArgs: null, notes: notes ?? null, signedAt });
   return api.approvals.decide(approvalId, { decision, notes, signature, keyId, signedAt });
+}
+
+interface SuiteCase {
+  id: string;
+  request: string;
+  amount_inr?: number;
+  expect: { category: string; priority: string; review: string; approval?: { required: boolean; role?: string }; signoff?: { required: boolean; role?: string } };
+}
+
+/** A real request from an organization type's test set. */
+function suiteCase(orgType: string, id: string): SuiteCase {
+  const suite = parse(readFileSync(join(__dirname, '../../evals/suites', `${orgType}.yaml`), 'utf8')) as { cases: SuiteCase[] };
+  const found = suite.cases.find((c) => c.id === id);
+  if (!found) throw new Error(`No case ${id} in the ${orgType} test set`);
+  return found;
+}
+
+const FINAL = ['closed', 'rejected', 'cancelled', 'escalated'];
+
+/** Wait for a case to reach a state, approving gates and actions on the way when asked. */
+async function driveCase(
+  api: ApiClient,
+  seed: string,
+  keyId: string,
+  caseId: string,
+  until: (d: CaseDetail) => boolean,
+  opts: { approve?: boolean; timeoutMs?: number } = {},
+): Promise<CaseDetail> {
+  return waitFor(
+    `case ${caseId}`,
+    async () => {
+      const d = await api.cases.get(caseId);
+      if (until(d)) return d;
+      if (opts.approve) {
+        const pending = (await api.approvals.list()).filter((a) => a.caseId === caseId || (d.case.goalId && a.goalId === d.case.goalId));
+        for (const a of pending) await signedDecision(api, seed, keyId, a.id, 'approved', 'Checked by the smoke test');
+      }
+      return null;
+    },
+    opts.timeoutMs ?? 240_000,
+  );
+}
+
+async function expectStatus(promise: Promise<unknown>, status: number, what: string) {
+  try {
+    await promise;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === status) return log(what, `${err.status} ${err.message}`);
+    throw err;
+  }
+  throw new Error(`${what}: expected ${status}, got success`);
+}
+
+const SECTOR_RUNS: { sector: SectorId; orgType: string; caseId: string; entry: 'app' | 'form' | 'api' }[] = [
+  { sector: 'energy-heavy-industry', orgType: 'power-plant', caseId: 'fan-bearings', entry: 'app' },
+  { sector: 'trade-logistics-tourism', orgType: 'travel-agency', caseId: 'school-trip-deposit', entry: 'app' },
+  { sector: 'finance-development', orgType: 'lender', caseId: 'personal-loan-wedding', entry: 'form' },
+  { sector: 'technology-innovation', orgType: 'it-services', caseId: 'owner-says-skip-cab', entry: 'app' },
+  { sector: 'public-services', orgType: 'hospital', caseId: 'discharge-final-approval', entry: 'api' },
+];
+
+/** One organization per sector: signup → 8 named stages → a real request runs every stage → report. */
+async function sectorRun(run: (typeof SECTOR_RUNS)[number]) {
+  const name = ORG_TYPES.find((t) => t.id === run.orgType)!.name;
+  const org = await onboard(run.sector, run.orgType, name, `Smoke ${name}`);
+  const { api } = org;
+  const lc = org.ws.pack.lifecycle;
+  if (!lc) throw new Error(`${run.orgType}: installed without a lifecycle`);
+  log(`${name}: installed`, `${lc.case.plural} · ${lc.stages.map((s) => s.name).join(' → ')}`);
+  await api.tenant.updateSettings({ calls: { simulatorMode: 'auto', fastSchedule: true } });
+  const key = createDeviceKey(new Uint8Array(randomBytes(32)));
+  const device = await api.auth.registerDeviceKey({ publicKey: key.publicKey, label: 'smoke-test', platform: 'web' });
+
+  const c = suiteCase(run.orgType, run.caseId);
+  const tenantId = org.auth.tenant.id;
+  let caseId: string;
+  if (run.entry === 'app') {
+    caseId = (await api.cases.create({ text: c.request, ...(c.amount_inr && { amountInr: c.amount_inr }) })).id;
+  } else if (run.entry === 'form') {
+    const form = await api.intakeKeys.create({ kind: 'form', label: 'Website' });
+    const sent = await api.intake.submitForm(tenantId, form.key, { name: 'Lakshmi', phone: '9876543210', text: c.request });
+    caseId = (await api.cases.list('all')).find((x) => x.code === sent.code)!.id;
+    log(`${name}: request through the public form`, sent.code);
+  } else {
+    const intake = await api.intakeKeys.create({ kind: 'api', label: 'Hospital system', source: 'system' });
+    const body = { text: c.request, requester: { name: 'Hospital information system' }, externalRef: `smoke-${run.caseId}`, ...(c.amount_inr && { amountInr: c.amount_inr }) };
+    const [a, b] = await Promise.all([api.intake.submit(tenantId, intake.key, body), api.intake.submit(tenantId, intake.key, body)]);
+    if (a.caseId !== b.caseId || a.duplicate === b.duplicate) throw new Error(`intake not idempotent: ${JSON.stringify([a, b])}`);
+    log(`${name}: intake API is idempotent`, `two posts → ${a.code}`);
+    await expectStatus(api.intake.submit(tenantId, 'ohk_not-a-real-key', body), 401, `${name}: a bad intake key is refused`);
+    caseId = a.caseId;
+  }
+
+  // The gate goes to the owner while nobody holds the rule's role, and says so.
+  const atGate = await driveCase(api, key.seed, device.id, caseId, (d) => d.approvals.some((a) => a.status === 'pending' && a.stage === 'approve'));
+  const gate = atGate.approvals.find((a) => a.status === 'pending' && a.stage === 'approve')!;
+  const role = c.expect.approval?.role ?? 'owner';
+  if (gate.approver !== 'owner' || (role !== 'owner' && !gate.reasons.some((r) => r.includes('Nobody holds')))) {
+    throw new Error(`${name}: gate routed to ${gate.approver} with reasons ${gate.reasons.join('; ')}`);
+  }
+  log(`${name}: ${atGate.case.code} waits at ${lc.stages[4]!.name}`, `${gate.summary} | ${gate.reasons.join(' ')}`);
+
+  const done = await driveCase(api, key.seed, device.id, caseId, (d) => FINAL.includes(d.case.status) && d.report.stages[7]!.status === 'done', { approve: true });
+  if (done.case.status !== 'closed') throw new Error(`${name}: ${done.case.code} ended ${done.case.status}: ${done.case.outcome}`);
+  const names = done.report.stages.map((s) => s.name);
+  if (names.join('|') !== lc.stages.map((s) => s.name).join('|')) throw new Error(`${name}: stage names ${names.join(', ')}`);
+  if (c.expect.signoff?.required && !done.approvals.some((a) => a.stage === 'close' && a.status === 'approved')) {
+    throw new Error(`${name}: expected a sign-off`);
+  }
+  log(`${name}: ${done.case.code} closed`, done.report.text);
+  for (const s of done.report.stages) console.log(`    · ${s.name.padEnd(36)} ${s.status.padEnd(8)} ${s.summary ?? ''}`);
+  return { org, key, device };
+}
+
+/** needs-info, cancel while waiting, a rejected gate, not eligible, the kill switch and RLS. */
+async function caseChecks(power: Awaited<ReturnType<typeof sectorRun>>, lender: Awaited<ReturnType<typeof sectorRun>>, hospitalApi: ApiClient) {
+  const { api } = power.org;
+  const seed = power.key.seed;
+  const keyId = power.device.id;
+
+  // Needs info: waits, then runs on once the detail arrives.
+  const paperwork = await api.cases.create({ text: suiteCase('power-plant', 'new-connection-one-paper').request });
+  await driveCase(api, seed, keyId, paperwork.id, (d) => d.case.status === 'needs_info');
+  log('Needs info: the case waits', (await api.cases.get(paperwork.id)).report.stages[1]!.summary ?? '');
+  await api.cases.addInfo(paperwork.id, { text: 'Attaching the property tax receipt of the house as ownership proof.' });
+  const moved = await driveCase(api, seed, keyId, paperwork.id, (d) => d.report.stages[1]!.status === 'done');
+  log('Needs info: review passed after the details came', moved.report.stages[1]!.summary ?? '');
+  // Tidy up: it may already have finished on its own.
+  await api.cases.cancel(paperwork.id, { reason: 'Smoke test tidy-up' }).catch((err: unknown) => {
+    if (!(err instanceof ApiError && err.status === 409)) throw err;
+  });
+  await driveCase(api, seed, keyId, paperwork.id, (d) => FINAL.includes(d.case.status) && d.report.stages[7]!.status === 'done');
+
+  // Cancel while waiting on the gate: the approval leaves the inbox and the case is still reported.
+  const welding = await api.cases.create({ text: suiteCase('power-plant', 'contractor-welding').request });
+  const waiting = await driveCase(api, seed, keyId, welding.id, (d) => d.approvals.some((a) => a.status === 'pending'));
+  const gateId = waiting.approvals.find((a) => a.status === 'pending')!.id;
+  await api.cases.cancel(welding.id, { reason: 'Contractor postponed' });
+  const cancelled = await driveCase(api, seed, keyId, welding.id, (d) => d.case.status === 'cancelled' && d.report.stages[7]!.status === 'done');
+  if ((await api.approvals.get(gateId)).status !== 'expired') throw new Error('the cancelled case left its approval pending');
+  log('Cancel while waiting: approval withdrawn, case reported', cancelled.report.text);
+
+  // Not eligible: ends at review with the reason.
+  const wiring = await api.cases.create({ text: suiteCase('power-plant', 'one-room-dark').request });
+  const refused = await driveCase(api, seed, keyId, wiring.id, (d) => FINAL.includes(d.case.status) && d.report.stages[7]!.status === 'done');
+  if (refused.case.status !== 'rejected' || !refused.case.outcome?.startsWith('Not eligible')) throw new Error(`not eligible ended ${refused.case.status}: ${refused.case.outcome}`);
+  log('Not eligible: closed at review', refused.case.outcome);
+
+  // A rejected gate ends the case with the approver's note.
+  const lapi = lender.org.api;
+  const refund = await lapi.cases.create({ text: suiteCase('lender', 'double-debit-refund').request, amountInr: 38_500 });
+  const atGate = await driveCase(lapi, lender.key.seed, lender.device.id, refund.id, (d) => d.approvals.some((a) => a.status === 'pending'));
+  await signedDecision(lapi, lender.key.seed, lender.device.id, atGate.approvals.find((a) => a.status === 'pending')!.id, 'rejected', 'The bank already reversed the second debit');
+  const rejected = await driveCase(lapi, lender.key.seed, lender.device.id, refund.id, (d) => FINAL.includes(d.case.status) && d.report.stages[7]!.status === 'done');
+  if (rejected.case.status !== 'rejected' || !rejected.case.outcome?.includes('already reversed')) throw new Error(`rejected gate ended ${rejected.case.status}: ${rejected.case.outcome}`);
+  log('Rejected gate: case closed with the note', rejected.case.outcome);
+
+  // Kill switch: new cases are refused, and an approved case waits before its work starts.
+  const bearings = await api.cases.create({ text: suiteCase('power-plant', 'fan-bearings').request, amountInr: 380_000 });
+  const bearingsGate = await driveCase(api, seed, keyId, bearings.id, (d) => d.approvals.some((a) => a.status === 'pending' && a.stage === 'approve'));
+  await api.tenant.pause();
+  await expectStatus(api.cases.create({ text: 'Lube oil top-up for ID fan 2B' }), 409, 'Kill switch refuses new cases');
+  await signedDecision(api, seed, keyId, bearingsGate.approvals.find((a) => a.status === 'pending')!.id, 'approved', 'Quotes checked');
+  await new Promise((r) => setTimeout(r, 4000));
+  const held = await api.cases.get(bearings.id);
+  if (held.case.stage !== 'execute' || held.case.goalId) throw new Error(`kill switch did not hold the work: stage ${held.case.stage}, goal ${held.case.goalId}`);
+  log('Kill switch holds an approved case before its work');
+  await api.tenant.resume();
+  await driveCase(api, seed, keyId, bearings.id, (d) => FINAL.includes(d.case.status) && d.report.stages[7]!.status === 'done', { approve: true });
+  log('Resumed case finished', (await api.cases.get(bearings.id)).case.status);
+
+  // RLS: another company cannot see these cases.
+  await expectStatus(hospitalApi.cases.get(bearings.id), 404, 'Tenant isolation holds for cases (RLS)');
+
+  const verify = await api.audit.verify();
+  if (!verify.ok) throw new Error('audit chain broken after the case checks');
+  log('Audit chain verified after the case checks', `${verify.checked} events`);
 }
 
 async function main() {
@@ -181,6 +363,11 @@ async function main() {
     log('Kill switch refuses new goals', err.message);
   }
   await clinic.api.tenant.resume();
+
+  // 8. Cases: one organization per sector, then the edge checks.
+  const runs = [];
+  for (const run of SECTOR_RUNS) runs.push(await sectorRun(run));
+  await caseChecks(runs[0]!, runs[2]!, runs[4]!.org.api);
 
   const pulse = await api.ops.pulse();
   log('Daily pulse', `${pulse.headline} | ${pulse.lines.join(' ')}`);
