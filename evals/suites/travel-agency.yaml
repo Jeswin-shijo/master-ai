@@ -1,0 +1,105 @@
+# Travel agency & tour operator: realistic requests from travellers, sub-agents,
+# suppliers, staff, the booking system and the owner, with what the stages should decide.
+pack: travel-agency
+cases:
+  - id: kerala-no-dates
+    request: "Hi, we are planning a Kerala trip with family in December. Munnar and an Alleppey houseboat. Please send your best package price."
+    source: customer
+    expect:
+      category: customer-order
+      priority: P3
+      review: needs_info
+    why: Package and houseboat make it a holiday or tour package (P3). There are no dates and no count of adults and children, so review asks for them before a quote can be made.
+  - id: b2b-honeymoon-quote
+    request: "B2B query from Sai Holidays, Coimbatore: honeymoon couple, Port Blair 2 nights and Havelock 3 nights, 14 to 19 Feb 2027, 2 adults, budget Rs 1.2 lakh including flights from Chennai. Guest: Karthik Raman, 98400 12345. Please send itinerary and quote by tomorrow."
+    source: partner
+    amount_inr: 120000
+    expect:
+      category: customer-order
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Honeymoon, itinerary and quote make it a holiday package; flights alone do not make it a ticket job. Dates and travellers are given. Holiday files need no gate approval below the inherited ₹5 lakh owner limit; supplier confirmations later follow the confirm-booking rule.
+  - id: school-trip-deposit
+    request: "School trip enquiry: St. Joseph's High School, Hubballi, wants Goa for 48 class 9 students and 4 teachers, 8 to 11 January, by AC coach. Agreed Rs 9,500 per student; the school pays 50% advance next week. Hotel Sea View wants a Rs 1.5 lakh deposit by Friday to block 14 rooms."
+    source: staff
+    expect:
+      category: group-tour
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: operations-manager }
+    why: School trip, students and teachers make it a group tour, ahead of the single deposit match for supplier bills. Head count and dates are given. Group tours always need the owner's approval of the costing and deposits; the operations manager signs off after the trip.
+  - id: airline-cancelled-extra-fare
+    request: "Schedule change: IndiGo 6E 2131 Delhi to Bagdogra on 18 Oct has been cancelled by the airline. PNR K7XQ2M, 4 passengers (Gupta family) on our Darjeeling package. Next IndiGo flight is full; Air India has seats at Rs 18,400 extra for all four."
+    source: system
+    amount_inr: 18400
+    expect:
+      category: transit-delay
+      priority: P2
+      review: complete
+      approval: { required: true, role: operations-manager }
+      signoff: { required: false }
+    why: Schedule change and cancelled by the airline make it a flight or trip disruption (P2). The extra ₹18,400 is above the ₹10,000 limit, so the operations manager approves before the Air India seats are bought; IndiGo still owes the refund.
+  - id: father-hurt-gangtok
+    request: "Please help urgently! My father slipped near Tsomgo Lake and hurt his leg badly. The driver has taken us to STNM Hospital in Gangtok. We were supposed to go to Nathula tomorrow. Booking is under Sudha Iyer."
+    source: customer
+    expect:
+      category: traveller-emergency
+      priority: P1
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: operations-manager }
+    why: Help urgently, slipped, hurt and hospital make it a traveller emergency (P1) with no details to wait for. The duty person acts at once; the owner approves the spending and trip changes, and the operations manager signs off when the family is safe and the claim is filed.
+  - id: passport-short-validity
+    request: "Walk-in at Anna Nagar: Mr. Prakash wants Singapore visas and flights for himself and his wife, 20 to 25 December. His passport expires on 10 May 2027, so less than 6 months validity at travel; hers is valid till 2031."
+    source: staff
+    expect:
+      category: tickets-visa
+      priority: P3
+      review: not_eligible
+    why: Visas, flights and passport make it a tickets and visa job. Singapore needs 6 months of passport validity, and he has less, so he must renew his passport before we apply.
+  - id: ooty-cancel-exams
+    request: "We have to cancel our Ooty package for 22 to 25 October because my son's exams got moved. We paid Rs 32,000 advance on 1 October; booking is in the name of Lakshmi Narayanan. How much will we get back and how soon?"
+    source: customer
+    amount_inr: 32000
+    expect:
+      category: return-refund
+      priority: P2
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: accounts-manager }
+    why: Have to cancel and how much will we get back make it a cancellation or refund (P2). The refund is not known yet, so the ₹32,000 paid is the amount; it is above ₹5,000, so the owner approves. Accounts signs off once the money is back with her.
+  - id: hotel-invoice-group
+    request: "Hotel Snow Crest, Manali: attaching invoice SC/1187 for the Agarwal group, 12 rooms for 3 nights, 3 to 6 October, total Rs 2,16,000 including GST. Please release the payment by 20 October."
+    source: partner
+    amount_inr: 216000
+    expect:
+      category: supplier-payment
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: Attaching invoice and release the payment make it a supplier bill, ahead of the single group match. ₹2,16,000 is above the ₹50,000 limit, so the owner approves once the bill is matched to the confirmation and the bank details are checked.
+  - id: ooty-complaint
+    request: "Very disappointed with the Ooty trip. The 'deluxe' hotel had no hot water and the room smelled of damp, and your driver refused to take us to Pykara though it was in the itinerary you sent. This is not what we paid for. I want a part refund."
+    source: customer
+    expect:
+      category: complaint
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: grievance-officer }
+    why: Disappointed, no hot water, refused and not what we paid for make it a complaint, ahead of the single refund match. No gate approval; the grievance officer signs off the reply. The part refund is raised as its own refund file, where the ₹5,000 limit applies.
+  - id: rebook-under-limit
+    request: "Flight cancelled: Air India 6:05 am Delhi to Srinagar on 2 Nov, Malhotra family of 5. Rebook them on the 11:40 am IndiGo flight, extra fare is Rs 7,800 in total, and move the houseboat check-in to the evening. Tell them before they leave for the airport."
+    source: owner
+    amount_inr: 7800
+    expect:
+      category: transit-delay
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Flight cancelled and rebook make it a disruption (P2). The extra ₹7,800 is not above the ₹10,000 limit, so no approval is needed, and disruptions have no sign-off.

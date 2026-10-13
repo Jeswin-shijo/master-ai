@@ -1,10 +1,16 @@
-# First curated industry pack, as specified in the architecture plan.
+# Ready-made pack: travel agencies and tour operators (holidays, groups, tickets
+# and visas, inbound and outbound tours). First curated industry pack, upgraded
+# to the 8-stage case lifecycle. Built from researched Indian practice: DGCA
+# passenger charter (CAR Section 3, Series M), Consumer Protection (E-Commerce)
+# Rules 2020, Ministry of Tourism helpline and adventure guidelines, MEA consular
+# help, and TCS and GST rules for tour packages.
 id: travel-agency
-version: 1.2.0
-name: Travel agency
-description: Trip enquiries, itinerary planning, supplier bookings, payments and disruption handling for travel agencies and tour operators.
+version: 2.0.0
+name: Travel agency & tour operator
+description: Trip queries, holiday and group tours, tickets and visas, cancellations and refunds, flight and trip disruptions, traveller emergencies, supplier bills and complaints for travel agencies and tour operators.
 kind: industry
-extends: [bookings-base, crm-base]
+sector: trade-logistics-tourism
+extends: [sector-trade-logistics-tourism, bookings-base]
 match:
   keywords: [travel agency, travel agent, tour operator, tours and travels, holiday planner, tourism, trip planner, travel]
 
@@ -171,4 +177,334 @@ kpis:
     direction: up
     source: { type: records_count, entity: Trip, where: { status: booked } }
 
+  - id: disruptions-sorted-in-4-hours
+    name: Disruptions sorted in 4 hours
+    description: Share of disruption files this month where every affected traveller had a confirmed new plan or a refund within 4 hours of the alert.
+    unit: percent
+    direction: up
+    target: 90
+  - id: happy-travellers
+    name: Travellers rating us 4 or 5
+    description: Share of travellers who give 4 or 5 out of 5 in the post-trip feedback this month.
+    unit: percent
+    direction: up
+    target: 90
+
 connectors: [booking-engine, whatsapp-business, razorpay, gmail]
+
+lifecycle:
+  case: { label: Trip file, plural: Trip files, prefix: TF }
+  stages:
+    request:
+      name: Query or alert received
+      description: A trip query, booking change, cancellation, complaint, supplier bill or alert (flight cancelled, road closed) comes in by WhatsApp, phone, email, the website or a walk-in, from a sub-agent or supplier, or from the booking system, and gets a file number and a first reply.
+    review:
+      name: Check details and documents
+      description: The desk checks who is travelling, when, where, the budget and any booking reference, and the papers the trip needs, asks for anything missing, and stops a trip that cannot go ahead as asked, such as a passport that runs out too soon.
+      checks:
+        - Names exactly as on passport or photo ID, ages of children and seniors, and the traveller's own mobile and email
+        - Dates, places, number of travellers, rooms and budget are clear
+        - "Foreign trips: passport valid at least 6 months after the return date with 2 blank pages, visa and insurance rules checked for each country, PAN of the payer taken for TCS"
+        - "Restricted places: Inner Line Permit for Arunachal Pradesh, Nagaland, Mizoram and Manipur, Lakshadweep entry permit, and a Protected Area Permit for foreign guests where needed"
+        - "Changes, cancellations and refunds: booking reference, money paid and each supplier's cancellation rules found"
+        - "Complaints and supplier bills: quote, vouchers, confirmations and messages pulled into the file"
+        - Not a repeat of a file that is already open
+    classify:
+      name: Set type and urgency
+      description: The file gets its type (holiday, group, tickets or visa, cancellation, disruption, emergency, supplier bill or complaint), priority, risk, reply-by and finish-by times, and the desk that owns it.
+    assign:
+      name: Assign consultant and deadline
+      description: A travel consultant, ticketing executive, operations executive, duty manager or accountant is named for the file, with a deadline that beats supplier hold times, ticket time limits and free-cancellation dates.
+    approve:
+      name: Owner or manager approval
+      description: When the rules need it, the named person approves before money or a promise goes out; safety steps in a traveller emergency never wait for this.
+      checks:
+        - Amount within the approver's limit, or the owner asked
+        - "Group tours: costing, client contract and supplier deposits seen by the owner"
+        - Emergency help already under way, not waiting for the approval
+    execute:
+      name: Book, pay and track
+      description: Agents and staff quote, hold, confirm suppliers (each confirmation approved under the confirm-booking rule), send payment links, tickets and vouchers, give 24x7 trip support, rebook, refund and pay suppliers, and every cost, message and deadline goes in the file.
+    close:
+      name: Settle and close file
+      description: Someone other than the person who did the work checks the result and the money, the named role signs off where the rules ask for it, and the file is closed.
+      checks:
+        - "Bookings: every supplier confirmed in writing; confirmation, vouchers and payment receipt sent to the traveller"
+        - "Money: payment received as agreed; GST invoice issued; TCS collected and shown for foreign packages"
+        - "Refunds: paid to the original payment method with a written breakdown of charges; airline and supplier refunds received"
+        - "Supplier bills: matched to the confirmation and paid only to verified bank details"
+        - "Complaints: final written reply sent within one month of receipt"
+        - "Group tours and emergencies: everyone home safe; incident notes and insurance claims filed"
+    report:
+      name: Feedback and monthly review
+      description: Travellers are asked for feedback after the trip, and each month the owner reviews reply times, quote-to-booking rate, refunds, disruptions, complaints and supplier problems, files TCS and GST returns on time, and drops suppliers who keep failing.
+  priorities:
+    - { id: P1, name: "Emergency: traveller safety at risk", respond_within_hours: 0.25, resolve_within_hours: 24 }
+    - { id: P2, name: "Urgent: travel date or money at stake", respond_within_hours: 1, resolve_within_hours: 120 }
+    - { id: P3, name: Normal, respond_within_hours: 2, resolve_within_hours: 240 }
+    - { id: P4, name: Routine, respond_within_hours: 24, resolve_within_hours: 360 }
+  roles:
+    - { id: operations-manager, name: Operations manager, approves: "Extra rebooking costs above ₹10,000 when a flight or trip is disrupted; signs off group tours and traveller emergencies once everyone is home safe" }
+    - { id: accounts-manager, name: Accounts manager, approves: "Signs off every cancellation and refund once airline and supplier refunds are in and the traveller is paid back to the original payment method" }
+  urgent_keywords: [fire, explosion, accident, collision, injured, injury, ambulance, unconscious, heart attack, drowned, drowning, gone missing, went missing, kidnapped, assaulted, molested, robbed, robbery, theft, stolen, food poisoning, gas leak, evacuate, evacuation, terror attack, bomb threat]
+  categories:
+    - id: customer-order
+      name: Holiday or tour package
+      keywords: [package, holiday, holiday package, tour package, package price, honeymoon, family trip, family holiday, family tour, trip, nights, itinerary, quote, quotation, best price, houseboat, hotel booking, resort, sightseeing, yatra, pilgrimage, char dham, darshan, weekend getaway, plan a trip, plan our trip, ghumne jana]
+      priority: P3
+      risk: low
+      department: Sales
+      required_details:
+        - { key: travelDates, label: Travel dates, kind: date }
+        - key: travellers
+          label: Number of travellers
+          kind: keywords
+          keywords: [adult, child, children, kid, infant, pax, people, traveller, couple, member, guest, family of, senior citizen]
+      required_checks:
+        - "Dates, places, number of adults and children (with ages), rooms and budget"
+        - Lead traveller's name, mobile and email
+        - "Foreign trips: passport valid 6 months after return, visa and insurance rules, PAN of the payer for TCS"
+        - "Permits planned for restricted places (Inner Line Permit, Protected Area Permit)"
+        - Hotels, cabs and activities from approved suppliers at rates valid for the travel dates
+        - "Quote shows what is included and not included, GST and TCS, payment dates and cancellation charges"
+        - "Payments of ₹2 lakh or more for one booking taken only by bank transfer, UPI or card, never in cash"
+      not_eligible:
+        - keywords: [fake bill, dummy bill, inflated bill, bill for a higher amount, higher amount on the bill, bill without travelling, bill without travel, only the bill for ltc, without bill, bina bill, no gst bill needed, without gst bill]
+          reason: "We bill every booking with a proper GST invoice for the travel we actually book, at the price paid. We do not skip the bill or make fake or inflated bills for LTC or reimbursement claims."
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: new-enquiry
+      execution: both
+    - id: group-tour
+      name: Group, school or adventure tour
+      keywords: [package, trip, itinerary, quote, quotation, group, group tour, group trip, group booking, group of, school trip, school tour, college trip, college tour, educational tour, study tour, industrial visit, excursion, students, teachers, corporate offsite, corporate tour, corporate group, offsite, employees, staff trip, mice, incentive trip, incentive tour, conference, destination wedding, wedding guests, room block, rooming list, trek, trekking, rafting, camping, adventure, paragliding, bike trip, per head, per student]
+      priority: P3
+      risk: medium
+      department: Operations (groups)
+      required_details:
+        - key: headCount
+          label: How many people
+          kind: keywords
+          keywords: [student, employee, people, pax, persons, member, guest, participant, delegate, teacher, adult]
+        - { key: travelDates, label: Travel dates, kind: date }
+      required_checks:
+        - "Head count, dates, room plan and budget per person; name-list and deposit deadlines from airlines and hotels"
+        - "Costing sheet with margin, deposits and each supplier's cancellation terms"
+        - "Written confirmation from the client (school, company or family) with the payment schedule"
+        - "School trips: written permission from the school and every parent, staff list and medical notes, collected before departure"
+        - "Adventure activities: operator following the Indian Adventure Tourism Guidelines, first-aid trained guides, certified gear, a signed risk waiver and the operator's age and fitness limits"
+        - "Coaches and cabs: valid tourist permit (All India Tourist Permit on Vahan, or a state permit), fitness, insurance and a licensed driver"
+        - "Emergency plan: nearest hospitals, 112, the insurer's number and our 24x7 duty phone"
+      not_eligible:
+        - keywords: [without parents consent, without parent consent, no consent letters, skip the consent letters, without consent letters, without school permission, without the principal s permission]
+          reason: "We take school trips only with written permission from the school and every parent. Please send the consent letters first."
+      approval: { required: always, role: owner }
+      signoff: { required: true, role: operations-manager }
+      workflow: new-enquiry
+      execution: both
+    - id: tickets-visa
+      name: Tickets, visa or insurance
+      keywords: [flight, flight ticket, air ticket, airfare, air fare, fare, fare quote, book a flight, ticket, pnr, train ticket, tatkal, irctc, rail ticket, bus ticket, sleeper bus, volvo bus, date change, change the date, name correction, web check-in, extra baggage, excess baggage, visa, e-visa, evisa, visa appointment, vfs, biometrics, passport, travel insurance, forex, one way, return ticket, round trip]
+      priority: P3
+      risk: low
+      department: Ticketing and visas
+      required_details:
+        - { key: travelDate, label: Travel date, kind: date }
+      required_checks:
+        - Names exactly as on passport or photo ID
+        - Traveller's own mobile and email in the airline booking (without them the airline owes no compensation for missed notices)
+        - "Fare rules shown before issue: refundable or not, change fee, baggage"
+        - Payment received before the ticket is issued
+        - "Rail Tatkal: no agent bookings in the first 30 minutes after opening; the traveller confirms the Aadhaar OTP on their own mobile"
+        - "Visa: passport valid 6 months after return with 2 blank pages, documents as per the embassy or VFS checklist, appointment booked; the embassy decides, so never promise a visa"
+        - Travel insurance meets the visa rule and covers the whole trip
+      not_eligible:
+        - keywords: [work visa, work permit, job visa, employment visa, job abroad, overseas job, job offer abroad, gulf job, emigration clearance]
+          reason: "Visas for jobs abroad must go through a recruiting agent registered with the Ministry of External Affairs on eMigrate (Emigration Act, 1983). We handle tourist, visit and business visas only."
+        - keywords: [less than 6 months validity, less than six months validity, less than 6 months valid, validity less than 6 months, only 3 months validity, only 4 months validity, only 5 months validity, passport expiring soon, passport about to expire, passport is about to expire, passport expires soon]
+          reason: "For most countries the passport must stay valid at least 6 months beyond the trip. The traveller renews it first through Passport Seva (Tatkal if urgent), and we apply for the visa once the new passport is in hand."
+      approval: { required: never }
+      signoff: { required: false }
+      execution: both
+    - id: return-refund
+      name: Cancellation or refund
+      keywords: [cancel, cancellation, cancel my, cancel our, cancel the, cancel my trip, cancel our trip, cancel the trip, cancel the package, cancel the booking, cancel the ticket, we cancelled, i cancelled, cancelled my booking, we cancelled our booking, want to cancel, have to cancel, need to cancel, refund, money back, paisa wapas, credit shell, no-show, not travelling, cannot travel, can't travel, unable to travel, unused night, how much will we get back, how much will i get back, how much refund]
+      priority: P2
+      risk: medium
+      department: Operations and accounts
+      required_details:
+        - key: booking
+          label: Which booking or ticket
+          kind: keywords
+          keywords: [booking, booked, pnr, ticket, voucher, invoice, file no, file number, booking id, package, trip, tour, in the name of, under the name]
+      required_checks:
+        - Cancellation asked for in writing by the person who booked
+        - "Each supplier's cancellation charges applied by date, and no free-cancellation deadline missed"
+        - "Airline tickets: refund claimed from the airline, which owns the refund for agent bookings; taxes and airport fees refunded even on non-refundable fares"
+        - Credit shell only if the traveller chooses it
+        - Our own service charge exactly as told before booking
+        - Written refund breakdown sent; money back only to the original payment method
+        - GST credit note issued for our invoice
+      not_eligible:
+        - keywords: [booked on makemytrip, booked on goibibo, booked on cleartrip, booked on yatra, booked on the airline website, booked directly with the airline, booked directly with the hotel, booked through another agent, booked with another agent, booked elsewhere, not booked through you, not booked with you]
+          reason: "We can cancel and refund only bookings made through us. Bookings made elsewhere are cancelled with the website, airline or agent that took the money."
+      approval: { required: above_amount, role: owner, amount_inr: 5000 }
+      signoff: { required: true, role: accounts-manager }
+      workflow: refund-request
+      execution: both
+    - id: transit-delay
+      name: Flight or trip disruption
+      keywords: [flight cancelled, flight canceled, flight cancellation, flight got cancelled, flight has been cancelled, flight is cancelled, flight was cancelled, flight got delayed, train got cancelled, train is cancelled, cancelled by the airline, cancelled by airline, flight delayed, flight delay, flight is delayed, delayed by, train delayed, train cancelled, train is late, schedule change, rescheduled, missed connection, missed flight, missed the flight, denied boarding, offloaded, overbooked, rebook, landslide, road closed, road blocked, heavy rain, snowfall, cyclone, strike, bandh, hartal, hotel cancelled, hotel has cancelled, cancelled our booking, cancelled our rooms, hotel overbooked, no booking at the hotel, cab not arrived, cab did not come, cab didn't come, driver did not come, driver didn't come, driver not reachable, no pickup, pickup not done, vehicle breakdown, bus breakdown, broke down, stuck in traffic]
+      priority: P2
+      risk: medium
+      department: Operations
+      required_details:
+        - key: booking
+          label: Which flight, train, vehicle or booking
+          kind: keywords
+          keywords: [flight, pnr, train, bus, coach, cab, taxi, driver, vehicle, hotel, booking, package, tour, trip, group, guest, family]
+      required_checks:
+        - Every affected traveller, booking and onward connection listed
+        - "Airline or supplier notice saved: time, reason, new plan"
+        - "Airline duties claimed: alternate flight or full refund, meals or a hotel during long delays, compensation where the rules give it"
+        - Traveller told the options in writing; any extra cost, and who pays it, agreed before booking
+        - Onward hotels, cabs and tours moved to the new timing
+      not_eligible:
+        - keywords: [booked on makemytrip, booked on goibibo, booked on cleartrip, booked on the airline website, booked directly with the airline, booked through another agent, booked with another agent, booked elsewhere, not booked through you, not booked with you]
+          reason: "The trip was not booked through us, so the airline or the agent who booked it must rebook or refund. We can offer a fresh booking."
+      approval: { required: above_amount, role: operations-manager, amount_inr: 10000 }
+      signoff: { required: false }
+      workflow: disruption-response
+      execution: both
+    - id: traveller-emergency
+      name: Traveller emergency
+      keywords: [emergency, medical emergency, urgent help, help urgently, need help urgently, accident, met with an accident, injured, hurt, slipped, fracture, bleeding, hospital, hospitalised, hospitalized, ambulance, fainted, collapsed, heart attack, chest pain, breathless, altitude sickness, unconscious, food poisoning, lost passport, passport lost, passport stolen, passport missing, stolen, robbed, gone missing, went missing, not reachable, stranded, we are stuck, flood, flash flood, earthquake, avalanche, riot, curfew, evacuate, unsafe, harassed, molested, assaulted, died, madad chahiye, bachao]
+      priority: P1
+      risk: high
+      department: Operations (24x7 duty desk)
+      required_checks:
+        - "Traveller safe now: 112 in India or the local emergency number abroad; hospital or police reached"
+        - Family or emergency contact told
+        - Insurer's assistance line told and a claim number taken
+        - "Abroad: Indian embassy or consulate contacted; lost passport reported to the police and the mission for an Emergency Certificate; MADAD used for consular help"
+        - "Foreign guests in India: the 24x7 tourist helpline 1800-11-1363 or 1363 can alert the authorities"
+        - Every call, cost and decision written in the file
+      approval: { required: high_risk_or_p1, role: owner }
+      signoff: { required: true, role: operations-manager }
+      workflow: delegate-work
+      execution: both
+    - id: supplier-payment
+      name: Supplier bill or payment
+      keywords: [supplier bill, supplier invoice, supplier payment, vendor bill, vendor invoice, vendor payment, hotel bill, hotel invoice, coach bill, cab bill, transport bill, transporter bill, dmc invoice, dmc payment, attaching invoice, attached invoice, our invoice, pending invoice, release the payment, release payment, payment release, payment due, deposit, bsp, adm, agency debit memo, allotment, rate contract, bank details, change of bank account, payment not received, transfer did not reach, msme, udyam]
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_details:
+        - { key: amount, label: Bill amount, kind: amount }
+      required_checks:
+        - "Bill matches the confirmed booking: dates, rooms, people, rate and taxes"
+        - "Customer's money for this trip received, or the owner agreed to pay first"
+        - Supplier's GSTIN valid and the GST invoice correct
+        - Bank details match the supplier record; any change confirmed by calling a number we already have
+        - TDS deducted where it applies
+        - "Paid by bank transfer; never more than ₹10,000 in cash to one supplier in a day"
+        - "Paid before the supplier's deadline (room release date, BSP due date), and MSME suppliers within 45 days"
+      approval: { required: above_amount, role: owner, amount_inr: 50000 }
+      signoff: { required: false }
+      execution: both
+    - id: complaint
+      name: Customer complaint
+      keywords: [complaint, complain, disappointed, not happy, unhappy, worst, pathetic, horrible, dirty, unclean, smelled, smelly, no hot water, not as promised, not as shown, not what we paid for, rude, misbehaved, refused, cheated, overcharged, hidden charges, no reply, no response, no one answers, nobody answers, still not received, consumer court, consumer forum, consumer commission, legal notice, bad review, shikayat]
+      priority: P2
+      risk: medium
+      department: Customer care
+      required_checks:
+        - Acknowledged within 48 hours with a complaint number
+        - "Facts checked: quote, itinerary and vouchers against what happened, the supplier's side, photos, messages and call notes"
+        - Supplier asked to fix or pay where it was their fault
+        - Final written reply within one month of receipt
+        - Any refund or goodwill amount raised as its own cancellation or refund file
+      approval: { required: never }
+      signoff: { required: true, role: grievance-officer }
+      workflow: delegate-work
+      execution: both
+  examples:
+    - { request: "Need a 5-night Andaman package for 2 adults from 10 March, 3-star hotels, budget ₹90,000", category: customer-order, priority: P3, approval: false }
+    - { request: Please plan a Char Dham yatra for my parents (68 and 64) in May with a car and driver, category: customer-order, priority: P3, approval: false }
+    - { request: "Honeymoon in the Maldives for 2 adults, 6 nights in a water villa from 14 February, budget ₹6.5 lakh", category: customer-order, priority: P3, approval: true }
+    - { request: "Corporate offsite for 60 employees in Jaipur, 2 nights in March, budget ₹18,000 per head", category: group-tour, priority: P3, approval: true }
+    - { request: Our college wants a 5-day Himachal trip with trekking and rafting for 35 students in April, category: group-tour, priority: P3, approval: true }
+    - { request: "Destination wedding in Udaipur on 12 December, 80 wedding guests, need room blocks and 3 coaches", category: group-tour, priority: P3, approval: true }
+    - { request: "Book 2 tickets Mumbai to Patna on 3 November in 3AC, Tatkal if needed", category: tickets-visa, priority: P3, approval: false }
+    - { request: What documents do I need for a UK visitor visa? We travel on 14 April, category: tickets-visa, priority: P3, approval: false }
+    - { request: "Name correction on the Kochi to Dubai ticket, PNR 4XK9TQ, surname spelt wrong", category: tickets-visa, priority: P3, approval: false }
+    - { request: "Please cancel my Bangkok package, my mother is unwell. What will I get back?", category: return-refund, priority: P2, approval: true }
+    - { request: "Guest left Shimla a day early, ask the hotel to refund the unused night of ₹4,200", category: return-refund, priority: P2, approval: false }
+    - { request: Cancel the Delhi to Goa tickets for 2 on 9 January and refund the ₹14600 paid, category: return-refund, priority: P2, approval: true }
+    - { request: Our Leh flight is delayed by 5 hours and the hotel cab is already waiting at the airport, category: transit-delay, priority: P2, approval: true }
+    - { request: "Landslide near Sonprayag, tomorrow's drive to Kedarnath cannot go, 3 families affected", category: transit-delay, priority: P2, approval: true }
+    - { request: "Cab did not come for the Kochi airport pickup, sent another taxi for ₹1,800", category: transit-delay, priority: P2, approval: false }
+    - { request: Our guest's passport was stolen in Paris last night and they fly home on Friday, category: traveller-emergency, priority: P1, approval: true }
+    - { request: "German tourist fainted at Amber Fort, ambulance called, our guide is with her", category: traveller-emergency, priority: P1, approval: true }
+    - { request: "Altitude sickness: Mr Rao is breathless at Sarchu camp and must come down to Manali now", category: traveller-emergency, priority: P1, approval: true }
+    - { request: "Coach bill from Sri Balaji Travels for the Ooty school tour, ₹84,000, payment due this week", category: supplier-payment, priority: P3, approval: true }
+    - { request: Hotel Sea Princess says payment not received for the Kumar wedding rooms and will release them on Monday, category: supplier-payment, priority: P3, approval: true }
+    - { request: "Transport bill from Mahalaxmi Cabs for September airport transfers, ₹22,500, please release payment", category: supplier-payment, priority: P3, approval: false }
+    - { request: Your driver was rude and drove rashly all the way to Mahabaleshwar, category: complaint, priority: P2, approval: false }
+    - { request: The refund promised 3 weeks ago is still not received and no one answers my calls, category: complaint, priority: P2, approval: false }
+    - { request: "The Munnar hotel was dirty and not as shown in the photos, I want to complain", category: complaint, priority: P2, approval: false }
+
+playbooks:
+  - id: flight-disruptions
+    title: Flight cancelled, delayed or overbooked
+    source: DGCA Civil Aviation Requirements, Section 3, Series M, Part IV (facilities for denied boarding, cancellations and delays), paras 3.3, 3.4 and 3.8, as reproduced on Vikaspedia
+    body: |
+      1. Put the traveller's own mobile and email in every airline booking. Without them the airline owes no compensation for a change it could not tell them about.
+      2. Cancelled with less than 2 weeks' notice (and up to 24 hours before departure): the airline must offer an alternate flight or a refund that the traveller accepts.
+      3. Not told in time, or a missed connection on the same ticket: the airline gives an alternate flight, or a full refund plus compensation of ₹5,000, ₹7,500 or ₹10,000 for flights of up to 1 hour, up to 2 hours and longer, never more than the one-way basic fare plus fuel charge.
+      4. Delays: meals and drinks once the delay reaches 2, 3 or 4 hours depending on flight length; a domestic delay over 6 hours means another flight within 6 hours or a full refund; a hotel when the delay passes 24 hours, or 6 hours for flights due between 8 pm and 3 am.
+      5. Denied boarding on an overbooked flight: nothing if another flight leaves within 1 hour; otherwise 200% of the one-way basic fare plus fuel charge (up to ₹10,000) for a new flight within 24 hours, or 400% (up to ₹20,000) beyond that.
+      6. Bad weather and other causes beyond the airline's control earn no compensation, but the refund or alternate flight still applies.
+      7. Move onward hotels, cabs and tours to the new timing. Extra cost up to ₹10,000 can be spent at once; above that, or when the cost is not known yet, the operations manager approves first. If anyone is hurt, unsafe or without a place to stay, open a traveller emergency file.
+  - id: travel-cancellations-refunds
+    title: Cancellations, refunds and who approves them
+    source: DGCA CAR Section 3, Series M, Part II (refund of airline tickets), as revised on 24 Feb 2026 and reported by PTI; Consumer Protection (E-Commerce) Rules, 2020, rule 4; this pack's approval rules (trip file gate, confirm-booking, cancel-booking, refund-above-5000 and the ₹2 lakh refund cap)
+    body: |
+      1. Take the cancellation in writing from the person who booked, and cancel with each supplier at once: hotel and cab charges rise as the travel date comes closer, and a no-show loses most of the money.
+      2. Work out the refund from each supplier's rules and the fare rules, and send the traveller a written breakdown: what was paid, each charge kept and the refund due.
+      3. Two approvals apply, and one does not cover the other. The first is the trip file's gate: above ₹5,000, or when the amount is not known yet, the owner approves the cancellation and the refund worked out, before anyone acts. The second comes when the money moves: the refund rule asks the owner again for any refund above ₹5,000, and cancelling a confirmed supplier booking always needs approval because it cannot be undone. The first approval says the refund is right; the second releases the money. Refunds above ₹2,00,000 are paid by a person outside the system.
+      4. Airline tickets: the airline owns the refund for agent bookings and must finish it within 14 working days. Taxes and airport fees come back even on non-refundable fares and no-shows. Pass the money on as soon as it arrives.
+      5. Within 48 hours of booking a ticket can be cancelled or changed free except for any fare difference, unless the flight is less than 7 days (domestic) or 15 days (international) away. Check each airline's rule for agent bookings.
+      6. Offer money back by default and a credit shell only if the traveller chooses it. Never charge a cancellation fee we would not bear ourselves if we cancelled.
+      7. Pay back to the original payment method within 14 days, issue a GST credit note, and the accounts manager signs off once the money is with the traveller.
+  - id: foreign-tour-tcs-gst
+    title: Foreign tour packages, PAN, TCS and GST
+    source: Union Budget 2026-27 TCS changes (Business Today, 1 Feb 2026); GST notes after the 56th GST Council (TaxGuru, Taxaj)
+    body: |
+      1. Take the PAN of the person paying before taking any money for a foreign tour package.
+      2. From 1 April 2026, collect TCS at 2% of the package price whatever the amount (before that: 5%, and 20% above ₹10 lakh). Without a PAN a higher rate applies. Confirm the current rate with your CA before quoting.
+      3. Show TCS on the quote and the invoice; the traveller can set it off against their income tax.
+      4. Deposit the TCS, file the quarterly TCS return on time and give the traveller the TCS certificate.
+      5. Tour packages are usually billed at 5% GST without input tax credit. Hotel rooms up to ₹7,500 a night carry 5% from 22 September 2025, and 18% above that. On air tickets sold as an agent, GST is on our service charge, not the fare.
+      6. Take ₹2 lakh or more for one booking only by bank transfer, UPI or card, never in cash.
+  - id: traveller-emergency-on-trip
+    title: Traveller emergency on a trip
+    source: PIB on the Ministry of Tourism 24x7 tourist helpline, Dec 2024; MEA pages on consular grievances (MADAD) and the Indian Community Welfare Fund; Passport Seva lost-passport FAQ
+    body: |
+      1. Safety first and without waiting for any approval: call 112 in India or the local emergency number abroad, get the traveller to hospital or the police, then tell the family.
+      2. Foreign guests in India can call the Ministry of Tourism's 24x7 helpline, 1800-11-1363 or 1363, in 12 languages; it can alert the authorities.
+      3. Abroad, report a lost or stolen passport to the local police and the Indian embassy or consulate at once; the mission issues an Emergency Certificate to fly home after checking nationality.
+      4. Raise consular help on MADAD (madad.gov.in). The Indian Community Welfare Fund can help Indians in distress abroad, on a means-tested basis.
+      5. Call the insurer's assistance line before big hospital bills where possible, and keep every bill and report for the claim.
+      6. The owner approves the money and trip changes (hospital deposit, new tickets, sending someone). The operations manager signs off when the traveller is safe or home and the claim papers are filed.
+  - id: group-and-school-tours
+    title: Group, school and adventure tours
+    source: Ministry of Tourism guidelines for approval of adventure tour operators and the Indian Adventure Tourism Guidelines (with ATOAI); All India Tourist Vehicles (Authorisation or Permit) Rules, 2023 and the Vahan AITP portal
+    body: |
+      1. Make a costing sheet: head count, room plan, each supplier's rate, deposit and cancellation terms, and our margin. The owner approves it before any deposit goes out.
+      2. Get written confirmation from the client (school, company or family) with the payment schedule, and collect the advance before paying suppliers.
+      3. School trips: written permission from the school and every parent, the staff list and medical notes, all collected before departure.
+      4. Adventure activities only with operators who follow the Indian Adventure Tourism Guidelines: first-aid trained guides, certified gear, a signed risk waiver, and their age and fitness limits.
+      5. Coaches and cabs must have a valid tourist permit (All India Tourist Permit on Vahan, or a state permit), fitness certificate, insurance and a licensed driver.
+      6. Send an escort with big groups, carry the rooming list and emergency plan (nearest hospitals, 112, the insurer's number, our 24x7 duty phone), and meet airline and hotel name-list deadlines.
+      7. The operations manager signs off once everyone is home and every supplier bill is settled.
