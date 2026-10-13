@@ -3,3 +3,6 @@ export * from './resolve';
 export * from './extract';
 export * from './offline';
 export * from './quality';
+export * from './text';
+export * from './prompts';
+export * from './merge';

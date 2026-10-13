@@ -4,3 +4,4 @@ export * from './tools';
 export * from './match';
 export * from './narrate';
 export * from './lifecycle';
+export * from './pricing';
