@@ -143,7 +143,14 @@ export const ACTION_LABEL_STOPS = ['#d63a0b', '#c8200c'] as const;
 
 export const radius = { sm: 8, md: 12, lg: 16, full: 999 } as const;
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
-export const fontSize = { xs: 12, sm: 13, md: 15, lg: 18, xl: 22, xxl: 28 } as const;
+/** Point sizes for the phone. Nothing under 13 (spec, Accessibility). */
+export const fontSize = { xs: 13, sm: 14, md: 15, lg: 18, xl: 22, xxl: 28, hero: 34 } as const;
+
+/** The same gradients as the CSS effects, as stops React Native's expo-linear-gradient takes. */
+export const gradients = {
+  action: { colors: ['#ec6015', '#d63a0b', '#c8200c', '#ad110b'], locations: [0, 0.16, 0.84, 1] },
+  cool: { colors: ['#077ac7', '#6b21ef'], locations: [0, 1] },
+} as const;
 export const fontFamily = {
   display: "'Red Hat Display', 'Red Hat Text', ui-sans-serif, system-ui, sans-serif",
   sans: "'Red Hat Text', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",

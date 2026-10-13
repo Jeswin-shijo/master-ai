@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { RedHatDisplay_300Light, RedHatDisplay_400Regular } from '@expo-google-fonts/red-hat-display';
+import { RedHatText_400Regular, RedHatText_500Medium, RedHatText_600SemiBold, useFonts } from '@expo-google-fonts/red-hat-text';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,7 +10,7 @@ import { startQueueSync } from '@/lib/offline';
 import { registerForPush } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
 import { useSession } from '@/lib/session';
-import { useTheme } from '@/lib/theme';
+import { font, useTheme } from '@/lib/theme';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -23,18 +25,31 @@ function SignedInEffects() {
 
 function RootStack() {
   const { ready, token, restore } = useSession();
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
+  const [fontsLoaded, fontError] = useFonts({ RedHatDisplay_300Light, RedHatDisplay_400Regular, RedHatText_400Regular, RedHatText_500Medium, RedHatText_600SemiBold });
+  // A font that fails to load falls back to the system font rather than blocking the app.
+  const fontsReady = fontsLoaded || !!fontError;
 
   useEffect(() => {
-    void restore().finally(() => SplashScreen.hideAsync());
+    void restore();
   }, [restore]);
+  useEffect(() => {
+    if (ready && fontsReady) void SplashScreen.hideAsync();
+  }, [ready, fontsReady]);
 
-  if (!ready) return null;
+  if (!ready || !fontsReady) return null;
   const signedIn = !!token;
+  const header = {
+    headerShown: true,
+    headerTintColor: c.accent,
+    headerStyle: { backgroundColor: c.background },
+    headerTitleStyle: { fontFamily: font.medium, color: c.text },
+    headerShadowVisible: false,
+  } as const;
 
   return (
     <>
-      <StatusBar style={dark ? 'light' : 'dark'} />
+      <StatusBar style="light" />
       {signedIn && <SignedInEffects />}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background } }}>
         <Stack.Protected guard={!signedIn}>
@@ -42,10 +57,7 @@ function RootStack() {
         </Stack.Protected>
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="approval/[id]"
-            options={{ headerShown: true, title: 'Approval', presentation: 'modal', headerTintColor: c.primary, headerStyle: { backgroundColor: c.surface } }}
-          />
+          <Stack.Screen name="approval/[id]" options={{ ...header, title: 'Decision', presentation: 'modal' }} />
         </Stack.Protected>
       </Stack>
     </>
