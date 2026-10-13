@@ -1,0 +1,783 @@
+# Ready-made pack: chartered accountant and tax practices (CA firms, tax
+# consultants, audit firms). Built from researched Indian practice: ICAI SQC 1,
+# the ICAI Code of Ethics and Council Guidelines, ICAI KYC and UDIN rules, the
+# CGST Act and Rules, the Income-tax Act 1961 (AY 2026-27 and earlier) and the
+# Income-tax Act 2025 (tax year 2026-27 onwards), and the Companies Act 2013.
+id: accounting-firm
+version: 1.0.0
+name: Accounting & tax firm
+description: GST, income tax and TDS returns, tax notices and appeals, audits, CA certificates, ROC filings, books and payroll, new clients and fees for chartered accountant and tax practices.
+kind: industry
+sector: finance-development
+extends: [sector-finance-development, projects-base]
+match:
+  keywords: [ca firm, chartered accountant, chartered accountant firm, ca practice, ca office, practising ca, practicing ca, tax consultant, tax consultant firm, tax consultancy, tax advisor, tax advisory firm, income tax consultant, gst consultant, gst practitioner, audit firm, statutory auditors, accounting firm, accountancy firm, accounting and tax, tax and audit, bookkeeping and tax]
+
+labels:
+  Customer: Client
+  Project: Engagement
+
+entities:
+  - name: Customer
+    label: Client
+    description: A person, family, business or trust the firm works for.
+    title_field: name
+    list_columns: [name, pan, clientType, engagementPartner, phone]
+    fields:
+      - { name: name, label: Client name, type: string, required: true }
+      - name: clientType
+        label: Client type
+        type: enum
+        options: [individual, huf, proprietorship, partnership, llp, company, trust, society, other]
+      - { name: pan, label: PAN, type: string }
+      - { name: panAadhaarLinked, label: PAN linked with Aadhaar, type: boolean }
+      - { name: gstin, label: GSTIN, type: string }
+      - { name: cin, label: CIN / LLPIN, type: string }
+      - { name: contactPerson, label: Contact person, type: string }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: city, label: City, type: string }
+      - { name: engagementPartner, label: Engagement partner, type: string }
+      - { name: kycComplete, label: KYC complete, type: boolean }
+      - { name: engagementLetterDate, label: Engagement letter date, type: date }
+      - { name: annualFee, label: Agreed annual fee, type: money }
+      - { name: feesOutstanding, label: Fees outstanding, type: money }
+      - name: source
+        label: Source
+        type: enum
+        options: [walk-in, phone, whatsapp, website, referral, other]
+      - { name: notes, label: Notes, type: text }
+  - name: Filing
+    label: Return or filing
+    plural_label: Returns and filings
+    title_field: filingType
+    list_columns: [client, filingType, period, dueDate, status]
+    fields:
+      - { name: client, label: Client, type: string, required: true }
+      - name: filingType
+        label: Return or form
+        type: enum
+        required: true
+        options: [gstr-1, gstr-3b, cmp-08, gstr-9, gstr-9c, itr, advance-tax, tds-return, tax-audit-report, form-146, aoc-4, mgt-7, llp-form-8, llp-form-11, other]
+      - { name: period, label: "Period (e.g. Sep 2026, AY 2026-27)", type: string, required: true }
+      - { name: dueDate, label: Legal due date, type: date, required: true }
+      - { name: internalDeadline, label: Our deadline, type: date }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [not-started, waiting-for-client, prepared, in-review, client-approval, filed, verified, closed]
+      - { name: taxPayable, label: Tax payable, type: money }
+      - { name: preparedBy, label: Prepared by, type: string }
+      - { name: reviewedBy, label: Reviewed by, type: string }
+      - { name: filedOn, label: Filed on, type: date }
+      - { name: acknowledgementNo, label: ARN / acknowledgement no., type: string }
+      - { name: lateFeeInterest, label: Late fee and interest, type: money }
+  - name: TaxNotice
+    label: Tax notice
+    plural_label: Tax notices
+    title_field: noticeType
+    list_columns: [client, authority, noticeType, replyDueDate, status]
+    fields:
+      - { name: client, label: Client, type: string, required: true }
+      - name: authority
+        label: Department
+        type: enum
+        required: true
+        options: [income-tax, gst-central, gst-state, roc, other]
+      - { name: noticeType, label: "Section or form (e.g. 142(1), ASMT-10, DRC-01)", type: string }
+      - { name: period, label: Year or period, type: string }
+      - { name: noticeDate, label: Notice date, type: date }
+      - { name: referenceNo, label: DIN / RFN, type: string }
+      - { name: verified, label: Checked as genuine, type: boolean }
+      - { name: replyDueDate, label: Reply due date, type: date, required: true }
+      - { name: hearingAt, label: Hearing date and time, type: datetime }
+      - { name: amountInDispute, label: Demand or amount in dispute, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [received, drafting, partner-review, replied, adjournment-sought, order-received, appeal-filed, closed]
+      - { name: outcome, label: Outcome or order summary, type: text }
+  - name: SignedReport
+    label: Signed report or certificate
+    plural_label: Signed reports and certificates
+    title_field: documentType
+    list_columns: [client, documentType, signingPartner, signedOn, udin]
+    fields:
+      - { name: client, label: Client, type: string, required: true }
+      - name: documentType
+        label: Document
+        type: enum
+        required: true
+        options: [tax-audit-report, statutory-audit-report, bank-or-stock-audit-report, net-worth-certificate, form-146-remittance, turnover-certificate, utilisation-certificate, other-certificate]
+      - { name: purpose, label: Purpose / addressed to, type: string }
+      - { name: signingPartner, label: Signing partner, type: string, required: true }
+      - { name: membershipNo, label: ICAI membership no., type: string }
+      - { name: signedOn, label: Signed on, type: date, required: true }
+      - { name: udin, label: UDIN, type: string }
+      - { name: udinGeneratedOn, label: UDIN generated on, type: date }
+      - { name: acceptedOnPortal, label: Client accepted on the portal, type: boolean }
+      - { name: papersArchivedOn, label: Working papers archived on, type: date }
+
+tools:
+  - name: clients.search
+    description: Search clients by name, PAN, GSTIN or engagement partner.
+    uses: records.search
+    with: { entity: Customer }
+  - name: filings.search
+    description: Search returns and filings by client, form, period, due date or status.
+    uses: records.search
+    with: { entity: Filing }
+  - name: filing.log
+    description: Add a return or filing to the due-date calendar for a client.
+    uses: records.create
+    with: { entity: Filing, data: { status: not-started } }
+  - name: filing.send_for_review
+    description: Mark a prepared return as ready for the review manager. It is not filed until a person files it.
+    uses: records.update
+    with: { entity: Filing, patch: { status: in-review } }
+  - name: notices.search
+    description: Search tax notices by client, department, section or form, reply date or status.
+    uses: records.search
+    with: { entity: TaxNotice }
+  - name: notice.log
+    description: Record a department notice with its reference number, reply date and hearing.
+    uses: records.create
+    with: { entity: TaxNotice, data: { status: received } }
+  - name: reports.search
+    description: Search the register of signed audit reports and certificates (the UDIN register).
+    uses: records.search
+    with: { entity: SignedReport }
+  - name: udin.record
+    description: Enter a report or certificate in the UDIN register after the partner has signed it and generated the UDIN.
+    uses: records.create
+    with: { entity: SignedReport }
+
+agents:
+  - role: returns-desk
+    name: Returns desk
+    description: Keeps the due-date calendar for GST, income tax, TDS and ROC filings, collects papers, payment and OTPs from clients, matches the books with GSTR-2B, AIS and 26AS, drafts returns, computations and forms for the review manager, posts entries and runs payroll, and records the acknowledgement after a person files.
+    instructions: Never file, submit or e-verify anything, and never mark a return as filed; a person files after the review manager approves and the client confirms the figures in writing. Quote the client, the return and the period in everything you write. Ask for papers and OTPs only on the client's registered phone or email.
+    autonomy: 3
+    tools: [clients.search, filings.search, filing.log, filing.send_for_review, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, schedule.create, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: notices-audit-desk
+    name: Notices and audit desk
+    description: Checks department notices are genuine, logs them with the reply date and hearing, collects papers and drafts replies and adjournment requests; prepares audit schedules, the Form 3CD draft and certificate drafts with every figure traced to its source; keeps the UDIN register and the working-paper file.
+    instructions: Never submit a reply, sign anything, generate a UDIN or tell a client a matter is closed; the engagement partner does these. Never put a figure in a certificate that you cannot trace to an original document. Keep notices and client papers confidential.
+    autonomy: 2
+    tools: [clients.search, notices.search, notice.log, reports.search, udin.record, filings.search, records.search, records.update, knowledge.search, document.generate, message.draft, schedule.create, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: practice-office
+    name: Practice office
+    description: Takes on new clients by sending the KYC list, running the conflict check and drafting the letter to the previous auditor and the engagement letter for the owner; raises fee invoices from the engagement letter, sends polite reminders and tracks what is unpaid.
+    instructions: Never promise a fee, discount or write-off; the owner decides those. Never start work for a new client before the owner approves the engagement letter. Fees are never a share of a refund, of tax saved or of any result.
+    autonomy: 3
+    tools: [clients.search, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, payment.request, schedule.create, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: client-onboarding
+    name: New client onboarding
+    description: Collect KYC, check for conflicts, write to the previous auditor and draft the engagement letter for the owner.
+    keywords: [new client, onboarding, kyc, engagement letter, fee quote, previous auditor]
+    steps:
+      - key: kyc-and-checks
+        title: Collect KYC and run the checks
+        agent: practice-office
+        instructions: Send the client the KYC list (PAN, Aadhaar or CIN/LLPIN, address, partners or directors, last returns or audited accounts), search existing clients for a conflict, and for any audit draft the letter to the previous auditor for the partner to sign and send by registered post or email with proof of delivery.
+      - key: engagement-letter
+        title: Draft the engagement letter
+        agent: practice-office
+        depends_on: [kyc-and-checks]
+        instructions: Draft the engagement letter with the scope, fee, payment terms and the client's duties from the agreed quote, and hand it to the owner for approval. Once approved, add the client and set up their returns in the due-date calendar.
+  - id: gst-return-filing
+    name: GST return filing
+    description: Reconcile the month, draft the GST returns, get the client's confirmation and payment, and record the filing.
+    keywords: [gst, gstr-1, gstr-3b, itc, gstr-2b, ims, reconcile]
+    steps:
+      - key: reconcile
+        title: Reconcile and draft the return
+        agent: returns-desk
+        instructions: Match sales with e-invoices and e-way bills, act on purchase bills in IMS, match ITC with GSTR-2B, draft GSTR-1 and GSTR-3B with the tax payable, and list every difference for the review manager.
+      - key: client-confirmation
+        title: Get confirmation, payment and the OTP
+        agent: returns-desk
+        depends_on: [reconcile]
+        instructions: Send the client the tax payable and the differences, ask for written confirmation and payment of the cash amount, and hand the filing OTP call to the staff member in charge by phone.
+      - key: record-filing
+        title: Record the filing
+        agent: returns-desk
+        depends_on: [client-confirmation]
+        instructions: After a person files, record the ARN and date on the filing, and send the filed copy to the client.
+  - id: income-tax-filing
+    name: Income tax and TDS filing
+    description: Match AIS and 26AS, draft the computation or TDS statement, get the client's confirmation, and track e-verification and refunds.
+    keywords: [itr, income tax return, tds, ais, 26as, advance tax, computation]
+    steps:
+      - key: prepare
+        title: Match the data and draft the computation
+        agent: returns-desk
+        instructions: Download AIS, TIS and 26AS, match them with the client's papers, draft the computation under the regime the client chose, or draft the TDS statement from the challans and the deductee-wise PAN and amounts, and list what is still missing.
+      - key: confirm
+        title: Get the client's confirmation
+        agent: returns-desk
+        depends_on: [prepare]
+        instructions: Send the computation and the tax payable to the client for written confirmation and hand the call for missing papers to the staff member in charge by phone. Mark the return ready for the review manager.
+      - key: track
+        title: Track e-verification and the refund
+        agent: returns-desk
+        depends_on: [confirm]
+        instructions: After a person files, record the acknowledgement, remind the client to e-verify within 30 days, and track the processing intimation and any refund.
+  - id: roc-filing
+    name: ROC annual filing
+    description: Prepare the company or LLP forms, collect signatures and track the SRN.
+    keywords: [roc, mca, aoc-4, mgt-7, llp form 11, llp form 8, adt-1]
+    steps:
+      - key: prepare-forms
+        title: Prepare the forms
+        agent: returns-desk
+        instructions: Check the AGM date and the due dates, prepare AOC-4, MGT-7 or MGT-7A, ADT-1 or the LLP forms from the approved accounts and minutes, and list the director or partner signatures and the certification needed.
+      - key: signatures-and-srn
+        title: Collect signatures and record the SRN
+        agent: returns-desk
+        depends_on: [prepare-forms]
+        instructions: Hand the DSC signing to the client's director or designated partner by phone, then pass the forms to the engagement partner to certify. After a person files, record the SRN and the fee paid.
+  - id: books-and-payroll
+    name: Books and payroll
+    description: Post the month's entries, reconcile the bank and prepare the salary sheet and statutory payments.
+    keywords: [tally, books, entries, bank reconciliation, payroll, salary, pf, esic]
+    steps:
+      - key: post-and-reconcile
+        title: Post entries and reconcile the bank
+        agent: returns-desk
+        instructions: Post the period's sales, purchases, expenses and bank entries, reconcile every bank account, and list missing bills and unexplained entries.
+      - key: payroll-and-gaps
+        title: Run payroll and chase missing bills
+        agent: returns-desk
+        depends_on: [post-and-reconcile]
+        instructions: Prepare the salary sheet, PF, ESIC and professional tax working from the changes the client confirmed, and hand the call for missing bills to the staff member in charge by phone.
+  - id: notice-reply
+    name: Tax notice reply
+    description: Verify the notice, keep its dates, draft the reply for the partner and track the hearing and the order.
+    keywords: [notice, scrutiny, demand, reply, hearing, appeal, asmt-10, drc-01]
+    steps:
+      - key: verify-and-log
+        title: Verify and log the notice
+        agent: notices-audit-desk
+        instructions: Check the income tax DIN on the e-filing portal, or the GST RFN or CBIC DIN, log the notice with its section or form, period, reply date and hearing, and put the dates in the calendar.
+      - key: draft-reply
+        title: Collect papers and draft the reply
+        agent: notices-audit-desk
+        depends_on: [verify-and-log]
+        instructions: Collect the returns, working papers and the client's explanation, draft the reply with evidence, or an adjournment request if the papers will not be ready, and hand it to the engagement partner.
+      - key: hearing-and-order
+        title: Track the hearing and the order
+        agent: notices-audit-desk
+        depends_on: [draft-reply]
+        instructions: Hand hearing attendance to the partner or senior in charge by phone with the date and the papers, record the order when it comes, and list the appeal time limit.
+  - id: audit-file
+    name: Audit file
+    description: Prepare the schedules and the report draft, arrange the fieldwork, and keep the file for the partner's signature.
+    keywords: [audit, tax audit, 3cd, stock audit, internal audit, caro]
+    steps:
+      - key: schedules
+        title: Prepare schedules and the report draft
+        agent: notices-audit-desk
+        instructions: From the trial balance and ledgers, prepare the audit schedules, the Form 3CD or CARO draft and the list of queries for the client.
+      - key: fieldwork
+        title: Arrange the fieldwork
+        agent: notices-audit-desk
+        depends_on: [schedules]
+        instructions: Hand the stock check, vouching and branch visits to the audit senior in charge by phone with the queries and dates, and record what they find.
+      - key: signing-file
+        title: Put the file together for signing
+        agent: notices-audit-desk
+        depends_on: [fieldwork]
+        instructions: Put the final draft, the management representation letter and the working papers together for the engagement partner. After the partner signs, record the UDIN and remind the client to accept the uploaded form on the portal.
+  - id: certificate-preparation
+    name: CA certificate
+    description: Draft the certificate from the documents, trace every figure and record the UDIN after the partner signs.
+    keywords: [certificate, net worth, form 146, 15cb, turnover certificate, utilisation certificate]
+    steps:
+      - key: draft
+        title: Draft and trace the certificate
+        agent: notices-audit-desk
+        instructions: Confirm the purpose, the addressee and the required format, draft the certificate from the documents, list each figure with the document it comes from, and draft the management representation letter.
+      - key: sign-and-record
+        title: Hand over for signing and record the UDIN
+        agent: notices-audit-desk
+        depends_on: [draft]
+        instructions: Hand the draft and the originals to the engagement partner to check and sign. After signing, enter the UDIN in the register and send the certificate only to the client or the named addressee.
+  - id: fee-invoicing
+    name: Fee invoicing and reminders
+    description: Raise the fee invoice from the engagement letter and follow up until it is paid.
+    keywords: [invoice, fees, bill, reminder, outstanding, write off]
+    steps:
+      - key: invoice
+        title: Raise the invoice
+        agent: practice-office
+        instructions: Check the fee against the engagement letter and the work done, raise the invoice with the client's GSTIN, and send it with a payment link.
+      - key: follow-up
+        title: Follow up the payment
+        agent: practice-office
+        depends_on: [invoice]
+        instructions: Send polite reminders at 15 and 30 days, and hand the call for fees unpaid after 60 days to the partner in charge of the client by phone.
+
+routines:
+  - id: daily-work-report
+    name: Daily work report
+    description: Each person in charge reports what was filed, who we are waiting on and what is due soon.
+    mode: automatic
+    days: [1, 2, 3, 4, 5, 6]
+    time: "18:30"
+    questions:
+      - { key: filedToday, label: "Filed today", ask: "How many returns, forms or replies were filed today?", type: number, unit: filings }
+      - { key: workDone, label: "Work done", ask: "What other work got done today?", type: text }
+      - { key: waitingOnClients, label: "Waiting on clients", ask: "Which clients are we still waiting on for papers, payment or an OTP?", type: text, flag: true }
+      - { key: dueSoon, label: "Due soon and not ready", ask: "Is anything due in the next three days that is not ready yet?", type: text, flag: true }
+      - { key: problems, label: "Problems", ask: "Is there any other problem you need help with?", type: text, flag: true, required: false }
+
+lifecycle:
+  case: { label: Assignment, plural: Assignments, prefix: ASG }
+  stages:
+    request:
+      name: Request or notice received
+      description: A client, a staff member, a referring CA or bank, or a portal alert asks for work such as a return, a notice reply, an audit or a certificate, and it gets an assignment number.
+      checks:
+        - Client name and PAN captured
+        - "Who asked and how (WhatsApp, email, call, portal alert) recorded"
+    review:
+      name: Documents and KYC check
+      description: Staff check the client's KYC, our authority to act, the papers, and whether the work is still allowed by law and by ICAI rules.
+      checks:
+        - "Client KYC on file: PAN, Aadhaar (stored masked) or CIN/LLPIN, address, partners or directors"
+        - "We are authorised to act: engagement letter, and the firm added as the client's CA or authorised representative on the portal"
+        - All papers for this work received and readable
+        - Legal due date and time limit checked; the work is not time-barred
+        - "Notice checked as genuine: income tax DIN, GST RFN or CBIC DIN"
+        - No conflict of interest; for any audit the previous auditor has been written to
+        - "For a tax audit: the signing partner is under 60 tax audits for the year, and the firm does not write the client's books"
+    classify:
+      name: Type, due date and priority
+      description: The assignment gets its type, the legal due date, the penalty risk, its priority and its desk (GST, direct tax, audit, notices, ROC, accounting or billing).
+      checks:
+        - Legal due date entered
+        - "Priority raised as the due date nears: 2 days P1, 10 days P2, 30 days P3; any attachment or recovery is P1"
+    assign:
+      name: Assign team and partner
+      description: The assignment gets a preparer, a reviewer and the responsible partner, with our own deadline a few days before the legal due date.
+      checks:
+        - Preparer, reviewer and partner named, and the preparer is not the reviewer
+        - Our deadline is before the legal due date
+    approve:
+      name: Partner review and approval
+      description: The review manager or engagement partner checks the working against the papers and the client's written confirmation, and approves before anything is filed, signed or sent; the owner approves new clients and big fee changes.
+      checks:
+        - Working checked against the papers
+        - Client confirmed the figures and the tax payable in writing
+        - Approval recorded before filing, signing or sending
+    execute:
+      name: Prepare, file and track
+      description: Staff and agents prepare the return, reply, report or certificate, a person files or submits it on the portal, and agents track challans, acknowledgements, hearings and deadlines.
+      checks:
+        - Client paid any tax due before filing
+        - Hearing dates and portal deadlines in the calendar
+        - Time spent logged against the assignment
+    close:
+      name: Proof, sign-off and billing
+      description: The acknowledgement or order is saved, e-verification and UDIN are done, the partner signs off signed work, the client gets copies and next steps, the working papers are filed and the invoice is raised.
+      checks:
+        - Acknowledgement (ARN or SRN) or department order saved
+        - Client e-verified the return within 30 days, or accepted the CA-uploaded form on the portal
+        - UDIN generated for every signed report or certificate, on the day of signing and never later than 60 days
+        - Filed copy and next steps sent to the client
+        - Working papers filed (audit file put together within 60 days of the report and kept for 7 years)
+        - Invoice raised as per the engagement letter
+    report:
+      name: Monthly practice review
+      description: Each month the partners look at on-time filings, late fees, open notices, review findings, unbilled work and fee collection, and fix the problems that keep coming back.
+      checks:
+        - On-time filings and late fees caused by us this month
+        - Open notices and hearings for next month
+        - Lock-up days and fee realisation
+  priorities:
+    - { id: P1, name: "Urgent: due within 2 days, or attachment or recovery", respond_within_hours: 1, resolve_within_hours: 24 }
+    - { id: P2, name: "High: due within 10 days", respond_within_hours: 4, resolve_within_hours: 120 }
+    - { id: P3, name: "Normal: due within 30 days", respond_within_hours: 8, resolve_within_hours: 336 }
+    - { id: P4, name: "Low: no legal due date", respond_within_hours: 24, resolve_within_hours: 720 }
+  roles:
+    - { id: engagement-partner, name: Engagement partner, approves: "Notice replies and appeals, audits, CA certificates and certified ROC forms before they are filed or signed; signs reports and certificates with DSC and UDIN" }
+    - { id: review-manager, name: Review manager, approves: "GST, income tax and TDS returns before filing, after checking the working against the papers and the client's written confirmation" }
+  urgent_keywords: [due today, due tomorrow, last date today, last date tomorrow, last day today, deadline today, deadline tomorrow, hearing today, hearing tomorrow, bank account attached, account attached, account has been attached, account is attached, attachment order, provisional attachment, account frozen, bank account frozen, recovery notice, recovery proceedings, garnishee, 226(3), drc-13, search and seizure, raid, survey team, summons, arrest, arrested, fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, harassment, fire, injured]
+  categories:
+    - id: compliance-filing
+      name: ROC and other filings
+      keywords: [roc filing, roc return, roc, mca filing, mca portal, mca, aoc-4, aoc4, mgt-7, mgt-7a, mgt7, adt-1, dir-3 kyc, dpt-3, msme-1, inc-20a, llp form 8, llp form 11, annual filing, statutory return, statutory filing, compliance filing, regulatory filing, regulatory return, notice from the regulator, letter from the regulator, regulator, registration renewal, licence renewal, license renewal, peer review, certificate of practice]
+      priority: P2
+      risk: medium
+      department: ROC and secretarial
+      required_details:
+        - { key: dueDate, label: AGM date or due date, kind: date }
+      required_checks:
+        - Accounts approved by the board and adopted at the AGM, with the AGM date noted
+        - Director or designated partner DSC valid and ready
+        - Forms that need a practising professional's certificate are certified by the engagement partner
+        - Filed before the due date, or the additional fee of ₹100 a day worked out and told to the client
+        - SRN and challan saved with the assignment
+      not_eligible:
+        - keywords: [mgt-8, mgt 8, secretarial audit, mr-3, mr 3, secretarial compliance report]
+          reason: MGT-8 certification and the secretarial audit (MR-3) can be given only by a company secretary in practice, not by a CA firm. Refer the client to a practising CS.
+      approval: { required: always, role: engagement-partner }
+      signoff: { required: false }
+      workflow: roc-filing
+      execution: both
+    - id: document-request
+      name: Copies of returns and documents
+      keywords: [statement of account, duplicate receipt, receipt copy, copy of receipt, copy of the receipt, copy of my receipt, copy of agreement, copy of the agreement, copy of my agreement, certified copy, duplicate certificate, copy of the certificate, copy of my documents, itr copy, copy of itr, copy of my itr, copy of the itr, itr-v copy, itr acknowledgement, acknowledgement copy, computation copy, copy of the computation, copy of my return, copy of the return, copy of my gst return, copy of the gst return, gst return copy, copy of the audit report, copy of the net worth certificate, form 16 copy, copy of form 16, certificate copy, gst certificate copy, send a copy, send me a copy, send me the copy, you issued, issued last year]
+      priority: P4
+      risk: low
+      department: Practice office
+      required_checks:
+        - Asked by the client or someone they authorised in writing
+        - Copy taken from the filed or signed version, not a draft
+        - Sent only to the client's registered email or address
+      not_eligible:
+        - keywords: [someone else's, another person's, other person's, my neighbour's, my neighbor's, my friend's, another client's, other client's, my relative's, my brother's, my sister's]
+          reason: We share a client's returns and papers only with the client or someone they have authorised in writing. Ask the client to request it.
+      approval: { required: never }
+      signoff: { required: false }
+      execution: agents
+    - id: new-client
+      name: New client or engagement
+      keywords: [new client, onboard, onboarding, engagement letter, letter of engagement, kyc, fee quote, fee proposal, proposal for our services, retainer agreement, change of ca, change their ca, old ca, previous ca, previous auditor, new engagement, appointment as auditor, appoint us as auditor, take us on, wants us to handle]
+      priority: P3
+      risk: medium
+      department: Practice office
+      required_details:
+        - key: kyc
+          label: Client KYC (PAN, Aadhaar or CIN/LLPIN)
+          kind: keywords
+          keywords: [pan, aadhaar, aadhar, cin, llpin, kyc, gst certificate, partnership deed, incorporation certificate, trust deed, registration certificate]
+      required_checks:
+        - "KYC received: PAN, Aadhaar or CIN/LLPIN, address, partners or directors"
+        - No conflict of interest or independence problem
+        - Team has the skills and time for the work
+        - For an audit, the previous auditor written to with proof of delivery
+        - Engagement letter with scope, fees and duties agreed
+        - PMLA client checks done if we will manage client money, accounts or property, or set up or run companies, LLPs or trusts for them
+      not_eligible:
+        - keywords: [hide income, hide my income, hide the income, show less income, show lower income, show less turnover, show lower turnover, hide sales, bogus bill, bogus purchase, accommodation entry, accommodation entries, buy bills, bills without goods, fake itc, two sets of books]
+          reason: The client wants help to hide income or use false bills. That fails our client acceptance check and would be professional misconduct (Chartered Accountants Act 1949, ICAI Code of Ethics). Decline the work politely.
+      approval: { required: always, role: owner }
+      signoff: { required: false }
+      workflow: client-onboarding
+      execution: both
+    - id: gst-return
+      name: GST returns and registration
+      keywords: [gst, gst return, gstr-1, gstr1, gstr-1a, gstr-3b, gstr3b, 3b, gstr-9, gstr-9c, cmp-08, itc, input credit, input tax credit, gstr-2b, 2b, ims, e-invoice, e-way bill, lut, gstin, gst registration, gst certificate, gst refund]
+      priority: P2
+      risk: medium
+      department: GST desk
+      required_details:
+        - key: period
+          label: Month or period
+          kind: keywords
+          keywords: [january, february, march, april, may, june, july, august, september, october, november, december, jan, feb, mar, apr, jun, jul, aug, sep, sept, oct, nov, dec, month, quarter, fy, financial year, this year, last year]
+      required_checks:
+        - Sales match e-invoices and e-way bills
+        - Purchase bills acted on in IMS and ITC matched with GSTR-2B
+        - ITC claimed within the time limit (30 November after the year ends, or the annual return if earlier)
+        - Earlier returns and this period's GSTR-1 already filed; GSTR-1 corrected through GSTR-1A before GSTR-3B
+        - Client confirmed the tax payable in writing and paid the cash amount
+        - Client OTP or DSC ready for filing
+      not_eligible:
+        - keywords: [time barred, time-barred, more than three years, more than 3 years, over three years, over 3 years, three years old, 3 years old, 2017-18, 2018-19, 2019-20, 2020-21, 2021-22, 2017-2018, 2018-2019, 2019-2020, 2020-2021, 2021-2022]
+          reason: A GST return cannot be filed more than three years after its due date (CGST Act sections 37(5), 39(11) and 44(2)), and the portal blocks it. Tell the client the return is barred and look at what the department may raise instead.
+        - keywords: [bogus bill, bogus purchase, accommodation entry, accommodation entries, buy bills, bills without goods, fake itc, show less turnover, show lower turnover, hide sales, hide turnover]
+          reason: Claiming credit on bills without real goods or services, or hiding sales, is tax evasion. We cannot file it (CGST Act section 132; ICAI Code of Ethics).
+      approval: { required: always, role: review-manager }
+      signoff: { required: false }
+      workflow: gst-return-filing
+      execution: both
+    - id: income-tax-tds
+      name: Income tax and TDS returns
+      keywords: [itr, income tax return, itr filing, advance tax, ais, tis, 26as, form 16, form 16a, form 130, interest certificate, tds certificate, tds, tds return, 24q, 26q, 27q, form 138, form 140, form 144, challan, capital gains, tax regime, new regime, old regime, revised return, updated return, itr-u, belated return]
+      priority: P3
+      risk: medium
+      department: Direct tax desk
+      required_details:
+        - key: papers
+          label: "Client's papers (Form 16, AIS, bank or capital gains statements, books, or deductee-wise details)"
+          kind: keywords
+          keywords: [form 16, form 16a, form 130, ais, tis, 26as, bank statement, capital gains statement, capital gain statement, broker statement, balance sheet, profit and loss, trial balance, books, ledger, salary slip, rent receipt, investment proof, interest certificate, deductee details, deductee-wise, deductee list, party-wise, tds working, attached, enclosed, uploaded, shared folder, google drive, drive link, on whatsapp, emailed]
+      required_checks:
+        - PAN active and linked with Aadhaar
+        - AIS, TIS and 26AS matched with the client's papers
+        - Filing window still open (due date, belated, revised or updated return)
+        - Client confirmed the computation and the tax regime in writing
+        - "For TDS: challans paid and every deductee's PAN and amount received"
+      not_eligible:
+        - keywords: [updated return for refund, updated return to claim refund, updated return to claim a refund, itr-u for refund, itr-u to claim refund, updated return to reduce tax, updated return to lower tax, updated return to increase refund]
+          reason: An updated return can only add income and pay more tax. It cannot lower the tax, create or raise a refund, or be filed once a search, survey or assessment has started for that year (Income-tax Act 1961, section 139(8A)). Look at a revised return or rectification instead.
+        - keywords: [hide income, hide my income, hide the income, show less income, show lower income, do not show the cash, don't show the cash, bogus bill, bogus purchase, accommodation entry, accommodation entries]
+          reason: The client wants income left out or false expenses shown. We cannot prepare or file such a return (ICAI Code of Ethics; false returns are an offence under the Income-tax Act).
+      approval: { required: always, role: review-manager }
+      signoff: { required: false }
+      workflow: income-tax-filing
+      execution: both
+    - id: tax-notice
+      name: Tax notices and appeals
+      keywords: [notice, tax notice, income tax notice, gst notice, notice from gst, notice from income tax, gst department, income tax department, it department, tax department, gst officer, show cause notice, scn, e-proceeding, scrutiny, faceless assessment, 143(2), 142(1), 143(1), "148", 148a, 139(9), "156", defective return, demand, outstanding demand, intimation, asmt-10, drc-01, drc-01a, drc-07, assessment order, reassessment, hearing, personal hearing, adjournment, appeal, cit(a), itat, tribunal, gstat, penalty order, penalty notice, reply, raid, income tax raid, gst raid, search and seizure, search operation, survey, 133a, gst inspection, summons, high court, writ]
+      priority: P2
+      risk: high
+      department: Notices and appeals
+      required_details:
+        - key: noticeRef
+          label: Copy of the notice or its DIN / RFN
+          kind: keywords
+          keywords: [din, rfn, reference number, reference no, ref no, notice number, notice no, document identification number, attached, enclosed, attaching, forwarded, pdf, screenshot, scan, photo of the notice, notice copy, copy of the notice, e-proceeding, portal]
+        - { key: replyDate, label: Reply due date, kind: date }
+      required_checks:
+        - Full copy of the notice or order received
+        - Notice verified as genuine (income tax DIN, GST RFN or CBIC DIN)
+        - Reply date noted; adjournment asked before it if the papers will not be ready
+        - Firm added as authorised representative for the proceeding on the portal
+        - Returns, working papers and the client's explanation collected
+        - Client confirmed the facts in the reply before it is submitted
+      not_eligible:
+        - keywords: [high court, supreme court, writ, sessions court, magistrate court, criminal court, criminal case, bail, anticipatory bail, prosecution case in court]
+          reason: Only an advocate can argue in the High Court, the Supreme Court or a criminal court. We can prepare the facts and figures for the client's advocate; open that as a separate assignment.
+      approval: { required: always, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+      workflow: notice-reply
+      execution: both
+    - id: audit
+      name: Audits and tax audit
+      keywords: [audit, tax audit, 44ab, 3cd, 3ca, 3cb, form 26, statutory audit, bank audit, branch audit, concurrent audit, stock audit, internal audit, trust audit, society audit, audit report, caro, trial balance]
+      priority: P3
+      risk: high
+      department: Audit and assurance
+      required_details:
+        - key: period
+          label: Year or period audited
+          kind: keywords
+          keywords: [fy, ay, financial year, assessment year, tax year, year ending, year ended, this year, last year, quarter, half year, 2024-25, 2025-26, 2026-27, 2027-28, january, february, march, april, june, july, august, september, october, november, december, month]
+      required_checks:
+        - Engagement letter signed
+        - Previous auditor written to, and a reasonable time given for a reply, before a first-year audit
+        - "Tax audit: signing partner under 60 tax audits for the year (audits of presumptive-scheme cases are not counted)"
+        - Books closed; trial balance and ledgers received
+        - Client assigned the audit form to us on the income tax portal
+        - Team independence confirmed; we do not write the client's books or act as its internal auditor
+      not_eligible:
+        - keywords: [signed 60, completed 60, done 60, crossed 60, reached 60, 60 tax audits done, 60 tax audits signed, 60 tax audits completed, tax audit limit, audit limit reached, quota of 60]
+          reason: ICAI allows each partner at most 60 tax audits a year (Council Guidelines, Chapter VI), and the signing partner has reached it. Accept only if another partner of the firm with room under the limit will sign, or decline.
+        - keywords: [we write their books, we keep their books, we maintain their books, we do their books, we do their accounting, we write their accounts, we are their internal auditor, we do their internal audit, we also do their internal audit]
+          reason: A firm that writes a client's books or is its internal auditor cannot also be its statutory or tax auditor (Companies Act 2013 section 144; ICAI Council Guidelines). Give up the other work or decline the audit.
+      approval: { required: always, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+      workflow: audit-file
+      execution: both
+    - id: ca-certificate
+      name: CA certificates
+      keywords: [certificate, ca certificate, certify, certification, 15ca, 15cb, form 15ca, form 15cb, form 145, form 146, remittance, foreign remittance, nro account, net worth, net worth certificate, turnover certificate, utilisation certificate, utilization certificate, solvency certificate, income certificate, visa]
+      priority: P2
+      risk: high
+      department: Audit and assurance
+      required_details:
+        - key: purpose
+          label: Purpose and who it is for
+          kind: keywords
+          keywords: [bank, visa, embassy, consulate, university, college, tender, loan, remittance, nro, lender, government, ministry, department, donor, grant, court, rbi, sebi, stock exchange, insurance company, landlord, for the]
+      required_checks:
+        - Purpose, addressee and format known
+        - Every figure checked to originals or the books
+        - Management representation letter taken
+        - Certifies only facts we can check (no future figures; property values only from a registered valuer's report)
+        - "For remittances: payee, nature of payment, tax rate and tax paid checked; Form 146 needed for a taxable remittance above ₹5 lakh in the year unless the client has a lower-deduction order"
+        - UDIN generated on signing, never later than 60 days
+      not_eligible:
+        - keywords: [backdate, backdated, back date, back-dated, predate, put an old date, earlier date on it, without documents, without any documents, no documents, without proof, inflate, increase the figures, show higher, show more income, show more net worth, adjust the figures, just sign it, sign it as it is]
+          reason: A CA certifies only facts checked against original documents, dated the day it is signed. Backdating, inflating or signing without papers is professional misconduct (Chartered Accountants Act 1949; ICAI Guidance Note on Reports or Certificates for Special Purposes).
+      approval: { required: always, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+      workflow: certificate-preparation
+      execution: both
+    - id: books-payroll
+      name: Books and payroll
+      keywords: [tally, zoho books, books of accounts, book keeping, bookkeeping, update my accounts, update the accounts, accounts update, accounting entries, entries, bank statement, bank reconciliation, brs, ledger, voucher, purchase bills, sales bills, payroll, salary sheet, salary register, pf, epf, pf challan, esic, esi, professional tax, mis]
+      priority: P3
+      risk: low
+      department: Accounting
+      required_details:
+        - key: period
+          label: Month or period
+          kind: keywords
+          keywords: [january, february, march, april, may, june, july, august, september, october, november, december, jan, feb, mar, apr, jun, jul, aug, sep, sept, oct, nov, dec, month, quarter, fy, financial year, this year, last year]
+      required_checks:
+        - Bank statements and bills received for the period
+        - Last period closed and bank reconciled
+        - Payroll changes (joiners, leavers, increments) confirmed by the client
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: books-and-payroll
+      execution: agents
+    - id: fees-billing
+      name: Fees and billing
+      keywords: [fees, professional fees, invoice, retainer invoice, revised invoice, fee receipt, discount, write off, waive, waiver, payment reminder, fee reminder, reminder, outstanding fees, fees outstanding, pending fees, owes, credit note]
+      priority: P4
+      risk: low
+      department: Billing
+      required_details:
+        - { key: amount, label: Fee or amount, kind: amount }
+      required_checks:
+        - Fee matches the engagement letter or the agreed quote
+        - Work done or milestone reached
+        - Client GSTIN and billing details correct
+        - Old dues checked before any discount
+      not_eligible:
+        - keywords: [percent of the refund, percentage of the refund, share of the refund, part of the refund, percent of tax saved, percentage of tax saved, share of the tax saved, success fee, contingent fee, fee only if we win, fees only if we win]
+          reason: A CA cannot charge fees as a share of a refund, of tax saved or of any result (Chartered Accountants Act 1949, First Schedule Part I Clause 10). Quote a fixed or time-based fee instead.
+      approval: { required: above_amount, role: owner, amount_inr: 25000 }
+      signoff: { required: false }
+      workflow: fee-invoicing
+      execution: agents
+  examples:
+    - { request: "A pharmacy owner in Thane wants us to take over his GST and income tax from his old CA. Please send our KYC list and a fee quote.", category: new-client, priority: P3, approval: true }
+    - { request: "Bhatia Logistics LLP wants to appoint us as auditor from this year. Write to the previous auditor and draft the engagement letter.", category: new-client, priority: P3, approval: true }
+    - { request: "Upload the November GSTR-1 for Khanna Garments; all sales invoices are in the shared folder.", category: gst-return, priority: P2, approval: true }
+    - { request: "GSTR-2B shows ₹18,000 less ITC than the purchase register for August. Please reconcile before we file 3B.", category: gst-return, priority: P2, approval: true }
+    - { request: "Apply for a new GST registration for Meera's boutique in Jaipur.", category: gst-return, priority: P2, approval: true }
+    - { request: "Mr. Pillai's ITR for AY 2026-27: Form 16 from both employers and his capital gains statement are in the folder.", category: income-tax-tds, priority: P3, approval: true }
+    - { request: "Third instalment of advance tax for Nanda Builders falls on 15 December; work out the amount.", category: income-tax-tds, priority: P3, approval: true }
+    - { request: "File the Q3 salary TDS return (Form 138) for Sunrise Hospital; challans and the salary register are attached.", category: income-tax-tds, priority: P3, approval: true }
+    - { request: "Income tax intimation u/s 143(1) for Mrs. Shah shows a demand of ₹62,400 because her rent deduction was disallowed.", category: tax-notice, priority: P2, approval: true }
+    - { request: "GST officer has issued ASMT-10 to Om Sai Traders for FY 2023-24 on an ITC mismatch; reply within 30 days.", category: tax-notice, priority: P2, approval: true }
+    - { request: "The CIT(A) order for Gupta Hardware came today and rejects our appeal. Work out the time left to go to the Tribunal.", category: tax-notice, priority: P2, approval: true }
+    - { request: "Lakshmi Rice Mills has sent its trial balance for FY 2025-26; please begin the tax audit and the Form 3CD draft.", category: audit, priority: P3, approval: true }
+    - { request: "Canara Bank has appointed us for the concurrent audit of its Hosur branch from January.", category: audit, priority: P3, approval: true }
+    - { request: "The bank wants a stock audit of Venkatesh Agro's godown this month before renewing the cash credit limit.", category: audit, priority: P3, approval: true }
+    - { request: "Bank needs a turnover certificate for Ganesh Engineering for the last three years for a tender.", category: ca-certificate, priority: P2, approval: true }
+    - { request: "A client is paying ₹9 lakh to a US software company for licences; the bank wants Form 145 and our Form 146.", category: ca-certificate, priority: P2, approval: true }
+    - { request: "Utilisation certificate for the ₹25 lakh grant that Seva Trust got from the state government.", category: ca-certificate, priority: P2, approval: true }
+    - { request: "Post the December cash book and sales entries for Ahuja Clinic in Tally.", category: books-payroll, priority: P3, approval: false }
+    - { request: "Prepare the November salary sheet with PF and ESIC for 22 staff at Rohan Foods.", category: books-payroll, priority: P3, approval: false }
+    - { request: "Bank reconciliation for the HDFC current account is pending since July; please complete it.", category: books-payroll, priority: P3, approval: false }
+    - { request: "Raise the March retainer invoice for Sai Dental Clinic, ₹12,000 plus GST.", category: fees-billing, priority: P4, approval: false }
+    - { request: "Write off ₹40,000 of old fees from Patil Hardware, the shop has closed down.", category: fees-billing, priority: P4, approval: true }
+    - { request: "Issue a credit note of ₹5,000 to Joseph & Sons against the duplicate invoice.", category: fees-billing, priority: P4, approval: false }
+    - { request: "AGM of Neelkanth Foods Pvt Ltd was held on 27 September; file AOC-4 and MGT-7A on the MCA portal.", category: compliance-filing, priority: P2, approval: true }
+    - { request: "File LLP Form 11 for Patel Brothers LLP; it was due on 30 May and is now late.", category: compliance-filing, priority: P2, approval: true }
+    - { request: "ADT-1 for the auditor appointment at Sharma Castings Pvt Ltd, AGM was on 25 September.", category: compliance-filing, priority: P2, approval: true }
+    - { request: "Please send my last three years' ITR copies with computation, the bank needs them for my home loan.", category: document-request, priority: P4, approval: false }
+    - { request: "Can you email the acknowledgement copy of my GST return for September?", category: document-request, priority: P4, approval: false }
+    - { request: "Send me a copy of the net worth certificate you issued in June.", category: document-request, priority: P4, approval: false }
+
+playbooks:
+  - id: client-acceptance
+    title: Taking on a new client or audit
+    source: ICAI SQC 1 para 28; ICAI KYC norms for members in practice (mandatory for attest work from 1 January 2017); Chartered Accountants Act 1949, First Schedule Part I Clauses (8) and (10); ICAI Council Guidelines Chapter VI (60 tax audits); SA 210; Companies Act 2013 section 144; PMLA notification S.O. 2036(E) of 3 May 2023
+    body: |
+      1. Collect KYC first: PAN, Aadhaar (stored masked) or CIN/LLPIN, address, partners or directors, and the last returns or audited accounts.
+      2. Check the client's integrity, our skills and time, and independence. If the client wants income hidden or false bills used, or any check fails, decline the work.
+      3. For any audit (statutory, tax, internal, bank), write to the previous auditor before accepting, keep proof of delivery, and wait a reasonable time for the reply.
+      4. A firm that writes the client's books or is its internal auditor cannot also be its statutory or tax auditor.
+      5. Count the signing partner's tax audits: at most 60 a year. Audits of presumptive-scheme cases are not counted.
+      6. Agree scope, fees and duties in an engagement letter. The owner approves it before work starts. Fees are never a share of a refund, tax saved or any result.
+      7. If the firm will manage client money, bank or securities accounts, buy or sell property or businesses for clients, or set up or run companies, LLPs or trusts for them, do the PMLA client checks first.
+  - id: gst-monthly-return
+    title: Monthly GST return
+    source: CGST Act sections 16(4), 37, 39(10), 39(11) and 44; GST portal GSTR-3B FAQs; GSTN advisories on GSTR-3B liability locking (July 2025 tax period) and on barring returns after three years
+    body: |
+      1. Get the sales and purchase data early. Match sales with e-invoices and e-way bills.
+      2. Accept, reject or keep pending each purchase bill in IMS, then match ITC with GSTR-2B. ITC for a year can be claimed only up to 30 November after the year ends, or the annual return if filed earlier.
+      3. File GSTR-1 by the 11th (quarterly filers: IFF and GSTR-1 by the 13th). From the July 2025 tax period the liability that flows from GSTR-1 into GSTR-3B cannot be edited, so correct mistakes through GSTR-1A before filing GSTR-3B.
+      4. Send the client the tax payable. File only after they confirm in writing and pay. GSTR-3B is due by the 20th (quarterly filers: the 22nd or 24th) and cannot be revised later.
+      5. A return more than three years past its due date can no longer be filed; the portal blocks it.
+      6. Save the ARN and send the filed copy to the client.
+  - id: tax-notice-reply
+    title: Replying to a tax notice
+    source: CBDT Circular 19/2019 (DIN); incometax.gov.in e-Proceedings FAQ and Appeals help; CBIC Circular 249/06/2025-GST; CGST Rule 99 and section 107; Income-tax Act 1961 section 249
+    body: |
+      1. Get the full notice and check it is genuine. For income tax, check the DIN with "Authenticate notice/order" on the e-filing portal. For GST, check the RFN on the GST portal, or the CBIC DIN on letters sent outside the portal. Fake notice emails are common; never pay through a link in one.
+      2. Note the reply date the same day. A GST scrutiny notice (ASMT-10) allows 30 days. A defective return notice usually allows 15 days.
+      3. Add the firm as authorised representative for the proceeding on the portal. If the papers will not be ready, ask for an adjournment on the portal before the due date.
+      4. Draft the reply with evidence. The engagement partner approves and the client confirms the facts before it is submitted. A submitted reply cannot be edited.
+      5. Save the acknowledgement and track hearings and the order. Appeal time: GST, 3 months (1 more month with good reason) with a 10% pre-deposit of the disputed tax; income tax first appeal, 30 days from receiving the order.
+      6. Bank attachment, recovery, a search or a summons is P1: call the partner at once.
+      7. Only an advocate can argue in the High Court or a criminal court; we prepare the facts and figures.
+  - id: audit-and-certificate-signing
+    title: Signing tax audits and certificates
+    source: incometax.gov.in Form 3CA-3CD user manual and "Work with My CA" manual; ICAI UDIN FAQs; ICAI SQC 1 paras 60, 74-75 and 83; ICAI Guidance Note on Reports or Certificates for Special Purposes; Income-tax Rules 1962 Rule 37BB and the Income-tax Rules 2026 (Forms 145 and 146)
+    body: |
+      1. The client assigns the audit form to the firm on the e-filing portal ("My CA"), and the CA accepts it.
+      2. Prepare Form 3CA or 3CB with 3CD from the books (Form 26 for tax year 2026-27 onwards). The partner reviews it. A listed company audit also needs an engagement quality control review before the report goes out.
+      3. Sign with DSC and generate the UDIN on signing, never later than 60 days.
+      4. The client must accept the uploaded form on the portal. Only then is it filed. The audit report is due one month before the return due date (check the CBDT circular each year for extensions).
+      5. For certificates, confirm the purpose and format, check every figure against originals, take a management representation letter, and never certify what cannot be checked or put an earlier date on it.
+      6. Form 146 (old 15CB) is needed for a taxable remittance above ₹5 lakh in the year, unless the client has a lower-deduction order. The CA files it with DSC; the client then files Form 145 (old 15CA).
+      7. Put the audit file together within 60 days of the report and keep it for 7 years.
+  - id: itr-and-tds-filing
+    title: Income tax return and TDS filing
+    source: Income-tax Act 1961 sections 139 and 200; Income-tax Act 2025 (in force from 1 April 2026); incometax.gov.in 30-day e-verification FAQ; Income Tax Department tax calendar (TDS); CBDT Circular 07/2026
+    body: |
+      1. Know which law applies: AY 2026-27 and earlier years run under the Income-tax Act 1961 and its forms; income earned from 1 April 2026 (tax year 2026-27) runs under the Income-tax Act 2025, with new form numbers (Form 130 for Form 16, Forms 138 and 140 for 24Q and 26Q).
+      2. Collect Form 16, bank and capital gains statements or the books. Download AIS, TIS and 26AS and clear every difference with the client.
+      3. Choose the tax regime with the client and get written confirmation of the computation.
+      4. The review manager approves before filing. Check the year's due dates and any CBDT extension (for AY 2026-27: 31 July for ITR-1 and ITR-2, 31 August for business cases without audit, 21 November for audit cases).
+      5. E-verify within 30 days of filing. After that the return counts as filed on the day it is verified, and an unverified return is invalid.
+      6. An updated return can only add income and tax; it cannot lower tax or raise a refund.
+      7. TDS: deposit by the 7th of the next month (for March, by 30 April). File quarterly statements by 31 July, 31 October, 31 January and 31 May.
+  - id: roc-annual-filing
+    title: Company and LLP annual filings
+    source: Companies Act 2013 sections 92, 96, 137 and 139; Companies (Registration Offices and Fees) Rules 2014; LLP Rules 2009, Rules 24 and 25
+    body: |
+      1. A company holds its AGM within six months of the year end (by 30 September); the first AGM within nine months.
+      2. File AOC-4 (financial statements) within 30 days of the AGM, and MGT-7 or MGT-7A (annual return) within 60 days of the AGM. File ADT-1 within 15 days of the AGM that appoints the auditor.
+      3. LLPs file Form 11 by 30 May and Form 8 by 30 October.
+      4. Late forms cost an additional fee of ₹100 a day, so tell the client the cost before the due date passes.
+      5. Forms that need a practising professional's certificate are certified by the engagement partner with DSC. MGT-8 and the secretarial audit are for a practising company secretary.
+      6. Save the SRN and the challan, and send the filed forms to the client.
+
+kpis:
+  - id: filings-on-time
+    name: Filed on time
+    description: Returns, audit reports, forms and notice replies filed on or before the legal due date, as a share of all that fell due this month.
+    unit: percent
+    direction: up
+    target: 98
+  - id: late-fee-cost
+    name: Late fees caused by us
+    description: Late fees, interest and penalties clients paid this month because the firm filed late.
+    unit: inr
+    direction: down
+    target: 0
+  - id: notices-on-time
+    name: Notices answered in time
+    description: Department notices replied to, or an adjournment asked, before the reply date, as a share of notices due this month.
+    unit: percent
+    direction: up
+    target: 100
+  - id: udin-on-signing
+    name: UDIN on signing day
+    description: Signed audit reports and certificates whose UDIN was generated on the day of signing (the outer limit is 60 days).
+    unit: percent
+    direction: up
+    target: 100
+  - id: lock-up-days
+    name: Lock-up days
+    description: Days of unbilled work plus days of unpaid invoices (WIP days plus debtor days), counted in days.
+    unit: count
+    direction: down
+    target: 90
+  - id: fee-realisation
+    name: Fee realisation
+    description: Fees collected as a share of fees agreed in engagement letters for work done.
+    unit: percent
+    direction: up
+    target: 90

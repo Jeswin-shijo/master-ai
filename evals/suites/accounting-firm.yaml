@@ -1,0 +1,99 @@
+# Accounting & tax firm: realistic requests from portal alerts, clients, staff,
+# a referring bank and the owner, with what the stages should decide.
+pack: accounting-firm
+cases:
+  - id: notice-due-tomorrow
+    request: "e-Proceeding alert: Sunrise Exports Pvt Ltd – notice u/s 142(1) for AY 2025-26, DIN quoted, response due tomorrow (13 Oct 2026). Our firm is the authorised representative. Status: not responded."
+    source: system
+    expect:
+      category: tax-notice
+      priority: P1
+      review: complete
+      approval: { required: true, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+    why: A 142(1) notice on e-proceedings is a tax notice. The reply is due tomorrow, so it is P1. The DIN and the reply date are given and we are the authorised representative, so review is complete. Notice replies need the engagement partner's approval and sign-off.
+  - id: gst-notice-no-copy
+    request: "Sir, I got a notice from GST department on email about last year, they want a reply. I am out of station till Sunday, please handle."
+    source: customer
+    expect:
+      category: tax-notice
+      priority: P2
+      review: needs_info
+    why: A notice from the GST department asking for a reply is a tax notice, not GST return work. There is no copy, RFN or DIN, so review asks for the notice. With no known reply date it stays at the P2 default.
+  - id: gst-time-barred
+    request: "Kapoor Electricals (Pune) never filed GSTR-3B for FY 2021-22, all twelve months. Client now wants to file them and claim the ITC. Can we do it this week?"
+    source: staff
+    expect:
+      category: gst-return
+      priority: P2
+      review: not_eligible
+    why: GSTR-3B and ITC mark GST return work (P2). Every FY 2021-22 GSTR-3B is more than three years past its due date, so CGST Act section 39(11) bars filing and the portal blocks it.
+  - id: tally-bank-update
+    request: "Hi, I've sent the October bank statement and 46 purchase bills on WhatsApp. Please update my accounts in Tally and match the bank."
+    source: customer
+    expect:
+      category: books-payroll
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Tally entries and bank matching are books and payroll work (P3, no legal due date). The month and the papers are given, so review is complete. Bookkeeping needs no approval or sign-off.
+  - id: fee-discount
+    request: "Mehta Traders wants ₹30,000 off this year's fees because business was slow. Can we give the discount and send a revised invoice?"
+    source: staff
+    amount_inr: 30000
+    expect:
+      category: fees-billing
+      priority: P4
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: Fees, a discount and an invoice mark fees and billing (P4). ₹30,000 is above the ₹25,000 limit, so the owner must approve; a ₹20,000 discount would need no approval.
+  - id: nri-remittance-certificate
+    request: "HDFC Bank RM here. Our NRI customer Mr. Suresh Nair wants to send ₹40 lakh from his NRO account to Dubai – sale money of his Kochi flat. The bank needs Form 145 and the CA certificate in Form 146 (old 15CA/15CB). Sale deed, buyer's TDS certificate and NRO statement attached. He flies back on Saturday."
+    source: partner
+    amount_inr: 4000000
+    expect:
+      category: ca-certificate
+      priority: P2
+      review: complete
+      approval: { required: true, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+    why: Form 146 (old 15CB) is a CA certificate (P2), needed for a taxable remittance above ₹5 lakh. The bank and the papers are given, so review is complete. ₹40 lakh is above ₹5 lakh, but the category names the engagement partner, who is asked before the owner and also signs with UDIN.
+  - id: tds-return-missing-pans
+    request: "Compliance calendar: Q2 TDS return (Form 140, earlier 26Q) for Verma Steels is due 31-Oct-2026. Challans for July–September are paid, but the client hasn't sent vendor PANs and payment details yet."
+    source: system
+    expect:
+      category: income-tax-tds
+      priority: P3
+      review: needs_info
+    why: A TDS return is income tax and TDS work (P3). The deductee-wise PANs and amounts have not come in, so review asks the client for them.
+  - id: sixty-tax-audits
+    request: "Joshi & Co. want to refer the tax audit of Patel Agencies (turnover ₹3.2 crore, regular audit, not presumptive) to us. Sir has already signed 60 tax audits for AY 2026-27 and is our only partner. Shall I accept it?"
+    source: staff
+    expect:
+      category: audit
+      priority: P3
+      review: not_eligible
+    why: A tax audit is audit work (P3). ICAI allows each partner at most 60 tax audits a year, and the firm's only partner has reached it, so we cannot accept it.
+  - id: new-client-dental
+    request: "New client: Dr. Anita Rao's dental clinic wants us for monthly GST and yearly ITR from November. She has sent her KYC (PAN, Aadhaar), GST certificate and last year's returns. Please send the engagement letter with our fee of ₹60,000 a year."
+    source: owner
+    amount_inr: 60000
+    expect:
+      category: new-client
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: A new client, KYC and an engagement letter mark a new engagement (P3). KYC and past returns are received, so review is complete. Every engagement letter needs the owner's approval, whatever the fee.
+  - id: net-worth-visa
+    request: "Please make a net worth certificate for my daughter's UK student visa. I have emailed FD statements, mutual fund statement and the registered valuer's report for our flat. Needed by Friday, 23 Oct."
+    source: customer
+    expect:
+      category: ca-certificate
+      priority: P2
+      review: complete
+      approval: { required: true, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+    why: A net worth certificate for a visa is a CA certificate (P2). The purpose and the papers, including a registered valuer's report for the flat, are given, so review is complete. The partner approves, signs and generates the UDIN.
