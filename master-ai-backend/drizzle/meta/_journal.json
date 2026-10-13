@@ -71,6 +71,13 @@
       "when": 1791886161985,
       "tag": "0009_invites_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791887506173,
+      "tag": "0010_push_tokens_per_company",
+      "breakpoints": true
     }
   ]
 }

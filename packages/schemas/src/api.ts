@@ -305,3 +305,7 @@ export const UpdateMemberInputSchema = z
   })
   .refine((m) => m.role !== undefined || m.approverRoles !== undefined || m.staffId !== undefined, 'Nothing to change');
 export type UpdateMemberInput = z.input<typeof UpdateMemberInputSchema>;
+
+/** Open another company this login belongs to. */
+export const SwitchCompanyInputSchema = z.object({ tenantId: z.uuid() });
+export type SwitchCompanyInput = z.input<typeof SwitchCompanyInputSchema>;

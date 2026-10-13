@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Switch, View } from 'react-native';
 import { Button, Card, Screen, T } from '@/components/ui';
@@ -10,8 +11,21 @@ import { space, useTheme } from '@/lib/theme';
 export default function SettingsScreen() {
   const { c } = useTheme();
   const queryClient = useQueryClient();
-  const { user, signOut, setTenant } = useSession();
+  const { user, companies, signIn, signOut, setTenant, setUser } = useSession();
   const tenant = useQuery({ queryKey: ['tenant'], queryFn: api.tenant.get });
+  // Role changes made by the owner apply here without signing in again.
+  const me = useQuery({ queryKey: ['me'], queryFn: api.auth.me });
+  useEffect(() => {
+    if (me.data) setUser(me.data.user, me.data.companies);
+  }, [me.data, setUser]);
+  const switchCompany = useMutation({
+    mutationFn: (tenantId: string) => api.auth.switchCompany(tenantId),
+    onSuccess: async (auth) => {
+      queryClient.clear();
+      await signIn(auth);
+    },
+    onError: (err) => Alert.alert('Could not switch company', errorMessage(err)),
+  });
   const key = useQuery({ queryKey: ['device-key'], queryFn: getDeviceKey });
 
   const paused = tenant.data?.status === 'paused';
@@ -42,6 +56,22 @@ export default function SettingsScreen() {
       <T size="xxl" weight="700">{user?.name}</T>
       <T tone="muted">{tenant.data?.name} · {tenant.data?.industry}</T>
 
+      {companies.length > 1 && (
+        <Card>
+          <T weight="600">Your companies</T>
+          {companies.map((co) => (
+            <Button
+              key={co.id}
+              title={co.id === user?.tenantId ? `${co.name} (open)` : co.name}
+              variant="secondary"
+              disabled={co.id === user?.tenantId || switchCompany.isPending}
+              onPress={() => switchCompany.mutate(co.id)}
+            />
+          ))}
+        </Card>
+      )}
+
+      {user?.role !== 'member' && (
       <Card style={paused ? { borderColor: c.warning } : undefined}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
           <View style={{ flex: 1 }}>
@@ -51,6 +81,7 @@ export default function SettingsScreen() {
           <Switch value={paused} onValueChange={confirmPause} disabled={killSwitch.isPending} trackColor={{ true: c.warning }} accessibilityLabel="Pause all agents" />
         </View>
       </Card>
+      )}
 
       <Card>
         <T weight="600">Approval key</T>

@@ -1,5 +1,6 @@
 import type {
   AgentView,
+  Company,
   AcceptInviteInput,
   CreateInviteInput,
   CreatedInvite,
@@ -155,7 +156,9 @@ export function createClient(options: ClientOptions) {
     auth: {
       signup: (input: SignupInput) => post<AuthResponse>('/auth/signup', input),
       login: (input: LoginInput) => post<AuthResponse>('/auth/login', input),
-      me: () => get<{ user: SessionUser; tenant: TenantSummary }>('/auth/me'),
+      me: () => get<{ user: SessionUser; tenant: TenantSummary; companies: Company[] }>('/auth/me'),
+      /** Open another company this login belongs to. */
+      switchCompany: (tenantId: string) => post<AuthResponse>('/auth/switch', { tenantId }),
       registerDeviceKey: (input: RegisterDeviceKeyInput) => post<DeviceKey>('/auth/device-keys', input),
       deviceKeys: () => get<DeviceKey[]>('/auth/device-keys'),
       registerPushToken: (input: RegisterPushTokenInput) => post<{ ok: true }>('/auth/push-tokens', input),

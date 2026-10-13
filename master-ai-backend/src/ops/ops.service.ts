@@ -3,7 +3,8 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { KpiDef, KpiValue, OpsOverview, Pulse } from '@onehuman/schemas';
 import { CurrentSession, type Session } from '../common/auth';
 import { DbService, type Tx } from '../db/db.service';
-import { approvalRequests, calls, delegations, llmCalls, records, tasks, toolCalls } from '../db/schema';
+import { approvalRequests, calls, delegations, llmCalls, principals, records, tasks, toolCalls } from '../db/schema';
+import { needsYouCount } from './pulse';
 import { RecordsService } from '../records/records.service';
 
 /** Start of today in India (IST), where the pilot runs. */
@@ -24,20 +25,21 @@ export class OpsService {
   ) {}
 
   /** The owner's daily pulse: what needs them, what got done, what it cost. */
-  async pulse(tenantId: string): Promise<Pulse> {
-    return this.db.tenant(tenantId, (tx) => this.computePulse(tx));
+  async pulse(session: Session): Promise<Pulse> {
+    return this.db.tenant(session.tenantId, (tx) => this.computePulse(tx, session));
   }
 
-  async overview(tenantId: string): Promise<OpsOverview> {
-    return this.db.tenant(tenantId, async (tx) => {
-      const pulse = await this.computePulse(tx);
+  async overview(session: Session): Promise<OpsOverview> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const pulse = await this.computePulse(tx, session);
       const ws = await this.records.activeWorkspace(tx).catch(() => null);
       const kpis = ws ? await Promise.all(ws.pack.kpis.map((k) => this.kpi(tx, ws.id, k))) : [];
       return { pulse, kpis };
     });
   }
 
-  private async computePulse(tx: Tx): Promise<Pulse> {
+  /** The pulse for one person: "needs you" counts only the decisions they can make. */
+  private async computePulse(tx: Tx, session: Session): Promise<Pulse> {
     const today = startOfTodayIst();
     const [row] = await tx.execute<{
       pending: number;
@@ -61,7 +63,10 @@ export class OpsService {
         (select count(*)::int from ${delegations} where status = 'done' and completed_at >= ${today}) as team_done,
         (select count(*)::int from ${delegations} where status in ('declined','blocked','not_done','unreachable') and completed_at >= ${today}) as team_stuck
     `).then((r) => r.rows);
-    const p = row ?? { pending: 0, running: 0, completed: 0, blocked: 0, spend: 0, calls: 0, with_team: 0, team_done: 0, team_stuck: 0 };
+    const totals = row ?? { pending: 0, running: 0, completed: 0, blocked: 0, spend: 0, calls: 0, with_team: 0, team_done: 0, team_stuck: 0 };
+    const [me] = await tx.select({ approverRoles: principals.approverRoles }).from(principals).where(eq(principals.id, session.principalId));
+    const pendingApprovers = (await tx.select({ approver: approvalRequests.approver }).from(approvalRequests).where(eq(approvalRequests.status, 'pending'))).map((a) => a.approver);
+    const p = { ...totals, pending: needsYouCount({ role: session.role, approverRoles: me?.approverRoles ?? [] }, pendingApprovers) };
     const escalated = await tx.select({ title: tasks.title, waitingOn: tasks.waitingOn }).from(tasks).where(eq(tasks.status, 'escalated')).limit(3);
 
     const lines: string[] = [];
@@ -116,11 +121,11 @@ export class OpsController {
 
   @Get('pulse')
   pulse(@CurrentSession() s: Session) {
-    return this.ops.pulse(s.tenantId);
+    return this.ops.pulse(s);
   }
 
   @Get('overview')
   overview(@CurrentSession() s: Session) {
-    return this.ops.overview(s.tenantId);
+    return this.ops.overview(s);
   }
 }

@@ -4,6 +4,7 @@ import {
   RegisterDeviceKeyInputSchema,
   RegisterPushTokenInputSchema,
   SignupInputSchema,
+  SwitchCompanyInputSchema,
   type RegisterDeviceKeyInput,
   type RegisterPushTokenInput,
 } from '@onehuman/schemas';
@@ -26,6 +27,11 @@ export class IdentityController {
   @Post('login')
   login(@Body(new ZodPipe(LoginInputSchema)) body: z.output<typeof LoginInputSchema>) {
     return this.identity.login(body);
+  }
+
+  @Post('switch')
+  switchCompany(@CurrentSession() s: Session, @Body(new ZodPipe(SwitchCompanyInputSchema)) body: z.output<typeof SwitchCompanyInputSchema>) {
+    return this.identity.switchCompany(s, body.tenantId);
   }
 
   @Get('me')

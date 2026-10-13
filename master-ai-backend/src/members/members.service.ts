@@ -16,7 +16,7 @@ import {
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Request } from 'express';
 import type { z } from 'zod';
 import {
@@ -39,7 +39,17 @@ import { ZodPipe } from '../common/zod';
 import { config } from '../config';
 import { DbService, type Tx } from '../db/db.service';
 import { deviceKeys, invites, principals, pushTokens, staff, tenants, users, workspaces } from '../db/schema';
-import { hashInviteToken, INVITE_DAYS, inviteStatus, memberChangeRefusal, newInviteToken, unknownApproverRoles } from './invite-rules';
+import { toCompanies, type MembershipRow } from '../identity/memberships';
+import {
+  hashInviteToken,
+  INVITE_DAYS,
+  inviterStillAllowed,
+  inviteStatus,
+  memberChangeRefusal,
+  newInviteToken,
+  principalChanges,
+  unknownApproverRoles,
+} from './invite-rules';
 
 type InviteRow = typeof invites.$inferSelect;
 
@@ -94,10 +104,10 @@ export class MembersService {
       const refused = memberChangeRefusal({ id: session.principalId, role: session.role }, { id: target.id, role: target.role }, input);
       if (refused) throw new ForbiddenException(refused);
       if (input.approverRoles) await this.checkRoles(tx, input.approverRoles);
-      await tx
-        .update(principals)
-        .set({ ...(input.role && { role: input.role }), ...(input.approverRoles && { approverRoles: input.approverRoles }) })
-        .where(eq(principals.id, id));
+      const changes = principalChanges(input);
+      if (changes) await tx.update(principals).set(changes).where(eq(principals.id, id));
+      // Someone no longer allowed to invite loses the invites they left open.
+      if (input.role === 'member') await this.revokeInvitesBy(tx, session, id);
       if (input.staffId !== undefined) {
         await tx.update(staff).set({ principalId: null }).where(eq(staff.principalId, id));
         if (input.staffId) {
@@ -125,6 +135,7 @@ export class MembersService {
       await tx.update(deviceKeys).set({ revokedAt: new Date() }).where(and(eq(deviceKeys.principalId, id), isNull(deviceKeys.revokedAt)));
       await tx.delete(pushTokens).where(eq(pushTokens.principalId, id));
       await tx.update(staff).set({ principalId: null }).where(eq(staff.principalId, id));
+      await this.revokeInvitesBy(tx, session, id);
       await this.audit.append(tx, session.tenantId, {
         type: 'member.removed',
         actor: { id: session.principalId, kind: 'human' },
@@ -214,6 +225,10 @@ export class MembersService {
     this.limit(`invite-accept:${tenantId}:${ip}`, 10);
     return this.db.tenant(tenantId, async (tx) => {
       const inv = await this.pending(tx, token, true);
+      const [creator] = inv.createdBy
+        ? await tx.select({ role: principals.role, status: principals.status }).from(principals).where(eq(principals.id, inv.createdBy))
+        : [];
+      if (!inviterStillAllowed(creator ?? null)) throw new NotFoundException('This invite link is not valid any more. Ask for a new one.');
       const [existing] = await tx.select().from(users).where(eq(users.email, inv.email));
       let user = existing;
       if (user) {
@@ -239,12 +254,31 @@ export class MembersService {
       });
       const [tenant] = await tx.select().from(tenants).where(eq(tenants.id, tenantId));
       const session: Session = { userId: user!.id, principalId: principal!.id, tenantId, role: inv.role };
+      const memberships = await tx.execute<MembershipRow>(sql`select * from auth_user_tenants(${user!.id})`);
       return {
         token: issueToken(session),
         user: { ...session, name: user!.name, email: user!.email, approverRoles: inv.approverRoles },
         tenant: toTenant(tenant!),
+        companies: toCompanies(memberships.rows),
       };
     });
+  }
+
+  /** Withdraw the open invites a person made, when they lose the right to invite. */
+  private async revokeInvitesBy(tx: Tx, session: Session, principalId: string) {
+    const open = await tx
+      .update(invites)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(invites.createdBy, principalId), isNull(invites.acceptedAt), isNull(invites.revokedAt)))
+      .returning({ id: invites.id, name: invites.name });
+    for (const inv of open) {
+      await this.audit.append(tx, session.tenantId, {
+        type: 'invite.revoked',
+        actor: { id: session.principalId, kind: 'human' },
+        refId: inv.id,
+        payload: { name: inv.name, reason: 'The person who made it no longer has that access' },
+      });
+    }
   }
 
   private async pending(tx: Tx, token: string, lock = false): Promise<InviteRow> {

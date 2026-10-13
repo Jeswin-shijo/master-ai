@@ -244,8 +244,14 @@ async function roleChecks(otherCompanyOwner: { email: string }) {
 
   await expectStatus(owner.invites.create({ name: 'Wizard', email: `wizard+${randomBytes(3).toString('hex')}@example.com`, approverRoles: ['chief-wizard'] }), 400, 'An unknown approval role is refused');
 
-  const join = async (name: string, approverRoles: string[], email = `${name.toLowerCase()}+${randomBytes(3).toString('hex')}@example.com`, password = 'correct horse battery') => {
-    const inv = await owner.invites.create({ name, email, approverRoles });
+  const join = async (
+    name: string,
+    approverRoles: string[],
+    email = `${name.toLowerCase()}+${randomBytes(3).toString('hex')}@example.com`,
+    password = 'correct horse battery',
+    role: 'admin' | 'member' = 'member',
+  ) => {
+    const inv = await owner.invites.create({ name, email, approverRoles, role });
     const view = await owner.invites.view(tenantId, inv.path.split('/').pop()!);
     const auth = await owner.invites.accept(tenantId, inv.path.split('/').pop()!, { password });
     let token: string | null = auth.token;
@@ -264,10 +270,47 @@ async function roleChecks(otherCompanyOwner: { email: string }) {
   await owner.invites.revoke(spare.id);
   await expectStatus(owner.invites.view(tenantId, spare.path.split('/').pop()!), 404, 'A withdrawn invite is refused');
 
-  // An owner of another company joins this one with their own password.
-  const guest = await join('Guest', [], otherCompanyOwner.email, 'correct horse battery');
-  if (!guest.view.hasAccount || guest.auth.tenant.id !== tenantId) throw new Error('existing login did not join the second company');
+  // An owner of another company joins this one with their own password; a wrong one creates nothing.
+  const guestInv = await owner.invites.create({ name: 'Guest', email: otherCompanyOwner.email });
+  const guestToken = guestInv.path.split('/').pop()!;
+  if (!(await owner.invites.view(tenantId, guestToken)).hasAccount) throw new Error('existing login not recognised');
+  await expectStatus(owner.invites.accept(tenantId, guestToken, { password: 'not the password' }), 401, 'A wrong password on an existing login is refused');
+  const guestAuth = await owner.invites.accept(tenantId, guestToken, { password: 'correct horse battery' });
+  if (guestAuth.tenant.id !== tenantId) throw new Error('existing login did not join the second company');
   log('Someone with a login joined a second company with their own password');
+
+  // Later they sign in again: both companies are offered, and they switch to the new one.
+  const again = await createClient({ baseUrl: API_URL }).auth.login({ email: otherCompanyOwner.email, password: 'correct horse battery' });
+  if (!again.companies.some((co) => co.id === tenantId)) throw new Error('second company missing at sign-in');
+  let guestSession: string | null = again.token;
+  const guestApi = createClient({ baseUrl: API_URL, getToken: () => guestSession });
+  const phone = `ExponentPushToken[smoke-${randomBytes(4).toString('hex')}]`;
+  await guestApi.auth.registerPushToken({ token: phone, platform: 'android' });
+  guestSession = (await guestApi.auth.switchCompany(tenantId)).token;
+  await guestApi.cases.list();
+  await guestApi.auth.registerPushToken({ token: phone, platform: 'android' });
+  log('Signed in again and switched company; one phone gets pushes from both', again.companies.map((co) => co.name).join(', '));
+
+  // An admin's open invites die with the admin's access; admins can't touch the owner; demotion applies at once.
+  const owners = (await owner.members.list()).filter((m) => m.role === 'owner');
+  const arjun = await join('Arjun', [], undefined, undefined, 'admin');
+  const shadow = await arjun.api.invites.create({ name: 'Shadow', email: `shadow+${randomBytes(3).toString('hex')}@example.com`, role: 'admin', approverRoles: ['safety-officer'] });
+  await expectStatus(arjun.api.members.update(owners[0]!.id, { approverRoles: [] }), 403, 'An admin cannot change the owner');
+  await owner.members.remove(arjun.auth.user.principalId);
+  await expectStatus(owner.invites.accept(tenantId, shadow.path.split('/').pop()!, { password: 'correct horse battery' }), 404, 'An invite from a removed admin no longer works');
+  const priya = await join('Priya', [], undefined, undefined, 'admin');
+  await priya.api.tenant.updateSettings({ redactPii: true });
+  await owner.members.update(priya.auth.user.principalId, { role: 'member' });
+  await expectStatus(priya.api.tenant.updateSettings({ redactPii: true }), 403, 'A demoted admin loses settings at once');
+
+  // A team-directory record links to a login on its own (one person takes calls and approves).
+  const staffRecord = (await owner.team.list())[0]!;
+  const linked = await owner.members.update(sunita.auth.user.principalId, { staffId: staffRecord.id });
+  if (linked.staffId !== staffRecord.id) throw new Error('staff link not saved');
+  log('Linked a team-directory record to a login', `${staffRecord.name} → Sunita`);
+
+  const template = (await owner.routines.templates())[0];
+  if (template) await expectStatus(manoj.api.routines.create({ templateId: template.id }), 403, 'A member cannot set up routines that phone staff');
 
   // A hot-work case: the gate goes to the safety officer, not the owner.
   const c = await owner.cases.create({ text: suiteCase('power-plant', 'contractor-welding').request });
@@ -280,6 +323,9 @@ async function roleChecks(otherCompanyOwner: { email: string }) {
   const sunitaInbox = await sunita.api.approvals.list('pending', { mine: true });
   if (manojInbox.some((a) => a.id === gate.id) || !sunitaInbox.some((a) => a.id === gate.id)) throw new Error('mine inbox lists the wrong approvals');
   log('Mine inbox', `Sunita ${sunitaInbox.length}, Manoj ${manojInbox.length}`);
+  const [manojPulse, sunitaPulse] = await Promise.all([manoj.api.ops.pulse(), sunita.api.ops.pulse()]);
+  if (manojPulse.pendingApprovals !== 0 || sunitaPulse.pendingApprovals < 1) throw new Error(`pulse counts: Manoj ${manojPulse.pendingApprovals}, Sunita ${sunitaPulse.pendingApprovals}`);
+  log('The pulse counts only your own decisions', `Sunita: ${sunitaPulse.headline}; Manoj: ${manojPulse.headline}`);
   await expectStatus(signedDecision(manoj.api, manoj.key.seed, manoj.device.id, gate.id, 'approved'), 403, 'A person without the role is refused');
   await signedDecision(sunita.api, sunita.key.seed, sunita.device.id, gate.id, 'approved', 'Permit HW-118 issued, area checked');
   log('The safety officer approved the gate');
@@ -291,7 +337,6 @@ async function roleChecks(otherCompanyOwner: { email: string }) {
   // Members can't change settings or the team; removal ends access at once.
   await expectStatus(manoj.api.tenant.updateSettings({ redactPii: false }), 403, 'A member cannot change settings');
   await expectStatus(manoj.api.members.update(sunita.auth.user.principalId, { approverRoles: [] }), 403, 'A member cannot change the team');
-  const owners = (await owner.members.list()).filter((m) => m.role === 'owner');
   await expectStatus(sunita.api.members.update(owners[0]!.id, { approverRoles: ['safety-officer'] }), 403, 'Nobody else changes the owner');
   await owner.members.remove(manoj.auth.user.principalId);
   await expectStatus(manoj.api.cases.list(), 401, 'A removed person is turned away at once');

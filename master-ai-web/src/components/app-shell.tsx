@@ -20,10 +20,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
-import { NavLink, useLocation, useOutlet } from 'react-router';
+import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router';
 import { brandPalette, darkPalette, lightPalette } from '@onehuman/ui';
 import { PhoneSimulator } from '@/components/phone-simulator';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { useRealtimeConnection } from '@/lib/realtime';
 import { useSession } from '@/lib/session';
@@ -87,8 +88,22 @@ function useBrandColor(brandColor?: string) {
 }
 
 export function AppShell() {
-  const { user, signOut, setTenant } = useSession();
+  const { user, companies, signIn, signOut, setTenant, setUser } = useSession();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  // Role and approver roles are read fresh, so a change made by the owner shows without signing in again.
+  const me = useQuery({ queryKey: ['me'], queryFn: api.auth.me, refetchInterval: 60_000 });
+  useEffect(() => {
+    if (me.data) setUser(me.data.user, me.data.companies);
+  }, [me.data, setUser]);
+  const switchCompany = useMutation({
+    mutationFn: (tenantId: string) => api.auth.switchCompany(tenantId),
+    onSuccess: (auth) => {
+      queryClient.clear();
+      signIn(auth);
+      navigate('/');
+    },
+  });
   const realtime = useRealtimeConnection();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -189,6 +204,15 @@ export function AppShell() {
               </>
             )}
           </p>
+          {companies.length > 1 && (
+            <Select aria-label="Switch company" className="w-48" value={user?.tenantId} onChange={(e) => switchCompany.mutate(e.target.value)} disabled={switchCompany.isPending}>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
           {user?.role !== 'member' && (
             <Button
               variant={paused ? 'success' : 'secondary'}

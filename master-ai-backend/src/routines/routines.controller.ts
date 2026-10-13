@@ -7,7 +7,7 @@ import {
   type CreateRoutineInput,
   type UpdateRoutineInput,
 } from '@onehuman/schemas';
-import { CurrentSession, type Session } from '../common/auth';
+import { CurrentSession, ManagersOnly, type Session } from '../common/auth';
 import { ZodPipe } from '../common/zod';
 import { RoutinesService } from './routines.service';
 
@@ -26,6 +26,7 @@ export class RoutinesController {
     return this.routines.templates(s.tenantId);
   }
 
+  @ManagersOnly()
   @Post()
   create(@CurrentSession() s: Session, @Body(new ZodPipe(CreateRoutineInputSchema)) body: CreateRoutineInput) {
     return this.routines.create(s, body);
@@ -36,6 +37,7 @@ export class RoutinesController {
     return this.routines.day(s.tenantId, id, date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined);
   }
 
+  @ManagersOnly()
   @Patch(':id')
   update(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(UpdateRoutineInputSchema)) body: UpdateRoutineInput) {
     return this.routines.update(s, id, body);

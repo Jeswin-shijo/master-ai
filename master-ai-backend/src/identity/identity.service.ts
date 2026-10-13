@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { ORG_TYPES } from '@onehuman/schemas';
 import type {
   AuthResponse,
+  Company,
   DeviceKey,
   HumanRole,
   LoginInput,
@@ -21,6 +22,7 @@ import { hashPassword, verifyPassword } from '../common/crypto';
 import { DEFAULT_TENANT_SETTINGS, toTenant } from '../common/mappers';
 import { DbService } from '../db/db.service';
 import { deviceKeys, principals, pushTokens, tenants, users } from '../db/schema';
+import { pickMembership, toCompanies, type MembershipRow } from './memberships';
 
 @Injectable()
 export class IdentityService {
@@ -60,6 +62,7 @@ export class IdentityService {
         token: issueToken(session),
         user: { ...session, name: user!.name, email: user!.email, approverRoles: [] },
         tenant: toTenant(tenant!),
+        companies: [{ id: tenantId, name: tenant!.name, role: 'owner' }],
       };
     });
   }
@@ -69,36 +72,52 @@ export class IdentityService {
     if (!user || !verifyPassword(input.password, user.passwordHash)) {
       throw new UnauthorizedException('Email or password is incorrect');
     }
-    const memberships = await this.db.global.execute<{ tenant_id: string; principal_id: string; role: HumanRole }>(
-      sql`select * from auth_user_tenants(${user.id})`,
-    );
-    const membership = input.tenantId
-      ? memberships.rows.find((m) => m.tenant_id === input.tenantId)
-      : memberships.rows[0];
+    const rows = await this.memberships(user.id);
+    const membership = pickMembership(rows, input.tenantId);
     if (!membership) throw new UnauthorizedException('No active company for this login');
-
-    const session: Session = {
-      userId: user.id,
-      principalId: membership.principal_id,
-      tenantId: membership.tenant_id,
-      role: membership.role,
-    };
-    const tenant = await this.tenant(session.tenantId);
-    return {
-      token: issueToken(session),
-      user: { ...session, name: user.name, email: user.email, approverRoles: await this.approverRoles(session.tenantId, session.principalId) },
-      tenant,
-    };
+    return this.sessionFor(user, membership, rows);
   }
 
-  async me(session: Session): Promise<{ user: SessionUser; tenant: TenantSummary }> {
+  /** Open another company this login belongs to. */
+  async switchCompany(session: Session, tenantId: string): Promise<AuthResponse> {
+    const [user] = await this.db.global.select().from(users).where(eq(users.id, session.userId));
+    if (!user) throw new UnauthorizedException();
+    const rows = await this.memberships(user.id);
+    const membership = pickMembership(rows, tenantId);
+    if (!membership) throw new ForbiddenException('You are not in that company.');
+    return this.sessionFor(user, membership, rows);
+  }
+
+  async me(session: Session): Promise<{ user: SessionUser; tenant: TenantSummary; companies: Company[] }> {
     const [user] = await this.db.global.select().from(users).where(eq(users.id, session.userId));
     if (!user) throw new UnauthorizedException();
     return {
       user: { ...session, name: user.name, email: user.email, approverRoles: await this.approverRoles(session.tenantId, session.principalId) },
       tenant: await this.tenant(session.tenantId),
+      companies: toCompanies(await this.memberships(user.id)),
     };
   }
+
+  /** The companies this login belongs to (the one narrow global lookup). */
+  private async memberships(userId: string): Promise<MembershipRow[]> {
+    return (await this.db.global.execute<MembershipRow>(sql`select * from auth_user_tenants(${userId})`)).rows;
+  }
+
+  private async sessionFor(user: typeof users.$inferSelect, membership: MembershipRow, rows: MembershipRow[]): Promise<AuthResponse> {
+    const session: Session = {
+      userId: user.id,
+      principalId: membership.principal_id,
+      tenantId: membership.tenant_id,
+      role: membership.role as HumanRole,
+    };
+    return {
+      token: issueToken(session),
+      user: { ...session, name: user.name, email: user.email, approverRoles: await this.approverRoles(session.tenantId, session.principalId) },
+      tenant: await this.tenant(session.tenantId),
+      companies: toCompanies(rows),
+    };
+  }
+
 
   /** The approver roles a person holds in a company, read fresh. */
   private async approverRoles(tenantId: string, principalId: string): Promise<string[]> {
@@ -150,7 +169,8 @@ export class IdentityService {
       tx
         .insert(pushTokens)
         .values({ tenantId: session.tenantId, principalId: session.principalId, ...input })
-        .onConflictDoUpdate({ target: pushTokens.token, set: { principalId: session.principalId, platform: input.platform } }),
+        // One phone can be signed into several companies: a token is unique per company.
+        .onConflictDoUpdate({ target: [pushTokens.tenantId, pushTokens.token], set: { principalId: session.principalId, platform: input.platform } }),
     );
     return { ok: true as const };
   }

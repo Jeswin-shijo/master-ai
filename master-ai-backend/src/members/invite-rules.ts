@@ -40,3 +40,14 @@ export function memberChangeRefusal(
   if (target.id === actor.id && touchesAccess) return "You can't change your own access or approval roles. Ask the owner.";
   return null;
 }
+
+/** The principal fields an update sets, or null when it only touches the staff link. */
+export function principalChanges(input: { role?: 'admin' | 'member'; approverRoles?: string[] }): { role?: 'admin' | 'member'; approverRoles?: string[] } | null {
+  const set = { ...(input.role !== undefined && { role: input.role }), ...(input.approverRoles !== undefined && { approverRoles: input.approverRoles }) };
+  return Object.keys(set).length ? set : null;
+}
+
+/** An invite stands only while the person who made it is still an active owner or admin. */
+export function inviterStillAllowed(creator: { role: string; status: string } | null): boolean {
+  return !!creator && creator.status === 'active' && (creator.role === 'owner' || creator.role === 'admin');
+}

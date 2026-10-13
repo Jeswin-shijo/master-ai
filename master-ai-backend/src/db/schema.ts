@@ -422,14 +422,19 @@ export const deviceKeys = pgTable('device_keys', {
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
 });
 
-export const pushTokens = pgTable('push_tokens', {
-  id: id(),
-  tenantId: tenantId(),
-  principalId: uuid('principal_id').notNull().references(() => principals.id, { onDelete: 'cascade' }),
-  token: text('token').notNull().unique(),
-  platform: text('platform', { enum: ['ios', 'android'] }).notNull(),
-  createdAt: createdAt(),
-});
+export const pushTokens = pgTable(
+  'push_tokens',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    principalId: uuid('principal_id').notNull().references(() => principals.id, { onDelete: 'cascade' }),
+    token: text('token').notNull(),
+    platform: text('platform', { enum: ['ios', 'android'] }).notNull(),
+    createdAt: createdAt(),
+  },
+  // One phone can be signed into several companies.
+  (t) => [uniqueIndex('push_tokens_tenant_token_idx').on(t.tenantId, t.token)],
+);
 
 /** Sector entities from the pack, validated by the pack's schema before insert. */
 export const records = pgTable(

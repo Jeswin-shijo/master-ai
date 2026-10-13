@@ -24,6 +24,14 @@ export interface AuthResponse {
   token: string;
   user: SessionUser;
   tenant: TenantSummary;
+  /** Every company this login belongs to, to switch between them. */
+  companies: Company[];
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  role: HumanRole;
 }
 
 export interface TenantSummary {
