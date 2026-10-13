@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pressable, RefreshControl, Share, StyleSheet, TextInput, View } from 'react-native';
-import type { Goal, GoalReport } from '@onehuman/schemas';
-import { goalStatusWord, reportText } from '@onehuman/sdk';
+import { Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import type { Goal } from '@onehuman/schemas';
+import { goalStatusWord } from '@onehuman/sdk';
+import { ReportView } from '@/components/report-view';
 import { Badge, Button, Card, Empty, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { radius, space, useTheme } from '@/lib/theme';
@@ -86,35 +87,6 @@ function GoalRow({ goal }: { goal: Goal }) {
       {open && detail.error && <T tone="danger" size="sm">{errorMessage(detail.error)}</T>}
       {open && detail.data && <ReportView report={detail.data.report} />}
     </Card>
-  );
-}
-
-/** The goal's report in plain words, with a Share button for sending it to a client. */
-function ReportView({ report }: { report: GoalReport }) {
-  const sections: [string, string[], string][] = [
-    ['What was done', report.done, '✓'],
-    ['Still in progress', report.pending, '…'],
-    ['Needs attention', report.attention, '!'],
-    ['People involved', report.people, '•'],
-  ];
-  const empty = report.done.length + report.pending.length + report.attention.length === 0;
-  return (
-    <View style={{ gap: space.md }}>
-      {empty && <T tone="muted" size="sm">Nothing has been done yet.</T>}
-      {sections.map(([title, lines, mark]) =>
-        lines.length ? (
-          <View key={title} style={{ gap: 4 }}>
-            <T tone="muted" size="xs" weight="600">{title.toUpperCase()}</T>
-            {lines.map((line, i) => (
-              <T key={i} size="sm" tone={mark === '!' ? 'danger' : undefined}>
-                {mark} {line}
-              </T>
-            ))}
-          </View>
-        ) : null,
-      )}
-      <Button title="Share report" variant="secondary" onPress={() => void Share.share({ message: reportText(report) })} />
-    </View>
   );
 }
 

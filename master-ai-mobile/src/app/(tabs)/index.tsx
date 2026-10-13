@@ -4,9 +4,10 @@ import { Link } from 'expo-router';
 import { Alert, Pressable, RefreshControl, View } from 'react-native';
 import type { ApprovalRequest } from '@onehuman/schemas';
 import { Badge, Button, Card, Empty, RiskBar, Screen, T } from '@/components/ui';
-import { api, errorMessage, isNetworkError } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
+import { useMyApprovals } from '@/lib/approvals';
 import { confirmWithBiometrics, signDecision } from '@/lib/device-key';
-import { cacheApprovals, cachedApprovals, queuedDecisions, submitDecision } from '@/lib/offline';
+import { queuedDecisions, submitDecision } from '@/lib/offline';
 import { space } from '@/lib/theme';
 
 const LOW_RISK = 60;
@@ -14,31 +15,17 @@ const LOW_RISK = 60;
 /** Approvals first: the reason the app exists. Works offline from the SQLite cache. */
 export default function ApprovalsScreen() {
   const queryClient = useQueryClient();
-  const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const approvals = useQuery({
-    queryKey: ['approvals', 'pending'],
-    queryFn: async () => {
-      try {
-        const list = await api.approvals.list('pending', { mine: true });
-        setOffline(false);
-        await cacheApprovals(list);
-        return list;
-      } catch (err) {
-        if (!isNetworkError(err)) throw err;
-        setOffline(true);
-        return cachedApprovals();
-      }
-    },
-  });
+  const approvals = useMyApprovals();
+  const offline = approvals.data?.offline ?? false;
   const queued = useQuery({ queryKey: ['approvals', 'queued'], queryFn: queuedDecisions });
   useEffect(() => {
     void queued.refetch();
   }, [approvals.dataUpdatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const queuedIds = new Set(queued.data?.map((q) => q.approvalId));
-  const visible = (approvals.data ?? []).filter((a) => !queuedIds.has(a.id));
+  const visible = (approvals.data?.list ?? []).filter((a) => !queuedIds.has(a.id));
   // Only agent actions can be approved in a batch; case steps are read and decided one by one.
   const lowRisk = visible.filter((a) => a.kind === 'action' && a.riskScore < LOW_RISK);
 

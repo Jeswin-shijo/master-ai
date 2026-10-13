@@ -1,13 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQuery } from '@tanstack/react-query';
 import { Tabs } from 'expo-router';
-import { api } from '@/lib/api';
+import { useMyApprovals } from '@/lib/approvals';
 import { useTheme } from '@/lib/theme';
 
 export default function TabsLayout() {
   const { c } = useTheme();
-  const pending = useQuery({ queryKey: ['approvals', 'pending'], queryFn: () => api.approvals.list('pending', { mine: true }) });
-  const count = pending.data?.length ?? 0;
+  const count = useMyApprovals().data?.list.length ?? 0;
 
   return (
     <Tabs
