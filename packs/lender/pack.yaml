@@ -35,6 +35,7 @@ match:
     - loan provider
     - two wheeler finance
     - vehicle finance
+    - housing finance
 
 labels:
   Customer: Borrower
@@ -411,7 +412,7 @@ lifecycle:
         - "Gold: tested in front of the borrower; loan within 85% of the gold value up to ₹2.5 lakh, 80% up to ₹5 lakh, 75% above"
         - Key Facts Statement given in the borrower's language and signed
       not_eligible:
-        - keywords: [3 running, three running, 4 running, 3 active loans, 3 live loans, 3 mfi loans, three mfi loans, 4 mfi loans, 3 microfinance loans, three microfinance loans, 4 microfinance loans, 3 other lenders, three other lenders, 4 lenders, four lenders, 4th lender, fourth lender, more than 3 lenders, lender cap, over indebted, overindebted, income above 3 lakh, income more than 3 lakh]
+        - keywords: [3 microfinance loans, three microfinance loans, 4 microfinance loans, four microfinance loans, 3 running microfinance loans, three running microfinance loans, 4 running microfinance loans, 3 active microfinance loans, three active microfinance loans, 3 live microfinance loans, 3 mfi loans, three mfi loans, 4 mfi loans, 3 running mfi loans, 3 active mfi loans, 3 microfinance lenders, three microfinance lenders, 3 mfi lenders, three mfi lenders, 4th mfi lender, fourth mfi lender, 4th microfinance lender, more than 3 microfinance lenders, more than 3 mfi lenders, mfin cap, mfin limit, microfinance loans above 2 lakh, mfi loans above 2 lakh, household income above 3 lakh, household income more than 3 lakh, household income is above 3 lakh]
           reason: "A microfinance loan is only for households earning up to ₹3 lakh a year, and MFIN members lend only where the borrower has at most 3 microfinance lenders including us and owes up to ₹2 lakh in all. Tell the applicant the reason kindly; a different product may fit."
         - keywords: [buy gold, buying gold, purchase gold, purchase of gold, gold purchase, buy jewellery, buying jewellery, jewellery purchase, buy gold coins, gold bar, gold bars, gold biscuit, bullion, gold etf, digital gold]
           reason: "RBI does not let lenders finance the purchase of gold in any form, or lend against bars, bullion, gold ETFs or digital gold. We lend only against gold jewellery and small bank-sold coins."
@@ -507,7 +508,7 @@ lifecycle:
       execution: both
     - id: loan-closure
       name: Loan closure and NOC
-      keywords: [noc, no dues, no dues certificate, no objection certificate, foreclose, foreclosure, foreclosure amount, foreclosure statement, preclose, preclosure, pre closure, prepay, prepayment, close my loan, close the loan, loan closure, closure letter, last emi, final emi, last instalment, last installment, fully paid, paid in full, original documents, original papers, original title deed, property papers, property documents, close my gold loan, release my gold, release of gold, gold release, return my gold, get my gold back, jewels back, ornaments back, borrower died, borrower expired, passed away, death claim, hypothecation removal, remove hypothecation, hp removal, form 35, release of charge, satisfaction of charge, cersai]
+      keywords: [noc, no dues, no dues certificate, no objection certificate, foreclose, foreclosure, foreclosure amount, foreclosure statement, preclose, preclosure, pre closure, prepay, prepayment, close my loan, close the loan, loan closure, closure letter, paid my last emi, paid the last emi, paid last emi, last emi paid, paid my last instalment, paid the last instalment, last instalment paid, final emi, final instalment, final installment, fully paid, paid in full, original documents, original papers, original title deed, property papers, property documents, close my gold loan, release my gold, release of gold, gold release, return my gold, get my gold back, jewels back, ornaments back, borrower died, borrower expired, passed away, death claim, hypothecation removal, remove hypothecation, hp removal, form 35, release of charge, satisfaction of charge, cersai]
       priority: P2
       risk: low
       department: Operations
@@ -517,6 +518,7 @@ lifecycle:
         - NOC issued
         - "Original papers returned within 30 days of full repayment (₹5,000 a day if we are late)"
         - Pledged gold returned the same day where possible and within 7 working days at most
+        - "Gold or papers handed only to the borrower (ID checked), someone they authorised in writing, or the legal heirs, with two staff present for the gold packet"
         - "Charge removed: CERSAI, sub-registrar, ROC or RTO (Form 35 for vehicles)"
         - Credit bureaus told the loan is closed
         - "Borrower died: credit life insurance claim filed, no collection calls to the family, papers to the legal heirs"
@@ -529,7 +531,7 @@ lifecycle:
       execution: both
     - id: service-request
       name: Account service request
-      keywords: [loan statement, account statement, statement of my loan, interest certificate, provisional interest certificate, repayment schedule, emi schedule, amortisation schedule, amortization schedule, welcome letter, copy of my loan agreement, loan agreement copy, copy of sanction letter, sanction letter copy, kyc update, update my kyc, re kyc, rekyc, periodic kyc, change of address, address change, update my address, new address, change of mobile number, change my mobile number, update my mobile number, mobile number change, new mobile number, change my email, emi date change, change emi date, change my emi date, mandate change, change of mandate, new mandate, change my bank account, change of bank account, bank account change, name correction, correct my name]
+      keywords: [loan statement, account statement, statement of my loan, emi receipt, payment receipt, repayment receipt, receipt for my emi, receipt for my last emi, receipt of my emi, receipt for the emi, receipt for my payment, interest certificate, provisional interest certificate, repayment schedule, emi schedule, amortisation schedule, amortization schedule, welcome letter, copy of my loan agreement, loan agreement copy, copy of sanction letter, sanction letter copy, kyc update, update my kyc, re kyc, rekyc, periodic kyc, change of address, address change, update my address, new address, change of mobile number, change my mobile number, update my mobile number, mobile number change, new mobile number, change my email, emi date change, change emi date, change my emi date, mandate change, change of mandate, new mandate, change my bank account, change of bank account, bank account change, name correction, correct my name]
       priority: P4
       risk: low
       department: Operations
@@ -561,7 +563,7 @@ lifecycle:
       execution: both
     - id: fraud-alert
       name: Fraud or staff misconduct alert
-      keywords: [fraud, fraudulent, fake, fake gold, spurious gold, spurious, gold plated, plated gold, fake ornaments, purity mismatch, forged, forgery, fake documents, fake kyc, fake signature, fake receipt, identity theft, not my loan, never took, never taken, never applied, loan in my name, impersonation, impersonating, benami, ghost borrower, ghost loan, bribe, bribery, kickback, asked for commission, without receipt, gave no receipt, no receipt given, cash not deposited, misappropriation, embezzlement, siphoned, suspicious, suspicious transaction, data leak, hacked, phishing, scam, unauthorised transaction, unauthorized transaction, same bank account, gold missing, packet tampered, seal broken, short weight, weight short, weight mismatch, less weight, less than what i pledged, less than what she pledged, less than what he pledged, stones removed, gold replaced, personal upi, personal gpay, personal phonepe, personal paytm, speed money, chai pani, under the table, asked for money, demanded money, cash shortage, vault shortage]
+      keywords: [fraud, fraudulent, fake, fake gold, spurious gold, spurious, gold plated, plated gold, fake ornaments, purity mismatch, forged, forgery, fake documents, fake kyc, fake signature, fake receipt, identity theft, not my loan, never took, never taken, never applied, loan in my name, impersonation, impersonating, benami, ghost borrower, ghost loan, bribe, bribery, kickback, asked for commission, without receipt, without a receipt, no receipt, gave no receipt, no receipt given, did not give receipt, did not give a receipt, didn't give receipt, didn't give a receipt, cash not deposited, misappropriation, embezzlement, siphoned, suspicious, suspicious transaction, data leak, hacked, phishing, scam, unauthorised transaction, unauthorized transaction, same bank account, gold missing, packet tampered, seal broken, short weight, weight short, weight mismatch, less weight, less than what i pledged, less than what she pledged, less than what he pledged, stones removed, gold replaced, personal upi, personal gpay, personal phonepe, personal paytm, speed money, chai pani, under the table, asked for money, demanded money, cash shortage, vault shortage]
       priority: P1
       risk: high
       department: Risk and compliance

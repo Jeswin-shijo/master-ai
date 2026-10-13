@@ -43,12 +43,12 @@ cases:
     source: staff
     amount_inr: 30000
     expect:
-      category: fees-billing
+      category: fee-concession
       priority: P4
       review: complete
       approval: { required: true, role: owner }
       signoff: { required: false }
-    why: Fees, a discount and an invoice mark fees and billing (P4). ₹30,000 is above the ₹25,000 limit, so the owner must approve; a ₹20,000 discount would need no approval.
+    why: A discount and a revised invoice mark a fee discount or write-off (P4), not ordinary billing. ₹30,000 is above the ₹1,000 round-off limit, so the owner must approve; a ₹500 round-off would need no approval, and raising an invoice as the engagement letter says needs none at any amount up to the ₹5 lakh owner limit.
   - id: nri-remittance-certificate
     request: "HDFC Bank RM here. Our NRI customer Mr. Suresh Nair wants to send ₹40 lakh from his NRO account to Dubai – sale money of his Kochi flat. The bank needs Form 145 and the CA certificate in Form 146 (old 15CA/15CB). Sale deed, buyer's TDS certificate and NRO statement attached. He flies back on Saturday."
     source: partner

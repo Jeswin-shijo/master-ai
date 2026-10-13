@@ -59,7 +59,7 @@ lifecycle:
     - { id: compliance-officer, name: Compliance officer, approves: "Regulatory filings, notice replies and the response to fraud alerts, including reports to FIU-IND, the police or the regulator" }
     - { id: grievance-officer, name: Grievance officer, approves: Final replies to complaints and grievances }
     - { id: internal-auditor, name: Internal auditor, approves: "Closing fraud and misconduct cases after checking the loss, the cause and the fix" }
-  urgent_keywords: [fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, robbery, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, threatening, harassment, harassed, abused, suicide, fire, injured, injury]
+  urgent_keywords: [fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, robbery, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, threatening, harassment, harassed, harassing, abused, abusive, suicide, fire, injured, injury]
   categories:
     - id: service-request
       name: Details change or service request
@@ -150,6 +150,12 @@ lifecycle:
         - salary advance
         - travel advance
         - honorarium
+        - office rent
+        - rent payment
+        - pay the rent
+        - electricity bill
+        - pay salaries
+        - staff salaries
       priority: P3
       risk: medium
       department: Accounts and finance
@@ -189,15 +195,25 @@ lifecycle:
         - consumer court
         - poor service
         - shikayat
+        - harassment
+        - harassed
+        - harassing
+        - sexual harassment
+        - sexual misconduct
+        - threatened
+        - threatening
+        - abused
+        - abusive
       priority: P2
       risk: medium
       department: Grievance cell
       required_checks:
         - Logged with a complaint number and acknowledged
+        - "Threats, harassment or abuse by staff or agents: contact stopped and the person taken off the work the same day"
         - "Facts checked: records, receipts, call recordings and the staff member's side"
         - Final written reply within 30 days
         - A reply that does not fully resolve it says where the person can escalate
-      approval: { required: never }
+      approval: { required: high_risk_or_p1, role: owner }
       signoff: { required: true, role: grievance-officer }
       workflow: delegate-work
       execution: both
@@ -221,6 +237,10 @@ lifecycle:
         - license renewal
         - rbi inspection
         - rbi return
+        - letter from rbi
+        - rbi letter
+        - notice from rbi
+        - rbi notice
         - inspection report
         - fiu ind
       priority: P2
@@ -264,11 +284,6 @@ lifecycle:
         - cash shortage
         - hacked
         - data leak
-        - harassment
-        - harassed
-        - threatened
-        - abused
-        - abusive
         - misconduct
       priority: P1
       risk: high
@@ -288,8 +303,8 @@ lifecycle:
     - { request: My surname is spelt wrong in your records. Please do a name correction as per my PAN card, category: service-request, priority: P4, approval: false }
     - { request: "Send me the statement of account from April to September, my bank has asked for it", category: document-request, priority: P4, approval: false }
     - { request: "I lost the receipt for my last instalment, can you give me a duplicate receipt?", category: document-request, priority: P4, approval: false }
-    - { request: "Release payment of ₹38,000 to Sai Printers for printing the annual report, bill attached", category: payment, priority: P3, approval: true }
-    - { request: "Reimbursement of ₹6,450 for my field travel last month, bus tickets attached", category: payment, priority: P3, approval: true }
+    - { request: "Release payment of ₹78,000 to Sai Printers for printing the annual report, bill attached", category: payment, priority: P3, approval: true }
+    - { request: "Supplier payment of ₹1,12,000 to Shree Balaji Furniture for 40 office chairs, GST invoice and delivery challan attached", category: payment, priority: P3, approval: true }
     - { request: AOC-4 and MGT-7 for last year are due on the MCA portal by 29 November, category: compliance-filing, priority: P2, approval: true }
     - { request: "Show cause notice from the regulator came today, reply needed within 15 days", category: compliance-filing, priority: P2, approval: true }
     - { request: I complained two weeks ago about extra charges on my account and still have no reply, category: complaint, priority: P2, approval: false }
@@ -319,8 +334,9 @@ playbooks:
       4. Fix what is wrong first (reverse a wrong charge, correct a record) and tell the person what you did.
       5. Send a final written reply within 30 days. RBI-regulated lenders: if the complaint is rejected in full or in part, or not answered in 30 days, the reply names the RBI Ombudsman (cms.rbi.org.in, toll-free 14448).
       6. The grievance officer signs off every final reply. Show the grievance officer's name, phone and email at every office and on the website.
-      7. Threats, harassment or fraud are not ordinary complaints. Raise them as a fraud or misconduct alert at once.
-      8. Each month, count complaints by cause and fix the cause that keeps coming back.
+      7. Threats, harassment or abuse by staff or recovery agents are not ordinary complaints. Raise them at once as a P1 complaint: stop the contact the same day, take the person off the work, and let the owner decide the action against them (at a lender, the compliance officer). Harm to a child or a vulnerable adult goes to safeguarding where the organization has it, and the police are told at once where the law requires it.
+      8. Money taken through forgery, a fake receipt or a loan the person never took is a fraud alert, not a complaint.
+      9. Each month, count complaints by cause and fix the cause that keeps coming back.
   - id: sector-payment-release
     title: Approving and releasing a payment
     source: Common maker-checker practice in Indian finance offices; Income-tax Act rules on cash expenses and TDS; GST invoice rules

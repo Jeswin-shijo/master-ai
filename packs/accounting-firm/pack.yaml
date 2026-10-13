@@ -6,7 +6,7 @@
 id: accounting-firm
 version: 1.0.0
 name: Accounting & tax firm
-description: GST, income tax and TDS returns, tax notices and appeals, audits, CA certificates, ROC filings, books and payroll, new clients and fees for chartered accountant and tax practices.
+description: GST, income tax and TDS returns, tax notices, raids and appeals, audits, CA certificates, ROC filings, books and payroll, new clients, fees and client complaints for chartered accountant and tax practices.
 kind: industry
 sector: finance-development
 extends: [sector-finance-development, projects-base]
@@ -174,7 +174,7 @@ agents:
   - role: practice-office
     name: Practice office
     description: Takes on new clients by sending the KYC list, running the conflict check and drafting the letter to the previous auditor and the engagement letter for the owner; raises fee invoices from the engagement letter, sends polite reminders and tracks what is unpaid.
-    instructions: Never promise a fee, discount or write-off; the owner decides those. Never start work for a new client before the owner approves the engagement letter. Fees are never a share of a refund, of tax saved or of any result.
+    instructions: Never promise a client a fee, discount or write-off; the owner decides those, except round-offs and bank charges up to ₹1,000. Never start work for a new client before the owner approves the engagement letter. Fees are never a share of a refund, of tax saved or of any result.
     autonomy: 3
     tools: [clients.search, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, payment.request, schedule.create, staff.delegate, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }
@@ -316,7 +316,7 @@ workflows:
   - id: fee-invoicing
     name: Fee invoicing and reminders
     description: Raise the fee invoice from the engagement letter and follow up until it is paid.
-    keywords: [invoice, fees, bill, reminder, outstanding, write off]
+    keywords: [invoice, fees, bill, reminder, outstanding]
     steps:
       - key: invoice
         title: Raise the invoice
@@ -327,6 +327,15 @@ workflows:
         agent: practice-office
         depends_on: [invoice]
         instructions: Send polite reminders at 15 and 30 days, and hand the call for fees unpaid after 60 days to the partner in charge of the client by phone.
+  - id: fee-concession
+    name: Fee discount or write-off
+    description: Check the dues, then prepare the credit note or revised invoice for the amount approved and tell the client.
+    keywords: [discount, write off, credit note, revised invoice]
+    steps:
+      - key: credit-note
+        title: Prepare the credit note or revised invoice
+        agent: practice-office
+        instructions: Check the client's old dues and the engagement letter, prepare the credit note or revised invoice for the amount approved (or a round-off of up to ₹1,000), update the fees outstanding and tell the client politely.
 
 routines:
   - id: daily-work-report
@@ -376,7 +385,7 @@ lifecycle:
         - Our deadline is before the legal due date
     approve:
       name: Partner review and approval
-      description: The review manager or engagement partner checks the working against the papers and the client's written confirmation, and approves before anything is filed, signed or sent; the owner approves new clients and big fee changes.
+      description: The review manager or engagement partner checks the working against the papers and the client's written confirmation, and approves before anything is filed, signed or sent; the owner approves new clients, fee discounts and write-offs.
       checks:
         - Working checked against the papers
         - Client confirmed the figures and the tax payable in writing
@@ -406,14 +415,14 @@ lifecycle:
         - Open notices and hearings for next month
         - Lock-up days and fee realisation
   priorities:
-    - { id: P1, name: "Urgent: due within 2 days, or attachment or recovery", respond_within_hours: 1, resolve_within_hours: 24 }
+    - { id: P1, name: "Urgent: due within 2 days, raid or attachment", respond_within_hours: 1, resolve_within_hours: 24 }
     - { id: P2, name: "High: due within 10 days", respond_within_hours: 4, resolve_within_hours: 120 }
     - { id: P3, name: "Normal: due within 30 days", respond_within_hours: 8, resolve_within_hours: 336 }
     - { id: P4, name: "Low: no legal due date", respond_within_hours: 24, resolve_within_hours: 720 }
   roles:
     - { id: engagement-partner, name: Engagement partner, approves: "Notice replies and appeals, audits, CA certificates and certified ROC forms before they are filed or signed; signs reports and certificates with DSC and UDIN" }
     - { id: review-manager, name: Review manager, approves: "GST, income tax and TDS returns before filing, after checking the working against the papers and the client's written confirmation" }
-  urgent_keywords: [due today, due tomorrow, last date today, last date tomorrow, last day today, deadline today, deadline tomorrow, hearing today, hearing tomorrow, bank account attached, account attached, account has been attached, account is attached, attachment order, provisional attachment, account frozen, bank account frozen, recovery notice, recovery proceedings, garnishee, 226(3), drc-13, search and seizure, raid, survey team, summons, arrest, arrested, fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, harassment, fire, injured]
+  urgent_keywords: [due today, due tomorrow, last date today, last date tomorrow, last day today, deadline today, deadline tomorrow, hearing today, hearing tomorrow, bank account attached, account attached, account has been attached, account is attached, attachment order, provisional attachment, account frozen, bank account frozen, recovery notice, recovery proceedings, garnishee, 226(3), drc-13, search and seizure, raid, survey team, summons, arrest, arrested, fraud, fraudulent, forged, forgery, scam, phishing, hacked, data leak, leaked, theft, stolen, embezzlement, misappropriation, unauthorised transaction, unauthorized transaction, threatened, threatening, harassment, harassed, harassing, abused, fire, injured]
   categories:
     - id: compliance-filing
       name: ROC and other filings
@@ -438,7 +447,7 @@ lifecycle:
       execution: both
     - id: document-request
       name: Copies of returns and documents
-      keywords: [statement of account, duplicate receipt, receipt copy, copy of receipt, copy of the receipt, copy of my receipt, copy of agreement, copy of the agreement, copy of my agreement, certified copy, duplicate certificate, copy of the certificate, copy of my documents, itr copy, copy of itr, copy of my itr, copy of the itr, itr-v copy, itr acknowledgement, acknowledgement copy, computation copy, copy of the computation, copy of my return, copy of the return, copy of my gst return, copy of the gst return, gst return copy, copy of the audit report, copy of the net worth certificate, form 16 copy, copy of form 16, certificate copy, gst certificate copy, send a copy, send me a copy, send me the copy, you issued, issued last year]
+      keywords: [statement of account, duplicate receipt, receipt copy, copy of receipt, copy of the receipt, copy of my receipt, copy of agreement, copy of the agreement, copy of my agreement, certified copy, duplicate certificate, copy of the certificate, copy of my documents, itr copy, copy of itr, copy of my itr, copy of the itr, itr-v copy, itr acknowledgement, acknowledgement copy, computation copy, copy of the computation, copy of my return, copy of the return, copy of my gst return, copy of the gst return, copy of the audit report, copy of the net worth certificate, form 16 copy, copy of form 16, certificate copy, gst certificate copy, send a copy, send me a copy, send me the copy, you issued, issued last year]
       priority: P4
       risk: low
       department: Practice office
@@ -452,6 +461,39 @@ lifecycle:
       approval: { required: never }
       signoff: { required: false }
       execution: agents
+    - id: complaint
+      name: Client complaint
+      keywords: [complaint, complain, complained, grievance, not happy, unhappy, not satisfied, dissatisfied, poor service, bad service, no reply from you, no reply from your office, no response from you, no response from your office, nobody replied, not resolved, rude, misbehaved, misbehaviour, your mistake, your error, because of your mistake, mistake by your office, mistake by your staff, you filed late, you missed the due date, filed without asking me, filed without my approval, overcharged, charged extra, hidden charges, consumer forum, consumer court, complaint to icai, icai complaint, harassment, harassed, harassing, sexual harassment, threatened, threatening, abused, abusive]
+      priority: P2
+      risk: medium
+      department: Partners
+      required_checks:
+        - Logged and acknowledged the same day
+        - "Facts checked: the return or report, the working papers, emails and the staff member's side"
+        - "Our mistake caused a late fee, interest or penalty: the owner decides how we make it good, and the professional indemnity insurer is told where the policy needs it"
+        - "Threats, harassment or abuse by our staff: the person taken off the client's work at once"
+        - Final written reply within 30 days, signed off by the owner
+      approval: { required: high_risk_or_p1, role: owner }
+      signoff: { required: true, role: owner }
+      workflow: delegate-work
+      execution: team
+    - id: fraud-alert
+      name: Fraud, data leak or misconduct alert
+      keywords: [fraud, fraudulent, forged, forgery, fake signature, fake document, fake documents, phishing, phishing email, phishing link, phishing call, fake link, clicked the link, clicked a link, scam, hacked, data leak, leaked, password leaked, dsc misuse, dsc misused, misused the dsc, misuse of dsc, dsc without permission, dsc without consent, otp misused, login misused, refund diverted, identity theft, impersonation, impersonating, unauthorised transaction, unauthorized transaction, without receipt, cash shortage, misappropriation, embezzlement, siphoned, cheated, cheating, bribe, kickback, misconduct]
+      priority: P1
+      risk: high
+      department: Partners
+      required_checks:
+        - "Loss stopped first: portal and email passwords changed, DSC tokens taken back, staff access removed, the bank asked to hold a wrong payment"
+        - "Evidence kept: emails, portal login history, DSC use, bank trail"
+        - Affected clients told in writing the same day
+        - "Money lost or data stolen: complaint on the cyber crime helpline 1930 or cybercrime.gov.in, and a police complaint"
+        - "Personal data leak: the people affected told; check the DPDP Rules for when the Data Protection Board must be told"
+        - The person who raised it is protected and their name kept private
+      approval: { required: always, role: owner }
+      signoff: { required: true, role: owner }
+      workflow: delegate-work
+      execution: team
     - id: new-client
       name: New client or engagement
       keywords: [new client, onboard, onboarding, engagement letter, letter of engagement, kyc, fee quote, fee proposal, proposal for our services, retainer agreement, change of ca, change their ca, old ca, previous ca, previous auditor, new engagement, appointment as auditor, appoint us as auditor, take us on, wants us to handle]
@@ -532,7 +574,7 @@ lifecycle:
       execution: both
     - id: tax-notice
       name: Tax notices and appeals
-      keywords: [notice, tax notice, income tax notice, gst notice, notice from gst, notice from income tax, gst department, income tax department, it department, tax department, gst officer, show cause notice, scn, e-proceeding, scrutiny, faceless assessment, 143(2), 142(1), 143(1), "148", 148a, 139(9), "156", defective return, demand, outstanding demand, intimation, asmt-10, drc-01, drc-01a, drc-07, assessment order, reassessment, hearing, personal hearing, adjournment, appeal, cit(a), itat, tribunal, gstat, penalty order, penalty notice, reply, raid, income tax raid, gst raid, search and seizure, search operation, survey, 133a, gst inspection, summons, high court, writ]
+      keywords: [notice, tax notice, income tax notice, gst notice, notice from gst, notice from income tax, gst department, income tax department, it department, tax department, gst officer, show cause notice, scn, e-proceeding, scrutiny, faceless assessment, 143(2), 142(1), 143(1), "148", 148a, 139(9), "156", defective return, demand, outstanding demand, intimation, asmt-10, drc-01, drc-01a, drc-07, assessment order, reassessment, hearing, personal hearing, adjournment, appeal, cit(a), itat, tribunal, gstat, penalty order, penalty notice, reply, gst demand, demand notice, demand order, rectification, 128a, section 128a, spl-01, spl-02, waiver scheme, amnesty scheme, high court, writ]
       priority: P2
       risk: high
       department: Notices and appeals
@@ -556,6 +598,24 @@ lifecycle:
       signoff: { required: true, role: engagement-partner }
       workflow: notice-reply
       execution: both
+    - id: raid-attachment
+      name: Raid, attachment or recovery
+      keywords: [raid, income tax raid, it raid, gst raid, search and seizure, search operation, search warrant, panchnama, income tax survey, gst survey, survey team, survey operation, survey under 133a, 133a, gst inspection, inspection under section 67, dggi, summons, summon, statement on oath, account attached, bank account attached, account has been attached, account was attached, attachment order, provisional attachment, drc-13, drc-22, garnishee, 226(3), account frozen, bank account frozen, recovery notice, recovery proceedings, recovery officer, arrest, arrested]
+      priority: P1
+      risk: high
+      department: Notices and appeals
+      required_checks:
+        - Engagement partner on the phone with the client at once, and at the premises where needed
+        - Copy of the warrant, survey authorisation, summons or attachment order collected as soon as it can be
+        - Client told to cooperate, answer truthfully and read every statement before signing it
+        - Books, cash, stock and papers taken or marked are listed against the panchnama
+        - "Bank attachment: the demand behind it checked, and a stay, an instalment plan or payment taken up with the officer the same day"
+        - Client's advocate brought in where a court or a criminal case is involved
+        - Every reply, hearing and appeal date put in the calendar
+      approval: { required: always, role: engagement-partner }
+      signoff: { required: true, role: engagement-partner }
+      workflow: delegate-work
+      execution: team
     - id: audit
       name: Audits and tax audit
       keywords: [audit, tax audit, 44ab, 3cd, 3ca, 3cb, form 26, statutory audit, bank audit, branch audit, concurrent audit, stock audit, internal audit, trust audit, society audit, audit report, caro, trial balance]
@@ -627,23 +687,38 @@ lifecycle:
       signoff: { required: false }
       workflow: books-and-payroll
       execution: agents
+    - id: fee-concession
+      name: Fee discount or write-off
+      keywords: [discount, a discount, discount of, fee discount, discount on fees, discount on the fees, give a discount, any discount, reduce the fees, reduce our fees, reduce my fees, lower the fees, fee reduction, reduction in fees, concession, waive the fees, waive our fees, fee waiver, write off, written off, bad debt, issue a credit note, issue credit note, credit note to the client, revised invoice]
+      priority: P4
+      risk: medium
+      department: Billing
+      required_details:
+        - { key: amount, label: Discount or amount to write off, kind: amount }
+      required_checks:
+        - "Reason recorded: slow business, a long relationship, a mistake on our side, or a client who has closed"
+        - Old dues checked before any discount
+        - Credit note or revised invoice matches the amount approved
+        - Round-offs and bank charges up to ₹1,000 need no approval; anything more is the owner's decision
+      approval: { required: above_amount, role: owner, amount_inr: 1000 }
+      signoff: { required: false }
+      workflow: fee-concession
+      execution: agents
     - id: fees-billing
-      name: Fees and billing
-      keywords: [fees, professional fees, invoice, retainer invoice, revised invoice, fee receipt, discount, write off, waive, waiver, payment reminder, fee reminder, reminder, outstanding fees, fees outstanding, pending fees, owes, credit note]
+      name: Fee invoices and reminders
+      keywords: [fee invoice, raise the invoice, raise an invoice, raise invoice, raise the bill, send the invoice, send our invoice, retainer invoice, proforma invoice, invoice, professional fees, fee receipt, reminder, payment reminder, fee reminder, fees reminder, outstanding fees, fees outstanding, pending fees, fees pending, unpaid fees, fees not paid, owes us, owes]
       priority: P4
       risk: low
       department: Billing
-      required_details:
-        - { key: amount, label: Fee or amount, kind: amount }
       required_checks:
-        - Fee matches the engagement letter or the agreed quote
+        - "Fee matches the engagement letter or the agreed quote; any change goes to the owner as a fee discount"
         - Work done or milestone reached
         - Client GSTIN and billing details correct
-        - Old dues checked before any discount
+        - Reminders polite; fees unpaid after 60 days handed to the partner in charge of the client
       not_eligible:
         - keywords: [percent of the refund, percentage of the refund, share of the refund, part of the refund, percent of tax saved, percentage of tax saved, share of the tax saved, success fee, contingent fee, fee only if we win, fees only if we win]
           reason: A CA cannot charge fees as a share of a refund, of tax saved or of any result (Chartered Accountants Act 1949, First Schedule Part I Clause 10). Quote a fixed or time-based fee instead.
-      approval: { required: above_amount, role: owner, amount_inr: 25000 }
+      approval: { required: never }
       signoff: { required: false }
       workflow: fee-invoicing
       execution: agents
@@ -669,8 +744,17 @@ lifecycle:
     - { request: "Prepare the November salary sheet with PF and ESIC for 22 staff at Rohan Foods.", category: books-payroll, priority: P3, approval: false }
     - { request: "Bank reconciliation for the HDFC current account is pending since July; please complete it.", category: books-payroll, priority: P3, approval: false }
     - { request: "Raise the March retainer invoice for Sai Dental Clinic, ₹12,000 plus GST.", category: fees-billing, priority: P4, approval: false }
-    - { request: "Write off ₹40,000 of old fees from Patil Hardware, the shop has closed down.", category: fees-billing, priority: P4, approval: true }
-    - { request: "Issue a credit note of ₹5,000 to Joseph & Sons against the duplicate invoice.", category: fees-billing, priority: P4, approval: false }
+    - { request: Send the 30-day reminder to the 14 clients whose September invoices are still unpaid., category: fees-billing, priority: P4, approval: false }
+    - { request: "Raise the final fee invoice of ₹6,40,000 on Kamdhenu Dairy Pvt Ltd for this year's audits.", category: fees-billing, priority: P4, approval: true }
+    - { request: "Write off ₹40,000 of old fees from Patil Hardware, the shop has closed down.", category: fee-concession, priority: P4, approval: true }
+    - { request: "Issue a credit note of ₹5,000 to Joseph & Sons against the duplicate invoice.", category: fee-concession, priority: P4, approval: true }
+    - { request: "The bank cut ₹350 from Sai Dental's last payment as charges, write off the ₹350 balance.", category: fee-concession, priority: P4, approval: false }
+    - { request: "Income tax survey team reached Agarwal Jewellers at 11 am under section 133A, and the owner is asking what to do.", category: raid-attachment, priority: P1, approval: true }
+    - { request: "SBI says Kiran Textiles' current account was attached this morning on a GST DRC-13 order.", category: raid-attachment, priority: P1, approval: true }
+    - { request: "Because of your mistake I got a ₹10,000 late fee on my GSTR-3B for August. I am not happy.", category: complaint, priority: P2, approval: false }
+    - { request: "Mrs. Rao says nobody replied to her three emails about her refund and she is unhappy.", category: complaint, priority: P2, approval: false }
+    - { request: "Our article assistant used a client's DSC without permission to file a form on the MCA portal.", category: fraud-alert, priority: P1, approval: true }
+    - { request: "A client paid ₹18,000 through a link in a phishing email that looked like an income tax refund notice.", category: fraud-alert, priority: P1, approval: true }
     - { request: "AGM of Neelkanth Foods Pvt Ltd was held on 27 September; file AOC-4 and MGT-7A on the MCA portal.", category: compliance-filing, priority: P2, approval: true }
     - { request: "File LLP Form 11 for Patel Brothers LLP; it was due on 30 May and is now late.", category: compliance-filing, priority: P2, approval: true }
     - { request: "ADT-1 for the auditor appointment at Sharma Castings Pvt Ltd, AGM was on 25 September.", category: compliance-filing, priority: P2, approval: true }
@@ -716,20 +800,20 @@ playbooks:
     source: incometax.gov.in Form 3CA-3CD user manual and "Work with My CA" manual; ICAI UDIN FAQs; ICAI SQC 1 paras 60, 74-75 and 83; ICAI Guidance Note on Reports or Certificates for Special Purposes; Income-tax Rules 1962 Rule 37BB and the Income-tax Rules 2026 (Forms 145 and 146)
     body: |
       1. The client assigns the audit form to the firm on the e-filing portal ("My CA"), and the CA accepts it.
-      2. Prepare Form 3CA or 3CB with 3CD from the books (Form 26 for tax year 2026-27 onwards). The partner reviews it. A listed company audit also needs an engagement quality control review before the report goes out.
-      3. Sign with DSC and generate the UDIN on signing, never later than 60 days.
+      2. Prepare Form 3CA or 3CB with 3CD from the books (under the new Act, Form 26 from tax year 2026-27; check the current form). The partner reviews it. A listed company audit also needs an engagement quality control review before the report goes out.
+      3. Sign with DSC and generate the UDIN on the day of signing. ICAI's outer limit has been 60 days; check the current rule before relying on it.
       4. The client must accept the uploaded form on the portal. Only then is it filed. The audit report is due one month before the return due date (check the CBDT circular each year for extensions).
       5. For certificates, confirm the purpose and format, check every figure against originals, take a management representation letter, and never certify what cannot be checked or put an earlier date on it.
-      6. Form 146 (old 15CB) is needed for a taxable remittance above ₹5 lakh in the year, unless the client has a lower-deduction order. The CA files it with DSC; the client then files Form 145 (old 15CA).
+      6. A CA certificate (15CB, which the new rules number Form 146; check the current form) is needed for a taxable remittance above ₹5 lakh in the year, unless the client has a lower-deduction order. The CA files it with DSC; the client then files 15CA (Form 145).
       7. Put the audit file together within 60 days of the report and keep it for 7 years.
   - id: itr-and-tds-filing
     title: Income tax return and TDS filing
     source: Income-tax Act 1961 sections 139 and 200; Income-tax Act 2025 (in force from 1 April 2026); incometax.gov.in 30-day e-verification FAQ; Income Tax Department tax calendar (TDS); CBDT Circular 07/2026
     body: |
-      1. Know which law applies: AY 2026-27 and earlier years run under the Income-tax Act 1961 and its forms; income earned from 1 April 2026 (tax year 2026-27) runs under the Income-tax Act 2025, with new form numbers (Form 130 for Form 16, Forms 138 and 140 for 24Q and 26Q).
+      1. Know which law applies: AY 2026-27 and earlier years run under the Income-tax Act 1961 and its forms; income earned from 1 April 2026 (tax year 2026-27) runs under the Income-tax Act 2025, with new form numbers (reported as Form 130 for Form 16, and Forms 138 and 140 for 24Q and 26Q; check them on the portal).
       2. Collect Form 16, bank and capital gains statements or the books. Download AIS, TIS and 26AS and clear every difference with the client.
       3. Choose the tax regime with the client and get written confirmation of the computation.
-      4. The review manager approves before filing. Check the year's due dates and any CBDT extension (for AY 2026-27: 31 July for ITR-1 and ITR-2, 31 August for business cases without audit, 21 November for audit cases).
+      4. The review manager approves before filing. Check the year's due dates and any CBDT extension (as announced for AY 2026-27: 31 July for ITR-1 and ITR-2, 31 August for business cases without audit, 21 November for audit cases; confirm on the portal).
       5. E-verify within 30 days of filing. After that the return counts as filed on the day it is verified, and an unverified return is invalid.
       6. An updated return can only add income and tax; it cannot lower tax or raise a refund.
       7. TDS: deposit by the 7th of the next month (for March, by 30 April). File quarterly statements by 31 July, 31 October, 31 January and 31 May.

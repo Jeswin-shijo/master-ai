@@ -27,7 +27,9 @@ match:
     - charitable society
     - welfare society
     - registered society
-    - section 8 company
+    - section eight company
+    - not for profit company
+    - non profit company
     - section 25 company
     - foundation
     - charity
@@ -391,7 +393,7 @@ lifecycle:
         - "Eligibility matched to the written criteria: project area, need, income, age, or the donor's terms"
         - Not already served, paid or reported for the same thing
         - "Documents complete and readable: ID, bills, quotations, agreements, CA certificates"
-        - "The money may be used this way: foreign money only for our FCRA-approved purposes (and, under the 2026 rules, states) and never passed to another organisation; CSR money only for the agreed project"
+        - "The money may be used this way: foreign money only for our FCRA-approved purposes (and states, if the 2026 rules apply; check the current rule) and never passed to another organisation; CSR money only for the agreed project"
     classify:
       name: Priority, project and fund
       description: The case gets its type, priority, due date and owning team, and is tagged to the right project, grant, budget line and fund (foreign, CSR, government or local donations).
@@ -439,7 +441,7 @@ lifecycle:
     - { id: me-officer, name: Monitoring and evaluation (M&E) officer, approves: "Signs off each beneficiary case after checking the proof of delivery: signed or thumb-printed receipt, bank transfer record or photo taken with consent" }
     - { id: board-chair, name: Board chair or named trustee, approves: "Payments and partner grants above ₹5,00,000 or outside the budget; signs off the closing of every safeguarding and fraud case after reviewing what happened and what will change" }
     - { id: finance-manager, name: Finance manager, approves: "Releases payments up to ₹50,000 within the approved budget; signs off every payment voucher and confirms grant money reached the right bank account (foreign money only in the FCRA account)" }
-  urgent_keywords: [fraud, forged, forgery, embezzlement, misappropriation, theft, stolen, hacked, data leak, bribe, cut money, abused, sexual abuse, child abuse, molested, pocso, harassment, harassed, harassing, threatened, missing child, went missing, ran away, trafficking, child marriage, domestic violence, suicide, self harm, caught fire, fire broke out, injured, food poisoning, drowned, snake bite, electrocuted, collapsed]
+  urgent_keywords: [fraud, forged, forgery, embezzlement, misappropriation, theft, stolen, hacked, data leak, bribe, cut money, abused, sexual abuse, child abuse, molested, pocso, harassment, harassed, harassing, threatened, threatening, sexual misconduct, missing child, went missing, ran away, trafficking, child marriage, domestic violence, suicide, self harm, caught fire, fire broke out, injured, food poisoning, drowned, snake bite, electrocuted, collapsed]
   categories:
     - id: beneficiary-application
       name: Beneficiary application
@@ -564,6 +566,11 @@ lifecycle:
         - new grant
         - grant offer
         - grant application
+        - grant proposal
+        - apply for a grant
+        - apply for the grant
+        - applied for a grant
+        - applied for the grant
         - csr proposal
         - csr agreement
         - csr partnership
@@ -582,9 +589,9 @@ lifecycle:
       required_details:
         - { key: deadline, label: Deadline or signing date, kind: date }
       required_checks:
-        - Fits our registered aims and, for foreign money, our FCRA-approved purposes (and states, under the 2026 rules)
+        - Fits our registered aims and, for foreign money, our FCRA-approved purposes (and states, if the 2026 rules apply; check the current rule)
         - Foreign money only with FCRA registration or prior permission, received only in the FCRA account at SBI New Delhi Main Branch
-        - "CSR money: our CSR-1 registration number, 12A and 80G (sections 332 and 354 of the Income-tax Act, 2025), and 3 years of similar work"
+        - "CSR money: our CSR-1 registration number, 12A and 80G registration (now under the Income-tax Act, 2025; check the section numbers), and 3 years of similar work"
         - "Central government grants: NGO Darpan ID in place"
         - Budget keeps admin costs within the donor's cap and, for foreign money, within 20% of the year's foreign receipts
         - No plan to pass foreign money on to another organisation
@@ -681,7 +688,6 @@ lifecycle:
     - id: compliance-filing
       name: FCRA, tax or registration filing
       keywords:
-        - compliance calendar
         - fc-4
         - fc4
         - fc-3c
@@ -730,10 +736,10 @@ lifecycle:
       required_checks:
         - Due date and late fee known; work starts at least 60 days ahead
         - Figures match the audited accounts and the CA certificate (with UDIN)
-        - "FCRA return (FC-4) by 31 December, even if nothing came in, with the details the current rules ask for (project-wise and place-wise spending under the 2026 rules)"
+        - "FCRA return (FC-4) by 31 December, even if nothing came in, with the details the current rules ask for (the 2026 rules are reported to add project-wise and place-wise spending; check the current form)"
         - FCRA changes in key people, address, aims or bank accounts filed on the FC-6 forms
         - "Income tax: audit report by 30 September, return (ITR-7) by 31 October, donation statement by 31 May; at least 85% of the year's income spent on the aims. Confirm form numbers under the Income-tax Rules, 2026"
-        - "Renewals started 6 months before expiry: 12A (section 332), 80G (section 354) and FCRA (FC-3C)"
+        - "Renewals started 6 months before expiry: 12A and 80G (sections 332 and 354 of the new Act as practitioners map them; check them) and FCRA (FC-3C)"
         - Signed and filed by the chief functionary; acknowledgement saved
       approval: { required: always, role: owner }
       signoff: { required: false }
@@ -794,6 +800,7 @@ lifecycle:
         - "Proper papers: GST invoice or voucher, goods or work received, three quotations above ₹50,000 (or the donor's own rule)"
         - No payment or benefit to a trustee, board member, founder or their relatives without board approval
         - Paid by bank transfer or UPI to the payee's own account, with two bank signatories; TDS deducted where due
+        - "Up to ₹50,000 within the budget the finance manager releases it, never the person who prepared the voucher; above that the chief functionary approves first, and above ₹5,00,000 the board chair"
       not_eligible:
         - keywords: [in cash, by cash, cash payment, pay cash, paid in cash, cash only, nakad]
           amount_above_inr: 10000
@@ -821,11 +828,14 @@ lifecycle:
         - regrant
         - onward grant
         - grant to partner
+        - grant to our partner
         - fund the partner
-        - oldest partner
-        - old partner
-        - long time partner
-        - trusted partner
+        - funds to the partner
+        - money to the partner
+        - transfer to the partner
+        - instalment to the partner
+        - instalment to our partner
+        - partner's instalment
         - samiti
         - sanstha
       priority: P3
@@ -844,6 +854,46 @@ lifecycle:
       approval: { required: always, role: owner }
       signoff: { required: true, role: finance-manager }
       workflow: partner-grant
+      execution: both
+    - id: complaint
+      name: Complaint or grievance
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - grievance
+        - shikayat
+        - not resolved
+        - no reply
+        - no response
+        - nobody replied
+        - rude
+        - misbehaved
+        - misbehaviour
+        - poor service
+        - not selected
+        - why was i not selected
+        - left out of the list
+        - name not on the list
+        - name removed from the list
+        - did not get the support
+        - support not received
+        - kit not received
+        - did not receive the kit
+        - consumer forum
+        - consumer court
+      priority: P2
+      risk: medium
+      department: Grievance cell
+      required_checks:
+        - Logged with a complaint number and acknowledged in the person's language
+        - "Facts checked: lists, receipts, visit notes and the staff member's side"
+        - "Harassment, abuse or threats are not handled here: raised at once as a safeguarding alert"
+        - Final written reply within 30 days, read out by a field worker where the person cannot read
+        - A reply that does not resolve it says where else the person can go
+      approval: { required: high_risk_or_p1, role: owner }
+      signoff: { required: true, role: grievance-officer }
+      workflow: delegate-work
       execution: both
     - id: fraud-alert
       name: Fraud or money misuse alert
@@ -873,6 +923,10 @@ lifecycle:
         - demanded money
         - paise maange
         - paise liye
+        - without receipt
+        - without a receipt
+        - without giving a receipt
+        - without giving receipt
         - cheated
         - cheating
         - scam
@@ -938,6 +992,14 @@ lifecycle:
         - beat me
         - corporal punishment
         - slapped
+        - slap
+        - slapping
+        - beat the child
+        - beat the children
+        - hit the child
+        - hit the children
+        - abusive
+        - sexual misconduct
         - child labour
         - child marriage
         - trafficking
@@ -987,6 +1049,8 @@ lifecycle:
     - { request: "Budget change: move ₹75,000 from the training line to the materials line in the school WASH grant", category: payment, priority: P3, approval: true }
     - { request: Second instalment of ₹3 lakh to our partner NGO Gram Swaraj Sanstha from the local donations fund, category: partner-grant, priority: P3, approval: true }
     - { request: "Sign the sub-grant MoU with Adivasi Ekta Samiti for the seed bank work, ₹1.2 lakh from CSR money", category: partner-grant, priority: P3, approval: true }
+    - { request: "Kamla Devi from Bagli says her name was left out of the list for the ration kits though she was surveyed, and nobody replied", category: complaint, priority: P2, approval: false }
+    - { request: The Pune CSR partner has complained twice that nobody replied to their emails about the delayed school repairs, category: complaint, priority: P2, approval: false }
     - { request: Our accountant found fake bills of ₹1.8 lakh from a stationery shop that does not exist, category: fraud-alert, priority: P1, approval: true }
     - { request: Women in Bhaisdehi say the community resource person asked for money and took a bribe to put their names on the selection list, category: fraud-alert, priority: P1, approval: true }
     - { request: Our donor portal was hacked and donors' PAN details may have leaked, category: fraud-alert, priority: P1, approval: true }
@@ -1001,7 +1065,7 @@ playbooks:
     body: |
       1. Take foreign money only with FCRA registration or prior permission, and only into the FCRA account at SBI, New Delhi Main Branch. Spend it through FCRA utilisation accounts and never put local money in them.
       2. A foreign source is decided by citizenship, not address: foreign citizens (OCI card holders too), foreign companies and foreign trusts. An Indian citizen living abroad is not a foreign source.
-      3. Use foreign money only for the purposes FCRA has approved; under the 2026 rules, also only in the approved states, and existing holders name them on Form FC-6F within a year (about June 2027).
+      3. Use foreign money only for the purposes FCRA has approved. Practitioners report that the 2026 rules also limit it to approved states, with existing holders naming them on Form FC-6F within a year (about June 2027); check the current rule before relying on this.
       4. Keep admin costs within 20% of the foreign money received in the year.
       5. Never pass foreign money to any other person or organisation, even one with its own FCRA registration. Run the work yourselves, or support partners from local or CSR money.
       6. Interest and other income earned on foreign money is foreign money too and stays in FCRA accounts.
@@ -1043,7 +1107,7 @@ playbooks:
     body: |
       1. Get an NGO Darpan ID before applying for any central government grant; without it the grant cannot be sanctioned.
       2. Send the utilisation certificate in the form the ministry asks for (usually GFR 12-A) with a CA-certified receipts and payments account within 12 months of the year's end. Show unspent money and return the interest earned; a late certificate holds up the next grant.
-      3. Keep the old 12A registration (now section 332, Registered Non-Profit Organisation) and 80G approval (now section 354) valid and renew 6 months before expiry. Small NGOs (income within ₹5 crore in each of the last two years) can get 10-year registration; 80G approval stays at 5 years.
+      3. Keep the old 12A registration and 80G approval valid (under the Income-tax Act, 2025 practitioners map them to sections 332 and 354; check the section numbers) and renew 6 months before expiry. Small NGOs (income within ₹5 crore in each of the last two years) can get 10-year registration; 80G approval stays at 5 years.
       4. Spend at least 85% of the year's income on the aims.
       5. File the audit report by 30 September, the return (ITR-7) by 31 October and the donation statement by 31 May, then send donors their tax certificates. Confirm the form numbers under the Income-tax Rules, 2026.
       6. Cash gifts above ₹2,000 give the donor no tax deduction, and anonymous gifts can be taxed, so record every donor's name, address and PAN.
