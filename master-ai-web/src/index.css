@@ -182,6 +182,38 @@ h3 {
   background: var(--oh-background);
 }
 
+/* A choice card (sectors, organization types): glass at rest, a warm ring and lift when chosen. */
+.select-card {
+  background: linear-gradient(180deg, var(--oh-line5), transparent 140%), var(--oh-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--oh-line10),
+    inset 0 1px 0 var(--oh-line10);
+  transition:
+    transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    box-shadow 0.3s,
+    background-color 0.3s;
+}
+.select-card:hover {
+  background-color: var(--oh-line5);
+}
+.select-card[aria-checked='true'] {
+  transform: translateY(-6px);
+  background:
+    radial-gradient(90% 58% at 50% 0%, color-mix(in oklab, var(--oh-glow) 30%, transparent), transparent 72%),
+    var(--oh-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--oh-glow),
+    inset 0 1px 0 color-mix(in oklab, var(--oh-warning) 40%, transparent),
+    0 26px 60px -26px color-mix(in oklab, var(--oh-glow) 80%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-card,
+  .select-card[aria-checked='true'] {
+    transform: none;
+    transition: none;
+  }
+}
+
 /* ---------- The live stage ---------- */
 
 @keyframes oh-spin {
