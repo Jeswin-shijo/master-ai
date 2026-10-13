@@ -1,0 +1,108 @@
+# Wholesale & retail trade: realistic requests from parties, salesmen, the
+# billing software, suppliers and the owner, with what the stages should decide.
+pack: wholesale-retail
+cases:
+  - id: kirana-repeat-order
+    request: "Bhaiya, Sharma Kirana Lajpat Nagar se bol raha hoon. Kal subah tak 20 cases ₹5 wale glucose biscuit aur 10 bags 10kg atta bhej do, rate same as last time."
+    source: customer
+    amount_inr: 18600
+    expect:
+      category: customer-order
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Bhej do and same as last time mark a customer order with items and quantities. About ₹18,600 at list rates is under the ₹2,00,000 limit, so no approval; customer orders need no sign-off.
+  - id: bank-stationery-po
+    request: "Dear Sir, please supply 400 reams of A4 paper (75 GSM) and 150 boxes of blue ball pens to our Pune warehouse by 20 October. PO HO/2026/118 attached, total ₹3,46,000 incl. GST. - Purchase Dept, Sahyadri Sahakari Bank"
+    source: customer
+    amount_inr: 346000
+    expect:
+      category: customer-order
+      priority: P3
+      review: complete
+      approval: { required: true, role: sales-manager }
+      signoff: { required: false }
+    why: A customer's own PO for goods is a customer order. ₹3,46,000 is above ₹2,00,000, so the sales manager approves. It is over ₹50,000, so the e-way bill is needed before loading.
+  - id: credit-limit-diwali
+    request: "Sir, Gupta Traders wants their credit limit raised from ₹3 lakh to ₹5 lakh for Diwali stock. They have paid every bill on time this year."
+    source: staff
+    amount_inr: 500000
+    expect:
+      category: credit-limit
+      priority: P2
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: false }
+    why: A credit limit change with the party, current and new limit and reason. Every limit change needs the owner's okay, whatever the amount.
+  - id: old-gstin-on-invoice
+    request: "Your invoice has our old GST number on it. Please correct it and send again."
+    source: customer
+    expect:
+      category: invoice-fix
+      priority: P2
+      review: needs_info
+    why: An invoice correction, but it gives no invoice number or date, so we must ask which bill before the accounts manager can approve and file the fix.
+  - id: shirts-change-of-mind
+    request: "I want to return 6 shirts I bought on 2 August, more than two months back. Didn't like the colour. Bill no. 2207, ₹4,200."
+    source: customer
+    amount_inr: 4200
+    expect:
+      category: return-refund
+      priority: P3
+      review: not_eligible
+    why: A change-of-mind return more than two months after purchase, far outside the 7-day period on the bill, and the shirts are not defective. Explain the policy politely.
+  - id: expired-juice-credit-note
+    request: "Mehta Stores sent back 3 cartons of expired fruit juice from bill 1187. Give them a credit note for ₹14,500 and send the stock back to the company."
+    source: owner
+    amount_inr: 14500
+    expect:
+      category: return-refund
+      priority: P3
+      review: complete
+      approval: { required: true, role: accounts-manager }
+      signoff: { required: false }
+    why: A return with the bill number and value. ₹14,500 is above the ₹10,000 limit, so the accounts manager approves. The expired stock is kept apart until it goes back to the company.
+  - id: oil-below-reorder
+    request: "Low stock: Sunflower oil 1L (item 4410) is at 115 boxes, reorder level 120. Selling about 25 a day; Shree Balaji Oils delivers in 3 days. Suggested PO: 300 boxes at ₹1,850 = ₹5,55,000."
+    source: system
+    amount_inr: 555000
+    expect:
+      category: restock-order
+      priority: P4
+      review: complete
+      approval: { required: true, role: purchase-manager }
+      signoff: { required: true, role: godown-in-charge }
+    why: Stock fell below the reorder level. ₹5,55,000 is above the ₹1,00,000 limit, so the purchase manager approves; his named rule is asked before the owner's ₹5 lakh rule. The godown in-charge signs off the goods received.
+  - id: msme-supplier-overdue
+    request: "Namaste, Ravi from Shree Ganesh Packaging (Udyam registered, micro unit). Our bill SGP/245 dated 20 August for ₹38,500 is still unpaid. Under MSME rules it was due in 45 days. Please release payment."
+    source: partner
+    amount_inr: 38500
+    expect:
+      category: supplier-payment
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A supplier payment request with bill number, date and amount. ₹38,500 is under the ₹50,000 limit, so no approval. It is past the 45-day MSME limit, so pay it once it matches the PO and goods received.
+  - id: gst-squad-detention
+    request: "Sir, Khed Shivapur pe GST squad ne gaadi rok di. MH12 AB 4521, bill 1182, ₹2.6 lakh ka maal. E-way bill kal raat expire ho gaya, officer bol raha hai maal detain karenge."
+    source: staff
+    amount_inr: 260000
+    expect:
+      category: urgent-incident
+      priority: P1
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: owner }
+    why: Goods stopped by the GST squad with an expired e-way bill is an urgent incident (P1). Every P1 incident needs the owner's okay for the penalty or release, and the owner signs off.
+  - id: overdue-reminders
+    request: "Send reminders to all parties whose bills are past 30 days, with their ledger. Skip Sharma Kirana, I have spoken to them."
+    source: owner
+    expect:
+      category: dues-statement
+      priority: P4
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Payment reminders with ledgers are routine (P4) and never need approval or sign-off.

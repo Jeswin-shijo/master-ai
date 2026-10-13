@@ -1,0 +1,705 @@
+# Ready-made pack: transporters, fleet owners, courier and parcel services,
+# freight forwarders and warehouses. Built from researched Indian practice:
+# CGST Rules 2017 (rule 138, e-way bills), the Carriage by Road Act 2007 and
+# Rules 2011, the Motor Vehicles Act 1988 and the Central Motor Vehicles Rules
+# 1989 (hazardous goods). Approval limits are defaults for a mid-size
+# transporter; owners tune them.
+id: logistics
+version: 1.0.0
+name: Logistics & transport
+description: Load and parcel bookings, hazardous and oversize loads, e-way bills, accidents and thefts on the road, delays and breakdowns, lorry hire payments, damage claims and truck papers for transporters, couriers and freight companies.
+kind: industry
+sector: trade-logistics-tourism
+extends: [sector-trade-logistics-tourism, orders-base]
+match:
+  keywords: [transport company, transporter, transporters, transport business, goods transport, trucks, truck fleet, truck owner, fleet owner, fleet operator, lorries, lorry service, roadlines, road lines, roadways, road carriers, carriers, freight carrier, logistics, logistics company, 3pl, third party logistics, freight forwarder, freight forwarding, courier, courier service, parcel service, cargo service, container trucking, trailer operator, tanker operator, warehousing, packers and movers, customs broker]
+
+labels:
+  Customer: Party
+  Order: Freight order
+
+entities:
+  - name: Shipment
+    label: Shipment (LR)
+    plural_label: Shipments (LRs)
+    title_field: lrNumber
+    list_columns: [lrNumber, fromCity, toCity, truckNumber, status]
+    fields:
+      - { name: lrNumber, label: LR / docket number, type: string, required: true }
+      - { name: bookingDate, label: Booking date, type: date }
+      - name: loadType
+        label: Load type
+        type: enum
+        options: [full-load, part-load, parcel, container, hazardous, over-dimensional]
+      - { name: consignorName, label: Consignor, type: string, required: true }
+      - { name: consignorGstin, label: Consignor GSTIN, type: string }
+      - { name: consigneeName, label: Consignee, type: string }
+      - { name: consigneePhone, label: Consignee phone, type: phone }
+      - { name: deliveryAddress, label: Delivery address, type: text }
+      - { name: fromCity, label: From, type: string, required: true }
+      - { name: toCity, label: To, type: string, required: true }
+      - { name: goods, label: Goods, type: text }
+      - { name: packages, label: Packages, type: integer }
+      - { name: weightKg, label: Weight (kg), type: number }
+      - { name: declaredValue, label: Declared value, type: money }
+      - name: riskType
+        label: Risk
+        type: enum
+        options: [carrier-risk, owner-risk]
+      - { name: ewayBillNumber, label: E-way bill number, type: string }
+      - { name: ewayBillValidUntil, label: E-way bill valid until, type: datetime }
+      - { name: truckNumber, label: Truck number, type: string }
+      - { name: freight, label: Freight, type: money }
+      - name: paymentTerms
+        label: Payment terms
+        type: enum
+        options: [paid, to-pay, to-be-billed]
+      - { name: promisedDelivery, label: Promised delivery date, type: date }
+      - { name: deliveredAt, label: Delivered at, type: datetime }
+      - { name: podReceived, label: POD received, type: boolean }
+      - { name: podRemarks, label: POD remarks, type: text }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [booked, loaded, in-transit, delivered, pod-received, billed, cancelled]
+  - name: Truck
+    label: Truck
+    plural_label: Trucks
+    title_field: truckNumber
+    list_columns: [truckNumber, bodyType, ownership, fitnessValidUntil, status]
+    fields:
+      - { name: truckNumber, label: Truck number, type: string, required: true }
+      - name: ownership
+        label: Own or market truck
+        type: enum
+        required: true
+        options: [own, attached, market]
+      - { name: ownerName, label: Owner name, type: string }
+      - { name: ownerPhone, label: Owner phone, type: phone }
+      - { name: ownerPan, label: Owner PAN, type: string }
+      - { name: bodyType, label: Body type (e.g. 32 ft container), type: string }
+      - { name: permittedLoadTonnes, label: Permitted load (tonnes), type: number }
+      - name: permitType
+        label: Permit
+        type: enum
+        options: [national, state]
+      - { name: permitValidUntil, label: Permit valid until, type: date }
+      - { name: fitnessValidUntil, label: Fitness valid until, type: date }
+      - { name: insuranceValidUntil, label: Insurance valid until, type: date }
+      - { name: pucValidUntil, label: PUC valid until, type: date }
+      - { name: trackingWorking, label: GPS or FASTag tracking working, type: boolean }
+      - { name: hazardousReady, label: Fitted and insured for hazardous goods, type: boolean }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [available, on-trip, in-workshop, papers-expired]
+  - name: Driver
+    label: Driver
+    plural_label: Drivers
+    title_field: name
+    list_columns: [name, phone, licenceValidUntil, currentTruck, status]
+    fields:
+      - { name: name, label: Name, type: string, required: true }
+      - { name: phone, label: Phone, type: phone, required: true }
+      - { name: licenceNumber, label: Licence number, type: string }
+      - { name: licenceValidUntil, label: Licence valid until, type: date }
+      - { name: hazardousEndorsement, label: Licence endorsed for hazardous goods, type: boolean }
+      - { name: hazardousTrainingDate, label: Hazardous goods training date, type: date }
+      - { name: idChecked, label: ID and address checked, type: boolean }
+      - { name: currentTruck, label: Current truck, type: string }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [available, on-trip, resting, on-leave]
+  - name: Claim
+    label: Damage or shortage claim
+    plural_label: Damage and shortage claims
+    title_field: claimNumber
+    list_columns: [claimNumber, lrNumber, claimType, claimAmount, status]
+    fields:
+      - { name: claimNumber, label: Claim number, type: string, required: true }
+      - { name: lrNumber, label: LR number, type: string, required: true }
+      - name: claimType
+        label: Type
+        type: enum
+        required: true
+        options: [damage, shortage, total-loss, theft, delay]
+      - { name: bookingDate, label: Booking date, type: date }
+      - { name: deliveryDate, label: Delivery date, type: date }
+      - { name: noticeDate, label: Written claim received on, type: date }
+      - { name: remarkOnPod, label: Damage or shortage noted on the POD, type: boolean }
+      - { name: claimAmount, label: Amount claimed, type: money }
+      - { name: declaredValue, label: Declared value, type: money }
+      - { name: freight, label: Freight charged, type: money }
+      - { name: surveyorAssessment, label: Surveyor's assessment, type: money }
+      - { name: settledAmount, label: Settled amount, type: money }
+      - { name: insurerInformed, label: Insurer informed, type: boolean }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [received, survey, offer-made, settled, rejected]
+
+tools:
+  - name: shipments.search
+    description: Search bookings and LRs by LR number, party, route, truck or status.
+    uses: records.search
+    with: { entity: Shipment }
+  - name: shipment.book
+    description: Record a new booking with the consignor, consignee, goods, value, truck and payment terms. It is not an LR until the branch loads and signs it.
+    uses: records.create
+    with: { entity: Shipment, data: { status: booked } }
+  - name: pod.record
+    description: Mark that the signed and stamped POD has come back for a delivered load.
+    uses: records.update
+    with: { entity: Shipment, patch: { status: pod-received, podReceived: true } }
+  - name: trucks.search
+    description: Search own and market trucks by number, body type, paper expiry dates or status.
+    uses: records.search
+    with: { entity: Truck }
+  - name: drivers.search
+    description: Search drivers by name, phone, licence validity or current truck.
+    uses: records.search
+    with: { entity: Driver }
+  - name: claims.search
+    description: Search damage, shortage and theft claims by LR, party or status.
+    uses: records.search
+    with: { entity: Claim }
+  - name: claim.open
+    description: Open a damage, shortage or theft claim against an LR with the amount asked and the POD remark.
+    uses: records.create
+    with: { entity: Claim, data: { status: received } }
+
+agents:
+  - role: booking-desk
+    name: Booking and control room desk
+    description: Takes load and parcel bookings, records each LR, checks truck and driver papers, prepares e-way bill details for the documentation clerk, watches deliveries, tells parties about any delay, and hands truck placement and driver calls to the branch in charge by phone.
+    instructions: Never generate, extend or cancel an e-way bill yourself; prepare the details and let the documentation clerk do it on the portal. Give parties only the arrival time the driver or control room has confirmed. Quote the LR and truck number in everything you write.
+    autonomy: 3
+    tools: [shipments.search, shipment.book, trucks.search, drivers.search, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: safety-claims-desk
+    name: Safety and claims desk
+    description: Records accidents, thefts and cargo claims, keeps the police and insurer reporting clock, drafts the intimation letters, checks the papers for hazardous and oversize loads, works out our liability limit from the LR and builds the claim file.
+    instructions: People first; never hold back an ambulance, a police report or a safety step for paperwork or approval. Never admit liability or offer a settlement amount in writing; the owner decides claims above ₹25,000.
+    autonomy: 2
+    tools: [claims.search, claim.open, shipments.search, trucks.search, drivers.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 20 }
+  - role: fleet-payments-desk
+    name: Fleet and payments desk
+    description: Tracks truck and driver paper expiry dates and sends reminders 30 days ahead, collects workshop, tyre and insurance quotes, chases PODs and marks them received, and prepares the truck owner payment list for accounts.
+    instructions: A truck with an expired permit, fitness, insurance or PUC gets no new load. Never release or promise a payment; the accounts team releases bank payments.
+    autonomy: 3
+    tools: [trucks.search, drivers.search, shipments.search, pod.record, records.search, records.update, document.generate, message.draft, message.send, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: load-booking
+    name: Load or parcel booking
+    description: Record the booking, check the truck and papers, and get the truck placed and loaded.
+    keywords: [booking, truck required, full load, part load, parcel, pickup]
+    steps:
+      - key: book
+        title: Record the booking and check papers
+        agent: booking-desk
+        instructions: Record the shipment with consignor, consignee, goods, weight, value and payment terms. Check the truck's permit, fitness, insurance and PUC and the driver's licence, and prepare the LR and the e-way bill details.
+      - key: place
+        title: Get the truck placed and loaded
+        agent: booking-desk
+        depends_on: [book]
+        instructions: Hand truck placement and loading to the branch in charge by phone with the loading point, time, truck type and papers needed. Once loaded, send the party the truck number, driver phone and tracking link.
+  - id: hazardous-load
+    name: Hazardous or oversize load
+    description: Collect the hazardous goods papers or the oversize details and get the safety officer's inspection before loading.
+    keywords: [hazardous, dangerous goods, msds, trem, odc, over dimensional]
+    steps:
+      - key: papers
+        title: Collect the papers and check truck and driver
+        agent: safety-claims-desk
+        instructions: Collect the UN number, class, safety data sheet and TREM card from the consignor, or the size and weight for oversize cargo. Check the truck is fitted and insured for hazardous goods and the driver's licence is endorsed, and draft the route plan.
+      - key: inspect
+        title: Get the safety officer's inspection
+        agent: safety-claims-desk
+        depends_on: [papers]
+        instructions: Ask the safety officer by phone to inspect the truck, labels and papers before loading and to confirm the route, then report when the load is delivered safely.
+  - id: eway-bill-update
+    name: E-way bill update
+    description: Prepare the Part B update, extension or cancellation and get it done on the portal in time.
+    keywords: [e-way bill, part b, extension, cancel]
+    steps:
+      - key: prepare
+        title: Prepare the details
+        agent: booking-desk
+        instructions: Find the shipment and note the e-way bill number, truck number, current place, distance left and the reason (breakdown, transshipment, accident, flood or law and order).
+      - key: portal
+        title: Get it done on the portal
+        agent: booking-desk
+        depends_on: [prepare]
+        instructions: Hand the update, extension or cancellation to the documentation clerk by phone with these details and the time window, and record the new validity on the shipment.
+  - id: accident-response
+    name: Accident or theft response
+    description: Record what happened, keep the police and insurer clock, get the branch to the site and open the cargo claim.
+    keywords: [accident, overturned, stolen, theft, injured, fire]
+    steps:
+      - key: record
+        title: Record it and draft the intimations
+        agent: safety-claims-desk
+        instructions: Record the place, time, truck, driver and who is hurt. Confirm with the branch by phone that the injured are in hospital and the police are told, and draft the insurer intimation and the message to the party.
+      - key: site
+        title: Get the site handled and open the claim
+        agent: safety-claims-desk
+        depends_on: [record]
+        instructions: Hand the site work (police papers, crane, guarding the goods, a replacement truck) to the nearest branch in charge by phone, open a claim for the cargo, and report what was recovered.
+  - id: delay-recovery
+    name: Delay or breakdown recovery
+    description: Find out why the load is late, get it moving again and keep the party informed.
+    keywords: [delay, breakdown, not reached, stuck, detained, godown closed]
+    steps:
+      - key: find
+        title: Reach the driver and find the cause
+        agent: booking-desk
+        instructions: Reach the driver through the branch by phone, find the cause, the place and the new arrival time, and check that the e-way bill stays valid till then.
+      - key: inform
+        title: Fix it and tell the party
+        agent: booking-desk
+        depends_on: [find]
+        instructions: Tell the party the new arrival time. For a breakdown, get the repair or replacement truck cost and send it to the operations manager if it is above ₹15,000. For a failed delivery, send the consignee a written notice and keep the goods safe.
+  - id: truck-owner-payment
+    name: Truck owner payment
+    description: Check the POD and the hire slip and prepare the balance payment for accounts.
+    keywords: [lorry hire, balance hire, pod, advance, diesel bill]
+    steps:
+      - key: check
+        title: Check the POD and the hire slip
+        agent: fleet-payments-desk
+        instructions: Check the POD is signed, stamped and dated with no damage or shortage remark. Match the LR, hire slip and advance already paid, and check the owner's PAN and declaration are on file.
+      - key: pay-list
+        title: Prepare the payment list
+        agent: fleet-payments-desk
+        depends_on: [check]
+        instructions: Prepare the payment list with the balance due and any deduction for damage, shortage or late POD, and hand it to the accounts team by phone for release.
+  - id: claim-settlement
+    name: Damage or shortage claim
+    description: Build the claim file, get the survey done and prepare the offer for the owner's decision.
+    keywords: [claim, damage, shortage, pilferage, compensation]
+    steps:
+      - key: file
+        title: Build the claim file
+        agent: safety-claims-desk
+        instructions: Open the claim with the LR, booking date, POD remark, photos and invoice. Check it came within 180 days of booking, work out our limit from the declared value, freight and risk basis, and tell the insurer.
+      - key: survey
+        title: Survey and offer
+        agent: safety-claims-desk
+        depends_on: [file]
+        instructions: Arrange the surveyor for partial damage through the branch by phone, draft the offer letter for the owner's decision, and get the signed discharge before payment.
+  - id: fleet-renewal
+    name: Truck papers and repairs
+    description: Get quotes, hold trucks with lapsed papers and book the RTO, insurer or workshop visit.
+    keywords: [fitness, permit, insurance, puc, service, tyres]
+    steps:
+      - key: plan
+        title: List what is due and get quotes
+        agent: fleet-payments-desk
+        instructions: List the papers or work due for the truck with their expiry dates, collect quotes from the workshop, tyre dealer or insurer, and hold the truck from new loads if a paper has run out.
+      - key: book
+        title: Book the visit
+        agent: fleet-payments-desk
+        depends_on: [plan]
+        instructions: Hand the RTO test, renewal or workshop visit to the fleet supervisor by phone with the date and the approved quote, and update the truck record when it is done.
+
+lifecycle:
+  case: { label: Job, plural: Jobs, prefix: JOB }
+  stages:
+    request:
+      name: New booking or alert
+      description: A party books a load, a driver or branch calls in a problem, a truck owner asks for payment, or the GPS or e-way bill system raises an alert.
+    review:
+      name: Check papers and details
+      description: The desk checks the job has what it needs before anything moves (sender and receiver, goods, value, invoice and e-way bill, and for problems or claims the LR, truck and POD) and asks for anything missing.
+      checks:
+        - Consignor and consignee name, address, phone and GSTIN
+        - Goods, number of packages, weight and declared value
+        - "GST invoice or delivery challan, and an e-way bill when the value is over ₹50,000"
+        - Forwarding note signed by the consignor, with any dangerous goods declared
+        - Nothing banned or undeclared in the load
+        - "For problems and claims: LR number, truck number and POD remarks"
+        - "Time limits still open: e-way bill extension window, claim notice within 180 days of booking"
+    classify:
+      name: Set type and urgency
+      description: The job gets its type, priority (P1 to P4), risk, deadline and owning desk (booking, control room, documentation, safety, accounts, claims or fleet).
+      checks:
+        - Accident, theft or injury marked as an emergency
+        - Hazardous or oversize goods flagged for the safety officer
+        - Deadline set from the promised delivery or the e-way bill expiry
+    assign:
+      name: Assign truck and team
+      description: A branch or desk takes the job and, for loads, a truck and driver with valid papers are fixed with pickup and delivery times.
+      checks:
+        - Truck RC, permit, fitness, insurance and PUC valid
+        - Driver licence valid for the truck, and endorsed for hazardous goods when needed
+        - Load within the truck's permitted weight
+        - GPS or FASTag tracking working
+        - "Market truck: owner's RC, PAN and ID checked, hire and advance agreed in writing"
+    approve:
+      name: Approval if needed
+      description: When the rules call for it, the safety officer, a manager or the owner approves before a risky load moves or money above the limit is spent or given up.
+      checks:
+        - Approver sees the amount, the risk and the evidence
+        - Decision and reason recorded
+    execute:
+      name: Dispatch and track
+      description: The truck, surveyor or mechanic goes out while the control room tracks location, e-way bill validity, costs, photos and the promised time, and tells the party about any delay.
+      checks:
+        - Location and arrival time kept up to date
+        - E-way bill valid until arrival, Part B updated if the truck changes
+        - Costs and bills recorded
+        - Party told of any delay
+    close:
+      name: POD and closure
+      description: The outcome is confirmed with a signed POD, repair bill, claim settlement or e-way bill record, charges are settled, and the job is closed with sign-off where the rules ask for it.
+      checks:
+        - POD signed, stamped and dated by the consignee
+        - Any damage or shortage written on the POD turned into a claim job
+        - Extra charges (detention, unloading) agreed and billed
+        - Truck owner paid the balance only after a clean POD
+        - Sign-off recorded where required
+    report:
+      name: Review and improve
+      description: Each week the owner sees on-time delivery, POD delays, claims, e-way bill lapses and empty running, with repeat problems by route, party, truck and driver.
+      checks:
+        - Repeat breakdowns by truck
+        - Repeat delays by route or party
+        - Claims by cause and by branch
+  priorities:
+    - { id: P1, name: Emergency, respond_within_hours: 0.25, resolve_within_hours: 24 }
+    - { id: P2, name: Urgent, respond_within_hours: 1, resolve_within_hours: 24 }
+    - { id: P3, name: Normal, respond_within_hours: 4, resolve_within_hours: 168 }
+    - { id: P4, name: Planned, respond_within_hours: 24, resolve_within_hours: 336 }
+  roles:
+    - { id: operations-manager, name: Operations manager, approves: "Loads worth more than ₹5 lakh before the truck is placed, delays and breakdowns that are P1 or high risk, and extra spend above ₹15,000 on the road; signs off accident and theft jobs" }
+    - { id: accounts-manager, name: Accounts manager, approves: "Truck owner and supplier payments above ₹50,000 and refunds above ₹10,000; signs off every refund and claim settlement once it is paid" }
+    - { id: safety-officer, name: Safety officer (HSE in-charge), approves: "Every hazardous or over-dimensional load before it moves; signs it off after safe delivery" }
+    - { id: fleet-manager, name: Fleet manager, approves: "Truck repairs, tyres and paper renewals above ₹25,000" }
+  urgent_keywords: [emergency, fire, caught fire, smoke, explosion, blast, accident, collision, collided, overturned, turned turtle, injured, injury, ambulance, unconscious, fatal, death, died, theft, stolen, robbery, robbed, looted, hijacked, truck missing, driver absconded, fraud, gas leak, chemical spill, tanker leak]
+  categories:
+    - id: customer-order
+      name: Load or parcel booking
+      keywords: [new booking, want to book, wish to book, book a truck, book a load, book a parcel, parcel booking, need a truck, need truck, truck required, trucks required, vehicle required, vehicle requirement, need a vehicle, place a truck, truck placement, vehicle placement, full load, full truck load, ftl, part load, ptl, load available, loading point, please pick up, pick up from, pickup from, send goods, send a parcel, freight rate, rate enquiry, need a quote, freight quotation, forwarding note, to pay basis, paid basis, to be billed, 14 ft, 17 ft, 19 ft, 20 ft, 22 ft, 24 ft, 32 ft, 40 ft, sxl, mxl, multi axle, open body, closed body, container required, trailer required]
+      priority: P3
+      risk: low
+      department: Booking desk
+      required_details:
+        - { key: loadDate, label: Loading or pickup date, kind: date }
+        - key: load
+          label: Weight or truck size
+          kind: keywords
+          keywords: [tonne, ton, mt, kg, kgs, quintal, weight, cbm, cft, ft, feet, full load, ftl]
+        - { key: value, label: Invoice value of the goods, kind: amount }
+      required_checks:
+        - Consignor and consignee name, address, phone and GSTIN
+        - Goods, packages and weight, and the truck type that fits
+        - "Invoice value, and an e-way bill when it is over ₹50,000"
+        - Forwarding note signed with the declared value, and carrier's or owner's risk agreed
+        - No dangerous, banned or undeclared goods
+        - "Freight, GST on freight and payment terms (paid, to-pay or to be billed)"
+        - "Loads worth more than ₹5 lakh: closed body or container, GPS working and insurance cover confirmed"
+      not_eligible:
+        - { keywords: [without bill, bina bill, kachha bill, kacha bill, without invoice, without gst bill], reason: "We move goods only with a GST invoice or delivery challan, as the law requires for every consignment." }
+        - { keywords: [without e-way bill, without eway bill, no e-way bill, no eway bill, skip the e-way bill, avoid e-way bill, e-way bill not needed, no need of e-way bill], amount_above_inr: 50000, reason: "Goods worth more than ₹50,000 need an e-way bill before they move, so we cannot load them without one." }
+      approval: { required: above_amount, role: operations-manager, amount_inr: 500000 }
+      signoff: { required: false }
+      workflow: load-booking
+      execution: both
+    - id: special-cargo
+      name: Hazardous or oversize load
+      keywords: [hazardous, hazardous goods, dangerous goods, hazchem, un number, un no, class 2, class 3, class 8, flammable, inflammable, corrosive, gas cylinders, lpg cylinders, lpg tanker, chemical tanker, acid, solvent, thinner, paint thinner, msds, trem, trem card, odc, over dimensional, oversize, heavy machinery, low bed trailer, hydraulic axle, transformer, boiler drum, wind blade, project cargo, explosives, detonators, fireworks, crackers, radioactive]
+      priority: P3
+      risk: high
+      department: Safety and compliance
+      required_details:
+        - { key: moveDate, label: Date the load moves, kind: date }
+        - key: cargoDetail
+          label: UN number and class, or weight and size
+          kind: keywords
+          keywords: [un, class, msds, sds, tonne, ton, mt, kg, length, width, height, dimension, metre, meter, ft, feet]
+      required_checks:
+        - UN number, hazard class and safety data sheet from the consignor
+        - Forwarding note and LR marked dangerous goods (red top-left corner)
+        - Driver licence endorsed for hazardous goods and driver trained
+        - Class labels, emergency information panel and TREM card on the truck
+        - Goods insured under a Public Liability Insurance Act policy
+        - Route and timing fixed with the consignor
+        - "Oversize cargo: size and weight, road permissions and escort, and an e-way bill made as over-dimensional cargo"
+      not_eligible:
+        - { keywords: [explosives, detonators, gelatine sticks, fireworks, crackers, radioactive], reason: "Explosives, fireworks and radioactive material need a PESO or AERB licensed carrier and vehicle, which we do not hold; the consignor must book a licensed carrier." }
+      approval: { required: always, role: safety-officer }
+      signoff: { required: true, role: safety-officer }
+      workflow: hazardous-load
+      execution: both
+    - id: eway-bill
+      name: E-way bill task
+      keywords: [e-way bill, eway bill, ewaybill, ewb, part b, update part b, consolidated e-way bill, extend e-way bill, e-way bill extension, e-way bill expiring, e-way bill expired, cancel e-way bill, e-way bill validity, vehicle number update]
+      priority: P2
+      risk: medium
+      department: Documentation desk
+      required_details:
+        - key: vehicle
+          label: Which truck
+          kind: keywords
+          keywords: [truck, lorry, vehicle, trailer, tempo, container, tanker]
+      required_checks:
+        - E-way bill number, invoice number and date
+        - Current truck number and transporter ID
+        - Current place and distance left
+        - Extension only from 8 hours before to 8 hours after expiry, with the reason
+        - Cancel only within 24 hours of making it and only if no officer has checked it on the road
+        - Part B updated before the goods move to another truck
+        - Invoice not older than 180 days, and no extension past 360 days from when the bill was first made
+      not_eligible:
+        - { keywords: [without e-way bill, without eway bill, no e-way bill, no eway bill, skip the e-way bill, avoid e-way bill, e-way bill not needed, no need of e-way bill], amount_above_inr: 50000, reason: "Goods worth more than ₹50,000 need an e-way bill before they move, so we cannot load them without one." }
+        - { keywords: [without bill, bina bill, kachha bill, kacha bill, without invoice, without gst bill], reason: "We move goods only with a GST invoice or delivery challan, as the law requires for every consignment." }
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: eway-bill-update
+      execution: both
+    - id: accident-theft
+      name: Accident, theft or injury
+      keywords: [accident, met with an accident, overturned, turned turtle, toppled, collision, collided, hit by, rammed, injured, injury, hurt, died, death, caught fire, fire, theft, stolen, robbery, robbed, looted, hijack, hijacked, truck missing, vehicle missing, driver absconded, driver ran away, gas leak, tanker leak, chemical spill]
+      priority: P1
+      risk: high
+      department: Control room
+      required_checks:
+        - Exact place, truck number and driver phone
+        - Injured taken to hospital (call 112)
+        - Police told within 24 hours; FIR or diary entry number noted
+        - Insurer told in writing with policy number, time, place and driver licence
+        - Photos of the truck and cargo, and a count of what is left
+        - Party told the same day, and a crane or replacement truck arranged
+        - E-way bill Part B updated before the goods move to another truck
+      approval: { required: high_risk_or_p1, role: owner }
+      signoff: { required: true, role: operations-manager }
+      workflow: accident-response
+      execution: both
+    - id: transit-delay
+      name: Delay, breakdown or failed delivery
+      keywords: [not delivered, not yet delivered, delivery delayed, delayed delivery, late delivery, shipment delayed, consignment delayed, delayed, pickup delayed, goods not reached, truck not reached, parcel not reached, not reached, not arrived, running late, driver late, vehicle not placed, truck not placed, broke down, broken down, breakdown, break down, vehicle breakdown, truck breakdown, puncture, tyre burst, engine failure, stuck in traffic, traffic jam, held up at, held at, stuck at, detained, seized, overloading, checkpost, check post, route diverted, route deviation, gps not working, gps stopped, driver not answering, driver phone off, transport strike, chakka jam, landslide, consignee not available, godown closed, refused delivery, refused to take delivery, re-delivery, return to origin, where is my parcel, where is my shipment, where is my consignment, where is the truck, eta]
+      priority: P2
+      risk: medium
+      department: Control room
+      required_details:
+        - key: reference
+          label: Which LR, consignment or truck
+          kind: keywords
+          keywords: [lr, docket, awb, bilty, gr, cn, consignment, shipment, parcel, truck, lorry, trailer, tempo, vehicle, container, tanker, driver, invoice, order]
+      required_checks:
+        - Truck number, LR number and current place
+        - Cause and the new arrival time
+        - "Cost to fix (repair, crane, extra truck, waiting or return), and the operations manager's OK before spending more than ₹15,000"
+        - E-way bill still valid for the new arrival time
+        - Party told the new arrival time
+        - "Failed delivery: consignee given written notice and the goods held safely"
+      not_eligible:
+        - { keywords: [not booked with us, booked elsewhere, another transporter, other transporter, another courier company, other courier company, not our consignment, not our lr], reason: "The load was not booked with us; the party should contact the transporter who issued the LR." }
+      approval: { required: high_risk_or_p1, role: operations-manager }
+      signoff: { required: false }
+      workflow: delay-recovery
+      execution: both
+    - id: supplier-payment
+      name: Lorry hire and bills to pay
+      keywords: [lorry hire, truck hire, balance hire, hire balance, balance lorry hire, hire charges, market truck payment, truck owner payment, fleet owner payment, broker payment, broker commission, advance for the truck, trip advance, diesel bill, fuel bill, pump bill, tyre bill, toll bill, workshop bill, garage bill, hamali bill, supplier bill, vendor bill, supplier payment, vendor payment, transporter bill, release payment, release the payment, release my payment, payment release, msme, udyam]
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_details:
+        - { key: amount, label: Bill or hire amount, kind: amount }
+      required_checks:
+        - "Lorry hire: clean POD received, and any damage or shortage on it held back for the claim"
+        - Truck number, LR and amounts match the hire slip or bill
+        - Advance already paid taken off the balance
+        - "Truck owner's PAN and the 10-or-fewer trucks declaration on file, otherwise TDS deducted"
+        - Bank details confirmed by a call before a first or changed payment
+      approval: { required: above_amount, role: accounts-manager, amount_inr: 50000 }
+      signoff: { required: false }
+      workflow: truck-owner-payment
+      execution: both
+    - id: damage-claim
+      name: Damage or shortage claim
+      keywords: [damage, damaged, broken, breakage, wet, water damage, torn, leaking, leakage, crushed, dented, shortage, short delivery, short received, received short, delivered short, cartons short, boxes short, bags short, packages short, missing cartons, cartons missing, missing boxes, pilferage, pilfered, tampered, seal broken, claim, claim amount, compensation, goods lost]
+      priority: P3
+      risk: medium
+      department: Claims desk
+      required_details:
+        - key: reference
+          label: LR or docket number
+          kind: keywords
+          keywords: [lr, docket, awb, bilty, gr, cn, consignment, invoice]
+        - { key: amount, label: Amount claimed, kind: amount }
+      required_checks:
+        - LR number and booking date
+        - Damage or shortage written on the POD, or written notice soon after delivery for hidden damage
+        - "Written claim within 180 days of booking, saying what was lost or damaged and the amount asked"
+        - Photos and invoice copy
+        - "Declared value, freight and risk (carrier's or owner's) to work out our limit"
+        - Insurer told if the goods were insured
+      not_eligible:
+        - { keywords: [6 months ago, six months ago, 7 months ago, seven months ago, 8 months ago, eight months ago, 9 months ago, nine months ago, 10 months ago, 11 months ago, a year ago, one year ago, more than 180 days, over 180 days, after 180 days, more than six months, more than 6 months, over six months, over 6 months], reason: "The written claim reached us more than 180 days after booking, so the notice period in section 16 of the Carriage by Road Act, 2007 is over. Reply politely with the dates and the reason." }
+        - { keywords: [seal intact, seal was intact, seals intact, seal found intact, said to contain, stc basis], reason: "The container or truck reached with the shipper's seal intact on a said-to-contain LR, so we never counted the goods inside; the shortage is for the shipper and the cargo insurer." }
+      approval: { required: above_amount, role: owner, amount_inr: 25000 }
+      signoff: { required: true, role: accounts-manager }
+      workflow: claim-settlement
+      execution: both
+    - id: fleet-upkeep
+      name: Truck papers and repairs
+      keywords: [national permit, permit renewal, state permit, fitness, fitness certificate, fc renewal, insurance renewal, insurance due, insurance expiring, insurance expired, permit expired, permit expiring, puc, pollution certificate, road tax, green tax, rc renewal, rc transfer, licence renewal, license renewal, dl renewal, service due, servicing, oil change, new tyres, tyre change, retreading, battery, workshop, garage, maintenance, fastag, fastag recharge, gps device, speed governor, reflective tape, rto]
+      priority: P4
+      risk: low
+      department: Fleet and workshop
+      required_details:
+        - key: truck
+          label: Which truck
+          kind: keywords
+          keywords: [truck, lorry, vehicle, trailer, tanker, tipper, tempo, fleet, prime mover]
+      required_checks:
+        - Truck number and the paper or part concerned
+        - Expiry dates of RC, permit, fitness, insurance and PUC
+        - Licence validity of the drivers on the trucks affected
+        - Quote from the workshop, tyre dealer or insurer
+        - Odometer reading and last service record
+      approval: { required: above_amount, role: fleet-manager, amount_inr: 25000 }
+      signoff: { required: false }
+      workflow: fleet-renewal
+      execution: team
+  examples:
+    - { request: "Require a 20 ft closed body truck at Bhiwandi on Friday for 6 tonnes of FMCG cartons to Nagpur, invoice value ₹3.8 lakh", category: customer-order, priority: P3, approval: false }
+    - { request: "Book a load of 22 tonnes steel coils on a 40 ft trailer from Jamshedpur to Pune on 21 October, invoice ₹14 lakh, to be billed", category: customer-order, priority: P3, approval: true }
+    - { request: "Send a parcel of 45 kg from Ludhiana to Coimbatore tomorrow, declared value ₹38,000, to pay basis", category: customer-order, priority: P3, approval: false }
+    - { request: "Two chemical tankers of hydrochloric acid, class 8, from Dahej to Visakhapatnam next Wednesday", category: special-cargo, priority: P3, approval: true }
+    - { request: "Shift a 60 tonne boiler drum from Hazira to Raipur on a hydraulic axle trailer from 3 November, it is over dimensional cargo", category: special-cargo, priority: P3, approval: true }
+    - { request: "300 filled LPG gas cylinders, class 2, for a gas agency in Sangli on Saturday, need a suitable truck", category: special-cargo, priority: P3, approval: true }
+    - { request: "Goods shifted to truck MH 18 BG 0921 at Indore after transshipment, update Part B of EWB 2812 5590 3341", category: eway-bill, priority: P2, approval: false }
+    - { request: Wrong vehicle number in the e-way bill made an hour ago; cancel it and make a fresh one, category: eway-bill, priority: P2, approval: false }
+    - { request: Make a consolidated e-way bill for the 14 part-load consignments on tonight's Delhi line truck, category: eway-bill, priority: P2, approval: false }
+    - { request: "Our trailer hit a divider near Kishangarh at 2 am, cleaner injured and taken to the government hospital", category: accident-theft, priority: P1, approval: true }
+    - { request: Driver says 18 cartons of mobile phones were stolen from the truck while he slept at a dhaba near Shivpuri, category: accident-theft, priority: P1, approval: true }
+    - { request: "Diesel tank caught fire on GJ 06 AZ 3301 on the Ahmedabad expressway, driver is safe but the cotton bales are burning", category: accident-theft, priority: P1, approval: true }
+    - { request: "Truck GJ 01 KT 5512 held at the Rajasthan checkpost by the GST squad since morning, LR 30219", category: transit-delay, priority: P2, approval: false }
+    - { request: "Consignee godown closed till Monday for Diwali at Indore, truck waiting with LR 88213", category: transit-delay, priority: P2, approval: false }
+    - { request: "Party refused to take delivery at Guwahati saying wrong material, what do we do with LR 51190", category: transit-delay, priority: P2, approval: false }
+    - { request: "Balance lorry hire of ₹42,000 for HR 55 AK 7201, POD received clean, please pay the truck owner", category: supplier-payment, priority: P3, approval: false }
+    - { request: "Diesel bill from Shree Balaji fuel station for September is ₹3.6 lakh, please release the payment", category: supplier-payment, priority: P3, approval: true }
+    - { request: Broker wants the advance for the truck of ₹35000 before loading at Kolkata tomorrow, category: supplier-payment, priority: P3, approval: false }
+    - { request: "LR 73310 delivered at Coimbatore with 5 cartons of tiles broken, remark made on the POD, claim ₹18,500", category: damage-claim, priority: P3, approval: false }
+    - { request: "Two drums leaking and 40 kg short in LR 22984, consignee wants compensation of ₹62,000, photos attached", category: damage-claim, priority: P3, approval: true }
+    - { request: "Pilferage found in 6 bales of the Surat textile load under LR 61207, claim of ₹1.1 lakh", category: damage-claim, priority: P3, approval: true }
+    - { request: "Insurance renewal for truck KA 01 AF 4410 is due on 5 November, quote ₹74,000", category: fleet-upkeep, priority: P4, approval: true }
+    - { request: "PUC renewal for 6 of our trucks this week, about ₹2,400 in all", category: fleet-upkeep, priority: P4, approval: false }
+    - { request: "Service due for truck MH 43 BX 2290 at 1,20,000 km, workshop estimate ₹16,500", category: fleet-upkeep, priority: P4, approval: false }
+
+playbooks:
+  - id: eway-bill-on-the-road
+    title: Make, update and extend an e-way bill
+    source: CGST Rules, 2017, rule 138 (CBIC); e-way bill portal FAQ and Extend Validity API guide (NIC); GSTN advisory of 17 December 2024
+    body: |
+      1. Make the e-way bill before the goods move when the consignment is worth more than ₹50,000. Some states set a higher limit for movement inside the state, so check yours.
+      2. Part A holds the invoice details and Part B the truck number. On the road the bill is not valid without Part B.
+      3. Validity is one day for every 200 km (20 km for over-dimensional cargo). The first day runs until midnight of the day after the bill was made.
+      4. If the goods move to another truck after a breakdown or transshipment, update Part B before they move.
+      5. Extend only for a real reason (breakdown, accident, flood, law and order, transshipment delay), and only from 8 hours before to 8 hours after expiry. Give the current place and the distance left.
+      6. Wrong details cannot be edited. Cancel within 24 hours (not after an officer has checked it on the road) and make a new one.
+      7. Since 1 January 2025 the portal refuses invoices older than 180 days and stops extensions 360 days after the bill was first made.
+  - id: booking-and-lr
+    title: Book a load and issue the LR
+    source: Carriage by Road Act, 2007, sections 3 and 8 to 11; Carriage by Road Rules, 2011, rules 10 and 12; Motor Vehicles Act, 1988, section 194
+    body: |
+      1. Get a goods forwarding note from the consignor stating the goods, their value and any dangerous goods; the consignor answers for what it says.
+      2. Count and weigh before signing, because the LR is proof of weight, packages and description.
+      3. Issue the LR (goods receipt) once the goods are loaded, with our common carrier registration number, in copies for the consignor, the consignee (travels with the truck) and the office.
+      4. Write the declared value and whether it moves at carrier's risk or owner's risk. For total loss we pay up to ten times the freight, never more than the value of the goods, unless the consignor declared a higher value and paid the risk charge.
+      5. Keep the load within the truck's permitted weight. Overloading costs ₹20,000 plus ₹2,000 per extra tonne and the truck is held until the extra load is taken off.
+      6. For loads worth more than ₹5 lakh, use a closed body or container truck with working GPS and confirm the insurance cover before placing it.
+  - id: hazardous-goods
+    title: Send hazardous or oversize goods safely
+    source: Carriage by Road Act, 2007, section 13; Carriage by Road Rules, 2011, rules 10 to 12; Central Motor Vehicles Rules, 1989, rules 9 and 129 to 137
+    body: |
+      1. The consignor declares dangerous goods on the forwarding note; the forwarding note and LR go on paper with a red top-left corner.
+      2. Before loading, check the goods are insured under a Public Liability Insurance Act policy.
+      3. The driver must hold a licence endorsed for hazardous goods and have done the hazardous goods training.
+      4. Put the class labels and the emergency information panel on the truck, and give the driver the TREM card with emergency phone numbers.
+      5. Fix the route and timing with the consignor, and the driver keeps to it.
+      6. For oversize cargo, get the road permissions and escort, and make the e-way bill as over-dimensional cargo (20 km a day).
+      7. The safety officer approves before the truck moves and signs off after safe delivery. After any accident the driver reports at once to the nearest police station and calls us.
+  - id: road-accident-theft
+    title: Accident or theft on the road
+    source: Motor Vehicles Act, 1988, section 134; CGST Rules, 2017, rule 138(5) and 138(10)
+    body: |
+      1. People first: get the injured to a doctor or hospital (call 112) unless it is unsafe to stay. Never wait for approval to do this.
+      2. Report at the nearest police station as soon as possible and within 24 hours, and note the FIR or diary entry number.
+      3. Tell the insurer in writing: policy number, date, time and place, people hurt, and the driver's name and licence.
+      4. Photograph the truck and cargo, count what is left, and keep the goods guarded.
+      5. Tell the party the same day and arrange a crane or another truck.
+      6. Update e-way bill Part B before the goods move to another truck, and extend it if it will run out.
+      7. Open a damage or shortage claim job for the cargo.
+  - id: damage-shortage-claim
+    title: Handle a damage or shortage claim
+    source: Carriage by Road Act, 2007, sections 10, 11 and 16; Carriage by Road Rules, 2011, rule 12; Amrit Transport Co. v. Oriental Insurance Co. (Rajasthan High Court, 16 December 2024)
+    body: |
+      1. Damage or shortage should be written on the POD at delivery. For damage found only after unpacking, the consignee must write to us soon after delivery, within the days printed on our LR terms.
+      2. The written claim must reach us within 180 days of booking and say what was lost or damaged and how much is asked; a bare claim bill is not enough.
+      3. Partial damage is valued by an independent licensed surveyor agreed with the consignor.
+      4. Work out our limit: up to ten times the freight, never more than the value of the goods, unless a higher value was declared and the risk charge paid.
+      5. If the goods came in a sealed container on a said-to-contain LR with the seal intact, the shortage is for the shipper and the cargo insurer.
+      6. The owner approves any settlement above ₹25,000; accounts pays against a signed discharge and signs off the claim.
+  - id: truck-owner-payments
+    title: Pay market truck owners against POD
+    source: Income-tax Act, 1961, section 194C(6) and (7) (carried into the Income-tax Act, 2025 from 1 April 2026); Carriage by Road Act, 2007, section 3
+    body: |
+      1. Before loading, take a copy of the truck's RC, the owner's PAN and ID, and agree the hire, advance and detention in writing on the hire slip.
+      2. Pay the advance only after the truck is loaded and the LR is signed.
+      3. Pay the balance only after a signed, stamped and dated POD comes back; hold back the amount of any damage or shortage written on it.
+      4. No TDS is deducted when the owner has ten or fewer goods trucks and gives a declaration with PAN; otherwise deduct TDS on the hire.
+      5. Confirm bank details by a call before a first or changed payment, and pay only to the owner's or broker's account named on the hire slip.
+      6. Payments above ₹50,000 need the accounts manager's approval.
+
+kpis:
+  - id: placement-on-time
+    name: Truck placed on time
+    description: Share of truck requests where a checked truck reached the loading point at the agreed time this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: pod-turnaround
+    name: POD turnaround
+    description: Average hours from delivery to a clean signed POD on record.
+    unit: hours
+    direction: down
+    target: 72
+  - id: damage-shortage-rate
+    name: Damage and shortage rate
+    description: Share of deliveries with damage or shortage written on the POD this month.
+    unit: percent
+    direction: down
+    target: 0.5
+  - id: eway-bill-lapses
+    name: E-way bill lapses
+    description: E-way bills that ran out while the goods were still on the road this month.
+    unit: count
+    direction: down
+    target: 0
+  - id: empty-running
+    name: Empty running
+    description: Share of own-truck kilometres run without a load this month.
+    unit: percent
+    direction: down
+    target: 20
+  - id: open-claims
+    name: Claims waiting for a survey or offer
+    description: Damage and shortage claims received and not yet surveyed or answered.
+    unit: count
+    direction: down
+    source: { type: records_count, entity: Claim, where: { status: received } }

@@ -1,0 +1,107 @@
+# Logistics & transport: realistic requests from parties, drivers, branches,
+# truck owners, brokers, the GPS and e-way bill alerts and the owner, with what
+# the stages should decide.
+pack: logistics
+cases:
+  - id: ftl-container-booking
+    request: "Need one 32 ft multi-axle container at our Chakan plant tomorrow 9 am, going to our dealer Arun Motors, Oragadam, Chennai (their GSTIN is on the invoice). 14 tonnes auto parts on 22 pallets, invoice CK/2291 for Rs 18.4 lakh, e-way bill will be made before loading. Forwarding note attached. Freight as per contract, to be billed."
+    source: customer
+    amount_inr: 1840000
+    expect:
+      category: customer-order
+      priority: P3
+      review: complete
+      approval: { required: true, role: operations-manager }
+      signoff: { required: false }
+    why: A truck booking with date, weight, value, e-way bill plan and payment terms. Goods worth ₹18.4 lakh are above the ₹5 lakh high-value line, so the operations manager approves the truck, GPS and insurance cover before placing it; bookings need no sign-off.
+  - id: parcel-pickup-no-details
+    request: "Please pick up 6 cartons from Andheri East today, going to Indore. How much will it cost?"
+    source: customer
+    expect:
+      category: customer-order
+      priority: P3
+      review: needs_info
+    why: A pickup request without the weight or the invoice value, so the LR and the e-way bill need cannot be worked out; ask for them first.
+  - id: eway-expiring-alert
+    request: "Alert: e-way bill 3310 4587 2290 on truck MH 40 CD 7316 expires today at 23:59. GPS shows the truck near Adilabad, about 300 km from the Hyderabad delivery point."
+    source: system
+    expect:
+      category: eway-bill
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: An e-way bill task with the number, truck, place and distance left; it can be extended from 8 hours before expiry, and e-way bill tasks need no approval or sign-off.
+  - id: truck-overturned-ghat
+    request: "Sir, our truck MH 12 QW 4471 overturned at Khambatki ghat near Satara. Driver has a leg injury, cleaner is fine, ambulance is coming. 18 tonnes of cement bags are on the road and highway police are here."
+    source: staff
+    expect:
+      category: accident-theft
+      priority: P1
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: operations-manager }
+    why: An overturned truck with an injured driver is an emergency (P1). Nothing is asked before the ambulance and police; the owner approves the recovery plan and spending, and the operations manager signs off at closure.
+  - id: clutch-breakdown-dhule
+    request: "MH 46 BM 2231 broke down near Dhule on the Agra road, clutch plate gone. Local mechanic says Rs 9,500 with parts and can finish by 6 pm. Load is pharma cartons for Indore, LR 77812."
+    source: staff
+    amount_inr: 9500
+    expect:
+      category: transit-delay
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A breakdown on the way (P2, medium risk), so the operations manager is not needed; the ₹9,500 repair is also under the ₹15,000 spend line, so the control room goes ahead.
+  - id: balance-lorry-hire
+    request: "Namaste sir, my truck RJ 14 GC 6620 delivered at Ludhiana on 2 October, LR 55821. POD photo sent on WhatsApp, original by courier. Please release my balance lorry hire of Rs 68,000."
+    source: partner
+    amount_inr: 68000
+    expect:
+      category: supplier-payment
+      priority: P3
+      review: complete
+      approval: { required: true, role: accounts-manager }
+      signoff: { required: false }
+    why: A market truck owner's balance hire after POD is a bill to pay; ₹68,000 is above the ₹50,000 limit, so the accounts manager approves.
+  - id: wet-cartons-claim
+    request: "Consignment LR 66104 booked on 18 September reached our Kolkata godown yesterday with 12 cartons wet and torn. Our store manager wrote it on the POD. We claim Rs 1,40,000 as per invoice; photos and invoice attached."
+    source: customer
+    amount_inr: 140000
+    expect:
+      category: damage-claim
+      priority: P3
+      review: complete
+      approval: { required: true, role: owner }
+      signoff: { required: true, role: accounts-manager }
+    why: Damage noted on the POD and claimed in writing well within 180 days of booking; ₹1,40,000 is above ₹25,000, so the owner approves and accounts signs off the settlement.
+  - id: late-shortage-claim
+    request: "Sir, our consignment LR 41877 was booked about 8 months ago and reached 3 cartons short. Our auditor found it only now. Please settle our claim of Rs 21,000."
+    source: customer
+    amount_inr: 21000
+    expect:
+      category: damage-claim
+      priority: P3
+      review: not_eligible
+    why: The written claim comes about 8 months after booking, past the 180-day notice limit in section 16 of the Carriage by Road Act, so it is closed politely as not eligible.
+  - id: paint-thinner-hazardous
+    request: "Load for you: our client Shree Coatings in GIDC Vapi wants 40 drums of paint thinner (UN 1263, class 3), about 8 tonnes, sent to their own plant in Hosur on Monday. Invoice Rs 6.2 lakh. MSDS and TREM card are ready. Need a truck with hazardous papers and a trained driver."
+    source: partner
+    expect:
+      category: special-cargo
+      priority: P3
+      review: complete
+      approval: { required: true, role: safety-officer }
+      signoff: { required: true, role: safety-officer }
+    why: A flammable liquid with a UN number is hazardous cargo, which always needs the safety officer before loading and after delivery. The ₹6.2 lakh value also crosses the owner's ₹5 lakh line, but the named safety officer is asked first.
+  - id: fitness-renewal
+    request: "Fitness certificate of our truck MH 04 GT 7781 runs out on 30 October. Book the RTO test this week; the garage says brake and light work before the test will be about Rs 18,000."
+    source: owner
+    amount_inr: 18000
+    expect:
+      category: fleet-upkeep
+      priority: P4
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: A planned paper renewal with garage work; ₹18,000 is under the ₹25,000 fleet limit, so no approval is needed.

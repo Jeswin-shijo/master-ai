@@ -1,0 +1,544 @@
+# Sector base for technology and innovation: software and SaaS companies, IT
+# services and support firms, digital agencies and other tech businesses.
+# Ready-made types extend it; typed-in types borrow the closest ready-made type
+# (other_org_types) or use it directly.
+id: sector-technology-innovation
+version: 1.0.0
+name: Technology & Innovation
+description: Outages, security incidents, bugs, releases and changes, billing and client complaints for software and SaaS companies, IT services firms, digital agencies and other technology businesses.
+kind: base
+sector: technology-innovation
+extends: [crm-base]
+
+lifecycle:
+  case: { label: Ticket, plural: Tickets, prefix: TKT }
+  stages:
+    request:
+      name: Ticket or request raised
+      description: A client, user, staff member, partner or monitoring alert raises a ticket by email, WhatsApp, phone, chat or the help desk, gets a ticket number and an acknowledgement.
+    review:
+      name: Check details and scope
+      description: Support checks who is asking and for which account or contract, collects what is missing (screen, error text, steps, how many users), looks for duplicates and checks the work is within the agreed scope.
+      checks:
+        - Client or account found, with its contract, plan and support level
+        - Request comes from an authorised person on that account (admin, named contact or written email)
+        - "Enough to act on: what happened, where (app, page, system or device), since when, how many users, and a screenshot or error text"
+        - Signs of an attack, a hacked account or leaked data? Open a security incident at once, because the CERT-In 6-hour clock is running
+        - Not a duplicate of an open ticket, a known issue or a planned change
+        - New work or extra changes are inside the agreed scope and price, or need a written quote first
+    classify:
+      name: Set priority and SLA
+      description: The ticket gets its type, priority (P1 to P4), risk and owning team, which starts the response and fix clocks in the client's SLA.
+    assign:
+      name: Assign team and deadline
+      description: The team lead names the engineer or team in charge and the deadline; P1 tickets page the on-call engineer at any hour, others wait for working hours.
+    approve:
+      name: Approval to go ahead
+      description: The named approver says yes before the risky step, such as a release, a change to a live system, an emergency fix, a CERT-In report or a refund, and never approves their own work.
+    execute:
+      name: Build, fix and track
+      description: The team and agents fix, build or change what is needed, keep the client and status page updated, and track time, cost, logs and SLA clocks.
+    close:
+      name: Confirm and close
+      description: Someone other than the person who did the work checks the result in the live system, the person who raised it confirms, and the named role signs off.
+      checks:
+        - Fix or change checked in the live system by someone other than the person who made it
+        - Person who raised it confirms it works, or did not reply after 3 working days of reminders
+        - Client, users and the status page told it is resolved
+        - Downtime recorded for the SLA report and any service credit worked out
+        - Root-cause report sent within 5 working days for P1 and P2 tickets
+        - CERT-In or other required report filed and the acknowledgement saved with the ticket
+    report:
+      name: Reports and reviews
+      description: Each month the team reviews SLA misses, outages, security incidents, failed changes, complaints and repeat problems, sends clients their SLA reports and fixes the causes that keep coming back.
+  priorities:
+    - { id: P1, name: "Critical: down or under attack", respond_within_hours: 0.5, resolve_within_hours: 4 }
+    - { id: P2, name: "High: many users blocked or client escalation", respond_within_hours: 2, resolve_within_hours: 24 }
+    - { id: P3, name: Normal, respond_within_hours: 8, resolve_within_hours: 72 }
+    - { id: P4, name: "Low: planned work and ideas", respond_within_hours: 24, resolve_within_hours: 240 }
+  roles:
+    - { id: engineering-manager, name: Engineering manager, approves: "Releases and changes to live systems, and emergency fixes, rollbacks or failover during an outage; signs off outages and changes" }
+    - { id: security-lead, name: Security lead (CERT-In contact), approves: "Containment steps, the CERT-In report and breach notices to clients and affected people; signs off security incidents" }
+    - { id: account-manager, name: Account manager, approves: "Replies to client complaints and escalations, and any promise of a date, discount or service credit" }
+    - { id: finance-manager, name: Finance manager, approves: "Refunds, credit notes, waivers and service credits above ₹10,000" }
+  # Plain "outage", "site down" and "server down" are left out: planned
+  # maintenance notices use them and are routine here.
+  urgent_keywords:
+    - unplanned outage
+    - major outage
+    - complete outage
+    - everything is down
+    - down for everyone
+    - nobody can log in
+    - no one can log in
+    - nobody can work
+    - no one can work
+    - data breach
+    - data leak
+    - data theft
+    - hacked
+    - ransomware
+    - files encrypted
+    - defaced
+    - ddos
+    - cyber attack
+    - account takeover
+    - unauthorised access
+    - unauthorized access
+    - laptop stolen
+    - stolen laptop
+    - fire
+    - burning smell
+    - electric shock
+    - injured
+    - injury
+  categories:
+    - id: outage
+      name: Outage or service down
+      keywords:
+        - outage
+        - unplanned outage
+        - major outage
+        - complete outage
+        - site down
+        - site is down
+        - site went down
+        - site not working
+        - site not loading
+        - website down
+        - website is down
+        - website not working
+        - website not loading
+        - server down
+        - server is down
+        - server went down
+        - app down
+        - app is down
+        - app went down
+        - api down
+        - api is down
+        - portal down
+        - portal is down
+        - checkout down
+        - payment gateway down
+        - everything is down
+        - down for everyone
+        - down for all users
+        - nobody can log in
+        - no one can log in
+        - nobody can work
+        - no one can work
+        - internet down
+        - internet is down
+        - internet not working
+        - network down
+        - network is down
+        - email down
+        - email is down
+        - service unavailable
+        - 503 service unavailable
+        - bad gateway
+        - gateway timeout
+        - error 502
+        - error 503
+        - 502 error
+        - 503 error
+        - uptime alert
+        - health check failed
+        - app nahi chal raha
+      priority: P1
+      risk: high
+      department: Engineering and support (on call)
+      required_checks:
+        - "Impact confirmed from monitoring: which service, how many users or clients, since when (not one person's internet)"
+        - Recent releases and changes checked, and rolled back first if one lines up
+        - Client and status page updated within 30 minutes, then at least every hour until fixed
+        - Data lost or an attack such as DDoS? Open a security incident too, because the CERT-In clock starts
+        - Start and end times recorded for the SLA report and service credits
+      approval: { required: high_risk_or_p1, role: engineering-manager }
+      signoff: { required: true, role: engineering-manager }
+      workflow: delegate-work
+      execution: both
+    - id: security-incident
+      name: Security incident or data leak
+      keywords:
+        - hacked
+        - hacker
+        - hack into
+        - hack my
+        - hack attempt
+        - data breach
+        - security breach
+        - data leak
+        - data theft
+        - leaked
+        - ransomware
+        - ransom
+        - files encrypted
+        - malware
+        - virus
+        - trojan
+        - spyware
+        - phishing email
+        - phishing mail
+        - phishing link
+        - phishing site
+        - clicked a link
+        - suspicious login
+        - suspicious sign in
+        - unauthorised access
+        - unauthorized access
+        - account takeover
+        - account compromised
+        - email compromised
+        - been compromised
+        - got compromised
+        - defaced
+        - ddos
+        - ddos attack
+        - cyber attack
+        - brute force
+        - laptop stolen
+        - stolen laptop
+        - lost laptop
+        - cert in
+      priority: P1
+      risk: high
+      department: Security
+      required_checks:
+        - "Damage stopped first: device off the network, passwords reset, keys revoked, unknown admins removed"
+        - Logs, emails and screenshots kept as evidence before anything is wiped
+        - CERT-In report sent within 6 hours of noticing it, approved by the security lead
+        - Client told in writing at once, with whether personal data may be involved
+        - Way in found and closed, and clean backup restored
+      not_eligible:
+        - keywords:
+            - hack someone's
+            - hack someone else's
+            - hack into someone's
+            - hack into someone else's
+            - hack my ex's
+            - hack into my ex's
+            - hack my wife's
+            - hack my husband's
+            - hack my girlfriend's
+            - hack my boyfriend's
+            - hack my competitor's
+            - hack a competitor's
+            - hack into my competitor's
+            - hack into a competitor's
+          reason: We only protect systems and accounts that belong to you or to a client who has asked us in writing. We never break into anyone else's account, phone or computer. If someone is misusing yours, report it on cybercrime.gov.in or call 1930.
+      approval: { required: always, role: security-lead }
+      signoff: { required: true, role: security-lead }
+      workflow: delegate-work
+      execution: both
+    - id: bug
+      name: Bug, error or fault
+      keywords:
+        - bug
+        - error
+        - error message
+        - error code
+        - not working
+        - stopped working
+        - doesn't work
+        - does not work
+        - isn't working
+        - not opening
+        - not saving
+        - not syncing
+        - crash
+        - crashes
+        - crashed
+        - crashing
+        - glitch
+        - broken
+        - broken link
+        - showing wrong
+        - wrong calculation
+        - wrong total
+        - blank page
+        - blank screen
+        - white screen
+        - 500 error
+        - internal server error
+        - exception
+        - freezes
+        - hanging
+        - keeps failing
+        - kaam nahi kar raha
+      priority: P3
+      risk: medium
+      department: Engineering and support
+      required_details:
+        - key: where
+          label: Which app, page or system
+          kind: keywords
+          keywords: [app, mobile app, android, iphone, ios, website, site, page, screen, portal, dashboard, api, login, report, checkout, cart, invoice, form, button, field, module, plugin, wordpress, shopify, email, outlook, server, laptop, desktop, computer, printer, wifi, network, vpn, tally, erp, crm, browser, chrome]
+      required_checks:
+        - Problem repeated by support or QA, or seen in logs and monitoring
+        - Not a duplicate of an open ticket or a known issue
+        - Fix tested outside the live system and released through change approval
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: delegate-work
+      execution: both
+    - id: billing
+      name: Billing, payment or refund
+      keywords:
+        - invoice
+        - gst invoice
+        - tax invoice
+        - proforma invoice
+        - invoice copy
+        - billing query
+        - billing issue
+        - wrong bill
+        - gstin
+        - wrong gstin
+        - refund
+        - refunded
+        - charged twice
+        - double charged
+        - debited twice
+        - deducted twice
+        - credit note
+        - payment pending
+        - pending payment
+        - payment not received
+        - payment failed
+        - overdue
+        - outstanding amount
+        - outstanding dues
+        - unpaid
+        - payment reminder
+        - tds certificate
+        - form 16a
+        - cancel my subscription
+        - cancel subscription
+        - upgrade my plan
+        - upgrade plan
+        - downgrade
+        - auto debit
+        - autopay
+        - e mandate
+        - chargeback
+        - service credit
+        - waiver
+        - paise wapas
+      priority: P3
+      risk: medium
+      department: Accounts
+      required_checks:
+        - Invoice, payment and contract or plan details match the books
+        - Refunds go back to the same account or card that paid
+        - GST and TDS correct on every invoice and credit note
+        - The person who raised a refund or credit note does not approve it
+      approval: { required: above_amount, role: finance-manager, amount_inr: 10000 }
+      signoff: { required: false }
+      execution: agents
+    - id: change-release
+      name: Change or release
+      keywords:
+        - new release
+        - app release
+        - production release
+        - release to production
+        - release to live
+        - deploy
+        - deployment
+        - deploy to production
+        - go live
+        - push to production
+        - push live
+        - hotfix
+        - hot fix
+        - config change
+        - configuration change
+        - database migration
+        - server migration
+        - data migration
+        - cloud migration
+        - migrate to cloud
+        - schema change
+        - maintenance
+        - maintenance window
+        - planned maintenance
+        - scheduled maintenance
+        - down for maintenance
+        - downtime
+        - planned downtime
+        - scheduled downtime
+        - planned outage
+        - server upgrade
+        - version upgrade
+        - software upgrade
+        - firmware upgrade
+        - patching
+        - security patch
+        - firewall rule
+        - port forwarding
+        - dns change
+        - dns record
+        - ssl renewal
+        - renew the ssl
+        - play store
+        - app store
+        - rollback
+        - roll back
+      priority: P3
+      risk: medium
+      department: Engineering
+      required_details:
+        - { key: window, label: Planned date or time window, kind: date }
+      required_checks:
+        - "Written plan: what and why, systems and users affected, steps, test and rollback"
+        - Tested outside the live system and reviewed by someone other than the person who made it
+        - Backup taken before the change
+        - Users or clients told about any downtime in advance
+        - Client's written OK for changes to the client's own systems
+      approval: { required: always, role: engineering-manager }
+      signoff: { required: true, role: engineering-manager }
+      workflow: delegate-work
+      execution: team
+    - id: complaint
+      name: Complaint or escalation
+      keywords:
+        - complaint
+        - complain
+        - complained
+        - escalate
+        - escalating
+        - escalation
+        - not satisfied
+        - unhappy
+        - not happy
+        - disappointed
+        - poor service
+        - worst service
+        - pathetic
+        - no response
+        - no reply
+        - nobody called back
+        - no one called back
+        - nobody replied
+        - still not fixed
+        - still not resolved
+        - sla breach
+        - sla missed
+        - missed deadline
+        - missed the deadline
+        - unprofessional
+        - rude
+        - legal notice
+        - consumer forum
+        - consumer court
+        - terminate the contract
+        - cancel the contract
+        - end the contract
+        - third reminder
+        - shikayat
+      priority: P2
+      risk: medium
+      department: Client servicing
+      required_checks:
+        - Logged and acknowledged the same day
+        - "Facts checked: ticket history, emails, call logs and SLA timers"
+        - Written reply saying what we will do and by when
+        - Service credit or penalty under the contract worked out where the SLA was missed
+      approval: { required: never }
+      signoff: { required: true, role: account-manager }
+      workflow: delegate-work
+      execution: both
+  examples:
+    - { request: Customer portal shows 503 Service Unavailable since 9.40 am and nobody can log in, category: outage, priority: P1, approval: true }
+    - { request: "Internet is down at our Andheri office, nobody can work since morning", category: outage, priority: P1, approval: true }
+    - { request: Our accountant clicked a link in a phishing email and now her Outlook is sending spam to all our clients, category: security-incident, priority: P1, approval: true }
+    - { request: "Client's WordPress site has been hacked, the home page now shows betting links", category: security-incident, priority: P1, approval: true }
+    - { request: The GST total on the invoice screen is showing wrong for orders with a discount, category: bug, priority: P3, approval: false }
+    - { request: "Android app crashes when I tap upload photo, started after yesterday's update", category: bug, priority: P3, approval: false }
+    - { request: "We were charged twice for the annual plan this month, please refund ₹14,160", category: billing, priority: P3, approval: true }
+    - { request: "Please issue a credit note for ₹2,400 for the extra user we removed in August", category: billing, priority: P3, approval: false }
+    - { request: Please schedule the version 4.2 release to production for Saturday night after 11 pm, category: change-release, priority: P3, approval: true }
+    - { request: Planned downtime on Sunday 2 to 4 am to move the client's mail server to Microsoft 365, category: change-release, priority: P3, approval: true }
+    - { request: "Third time I am writing, the printer issue is still not resolved and nobody called back", category: complaint, priority: P2, approval: false }
+    - { request: "Very unhappy that you missed the deadline for our website launch, I want to escalate this to your director", category: complaint, priority: P2, approval: false }
+
+playbooks:
+  - id: sector-cert-in-reporting
+    title: Cyber incidents and CERT-In reporting
+    source: CERT-In Directions under section 70B(6) of the IT Act, 2000 (No. 20(3)/2022-CERT-In, 28 April 2022, in force 27 June 2022) and CERT-In FAQs, May 2022; IT Act section 70B(7)
+    body: |
+      1. Treat every suspected attack, leak or hacked account as P1 from the moment anyone notices it. The 6-hour clock starts then, not when it is confirmed.
+      2. Stop the damage first: take the device or server off the network, reset passwords, revoke keys and tokens, remove unknown admins and block the attacker's IP address or sender. Do not wipe anything yet.
+      3. Keep the evidence: logs, screenshots, the phishing email with its headers and copies of changed files. Keep logs of all systems for a rolling 180 days in India, with system clocks synced to the NIC or NPL time servers.
+      4. Report to CERT-In within 6 hours of noticing it (incident@cert-in.org.in, or the helpline 1800-11-4949) with whatever you know, and send the rest later. Reportable incidents include unauthorised access, ransomware and other malware, phishing, data breaches and leaks, website defacement, DDoS and attacks on servers, cloud systems and apps.
+      5. The security lead is the named CERT-In point of contact and approves the report before it goes.
+      6. When the system belongs to a client, tell the client in writing at once and agree who files the report. Whoever notices the incident must make sure it is reported; a contract cannot pass this duty away. Keep the report and the acknowledgement on the ticket.
+      7. Where money was stolen, also report it on cybercrime.gov.in or call 1930 at once so the bank can try to freeze it.
+      8. Find the way in and close it, restore from a clean backup, and hold a blameless review within 5 working days, with each fix given to a named person and a date.
+      9. Not reporting, or not giving CERT-In the information it asks for, can mean up to 1 year in jail, a fine of up to ₹1 lakh, or both.
+  - id: sector-change-approval
+    title: Changes to live systems
+    source: ITIL 4 change enablement practice; common release practice in Indian software, IT services and agency teams
+    body: |
+      1. Every change to a live website, app, server, network or client system gets a ticket, even a small one.
+      2. Know the three kinds. Standard changes are low risk, done often and pre-approved from a written list. Normal changes need the engineering manager's OK before work starts. Emergency changes, to end an outage or close a security hole, get a quick OK by phone and are written up within 1 working day.
+      3. Write the plan: what and why, systems and users affected, steps, how it will be tested, how to roll back, and the time window. A change to a client's own systems also needs the client's written OK.
+      4. The person who made the change never approves it. Test it outside the live system, take a backup first, and have someone else review the code or settings.
+      5. Tell users and clients about planned downtime at least 72 hours ahead, and avoid busy times: month-end and year-end closing, GST return dates, sale days and festival campaigns.
+      6. After the change, check it in the live system and watch errors for the first hour. If errors rise, roll back first and find the cause after.
+      7. Record every change that caused trouble and review them each month.
+  - id: sector-dpdp-data-protection
+    title: Personal data under the DPDP Act
+    source: Digital Personal Data Protection Act, 2023 and DPDP Rules, 2025 (notified November 2025; breach and rights duties from May 2027); PIB explainer on the DPDP Rules, November 2025
+    body: |
+      1. Know whose data it is. For your own customers and staff you decide how data is used (you are the data fiduciary). For data you hold or process for a client, the client decides (you are their data processor): follow their written instructions and pass rights requests to them.
+      2. Collect only what the work needs, with a clear notice and consent in plain words, and give people an easy way to withdraw consent.
+      3. Protect it: access only for people who need it, MFA on admin accounts, encryption, backups and logs. Remove client data and access when a contract ends.
+      4. Never use real customer data for testing or demos without masking it.
+      5. On a personal data breach, tell each affected person without delay in plain words: what happened, the likely impact, what you have done and whom to contact. Tell the Data Protection Board without delay and send the full report within 72 hours. As a processor, tell the client at once so they can do this.
+      6. Answer requests to see, correct, update or erase personal data within 90 days, and show a contact person for data questions on the website and in the app.
+      7. The breach and rights duties apply from May 2027; start working this way now. Penalties go up to ₹250 crore for weak security and ₹200 crore for not reporting a breach.
+
+kpis:
+  - id: sla-met
+    name: Tickets fixed within SLA
+    description: Share of tickets closed this month within the fix time their priority or the client's contract allows.
+    unit: percent
+    direction: up
+    target: 90
+  - id: p1-restore-time
+    name: Time to restore service
+    description: Average hours from a P1 outage being raised to service working again for everyone.
+    unit: hours
+    direction: down
+  - id: failed-changes
+    name: Changes that went wrong
+    description: Share of releases and changes this month that caused a fault or needed a rollback or an emergency fix.
+    unit: percent
+    direction: down
+    target: 10
+  - id: cert-in-on-time
+    name: CERT-In reports within 6 hours
+    description: Share of reportable security incidents this month reported to CERT-In within 6 hours of being noticed.
+    unit: percent
+    direction: up
+    target: 100
+
+other_org_types:
+  - { name: Tech startup, keywords: [tech startup, startup, product startup, app startup, saas startup], closest: software-saas }
+  - { name: Custom software company, keywords: [custom software, software development, software house, product engineering, offshore development, outsourced development], closest: software-saas }
+  - { name: Ed-tech company, keywords: [edtech, ed tech, e-learning, elearning, online courses, learning app, lms, online coaching platform], closest: software-saas }
+  - { name: Fintech product company, keywords: [fintech, payments app, lending app, neobank, personal finance app, accounting software, billing software], closest: software-saas }
+  - { name: E-commerce platform or marketplace, keywords: [e-commerce platform, ecommerce platform, online marketplace, marketplace app, quick commerce app, delivery app], closest: software-saas }
+  - { name: AI or research lab, keywords: [ai company, ai startup, machine learning, data science, research and development, innovation lab, deep tech, robotics, iot], closest: software-saas }
+  - { name: IT consultancy, keywords: [it consultancy, it consulting, it consultant, technology consulting, erp consultant, erp implementation, tally partner, zoho partner], closest: it-services }
+  - { name: Cybersecurity firm, keywords: [cybersecurity, cyber security, security audit, vapt, penetration testing, managed security, soc provider], closest: it-services }
+  - { name: Data centre or hosting provider, keywords: [data centre, data center, web hosting, hosting provider, cloud hosting, colocation, server hosting], closest: it-services }
+  - { name: Internet or telecom provider, keywords: [internet service provider, isp, broadband, fibre internet, fiber internet, leased line, telecom, cable internet], closest: it-services }
+  - { name: BPO or call centre, keywords: [bpo, call centre, call center, contact centre, contact center, kpo, back office, customer support outsourcing], closest: it-services }
+  - { name: Computer or electronics repair, keywords: [computer repair, laptop repair, mobile repair, electronics repair, computer hardware, printer repair, cctv installation, system integrator], closest: it-services }
+  - { name: Web or app development studio, keywords: [web development, website development, website designer, web design, app development, app developer, mobile app development], closest: digital-agency }
+  - { name: Design or branding studio, keywords: [design studio, ui ux, branding studio, graphic design, creative studio, animation studio, video production], closest: digital-agency }
+  - { name: SEO or social media agency, keywords: [seo, social media agency, social media marketing, digital marketing, performance marketing, influencer marketing, content agency, ad agency], closest: digital-agency }
