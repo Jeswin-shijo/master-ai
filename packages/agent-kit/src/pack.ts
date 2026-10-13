@@ -165,6 +165,7 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
       (r) => (!r.agent || roles.has(r.agent)) && (r.when?.category ?? []).every((id) => categoryIds.has(id)),
     ),
     kpis: missing(latest.kpis, installed.kpis, (k) => k.id).filter((k) => k.source?.type !== 'records_count' || entities.has(k.source.entity)),
+    playbooks: missing(latest.playbooks ?? [], installed.playbooks ?? [], (p) => p.id),
     lifecycle,
   };
 }
@@ -189,12 +190,12 @@ export function workAgents(pack: Pick<ResolvedPack, 'agents'>): ResolvedPack['ag
 }
 
 export function emptyPackUpdates(): PackUpdates {
-  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], lifecycle: { whole: null, categories: [], roles: [] } };
+  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], lifecycle: { whole: null, categories: [], roles: [] } };
 }
 
 export function countPackUpdates(u: PackUpdates): number {
   return (
-    u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length +
+    u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length + u.playbooks.length +
     (u.lifecycle.whole ? 1 : 0) + u.lifecycle.categories.length + u.lifecycle.roles.length
   );
 }
@@ -215,6 +216,7 @@ export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): Resol
     routines: [...(installed.routines ?? []), ...u.routines],
     policies: [...installed.policies, ...u.policies],
     kpis: [...installed.kpis, ...u.kpis],
+    playbooks: [...(installed.playbooks ?? []), ...u.playbooks],
     ...(lifecycle && { lifecycle }),
   };
 }

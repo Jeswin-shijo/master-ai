@@ -318,6 +318,8 @@ export interface PackUpdates {
   routines: Pack['routines'];
   policies: Pack['policies'];
   kpis: Pack['kpis'];
+  /** Playbooks the workspace doesn't have yet; they go into Knowledge. */
+  playbooks: Playbook[];
   /** The whole lifecycle for workspaces installed before lifecycles, otherwise new categories and roles. */
   lifecycle: { whole: ResolvedLifecycle | null; categories: CaseCategory[]; roles: LifecycleRole[] };
 }

@@ -25,7 +25,7 @@ export function PackUpdatesBanner() {
   const extras = u.tools.length + u.policies.length + u.kpis.length + (u.lifecycle?.categories.length ?? 0) + (u.lifecycle?.roles.length ?? 0);
   const routines = u.routines ?? [];
   const lifecycle = u.lifecycle?.whole ?? null;
-  if (u.agents.length + u.workflows.length + routines.length + extras + (lifecycle ? 1 : 0) === 0) return null;
+  if (u.agents.length + u.workflows.length + routines.length + (u.playbooks?.length ?? 0) + extras + (lifecycle ? 1 : 0) === 0) return null;
   const callsTeam = u.agents.some((a) => a.tools.includes('staff.delegate'));
 
   return (
@@ -55,6 +55,9 @@ export function PackUpdatesBanner() {
             ))}
             {routines.map((r) => (
               <li key={r.id}><span className="font-medium text-fg">{r.name}</span> <span className="text-fg-muted">· daily check-in · {r.description}</span></li>
+            ))}
+            {(u.playbooks ?? []).map((p) => (
+              <li key={p.id}><span className="font-medium text-fg">{p.title}</span> <span className="text-fg-muted">· playbook for your agents</span></li>
             ))}
             {extras > 0 && <li className="text-fg-muted">plus {extras} tool, policy or KPI change{extras === 1 ? '' : 's'}</li>}
           </ul>

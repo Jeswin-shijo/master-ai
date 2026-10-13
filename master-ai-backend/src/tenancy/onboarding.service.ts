@@ -8,6 +8,7 @@ import type { Session } from '../common/auth';
 import { toDraft, toWorkspace } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
 import { agents, packDrafts, policies, principals, tenants, workspaces } from '../db/schema';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 import { PackGenerator } from '../packs/generator.service';
 import { PackRegistry } from '../packs/registry.service';
 import { PolicyService } from '../policy/policy.service';
@@ -29,16 +30,21 @@ export class OnboardingService {
     private readonly team: TeamService,
     private readonly registry: PackRegistry,
     private readonly policy: PolicyService,
+    private readonly knowledge: KnowledgeService,
   ) {}
 
   async preview(session: Session, input: { industry?: string; forceGenerate?: boolean }): Promise<PackDraft> {
-    const industry =
-      input.industry ??
-      (await this.db.tenant(session.tenantId, async (tx) => {
-        const [t] = await tx.select({ industry: tenants.industry }).from(tenants).where(eq(tenants.id, session.tenantId));
-        return t!.industry;
-      }));
-    const draft = await this.generator.draft(session.tenantId, industry, input.forceGenerate);
+    const tenant = await this.db.tenant(session.tenantId, async (tx) => {
+      const [t] = await tx.select({ industry: tenants.industry, sector: tenants.sector, orgType: tenants.orgType }).from(tenants).where(eq(tenants.id, session.tenantId));
+      return t!;
+    });
+    const industry = input.industry ?? tenant.industry;
+    // New words mean a new description of the organization: compose it inside the same sector.
+    const draft = await this.generator.draft(session.tenantId, industry, {
+      sector: tenant.sector,
+      orgType: input.industry ? null : tenant.orgType,
+      forceGenerate: input.forceGenerate,
+    });
 
     return this.db.tenant(session.tenantId, async (tx) => {
       const [row] = await tx
@@ -80,6 +86,7 @@ export class OnboardingService {
       });
 
       for (const spec of pack.agents) await this.createAgent(tx, session.tenantId, ws!.id, spec, actor);
+      await this.knowledge.addPackDocs(tx, session.tenantId, pack.playbooks ?? [], actor);
 
       await tx.update(packDrafts).set({ status: 'installed' }).where(eq(packDrafts.id, draftId));
       await tx.update(tenants).set({ onboarded: true }).where(eq(tenants.id, session.tenantId));
@@ -136,6 +143,7 @@ export class OnboardingService {
         });
       }
       for (const spec of updates.agents) await this.createAgent(tx, session.tenantId, workspaceId, spec, actor);
+      if (updates.playbooks.length) await this.knowledge.addPackDocs(tx, session.tenantId, updates.playbooks, actor);
       await this.audit.append(tx, session.tenantId, {
         type: 'pack.updated',
         actor,
@@ -146,6 +154,7 @@ export class OnboardingService {
           workflows: updates.workflows.map((w) => w.id),
           tools: updates.tools.map((t) => t.name),
           kpis: updates.kpis.map((k) => k.id),
+          playbooks: updates.playbooks.map((p) => p.id),
           policies: updates.policies.length,
           ...(policyVersion && { policyVersion }),
         },
@@ -184,6 +193,7 @@ function describeUpdates(u: PackUpdates): string {
     u.tools.length ? `${u.tools.length} tool${u.tools.length === 1 ? '' : 's'}` : '',
     u.policies.length ? `${u.policies.length} polic${u.policies.length === 1 ? 'y' : 'ies'}` : '',
     u.kpis.length ? `${u.kpis.length} KPI${u.kpis.length === 1 ? '' : 's'}` : '',
+    u.playbooks.length ? `${u.playbooks.length} playbook${u.playbooks.length === 1 ? '' : 's'}` : '',
   ];
   return parts.filter(Boolean).join(', ');
 }

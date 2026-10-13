@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
-import { FieldTypeSchema, type Pack, type ResolvedPack } from '@onehuman/schemas';
+import { FieldTypeSchema, ORG_TYPES, SECTORS, type Pack, type ResolvedPack, type SectorId } from '@onehuman/schemas';
 import {
+  composeForSector,
   composeOfflinePack,
   matchIndustry,
   normalizeIndustry,
@@ -137,6 +138,26 @@ How to design a good pack:
 - KPIs: 3-6, using count_entity/count_where_* when a KPI is a count of records.
 - All ids are lowercase-with-dashes. Tool names are dotted lowercase (domain.action).`;
 
+export interface Setup {
+  /** chosen: the ready-made type picked at signup. ready-made: found in the owner's words. similar / sector: composed. */
+  via: 'chosen' | 'ready-made' | 'similar' | 'sector';
+  /** The pack the setup builds on. */
+  basedOn: string;
+  /** A composed pack extending `basedOn`, for when a ready-made pack is not used as is. */
+  pack: Pack;
+}
+
+/** What a signup gets, inside its chosen sector. Null for companies created before sectors. */
+export function pickSetup(input: { industry: string; sector: SectorId | null; orgType: string | null }, packs: Pack[]): Setup | null {
+  if (!input.sector) return null;
+  const composed = composeForSector(input.industry, input.sector, packs);
+  const chosen = ORG_TYPES.find((t) => t.id === input.orgType && t.sector === input.sector);
+  if (chosen && packs.some((p) => p.id === chosen.id)) {
+    return { via: 'chosen', basedOn: chosen.id, pack: { ...composed.pack, extends: [chosen.id] } };
+  }
+  return { via: composed.via, basedOn: composed.basedOn, pack: composed.pack };
+}
+
 /** Turns an owner's industry text into an installable pack draft. */
 @Injectable()
 export class PackGenerator {
@@ -147,17 +168,36 @@ export class PackGenerator {
     private readonly llm: LlmService,
   ) {}
 
-  async draft(tenantId: string, industry: string, forceGenerate = false): Promise<GeneratedDraft> {
-    const match = forceGenerate ? null : matchIndustry(industry, this.registry.industryPacks());
-    if (match) {
+  async draft(
+    tenantId: string,
+    industry: string,
+    opts: { sector?: SectorId | null; orgType?: string | null; forceGenerate?: boolean } = {},
+  ): Promise<GeneratedDraft> {
+    const setup = pickSetup({ industry, sector: opts.sector ?? null, orgType: opts.orgType ?? null }, this.registry.list());
+    if (setup) {
+      if ((setup.via === 'chosen' || setup.via === 'ready-made') && !opts.forceGenerate) return this.readyMade(this.registry.get(setup.basedOn)!);
+      if (this.llm.mode === 'online') {
+        try {
+          return await this.generateWithModel(tenantId, industry, { basedOn: setup.basedOn, sector: opts.sector! });
+        } catch (err) {
+          this.logger.warn(`Model pack generation failed, using the sector composer: ${(err as Error).message}`);
+        }
+      }
+      const pack = this.registry.resolve(setup.pack, 'generated');
+      const base = this.registry.get(setup.basedOn)!;
+      const sectorName = SECTORS.find((s) => s.id === opts.sector)?.name ?? 'sector';
+      const start = setup.via === 'sector' ? `with the ${sectorName} defaults` : `starting from the ready-made ${base.name.toLowerCase()} setup`;
       return {
-        pack: this.registry.resolve(match.pack),
-        source: 'registry',
-        generator: 'registry',
-        rationale: `A ready-made setup for ${match.pack.name.toLowerCase()} businesses. It keeps track of ${keeps(this.registry.resolve(match.pack))}.`,
+        pack,
+        source: 'generated',
+        generator: 'offline-template',
+        rationale: `Set up for "${industry}" ${start}. It keeps track of ${keeps(pack)}${yourWords(pack)}.`,
       };
     }
 
+    // Companies created before sectors: match across every pack, as before.
+    const match = opts.forceGenerate ? null : matchIndustry(industry, this.registry.industryPacks());
+    if (match) return this.readyMade(match.pack);
     if (this.llm.mode === 'online') {
       try {
         return await this.generateWithModel(tenantId, industry);
@@ -174,7 +214,17 @@ export class PackGenerator {
     };
   }
 
-  private async generateWithModel(tenantId: string, industry: string): Promise<GeneratedDraft> {
+  private readyMade(pack: Pack): GeneratedDraft {
+    const resolved = this.registry.resolve(pack);
+    return {
+      pack: resolved,
+      source: 'registry',
+      generator: 'registry',
+      rationale: `A ready-made setup for ${pack.name.toLowerCase()}. It keeps track of ${keeps(resolved)}.`,
+    };
+  }
+
+  private async generateWithModel(tenantId: string, industry: string, base?: { basedOn: string; sector: SectorId }): Promise<GeneratedDraft> {
     const context = this.contextForModel();
     let issues: string[] = [];
     let previous: GenPack | null = null;
@@ -182,6 +232,7 @@ export class PackGenerator {
     for (let attempt = 0; attempt < 2; attempt++) {
       const user = [
         `Design an Industry Pack for this business: "${industry}".`,
+        base ? `This organization is in the ${SECTORS.find((s) => s.id === base.sector)?.name} sector. Build on "${base.basedOn}": the platform adds it to extends for you.` : '',
         context,
         previous
           ? `Your previous draft had these problems. Return the complete corrected pack.\n- ${issues.join('\n- ')}\n\nPrevious draft:\n${JSON.stringify(previous)}`
@@ -211,7 +262,9 @@ export class PackGenerator {
       }
       previous = parsed.data;
       try {
-        const pack = this.registry.resolve(this.toPack(industry, parsed.data), 'generated');
+        const draftPack = this.toPack(industry, parsed.data);
+        const shaped = base ? { ...draftPack, sector: base.sector, extends: [base.basedOn, ...draftPack.extends.filter((id) => id !== base.basedOn)] } : draftPack;
+        const pack = this.registry.resolve(shaped, 'generated');
         issues = validatePackRefs(pack);
         if (issues.length === 0) {
           return {

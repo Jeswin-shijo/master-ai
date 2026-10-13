@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Injectable, Post } from '@nestjs/common';
 import { desc, eq, sql } from 'drizzle-orm';
-import { CreateKnowledgeDocInputSchema, type KnowledgeDoc } from '@onehuman/schemas';
+import { CreateKnowledgeDocInputSchema, type KnowledgeDoc, type Playbook } from '@onehuman/schemas';
 import type { z } from 'zod';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, type Actor } from '../audit/audit.service';
 import { CurrentSession, type Session } from '../common/auth';
 import { ZodPipe } from '../common/zod';
 import { DbService, type Tx } from '../db/db.service';
@@ -37,6 +37,24 @@ export class KnowledgeService {
       });
       return { id: doc!.id, title: doc!.title, chunks: chunks.length, source: doc!.source, createdAt: doc!.createdAt.toISOString() };
     });
+  }
+
+  /** Load a pack's playbooks into Knowledge, each one once, so agents find them with knowledge.search. */
+  async addPackDocs(tx: Tx, tenantId: string, playbooks: Playbook[], actor: Actor): Promise<number> {
+    let added = 0;
+    for (const p of playbooks) {
+      const [doc] = await tx
+        .insert(knowledgeDocs)
+        .values({ tenantId, title: p.title, content: p.body, source: 'pack', ref: p.id })
+        .onConflictDoNothing()
+        .returning();
+      if (!doc) continue;
+      const chunks = chunk(p.body);
+      if (chunks.length) await tx.insert(knowledgeChunks).values(chunks.map((content, idx) => ({ tenantId, docId: doc.id, idx, content })));
+      await this.audit.append(tx, tenantId, { type: 'knowledge.added', actor, refId: doc.id, payload: { title: p.title, chunks: chunks.length, source: 'pack' } });
+      added++;
+    }
+    return added;
   }
 
   async list(tenantId: string): Promise<KnowledgeDoc[]> {
