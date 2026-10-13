@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Switch, View } from 'react-native';
 import { Badge, Button, Card, H, Screen, T } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
+import { api, endSession, errorMessage, startSession } from '@/lib/api';
 import { API_URL } from '@/lib/config';
 import { ensureDeviceKey, getDeviceKey } from '@/lib/device-key';
 import { useSession } from '@/lib/session';
@@ -11,7 +11,7 @@ import { space, useTheme } from '@/lib/theme';
 export default function SettingsScreen() {
   const { c } = useTheme();
   const queryClient = useQueryClient();
-  const { user, companies, signIn, signOut, setTenant, setUser } = useSession();
+  const { user, companies, setTenant, setUser } = useSession();
   const tenant = useQuery({ queryKey: ['tenant'], queryFn: api.tenant.get });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
   // Role changes made by the owner apply here without signing in again.
@@ -22,8 +22,7 @@ export default function SettingsScreen() {
   const switchCompany = useMutation({
     mutationFn: (tenantId: string) => api.auth.switchCompany(tenantId),
     onSuccess: async (auth) => {
-      queryClient.clear();
-      await signIn(auth);
+      await startSession(auth);
     },
     onError: (err) => Alert.alert('Could not switch company', errorMessage(err)),
   });
@@ -124,7 +123,7 @@ export default function SettingsScreen() {
         {!key.data && <Button title="Set up this phone" onPress={() => setupKey.mutate()} loading={setupKey.isPending} />}
       </Card>
 
-      <Button testID="sign-out" title="Sign out" variant="secondary" onPress={() => void signOut()} />
+      <Button testID="sign-out" title="Sign out" variant="secondary" onPress={() => void endSession()} />
       <T tone="muted" size="xs">
         Server: {API_URL}
       </T>

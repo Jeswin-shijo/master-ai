@@ -2,20 +2,18 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { Button, Card, H, Input, Screen, T } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
+import { api, errorMessage, startSession } from '@/lib/api';
 import { API_URL } from '@/lib/config';
 import { ensureDeviceKey } from '@/lib/device-key';
-import { useSession } from '@/lib/session';
 import { space } from '@/lib/theme';
 
 export default function LoginScreen() {
-  const signIn = useSession((s) => s.signIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useMutation({
     mutationFn: () => api.auth.login({ email: email.trim(), password }),
     onSuccess: async (auth) => {
-      await signIn(auth);
+      await startSession(auth);
       // Create and register this phone's approval key straight away.
       await ensureDeviceKey().catch(() => undefined);
     },

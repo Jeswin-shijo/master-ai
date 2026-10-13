@@ -19,4 +19,9 @@ export function useTheme(): { c: Palette; dark: boolean } {
   return { c: brandPalette(darkPalette, brand), dark: true };
 }
 
+/** The Approvals tab badge: warm, because a person is needed, with a dark count that reads at AA. */
+export function tabBadge(c: Palette) {
+  return { backgroundColor: c.warning, color: c.background };
+}
+
 export { fontSize, gradients, radius, space };

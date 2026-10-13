@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { useMyApprovals } from '@/lib/approvals';
-import { font, fontSize, useTheme } from '@/lib/theme';
+import { font, fontSize, tabBadge, useTheme } from '@/lib/theme';
 
 /** Cases, Approvals, Calls, Pulse, Settings, in the spec's order. The app opens on the first tab; Approvals carries the badge. */
 export default function TabsLayout() {
@@ -16,7 +16,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: c.textMuted,
         tabBarStyle: { backgroundColor: c.background, borderTopColor: c.line10 },
         tabBarLabelStyle: { fontFamily: font.medium, fontSize: fontSize.xs },
-        tabBarBadgeStyle: { backgroundColor: c.glow, color: c.onAction, fontFamily: font.semibold },
+        tabBarBadgeStyle: { ...tabBadge(c), fontFamily: font.semibold },
       }}
     >
       <Tabs.Screen
