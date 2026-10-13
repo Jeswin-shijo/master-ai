@@ -253,6 +253,12 @@ importers:
 
   master-ai-web:
     dependencies:
+      '@fontsource/red-hat-display':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/red-hat-text':
+        specifier: 5.3.0
+        version: 5.3.0
       '@onehuman/schemas':
         specifier: workspace:*
         version: link:../packages/schemas
@@ -408,6 +414,9 @@ importers:
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
 packages:
 
@@ -1655,6 +1664,12 @@ packages:
   '@expo/xcpretty@4.4.6':
     resolution: {integrity: sha512-uRaZZ/IsX1WkFW69xxTZtMeRvI5ziD9yoian+FMqdhITkU6NGvIWd5uRMh2Gbo/6xstpQ4v0GtF1V5YatTwzDA==}
     hasBin: true
+
+  '@fontsource/red-hat-display@5.3.0':
+    resolution: {integrity: sha512-fD3uZkhdZMHzpSdHMa000GQSVPQNuYr4AMu3Dx9UhrM35ynBIC4w3fe824d7aO6wHyR2e7pSrUhYvTBp3VRg4g==}
+
+  '@fontsource/red-hat-text@5.3.0':
+    resolution: {integrity: sha512-/kgNIUqdoc9uyd4zK+T7gEwY6bYF+hSCZeQTl8Ni/oKtv+a7YeCyQwAE94BeLwud6UfLqn90gBFKa3gCpiZnRA==}
 
   '@grpc/grpc-js@1.14.6':
     resolution: {integrity: sha512-SgC/B3/VZ8lTyOZ4Cwk6f1skWhmkNAaVfiX90qd5u1rRXGKk1//8FTUEN9GvOUq7rfWIqAYkA3CoyumYVpOS6g==}
@@ -7935,6 +7950,10 @@ snapshots:
       '@babel/code-frame': 7.29.7
       chalk: 4.1.2
       js-yaml: 4.3.2
+
+  '@fontsource/red-hat-display@5.3.0': {}
+
+  '@fontsource/red-hat-text@5.3.0': {}
 
   '@grpc/grpc-js@1.14.6':
     dependencies:

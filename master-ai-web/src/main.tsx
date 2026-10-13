@@ -23,6 +23,11 @@ import { RoutineBoardPage, RoutinesPage } from '@/routes/routines';
 import { TeamPage } from '@/routes/team';
 import { WorkflowsPage } from '@/routes/workflows';
 import { applyTheme, installPrintTheme, readTheme } from '@/lib/theme';
+import '@fontsource/red-hat-display/300.css';
+import '@fontsource/red-hat-display/400.css';
+import '@fontsource/red-hat-text/400.css';
+import '@fontsource/red-hat-text/500.css';
+import '@fontsource/red-hat-text/600.css';
 import './index.css';
 
 applyTheme(readTheme());

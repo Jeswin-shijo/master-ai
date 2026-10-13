@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@fontsource/red-hat-display": "5.3.0",
+    "@fontsource/red-hat-text": "5.3.0",
     "@onehuman/schemas": "workspace:*",
     "@onehuman/sdk": "workspace:*",
     "@onehuman/ui": "workspace:*",

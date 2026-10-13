@@ -30,77 +30,123 @@ export type ColorToken =
   | 'level2'
   | 'level3'
   | 'level4'
-  | 'level5';
+  | 'level5'
+  | 'textBody'
+  | 'textLead'
+  | 'node'
+  | 'line5'
+  | 'line10'
+  | 'line15'
+  | 'line20'
+  | 'glow'
+  | 'onAction';
 
 export type Palette = Record<ColorToken, string>;
 
 /**
- * n8n-inspired: deep purple-black surfaces, a pink-coral primary and a violet
- * accent. Dark is the default; light keeps the same hues with AA contrast.
+ * Glow, inspired by the n8n.io site: a violet-tinted navy, a warm action
+ * gradient, cool violet for navigation and agents, green for done. Warm always
+ * means a person is needed. Light keeps the same hues at AA contrast.
  */
 export const darkPalette: Palette = {
-  background: '#0e0b16',
-  surface: '#171320',
-  surfaceMuted: '#221d2e',
-  border: '#2e2840',
-  text: '#f3f1f8',
-  textMuted: '#a39db4',
-  primary: '#ea4b71',
-  primaryText: '#ffffff',
-  primarySoft: '#3b1627',
-  accent: '#8b7bff',
-  accentSoft: '#231d45',
-  canvas: '#110e1a',
-  canvasDot: '#2b2540',
-  success: '#3ccf8e',
-  successSoft: '#11301f',
-  warning: '#f6b74a',
-  warningSoft: '#3a2c12',
-  danger: '#ff5d6c',
-  dangerSoft: '#3d1419',
-  info: '#6fa8ff',
-  infoSoft: '#16264a',
-  level1: '#9a95ab',
-  level2: '#6fa8ff',
-  level3: '#3ccf8e',
-  level4: '#f6b74a',
-  level5: '#ff5d6c',
+  background: '#0e0918',
+  surface: '#1b1728',
+  surfaceMuted: '#1f192a',
+  node: '#2a2633',
+  border: 'rgba(255, 255, 255, 0.10)',
+  line5: 'rgba(255, 255, 255, 0.05)',
+  line10: 'rgba(255, 255, 255, 0.10)',
+  line15: 'rgba(255, 255, 255, 0.15)',
+  line20: 'rgba(255, 255, 255, 0.20)',
+  text: '#ffffff',
+  textBody: '#d1cece',
+  textLead: '#b6b5b9',
+  textMuted: '#9d9797',
+  primary: '#ff7a3a',
+  primaryText: '#1b0b02',
+  primarySoft: '#3a1a14',
+  onAction: '#ffffff',
+  accent: '#a06ff6',
+  accentSoft: '#241a3d',
+  canvas: '#0b0814',
+  canvasDot: 'rgba(255, 255, 255, 0.10)',
+  glow: '#ee4f27',
+  success: '#35a670',
+  successSoft: '#10241c',
+  warning: '#ff9b26',
+  warningSoft: '#2e1d0c',
+  danger: '#ff492c',
+  dangerSoft: '#34120d',
+  info: '#4aa3df',
+  infoSoft: '#0f2236',
+  level1: '#9d9797',
+  level2: '#4aa3df',
+  level3: '#35a670',
+  level4: '#ff9b26',
+  level5: '#ff492c',
 };
 
 export const lightPalette: Palette = {
-  background: '#f6f5fa',
+  background: '#f7f5fa',
   surface: '#ffffff',
-  surfaceMuted: '#efedf5',
-  border: '#e2deec',
-  text: '#1b1726',
-  textMuted: '#66607a',
-  primary: '#d63862',
+  surfaceMuted: '#f1eef6',
+  node: '#ebe7f2',
+  border: 'rgba(22, 15, 36, 0.12)',
+  line5: 'rgba(22, 15, 36, 0.05)',
+  line10: 'rgba(22, 15, 36, 0.10)',
+  line15: 'rgba(22, 15, 36, 0.15)',
+  line20: 'rgba(22, 15, 36, 0.20)',
+  text: '#160f24',
+  textBody: '#2f2a3a',
+  textLead: '#55506a',
+  textMuted: '#5f5a72',
+  primary: '#c2410c',
   primaryText: '#ffffff',
-  primarySoft: '#fde8ee',
-  accent: '#6650e8',
-  accentSoft: '#ece9ff',
-  canvas: '#f4f3f8',
-  canvasDot: '#d8d4e3',
-  success: '#12855a',
+  primarySoft: '#fde9df',
+  onAction: '#ffffff',
+  accent: '#6b21ef',
+  accentSoft: '#efe7ff',
+  canvas: '#f4f2f8',
+  canvasDot: 'rgba(22, 15, 36, 0.12)',
+  glow: '#ee4f27',
+  success: '#0f7a52',
   successSoft: '#e2f5ec',
-  warning: '#a65f00',
-  warningSoft: '#fdf1dc',
-  danger: '#c62839',
-  dangerSoft: '#fbe6e8',
-  info: '#2c5fd1',
-  infoSoft: '#e6edfc',
-  level1: '#66607a',
-  level2: '#2c5fd1',
-  level3: '#12855a',
-  level4: '#a65f00',
-  level5: '#c62839',
+  warning: '#a65200',
+  warningSoft: '#fdf0dc',
+  danger: '#c62828',
+  dangerSoft: '#fbe7e7',
+  info: '#1f6fb2',
+  infoSoft: '#e6f0fb',
+  level1: '#5f5a72',
+  level2: '#1f6fb2',
+  level3: '#0f7a52',
+  level4: '#a65200',
+  level5: '#c62828',
 };
 
-export const radius = { sm: 6, md: 8, lg: 12, full: 999 } as const;
+/** Gradients, rings and glows. Same in both themes; light softens them in CSS. */
+export const effects = {
+  gradientAction: 'linear-gradient(30deg, #ec6015 0%, #d63a0b 16%, #c8200c 84%, #ad110b 100%)',
+  gradientActionSheen: 'linear-gradient(180deg, rgba(255, 214, 170, 0.26) 0%, rgba(255, 214, 170, 0) 34%)',
+  gradientCool: 'linear-gradient(141deg, #077ac7, #6b21ef)',
+  actionRing: 'inset 0 1px 0 rgba(255, 222, 186, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.07)',
+  actionShadow: '0 10px 26px -12px rgba(238, 79, 39, 0.95)',
+  actionShadowHover: '0 12px 60px -12px rgba(238, 79, 39, 1)',
+  glowWarm: 'rgba(238, 79, 39, 0.30)',
+  glowCool: 'rgba(81, 89, 217, 0.17)',
+  navActive: 'radial-gradient(70% 170% at 50% 175%, rgba(160, 111, 246, 0.62), rgba(107, 33, 239, 0.24) 72%), rgba(107, 33, 239, 0.12)',
+  navActiveRing: 'inset 0 0 0 1px rgba(160, 111, 246, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.10)',
+} as const;
+
+/** The gradient stops a centred label sits on (16%–84%); white must read on both. */
+export const ACTION_LABEL_STOPS = ['#d63a0b', '#c8200c'] as const;
+
+export const radius = { sm: 8, md: 12, lg: 16, full: 999 } as const;
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const fontSize = { xs: 12, sm: 13, md: 15, lg: 18, xl: 22, xxl: 28 } as const;
 export const fontFamily = {
-  sans: "'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+  display: "'Red Hat Display', 'Red Hat Text', ui-sans-serif, system-ui, sans-serif",
+  sans: "'Red Hat Text', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
   mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
 } as const;
 
@@ -122,6 +168,10 @@ ${vars(darkPalette)}
   --oh-radius-sm: ${radius.sm}px;
   --oh-radius-md: ${radius.md}px;
   --oh-radius-lg: ${radius.lg}px;
+${Object.entries(effects)
+  .map(([k, v]) => `  --oh-effect-${kebab(k)}: ${v};`)
+  .join('\n')}
+  --oh-font-display: ${fontFamily.display};
   --oh-font-sans: ${fontFamily.sans};
   --oh-font-mono: ${fontFamily.mono};
   color-scheme: dark;
@@ -154,6 +204,19 @@ function mix(a: string, b: string, t: number): string {
 
 function hex(h: string): [number, number, number] {
   return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+/** WCAG contrast ratio between two #rrggbb colours (1 to 21). */
+export function contrastRatio(a: string, b: string): number {
+  const lum = (c: string) => {
+    const [r, g, bl] = hex(c).map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    }) as [number, number, number];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 function readableOn(bg: string): string {
