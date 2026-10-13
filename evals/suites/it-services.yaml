@@ -37,7 +37,7 @@ cases:
     request: "Sai Dental Clinic called: the reception printer is not printing since morning and they want an engineer today. Note: their AMC ended on 31 August and they have not paid for another year."
     source: staff
     expect:
-      category: device-fault
+      category: bug
       priority: P3
       review: not_eligible
     why: Printer and not printing make it a laptop, printer or user support ticket (P3), but the AMC ended on 31 August, so the printer is not covered. The ticket ends at review and the clinic is offered a paid visit or an AMC renewal quote.

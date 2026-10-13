@@ -62,7 +62,8 @@ lifecycle:
     - { id: account-manager, name: Account manager, approves: "Replies to client complaints and escalations, and any promise of a date, discount or service credit" }
     - { id: finance-manager, name: Finance manager, approves: "Refunds, credit notes, waivers and service credits above ₹10,000" }
   # Plain "outage", "site down" and "server down" are left out: planned
-  # maintenance notices use them and are routine here.
+  # maintenance notices use them and are routine here. Bare "fire" is left out
+  # too: webhooks and events "fire", and integrators quote fire alarms.
   urgent_keywords:
     - unplanned outage
     - major outage
@@ -87,7 +88,12 @@ lifecycle:
     - unauthorized access
     - laptop stolen
     - stolen laptop
-    - fire
+    - caught fire
+    - fire broke out
+    - fire in the office
+    - fire in the server room
+    - on fire
+    - smoke coming
     - burning smell
     - electric shock
     - injured
@@ -261,11 +267,14 @@ lifecycle:
         - blank screen
         - white screen
         - 500 error
-        - internal server error
         - exception
         - freezes
         - hanging
         - keeps failing
+        - not loading
+        - very slow
+        - slowness
+        - slow to load
         - kaam nahi kar raha
       priority: P3
       risk: medium
@@ -294,6 +303,14 @@ lifecycle:
         - billing query
         - billing issue
         - wrong bill
+        - wrong invoice
+        - invoice is wrong
+        - in the invoice
+        - in your invoice
+        - wrong gst
+        - gst is wrong
+        - incorrect invoice
+        - send the invoice
         - gstin
         - wrong gstin
         - refund
@@ -386,7 +403,7 @@ lifecycle:
         - app store
         - rollback
         - roll back
-      priority: P3
+      priority: P4
       risk: medium
       department: Engineering
       required_details:
@@ -446,6 +463,7 @@ lifecycle:
         - "Facts checked: ticket history, emails, call logs and SLA timers"
         - Written reply saying what we will do and by when
         - Service credit or penalty under the contract worked out where the SLA was missed
+        - A legal notice, consumer court case or threat to end the contract goes to the owner the same day, and the owner approves any reply to a legal notice
       approval: { required: never }
       signoff: { required: true, role: account-manager }
       workflow: delegate-work
@@ -459,8 +477,8 @@ lifecycle:
     - { request: "Android app crashes when I tap upload photo, started after yesterday's update", category: bug, priority: P3, approval: false }
     - { request: "We were charged twice for the annual plan this month, please refund ₹14,160", category: billing, priority: P3, approval: true }
     - { request: "Please issue a credit note for ₹2,400 for the extra user we removed in August", category: billing, priority: P3, approval: false }
-    - { request: Please schedule the version 4.2 release to production for Saturday night after 11 pm, category: change-release, priority: P3, approval: true }
-    - { request: Planned downtime on Sunday 2 to 4 am to move the client's mail server to Microsoft 365, category: change-release, priority: P3, approval: true }
+    - { request: Please schedule the version 4.2 release to production for Saturday night after 11 pm, category: change-release, priority: P4, approval: true }
+    - { request: Planned downtime on Sunday 2 to 4 am to move the client's mail server to Microsoft 365, category: change-release, priority: P4, approval: true }
     - { request: "Third time I am writing, the printer issue is still not resolved and nobody called back", category: complaint, priority: P2, approval: false }
     - { request: "Very unhappy that you missed the deadline for our website launch, I want to escalate this to your director", category: complaint, priority: P2, approval: false }
 
@@ -483,7 +501,7 @@ playbooks:
     source: ITIL 4 change enablement practice; common release practice in Indian software, IT services and agency teams
     body: |
       1. Every change to a live website, app, server, network or client system gets a ticket, even a small one.
-      2. Know the three kinds. Standard changes are low risk, done often and pre-approved from a written list. Normal changes need the engineering manager's OK before work starts. Emergency changes, to end an outage or close a security hole, get a quick OK by phone and are written up within 1 working day.
+      2. Know the three kinds. Standard changes are low risk, done often and pre-approved from a written list. Normal changes need the OK of the person named to approve changes (the engineering manager, tech lead or technical head) before work starts. Emergency changes, to end an outage or close a security hole, get a quick OK by phone and are written up within 1 working day.
       3. Write the plan: what and why, systems and users affected, steps, how it will be tested, how to roll back, and the time window. A change to a client's own systems also needs the client's written OK.
       4. The person who made the change never approves it. Test it outside the live system, take a backup first, and have someone else review the code or settings.
       5. Tell users and clients about planned downtime at least 72 hours ahead, and avoid busy times: month-end and year-end closing, GST return dates, sale days and festival campaigns.

@@ -327,7 +327,7 @@ workflows:
         instructions: Log the problem the customer wants solved, merge it with the same idea if already logged, add the customer's plan and yearly value, and reply without any date. Tell everyone who asked once the product manager decides.
   - id: complaint-handling
     name: Complaint handling
-    description: Check the facts and get the account manager's reply out the same day.
+    description: Check the facts and get the customer success manager's reply out the same day.
     keywords: [complaint, escalation, unhappy, sla breach, rude, no response]
     steps:
       - key: facts
@@ -335,10 +335,10 @@ workflows:
         agent: support-desk
         instructions: Gather the ticket history, chats, emails and SLA timers, and draft a reply saying what we will do and by when, with any service credit the contract gives.
       - key: reply
-        title: Get the account manager to reply
+        title: Get the customer success manager to reply
         agent: support-desk
         depends_on: [facts]
-        instructions: Hand the complaint and the draft to the account manager by phone and record the promise they make.
+        instructions: Hand the complaint and the draft to the customer success manager by phone and record the promise they make.
 
 policies:
   - id: refund-above-10000
@@ -391,7 +391,7 @@ lifecycle:
         - Engineering manager for every release or change to the live system
         - Security lead for CERT-In reports, breach notices and admin or owner changes
         - Finance manager for refunds, credits and chargebacks above ₹10,000
-        - Privacy officer for deleting or sharing personal data, takedowns and replies to police, court or government orders
+        - Privacy officer for deleting or sharing personal data, takedowns and replies to police, court or government orders and to legal notices
     execute:
       name: Fix, release and update
       description: The team and agents fix and test, release with a rollback plan ready, update the status page and the customer, and track time against the deadline.
@@ -424,7 +424,8 @@ lifecycle:
     - { id: security-lead, name: Security lead (CERT-In contact), approves: "Containment steps, the CERT-In report, breach notices to customers, people and the Data Protection Board, and changes to account admins, owners and two-step login" }
     - { id: product-manager, name: Product manager, approves: "Decides feature requests (plan, park or decline) and any date or promise about new features" }
     - { id: finance-manager, name: Finance manager, approves: "Refunds, credit notes, waivers, service credits and chargeback decisions above ₹10,000" }
-    - { id: privacy-officer, name: Grievance and privacy officer, approves: "Deleting, exporting or correcting a person's data, takedowns and every reply to police, court or government orders; named on the website and app for grievances" }
+    - { id: privacy-officer, name: Grievance and privacy officer, approves: "Deleting, exporting or correcting a person's data, takedowns, and every reply to police, court or government orders and to legal notices; named on the website and app for grievances" }
+    - { id: account-manager, name: Customer success manager, approves: "Signs off replies to customer complaints and escalations, with any service credit the contract gives; feature dates stay with the product manager" }
   # Bare "outage", "site down", "server down" and "smoke" are left out: planned
   # maintenance notices and smoke tests use them. Bare "fire" is left out too:
   # webhooks and events "fire" in everyday software talk.
@@ -465,6 +466,8 @@ lifecycle:
     - caught fire
     - fire broke out
     - fire in the office
+    - on fire
+    - smoke coming
     - burning smell
     - electric shock
     - injured
@@ -555,6 +558,12 @@ lifecycle:
         - personal data leaked
         - data exposed
         - exposed publicly
+        - another company's data
+        - another customer's data
+        - other customers' data
+        - data of another company
+        - data of another customer
+        - visible to other customers
         - leaked
         - ransomware
         - files encrypted
@@ -655,7 +664,6 @@ lifecycle:
         - blank screen
         - white screen
         - 500 error
-        - internal server error
         - exception
         - freezes
         - hanging
@@ -665,8 +673,17 @@ lifecycle:
         - upload failing
         - sync failing
         - webhook not firing
+        - not firing
         - slowness
         - very slow
+        - not loading
+        - data not showing
+        - data missing
+        - missing data
+        - records missing
+        - rate limit
+        - rate limited
+        - too many requests
         - after the update
         - since the update
         - after yesterday's update
@@ -712,6 +729,12 @@ lifecycle:
         - billing
         - billing query
         - wrong bill
+        - wrong invoice
+        - invoice is wrong
+        - in the invoice
+        - in your invoice
+        - wrong gst
+        - gst is wrong
         - gstin
         - wrong gstin
         - refund
@@ -750,6 +773,10 @@ lifecycle:
         - discount
         - waiver
         - pricing
+        - extend the trial
+        - extend our trial
+        - extend my trial
+        - trial extension
         - tds
         - paise wapas
       priority: P3
@@ -862,7 +889,6 @@ lifecycle:
         - missed deadline
         - unprofessional
         - rude
-        - legal notice
         - consumer forum
         - consumer court
         - terminate the contract
@@ -879,6 +905,7 @@ lifecycle:
         - "Facts checked: ticket history, chats, emails, call logs and SLA timers"
         - Written reply saying what we will do and by when
         - Service credit under the contract worked out where the SLA was missed
+        - A threat of consumer court or to end the contract goes to the founder the same day; a legal notice is handled as a legal request
       approval: { required: never }
       signoff: { required: true, role: account-manager }
       workflow: complaint-handling
@@ -909,6 +936,11 @@ lifecycle:
         - cyber cell
         - court order
         - summons
+        - legal notice
+        - advocate notice
+        - lawyer's notice
+        - notice from our advocate
+        - notice from their advocate
         - subpoena
         - notice under section
         - section 94
@@ -933,7 +965,7 @@ lifecycle:
         - key: proof
           label: The signed order, or the person's registered email or phone to verify them
           kind: keywords
-          keywords: [signed notice, signed order, notice attached, order attached, copy of the order, copy of the notice, official email, letterhead, registered email, registered mobile, registered phone, registered number, registered address, otp, from my registered]
+          keywords: [signed notice, signed order, notice attached, order attached, copy of the order, copy of the notice, copy attached, official email, letterhead, registered email, registered mobile, registered phone, registered number, registered address, otp, from my registered]
       required_checks:
         - Identity checked by OTP to the registered email or phone; a police, court or government order must be in writing, signed, name the officer and the law it uses, and be checked by calling the office on its published number
         - Whose data? For data we hold for a business customer, that customer decides; pass the request to them and tell the person
@@ -942,6 +974,7 @@ lifecycle:
         - "Deadlines: the order's own deadline; information orders from an authorised agency within 72 hours; takedowns on a court or government order within 3 hours; nudity, impersonation or morphed images within 2 hours"
         - Grievances acknowledged within 24 hours and resolved within 7 days, and removal requests within 36 hours
         - Interception (section 69) and blocking (section 69A) orders kept confidential
+        - "Legal notice from a customer or their advocate: founder told the same day, and the reply checked by our lawyer before the date in the notice"
         - Privacy officer approves every deletion, export, takedown and reply
       not_eligible:
         - keywords: [my husband's data, my wife's data, my husband's chats, my wife's chats, my husband's messages, my wife's messages, my ex's, my ex husband's, my ex wife's, my girlfriend's, my boyfriend's, someone else's data, another person's data, another user's data, another user's personal]
@@ -966,7 +999,7 @@ lifecycle:
         - add user
         - add a user
         - add new user
-        - as a user
+        - new user
         - remove user
         - remove a user
         - user access
@@ -974,6 +1007,9 @@ lifecycle:
         - read only access
         - reset password
         - forgot password
+        - forgot my password
+        - reset my password
+        - reset link
         - password reset
         - otp not received
         - not getting otp
@@ -1167,11 +1203,11 @@ playbooks:
       3. Share only what the order asks for, only with the officer named, by the deadline in the order. An information order from an authorised government agency under the IT Rules must be answered within 72 hours.
       4. If users can post content on our product: remove content within 3 hours of a court order or government notice, and within 2 hours of a complaint about nudity, intimate images, impersonation or morphed images.
       5. Interception and decryption orders (section 69) and blocking orders (section 69A) are confidential. Do not tell the user or anyone who does not need to act on them.
-      6. Show the grievance officer's name and contact on the website and in the app. Acknowledge grievances within 24 hours, resolve removal requests within 36 hours and other grievances within 7 days.
+      6. Show the grievance officer's name and contact on the website and in the app. Acknowledge grievances within 24 hours, resolve removal requests within 36 hours and other grievances within 7 days. These times changed in February 2026, so check the current rules with your lawyer.
       7. The privacy officer approves every reply. Keep the order, what we shared and when, with the ticket.
   - id: subscription-billing
     title: Refunds, auto-debit and GST invoices
-    source: RBI e-mandate framework for recurring payments (24-hour pre-debit notice; ₹15,000 limit without OTP since December 2023); CGST Act, 2017, sections 31 and 34; CCPA Guidelines for Prevention and Regulation of Dark Patterns, 2023; Consumer Protection (E-Commerce) Rules, 2020
+    source: RBI e-mandate framework for recurring payments (24-hour pre-debit notice; OTP needed above ₹15,000 per charge, RBI circular of 16 June 2022; check the current limit); CGST Act, 2017, sections 31 and 34; CCPA Guidelines for Prevention and Regulation of Dark Patterns, 2023; Consumer Protection (E-Commerce) Rules, 2020
     body: |
       1. Publish the refund policy where people pay. House default: duplicate or wrong charges are always refunded in full; annual plans can be refunded within 30 days of purchase; no part refunds after that.
       2. Auto-debit by card or UPI AutoPay needs the customer's mandate. Send a notice at least 24 hours before each charge, get the customer's OTP for any charge above ₹15,000, and let them cancel the mandate at any time.

@@ -440,6 +440,7 @@ lifecycle:
   roles:
     - { id: engineering-manager, name: Change manager (technical head), approves: "Changes to client systems after checking the plan, rollback, time window and the client's written OK; failover, restarts and rollbacks during an outage by phone; signs off changes after the post-change check" }
     - { id: service-delivery-manager, name: Service delivery manager, approves: "Signs off outages and root-cause reports; second level of the escalation matrix; owns SLA timers and the monthly SLA reports" }
+    - { id: account-manager, name: Account manager, approves: "Any promise of a price, discount or service credit to a client before it is made; complaints and escalations go to the service delivery manager" }
     - { id: security-lead, name: Security lead (CERT-In point of contact), approves: "Containment steps, the CERT-In report and the written notice to the client before they go; signs off security incidents once the threat is removed and the report is filed" }
   # Bare "outage", "down", "server down" and "maintenance" are left out: planned
   # downtime notices use them every week. Bare "fire" and "smoke" are left out
@@ -473,11 +474,15 @@ lifecycle:
     - stolen laptop
     - laptop was stolen
     - server room temperature
-    - server room ac
+    - server room ac stopped
+    - server room ac not working
+    - server room ac failed
     - water in the server room
     - caught fire
     - fire broke out
     - fire in the server room
+    - on fire
+    - smoke coming
     - burning smell
     - sparking
     - electric shock
@@ -597,6 +602,8 @@ lifecycle:
         - suspicious sign in
         - unknown login
         - signed in from
+        - unusual sign in
+        - impossible travel
         - forwards all mail
         - forwarding rule
         - mail forwarding rule
@@ -683,6 +690,12 @@ lifecycle:
         - server slow
         - server is slow
         - server not responding
+        - slow for everyone
+        - slow for all users
+        - erp slow
+        - erp is slow
+        - erp is very slow
+        - tally is slow
         - ping to
         - ping failed
         - ping timeout
@@ -703,6 +716,9 @@ lifecycle:
         - mail bouncing
         - emails bouncing
         - mails are bouncing
+        - mail is bouncing
+        - email is bouncing
+        - emails are bouncing
         - mail bounced
         - mails bounced
         - email bounced
@@ -774,9 +790,37 @@ lifecycle:
       signoff: { required: false }
       workflow: fault-fix
       execution: both
-    - id: device-fault
+    # Reuses the sector's "bug" id: for a support company a bug, error or fault
+    # is a laptop, printer or software problem, so this replaces it.
+    - id: bug
       name: Laptop, printer or user support
       keywords:
+        - bug
+        - glitch
+        - crash
+        - crashes
+        - crashed
+        - crashing
+        - keeps crashing
+        - broken
+        - screen broken
+        - stopped working
+        - doesn't work
+        - does not work
+        - isn't working
+        - not saving
+        - not loading
+        - showing wrong
+        - wrong total
+        - wrong calculation
+        - can't sign in
+        - cannot sign in
+        - unable to sign in
+        - freezes
+        - very slow
+        - blank screen
+        - white screen
+        - kaam nahi kar raha
         - printer not working
         - printer is not
         - printer not
@@ -1013,6 +1057,8 @@ lifecycle:
         - need a quotation
         - send a quotation
         - send the quotation
+        - proforma
+        - proforma invoice
         - purchase
         - purchase order
         - po
@@ -1037,6 +1083,9 @@ lifecycle:
         - new desktop
         - new printer
         - new server
+        - new cctv
+        - cctv installation
+        - install cctv
         - toner
         - cartridge
         - ink
@@ -1234,6 +1283,9 @@ lifecycle:
         - cancel the contract
         - terminate the contract
         - end the contract
+        - cancel the amc
+        - cancel our amc
+        - not renewing the amc
         - third reminder
         - third mail
         - third email
@@ -1265,9 +1317,9 @@ lifecycle:
     - { request: "Monitoring alert: RAID 5 on SRV-DC01 degraded, disk 2 failed at 04:40", category: server-network-fault, priority: P2, approval: false }
     - { request: "Wi-Fi on the third floor drops every few minutes, LAN users are fine", category: server-network-fault, priority: P2, approval: false }
     - { request: CCTV NVR at the Vapi factory gate shows no recording since yesterday, category: server-network-fault, priority: P2, approval: false }
-    - { request: Accounts PC shows a blue screen every time Tally opens, category: device-fault, priority: P3, approval: false }
-    - { request: HR laptop battery drains in an hour and the charger gets very hot, category: device-fault, priority: P3, approval: false }
-    - { request: Please schedule the quarterly preventive maintenance visit for the 18 desktops at our Nashik office, category: device-fault, priority: P3, approval: false }
+    - { request: Accounts PC shows a blue screen every time Tally opens, category: bug, priority: P3, approval: false }
+    - { request: HR laptop battery drains in an hour and the charger gets very hot, category: bug, priority: P3, approval: false }
+    - { request: Please schedule the quarterly preventive maintenance visit for the 18 desktops at our Nashik office, category: bug, priority: P3, approval: false }
     - { request: "Rohit Verma's last working day is 31 October. Please disable his email and VPN that evening and forward his mail to Neha. Approved by Suresh, HR manager", category: user-access, priority: P3, approval: false }
     - { request: "New joinee Kavya starts in accounts on Monday; create her mail ID and give read-only Tally access as approved by the finance head", category: user-access, priority: P3, approval: false }
     - { request: "Please give Arjun the Projects shared folder, his manager Ritu has approved it on mail", category: user-access, priority: P3, approval: false }

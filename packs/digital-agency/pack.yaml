@@ -302,7 +302,7 @@ workflows:
         depends_on: [client-ok]
         instructions: Hand the scheduling or site update to the social media executive or developer by phone with the go-live time, and add the live link to the deliverable.
   - id: change-order
-    name: Scope or price change
+    name: Scope, price or refund change
     description: Compare the request with the signed scope, draft the change order and start only after the client accepts it in writing.
     keywords: [change request, change order, out of scope, extra round, discount, credit note, refund]
     steps:
@@ -477,7 +477,7 @@ lifecycle:
       description: The account manager, the lead and the makers (designers, writers, developers, media buyers or freelancers) are named, hours are budgeted against the estimate, and the deadline and the client's review dates are set.
     approve:
       name: Approval to start
-      description: When the rules ask, the named person approves before work starts (the owner for projects above ₹5 lakh, the account director for scope or price changes and new ad spend above ₹1 lakh, the tech lead for launches and live-site fixes, the security lead for hacked sites), and paid work also needs the client's written go-ahead.
+      description: When the rules ask, the named person approves before work starts (the owner for projects above ₹5 lakh, the account director for scope, price or refund changes and new ad spend above ₹1 lakh, the tech lead for launches and live-site fixes, the security lead for hacked sites), and paid work also needs the client's written go-ahead.
       checks:
         - Client's written go-ahead (signed estimate, PO or email from the named approver) and the advance received for paid work
         - "Amount within the approver's limit: owner above ₹5 lakh, account director for new ad spend above ₹1 lakh"
@@ -547,6 +547,7 @@ lifecycle:
     - caught fire
     - fire broke out
     - fire in the office
+    - burning smell
     - electric shock
     - injured on set
     - injured at the shoot
@@ -742,10 +743,12 @@ lifecycle:
         - udyam
         - delayed payment
         - firc
-        - paid twice
-        - charged twice
-        - double payment
-        - duplicate payment
+        - wrong invoice
+        - invoice is wrong
+        - in the invoice
+        - in your invoice
+        - wrong gst
+        - gst is wrong
       priority: P3
       risk: medium
       department: Accounts
@@ -755,7 +758,7 @@ lifecycle:
         - TDS deducted on the amount before GST at the right rate and showing in our 26AS or AIS
         - Paid within the agreed days; if we are a micro or small enterprise on Udyam, within 45 days at most
         - Reminders polite and logged; stopping work or a legal notice only with the owner's approval
-        - A payment made twice is refunded only to the account that paid, after accounts sees both payments in the bank
+        - A refund or credit note is raised as a scope, price or refund change for the account director
       not_eligible:
         - keywords: [backdate, backdated, back date, back dated, inflate the invoice, inflated invoice, higher amount on the invoice, fake invoice, dummy invoice, bogus invoice, cash without bill, without a bill, kachcha bill, kaccha bill, kacha bill]
           reason: We issue only proper GST tax invoices for work actually done, dated when it was done (CGST Act, 2017, section 31). We can't back-date, inflate or fake an invoice, or take payment without a bill.
@@ -893,7 +896,7 @@ lifecycle:
         - "Facts checked: brief, approvals, emails, timeline and what went live"
         - Wrong live content corrected or taken down at once
         - Fix plan agreed with the client in writing
-        - Any refund, discount or credit note raised as a separate scope or price change
+        - Any refund, discount or credit note raised as a separate scope, price or refund change
         - A legal notice or a threat to end the contract goes to the owner the same day
       approval: { required: never }
       signoff: { required: true, role: account-director }
@@ -1010,6 +1013,8 @@ lifecycle:
         - rebrand
         - logo design
         - new logo
+        - a logo
+        - logo for
         - brand book
         - brand guidelines
         - brand name
@@ -1175,6 +1180,14 @@ lifecycle:
         - update the website
         - update our website
         - update the price list
+        - website update
+        - update on the website
+        - change the price
+        - update the price
+        - change the phone number
+        - update the phone number
+        - update the address
+        - update the content
         - price list
         - upload products
         - monthly report
@@ -1233,7 +1246,7 @@ lifecycle:
       workflow: retainer-task-delivery
       execution: both
     - id: change-request
-      name: Scope or price change
+      name: Scope, price or refund change
       keywords:
         - change request
         - change order
@@ -1274,6 +1287,19 @@ lifecycle:
         - discount on
         - credit note
         - refund
+        - please refund
+        - refund the
+        - refund of
+        - refund our
+        - want a refund
+        - need a refund
+        - asking for a refund
+        - paid twice
+        - charged twice
+        - double payment
+        - duplicate payment
+        - pause the retainer
+        - hold the retainer
         - waive
         - waiver
         - write off
@@ -1290,6 +1316,7 @@ lifecycle:
         - Exact list of changes from the client
         - Change order with cost before GST and new dates
         - "Discounts, credit notes and refunds: reason and original invoice noted"
+        - A payment made twice is refunded only to the account that paid, after accounts sees both payments in the bank
         - Client's written acceptance before the extra work starts
       approval: { required: always, role: account-director }
       signoff: { required: false }
@@ -1304,6 +1331,10 @@ lifecycle:
         - meta ads budget
         - ad spend budget
         - media budget
+        - meta budget
+        - google budget
+        - facebook budget
+        - instagram budget
         - increase the budget
         - increase budget
         - budget increase
@@ -1375,6 +1406,11 @@ lifecycle:
         - ad account suspended
         - ad account restricted
         - ad account blocked
+        - ads account suspended
+        - ads account disabled
+        - account suspended
+        - account disabled
+        - account restricted
         - business manager disabled
         - ads not running
         - ads not showing
@@ -1388,6 +1424,10 @@ lifecycle:
         - leads stopped
         - leads are down
         - no leads
+        - leads not coming
+        - leads are not coming
+        - not getting leads
+        - not getting any leads
         - fewer leads
         - junk leads
         - lead quality
