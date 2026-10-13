@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Case, CaseStageStatus } from '@onehuman/schemas';
-import { caseMatches, dotLabel, dotsFromCase, dotsFromStages, dueWords, GENERIC_STAGE_NAMES, homeBuckets, listScope, showStageSummary, stageNames } from './cases';
+import { approvalHeading, caseMatches, dotLabel, dotsFromCase, dotsFromStages, dueWords, GENERIC_STAGE_NAMES, homeBuckets, listScope, showStageSummary, stageNames, stagePulses } from './case-view';
 
 const base: Case = {
   id: 'c1', workspaceId: 'w1', number: 42, code: 'WO-0042', title: 'Boiler feed pump B vibration', source: 'staff',
@@ -111,5 +111,53 @@ describe('which cases the list loads', () => {
     expect(listScope('waiting')).toBe('open');
     expect(listScope('closed')).toBe('all');
     expect(listScope('')).toBe('all');
+  });
+});
+
+describe('the approval question', () => {
+  const gate = {
+    kind: 'case_gate' as const,
+    stage: 'approve' as const,
+    summary: 'Approve high-risk work permit for JOB-0001 · Hot work at Conveyor 3B',
+    agentName: 'Coordinator',
+  };
+  const hotWork = { code: 'JOB-0001', title: 'Hot work at Conveyor 3B', categoryName: 'High-risk work permit' };
+
+  it('asks about the case in words, and says which stage it came from', () => {
+    expect(approvalHeading(gate, { case: hotWork, stageName: 'Permit & clearance' })).toEqual({
+      kicker: 'JOB-0001 · Hot work at Conveyor 3B',
+      lead: 'Approve',
+      question: 'high-risk work permit?',
+      from: 'From the Permit & clearance stage',
+    });
+    const signoff = approvalHeading({ ...gate, stage: 'close' }, { case: { code: 'TKT-0003', title: 'VPN down', categoryName: 'SLA breach' } });
+    expect([signoff.lead, signoff.question]).toEqual(['Sign off', 'SLA breach?']);
+  });
+
+  it("keeps the approval's own words when the case can't be loaded", () => {
+    expect(approvalHeading(gate, { case: null, stageName: 'Permit & clearance' })).toEqual({
+      kicker: '',
+      lead: '',
+      question: gate.summary,
+      from: 'From the Permit & clearance stage',
+    });
+  });
+
+  it("asks an agent step in its own words, under the agent's name", () => {
+    expect(approvalHeading({ kind: 'action', stage: null, summary: 'Refund ₹12,000 to Asha Menon', agentName: 'Accounts assistant' })).toEqual({
+      kicker: 'Accounts assistant',
+      lead: '',
+      question: 'Refund ₹12,000 to Asha Menon',
+      from: null,
+    });
+  });
+});
+
+describe('the live stage', () => {
+  it('pulses while it works or waits, and keeps still when the phone asks for less motion', () => {
+    expect(stagePulses('live', false)).toBe(true);
+    expect(stagePulses('waiting', false)).toBe(true);
+    expect(stagePulses('done', false)).toBe(false);
+    expect(stagePulses('waiting', true)).toBe(false);
   });
 });
