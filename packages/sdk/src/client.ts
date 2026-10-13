@@ -1,5 +1,16 @@
 import type {
   AgentView,
+  CancelCaseInput,
+  Case,
+  CaseDetail,
+  CaseInfoInput,
+  CreateCaseInput,
+  CreateIntakeKeyInput,
+  CreatedIntakeKey,
+  IntakeCaseInput,
+  IntakeKey,
+  PublicForm,
+  PublicFormInput,
   ApprovalDecisionInput,
   ApprovalRequest,
   AuditEvent,
@@ -100,7 +111,7 @@ export function createClient(options: ClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/$/, '');
   const doFetch = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
     const token = await options.getToken?.();
     const res = await doFetch(`${baseUrl}${path}`, {
       method,
@@ -108,6 +119,7 @@ export function createClient(options: ClientOptions) {
         Accept: 'application/json',
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
         ...(token && { Authorization: `Bearer ${token}` }),
+        ...headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -178,6 +190,30 @@ export function createClient(options: ClientOptions) {
       get: (id: string) => get<GoalDetail>(`/goals/${id}`),
       create: (input: CreateGoalInput) => post<Goal>('/goals', input),
       decidePlan: (id: string, input: PlanDecisionInput) => post<Goal>(`/goals/${id}/plan-decision`, input),
+    },
+    cases: {
+      /** Open cases (the default) or every case, newest first. */
+      list: (status: 'open' | 'all' = 'open') => get<Case[]>(`/cases${qs({ status })}`),
+      get: (id: string) => get<CaseDetail>(`/cases/${id}`),
+      create: (input: CreateCaseInput) => post<Case>('/cases', input),
+      /** Give the details review asked for; review runs again. */
+      addInfo: (id: string, input: CaseInfoInput) => post<Case>(`/cases/${id}/info`, input),
+      cancel: (id: string, input: CancelCaseInput = {}) => post<Case>(`/cases/${id}/cancel`, input),
+    },
+    intakeKeys: {
+      list: () => get<IntakeKey[]>('/intake-keys'),
+      create: (input: CreateIntakeKeyInput) => post<CreatedIntakeKey>('/intake-keys', input),
+      revoke: (id: string) => post<IntakeKey>(`/intake-keys/${id}/revoke`),
+    },
+    intake: {
+      /** Public: what the request form shows. */
+      form: (tenantId: string, key: string) => get<PublicForm>(`/intake/${tenantId}/forms/${encodeURIComponent(key)}`),
+      /** Public: a customer sends a request through the form. */
+      submitForm: (tenantId: string, key: string, input: PublicFormInput) =>
+        post<{ code: string }>(`/intake/${tenantId}/forms/${encodeURIComponent(key)}`, input),
+      /** Systems and partners, authenticated by an intake API key instead of a session. */
+      submit: (tenantId: string, key: string, input: IntakeCaseInput) =>
+        request<{ caseId: string; code: string; duplicate: boolean }>('POST', `/intake/${tenantId}/cases`, input, { Authorization: `Bearer ${key}` }),
     },
     approvals: {
       list: (status: 'pending' | 'all' = 'pending') => get<ApprovalRequest[]>(`/approvals${qs({ status })}`),

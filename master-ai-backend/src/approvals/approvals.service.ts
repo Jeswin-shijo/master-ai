@@ -95,13 +95,13 @@ export class ApprovalsService {
         .returning();
 
       if (input.decision === 'rejected') {
-        await tx.update(toolCalls).set({ status: 'rejected' }).where(eq(toolCalls.id, approval.toolCallId));
-        await addFeedback(tx, approval.taskId, {
+        await tx.update(toolCalls).set({ status: 'rejected' }).where(eq(toolCalls.id, approval.toolCallId!));
+        await addFeedback(tx, approval.taskId!, {
           source: 'approval',
           text: `The owner rejected "${approval.summary}"${input.notes ? ` with this note: "${input.notes}"` : ''}. Revise your approach.`,
         });
       } else if (input.decision === 'edited') {
-        await addFeedback(tx, approval.taskId, {
+        await addFeedback(tx, approval.taskId!, {
           source: 'approval',
           text: `The owner edited "${approval.summary}" before approving${input.notes ? `: "${input.notes}"` : ''}. The edited version was used.`,
         });
@@ -127,7 +127,7 @@ export class ApprovalsService {
     });
 
     try {
-      await this.temporal.deliverApproval(decided.taskId, { approvalId, decision: input.decision as 'approved' | 'rejected' | 'edited' });
+      await this.temporal.deliverApproval(decided.taskId!, { approvalId, decision: input.decision as 'approved' | 'rejected' | 'edited' });
     } catch (err) {
       // The decision is saved; the workflow picks it up when signalled again.
       this.logger.error(`Could not signal task ${decided.taskId}: ${(err as Error).message}`);

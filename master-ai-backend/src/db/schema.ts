@@ -2,12 +2,14 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   customType,
   index,
   integer,
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -15,6 +17,16 @@ import {
   vector,
 } from 'drizzle-orm/pg-core';
 import type {
+  CaseAssignee,
+  CaseFile,
+  CaseRisk,
+  CaseSource,
+  CaseStageStatus,
+  CaseStatus,
+  PriorityId,
+  Requester,
+  SectorId,
+  StageKey,
   CallOutcome,
   CallStage,
   CallStatus,
@@ -59,6 +71,9 @@ export const tenants = pgTable('tenants', {
   id: id(),
   name: text('name').notNull(),
   industry: text('industry').notNull(),
+  sector: text('sector').$type<SectorId>(),
+  /** Ready-made organization type (pack id); null when the owner typed their own. */
+  orgType: text('org_type'),
   status: text('status', { enum: ['active', 'paused'] }).notNull().default('active'),
   onboarded: boolean('onboarded').notNull().default(false),
   settings: jsonb('settings').$type<TenantSettings>().notNull(),
@@ -75,6 +90,8 @@ export const principals = pgTable(
     userId: uuid('user_id').references(() => users.id),
     displayName: text('display_name').notNull(),
     role: text('role').notNull(),
+    /** Lifecycle roles this person approves for, e.g. safety-officer (see the pack's lifecycle.roles). */
+    approverRoles: text('approver_roles').array().notNull().default(sql`'{}'::text[]`),
     status: text('status', { enum: ['active', 'paused', 'retired'] }).notNull().default('active'),
     createdAt: createdAt(),
   },
@@ -154,12 +171,111 @@ export const policies = pgTable(
   (t) => [uniqueIndex('policies_workspace_version_idx').on(t.workspaceId, t.version)],
 );
 
+/** A request moving through the 8 stages. The case file holds each stage's findings. */
+export const cases = pgTable(
+  'cases',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    /** As people see it, e.g. WO-0042 (prefix from the lifecycle at creation). */
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    source: text('source').$type<CaseSource>().notNull(),
+    requester: jsonb('requester').$type<Requester>().notNull(),
+    /** A system's or partner's own id for the request; repeats return the same case. */
+    externalRef: text('external_ref'),
+    category: text('category'),
+    categoryName: text('category_name'),
+    priority: text('priority').$type<PriorityId>(),
+    risk: text('risk').$type<CaseRisk>(),
+    department: text('department'),
+    amountInr: numeric('amount_inr', { precision: 14, scale: 2, mode: 'number' }),
+    assignee: jsonb('assignee').$type<CaseAssignee>(),
+    respondBy: timestamp('respond_by', { withTimezone: true }),
+    resolveBy: timestamp('resolve_by', { withTimezone: true }),
+    stage: text('stage').$type<StageKey>().notNull().default('request'),
+    status: text('status').$type<CaseStatus>().notNull().default('open'),
+    outcome: text('outcome'),
+    file: jsonb('file').$type<CaseFile>().notNull().default({}),
+    /** The current stage-6 goal. */
+    goalId: uuid('goal_id'),
+    workflowId: text('workflow_id'),
+    createdBy: uuid('created_by'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('cases_workspace_number_idx').on(t.workspaceId, t.number),
+    uniqueIndex('cases_external_ref_idx').on(t.tenantId, t.externalRef).where(sql`${t.externalRef} is not null`),
+    index('cases_tenant_status_idx').on(t.tenantId, t.status, t.createdAt),
+    index('cases_category_idx').on(t.tenantId, t.category, t.createdAt),
+  ],
+);
+
+/** One row per stage attempt: what it took, what it produced and a sentence for people. */
+export const caseStages = pgTable(
+  'case_stages',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    caseId: uuid('case_id').notNull().references(() => cases.id, { onDelete: 'cascade' }),
+    stage: text('stage').$type<StageKey>().notNull(),
+    attempt: integer('attempt').notNull().default(1),
+    /** The stage's name for this organization at the time. */
+    name: text('name').notNull(),
+    status: text('status').$type<CaseStageStatus>().notNull().default('pending'),
+    input: jsonb('input').$type<Record<string, unknown>>(),
+    output: jsonb('output').$type<Record<string, unknown>>(),
+    summary: text('summary'),
+    /** Who did it: "Case coordinator", "Case coordinator (rules)", a person's name. */
+    actor: text('actor'),
+    workflowId: text('workflow_id'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('case_stages_attempt_idx').on(t.caseId, t.stage, t.attempt)],
+);
+
+/** Per-workspace sequences (case numbers). Allocated with one upsert … returning. */
+export const workspaceCounters = pgTable(
+  'workspace_counters',
+  {
+    tenantId: tenantId(),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['case'] }).notNull(),
+    value: integer('value').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.kind] })],
+);
+
+/** Keys for the public request form and for systems and partners. Only the hash is kept. */
+export const intakeKeys = pgTable('intake_keys', {
+  id: id(),
+  tenantId: tenantId(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  kind: text('kind', { enum: ['form', 'api'] }).notNull(),
+  source: text('source', { enum: ['customer', 'system', 'partner'] }).notNull(),
+  label: text('label').notNull(),
+  keyHash: text('key_hash').notNull().unique(),
+  hint: text('hint').notNull(),
+  createdBy: uuid('created_by'),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
 export const goals = pgTable(
   'goals',
   {
     id: id(),
     tenantId: tenantId(),
     workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Set when the goal is the work of a case (stage 6). */
+    caseId: uuid('case_id').references(() => cases.id, { onDelete: 'set null' }),
     createdBy: uuid('created_by'),
     text: text('text').notNull(),
     origin: text('origin', { enum: ['owner', 'inbound'] }).notNull().default('owner'),
@@ -235,9 +351,13 @@ export const approvalRequests = pgTable(
   {
     id: id(),
     tenantId: tenantId(),
-    goalId: uuid('goal_id').notNull().references(() => goals.id, { onDelete: 'cascade' }),
-    taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-    toolCallId: uuid('tool_call_id').notNull().unique().references(() => toolCalls.id, { onDelete: 'cascade' }),
+    /** `action`: an agent's step in a goal. `case_gate`: a case's approval or sign-off. */
+    kind: text('kind', { enum: ['action', 'case_gate'] }).notNull().default('action'),
+    goalId: uuid('goal_id').references(() => goals.id, { onDelete: 'cascade' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+    toolCallId: uuid('tool_call_id').unique().references(() => toolCalls.id, { onDelete: 'cascade' }),
+    caseId: uuid('case_id').references(() => cases.id, { onDelete: 'cascade' }),
+    stage: text('stage').$type<StageKey>(),
     agentId: uuid('agent_id').notNull().references(() => agents.id),
     tool: text('tool').notNull(),
     args: jsonb('args').$type<Record<string, unknown>>().notNull(),
@@ -260,7 +380,14 @@ export const approvalRequests = pgTable(
     signedAt: timestamp('signed_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index('approvals_status_idx').on(t.tenantId, t.status, t.createdAt)],
+  (t) => [
+    index('approvals_status_idx').on(t.tenantId, t.status, t.createdAt),
+    index('approvals_case_idx').on(t.caseId),
+    check(
+      'approval_kind_refs',
+      sql`(${t.kind} = 'action' and ${t.goalId} is not null and ${t.taskId} is not null and ${t.toolCallId} is not null) or (${t.kind} = 'case_gate' and ${t.caseId} is not null and ${t.stage} is not null)`,
+    ),
+  ],
 );
 
 export const deviceKeys = pgTable('device_keys', {
@@ -310,13 +437,21 @@ export const outbox = pgTable('outbox', {
   createdAt: createdAt(),
 });
 
-export const knowledgeDocs = pgTable('knowledge_docs', {
-  id: id(),
-  tenantId: tenantId(),
-  title: text('title').notNull(),
-  content: text('content').notNull(),
-  createdAt: createdAt(),
-});
+export const knowledgeDocs = pgTable(
+  'knowledge_docs',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    title: text('title').notNull(),
+    content: text('content').notNull(),
+    /** `pack`: a playbook from the industry pack. */
+    source: text('source', { enum: ['owner', 'pack'] }).notNull().default('owner'),
+    /** The playbook id, so a pack update never loads it twice. */
+    ref: text('ref'),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('knowledge_docs_ref_idx').on(t.tenantId, t.ref).where(sql`${t.ref} is not null`)],
+);
 
 export const knowledgeChunks = pgTable(
   'knowledge_chunks',
@@ -401,6 +536,8 @@ export const staff = pgTable(
     workingHours: jsonb('working_hours').$type<WorkingHours>().notNull(),
     language: text('language', { enum: ['en'] }).notNull().default('en'),
     status: text('status', { enum: ['active', 'inactive'] }).notNull().default('active'),
+    /** Set when this person also has a login (approves in the app as well as taking calls). */
+    principalId: uuid('principal_id').references(() => principals.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
   (t) => [index('staff_tenant_idx').on(t.tenantId)],

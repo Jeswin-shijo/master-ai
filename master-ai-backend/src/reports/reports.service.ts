@@ -125,6 +125,7 @@ export class ReportsService {
       const reports = await this.reportsFor(tx, goalRows);
       const totals = {
         goals: reports.length,
+        cases: 0,
         finished: reports.filter((r) => FINISHED.has(r.status)).length,
         needYou: reports.filter((r) => r.attention.length > 0 || r.pending.some((p) => p.startsWith('Waiting for your approval'))).length,
         actions: reports.reduce((n, r) => n + r.counts.actions, 0),
@@ -132,7 +133,7 @@ export class ReportsService {
         calls: reports.reduce((n, r) => n + r.counts.calls, 0),
         costInr: Math.round(reports.reduce((n, r) => n + r.costInr, 0) * 100) / 100,
       };
-      return { period, from: from?.toISOString() ?? null, to: now.toISOString(), totals, goals: reports };
+      return { period, from: from?.toISOString() ?? null, to: now.toISOString(), totals, goals: reports, cases: [] };
     });
   }
 

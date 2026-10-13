@@ -56,6 +56,15 @@ export const AUDIT_EVENT_TYPES = [
   'routine.run_finished',
   'checkin.reported',
   'checkin.missed',
+  'case.created',
+  'case.stage_started',
+  'case.stage_completed',
+  'case.needs_info',
+  'case.info_added',
+  'case.closed',
+  'case.cancelled',
+  'intake_key.created',
+  'intake_key.revoked',
 ] as const;
 
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
@@ -133,6 +142,24 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
     case 'workspace.paused':
     case 'tenant.paused':
       return `Kill switch: ${type.split('.')[0]} paused`;
+    case 'case.created':
+      return `New ${String(p.label ?? 'case').toLowerCase()} ${p.code ?? ''}: ${p.title ?? ''}`;
+    case 'case.stage_started':
+      return `${p.code ?? 'Case'} · ${p.stageName ?? 'stage'} started`;
+    case 'case.stage_completed':
+      return `${p.code ?? 'Case'} · ${p.stageName ?? 'stage'}${p.summary ? `: ${p.summary}` : ' done'}`;
+    case 'case.needs_info':
+      return `${p.code ?? 'Case'} needs more details: ${p.missing ?? ''}`;
+    case 'case.info_added':
+      return `${p.code ?? 'Case'}: more details added`;
+    case 'case.closed':
+      return `${p.code ?? 'Case'} ${String(p.status ?? 'closed').replace(/_/g, ' ')}${p.outcome ? `: ${p.outcome}` : ''}`;
+    case 'case.cancelled':
+      return `${p.code ?? 'Case'} cancelled${p.reason ? `: ${p.reason}` : ''}`;
+    case 'intake_key.created':
+      return `New ${p.kind === 'form' ? 'request form link' : 'intake key'}: ${p.label ?? ''}`;
+    case 'intake_key.revoked':
+      return `Intake key revoked: ${p.label ?? ''}`;
     default:
       return type.replace('.', ' ').replace(/_/g, ' ');
   }

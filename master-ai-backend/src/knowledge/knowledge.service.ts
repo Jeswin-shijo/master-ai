@@ -35,7 +35,7 @@ export class KnowledgeService {
         refId: doc!.id,
         payload: { title: input.title, chunks: chunks.length },
       });
-      return { id: doc!.id, title: doc!.title, chunks: chunks.length, createdAt: doc!.createdAt.toISOString() };
+      return { id: doc!.id, title: doc!.title, chunks: chunks.length, source: doc!.source, createdAt: doc!.createdAt.toISOString() };
     });
   }
 
@@ -45,6 +45,7 @@ export class KnowledgeService {
         .select({
           id: knowledgeDocs.id,
           title: knowledgeDocs.title,
+          source: knowledgeDocs.source,
           createdAt: knowledgeDocs.createdAt,
           chunks: sql<number>`(select count(*)::int from ${knowledgeChunks} where ${knowledgeChunks.docId} = ${knowledgeDocs.id})`,
         })

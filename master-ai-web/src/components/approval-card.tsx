@@ -33,7 +33,7 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['approvals'] });
-      void queryClient.invalidateQueries({ queryKey: ['goal', approval.goalId] });
+      if (approval.goalId) void queryClient.invalidateQueries({ queryKey: ['goal', approval.goalId] });
     },
   });
 
@@ -133,9 +133,11 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
               <Button variant="success" onClick={() => decide.mutate('approved')} loading={decide.isPending && decide.variables === 'approved'}>
                 <Check /> Approve
               </Button>
-              <Button variant="secondary" onClick={() => setMode('edit')}>
-                <PencilLine /> Edit
-              </Button>
+              {approval.kind === 'action' && (
+                <Button variant="secondary" onClick={() => setMode('edit')}>
+                  <PencilLine /> Edit
+                </Button>
+              )}
               <Button variant="ghost" className="text-danger" onClick={() => setMode('reject')}>
                 <X /> Reject
               </Button>
@@ -160,7 +162,7 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
           <span className="ml-auto inline-flex items-center gap-1 text-xs text-fg-muted">
             <Clock className="size-3.5" aria-hidden /> expires {new Date(approval.expiresAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
           </span>
-          {compact && (
+          {compact && approval.goalId && (
             <Link to={`/goals/${approval.goalId}`} className="text-xs text-primary hover:underline">
               View goal
             </Link>

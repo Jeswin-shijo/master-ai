@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AgentClearanceSchema } from './autonomy';
 import { BudgetsSchema, RoutineQuestionSchema, ToolNameSchema } from './pack';
+import { SectorIdSchema } from './lifecycle';
 
 /** Request bodies. The backend validates with these; the SDK sends them. */
 
@@ -9,8 +10,12 @@ export const SignupInputSchema = z.object({
   ownerName: z.string().trim().min(1).max(120),
   email: z.email().transform((e) => e.toLowerCase()),
   password: z.string().min(8).max(200),
-  /** Free text: "travel agency", "dental clinic in Kochi", "coaching institute"... */
-  industry: z.string().trim().min(2).max(200),
+  /** The sector picked on the first signup screen. */
+  sector: SectorIdSchema,
+  /** A ready-made organization type (its pack id), or the owner's own words for "Something else". */
+  orgType: z.string().trim().min(2).max(200),
+  /** The owner's words about the business. Defaults to the organization type's name. */
+  industry: z.string().trim().min(2).max(200).optional(),
 });
 export type SignupInput = z.input<typeof SignupInputSchema>;
 
@@ -130,6 +135,7 @@ export const TenantSettingsInputSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
   redactPii: z.boolean().optional(),
+  needsInfoDays: z.number().int().min(1).max(60).optional(),
   calls: z.lazy(() => CallSettingsInputSchema).optional(),
 });
 export type TenantSettingsInput = z.input<typeof TenantSettingsInputSchema>;
@@ -210,3 +216,64 @@ export const CheckinInputSchema = z.object({
   values: z.record(z.string(), z.union([z.string().max(2000), z.number(), z.boolean(), z.null()])),
 });
 export type CheckinInput = z.input<typeof CheckinInputSchema>;
+
+export const RequesterInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  phone: z.string().trim().min(6).max(40).optional(),
+  email: z.email().optional(),
+});
+export type RequesterInput = z.input<typeof RequesterInputSchema>;
+
+const CaseTextSchema = z.string().trim().min(3).max(4000);
+const AmountSchema = z.number().nonnegative().max(1e12);
+
+/** "New request" in the apps. */
+export const CreateCaseInputSchema = z.object({
+  text: CaseTextSchema,
+  title: z.string().trim().min(1).max(120).optional(),
+  workspaceId: z.uuid().optional(),
+  /** Who the request is for, when it isn't the person typing it (a walk-in customer, a caller). */
+  requester: RequesterInputSchema.optional(),
+  amountInr: AmountSchema.optional(),
+  /** Case type chosen up front, e.g. from the Workflows gallery. */
+  category: z.string().regex(/^[a-z][a-z0-9-]*$/).optional(),
+});
+export type CreateCaseInput = z.input<typeof CreateCaseInputSchema>;
+
+export const CaseInfoInputSchema = z.object({ text: z.string().trim().min(1).max(2000) });
+export type CaseInfoInput = z.input<typeof CaseInfoInputSchema>;
+
+export const CancelCaseInputSchema = z.object({ reason: z.string().trim().max(500).optional() });
+export type CancelCaseInput = z.input<typeof CancelCaseInputSchema>;
+
+/** Systems and partners: `POST /intake/:tenantId/cases` with an intake API key. */
+export const IntakeCaseInputSchema = z.object({
+  text: CaseTextSchema,
+  title: z.string().trim().min(1).max(120).optional(),
+  requester: RequesterInputSchema,
+  /** Their own id for the event. A repeat with the same ref returns the same case. */
+  externalRef: z.string().trim().min(1).max(200).optional(),
+  amountInr: AmountSchema.optional(),
+});
+export type IntakeCaseInput = z.input<typeof IntakeCaseInputSchema>;
+
+/** Customers: the public request form. */
+export const PublicFormInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    phone: z.string().trim().min(6).max(40).optional(),
+    email: z.email().optional(),
+    text: CaseTextSchema,
+  })
+  .refine((f) => !!f.phone || !!f.email, 'Give a phone number or an email so we can reach you');
+export type PublicFormInput = z.input<typeof PublicFormInputSchema>;
+
+export const CreateIntakeKeyInputSchema = z
+  .object({
+    kind: z.enum(['form', 'api']),
+    label: z.string().trim().min(1).max(80),
+    /** API keys only: what kind of sender this is. Forms are always customers. */
+    source: z.enum(['system', 'partner']).optional(),
+  })
+  .refine((k) => k.kind === 'form' || !!k.source, 'An API key needs a source: system or partner');
+export type CreateIntakeKeyInput = z.input<typeof CreateIntakeKeyInputSchema>;

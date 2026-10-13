@@ -257,7 +257,7 @@ export class TaskLifecycleService {
         .where(and(eq(approvalRequests.id, approvalId), eq(approvalRequests.status, 'pending')))
         .returning();
       if (!approval) return;
-      await tx.update(toolCalls).set({ status: 'expired' }).where(eq(toolCalls.id, approval.toolCallId));
+      await tx.update(toolCalls).set({ status: 'expired' }).where(eq(toolCalls.id, approval.toolCallId!));
       await this.audit.append(tx, tenantId, {
         type: 'approval.expired',
         actor: SYSTEM,

@@ -8,6 +8,7 @@
  * uncurated industry. Run: pnpm smoke  (API_URL defaults to localhost:3000)
  */
 import { randomBytes } from 'node:crypto';
+import type { SectorId } from '@onehuman/schemas';
 import { ApiError, connectRealtime, createClient, createDeviceKey, signApproval, type ApiClient } from '@onehuman/sdk';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3000';
@@ -26,11 +27,11 @@ async function waitFor<T>(what: string, fn: () => Promise<T | null | undefined |
   }
 }
 
-async function onboard(industry: string, companyName: string) {
+async function onboard(sector: SectorId, orgType: string, industry: string, companyName: string) {
   let token: string | null = null;
   const api = createClient({ baseUrl: API_URL, getToken: () => token });
   const email = `owner+${randomBytes(4).toString('hex')}@example.com`;
-  const auth = await api.auth.signup({ companyName, ownerName: 'Asha Owner', email, password: 'correct horse battery', industry });
+  const auth = await api.auth.signup({ companyName, ownerName: 'Asha Owner', email, password: 'correct horse battery', sector, orgType, industry });
   token = auth.token;
   const draft = await api.onboarding.preview();
   const ws = await api.onboarding.install({ draftId: draft.id, sampleData: true });
@@ -48,7 +49,7 @@ async function main() {
   log('API healthy', JSON.stringify(health));
 
   // 1. Curated industry: the owner's text matches the travel-agency pack.
-  const travel = await onboard('Tours and travels agency in Kochi', 'Kerala Trails');
+  const travel = await onboard('trade-logistics-tourism', 'travel-agency', 'Tours and travels agency in Kochi', 'Kerala Trails');
   log('Signed up + onboarded', `${travel.draft.generator}: ${travel.draft.rationale}`);
   log('Workspace installed', `${travel.ws.pack.name} v${travel.ws.pack.version} (${travel.ws.pack.lineage.join(' → ')}), ${travel.ws.pack.agents.length} agents`);
 
@@ -157,7 +158,7 @@ async function main() {
   await api.routines.update(checkin.id, { status: 'paused' });
 
   // 5. An industry with no curated pack is composed/generated and adapted.
-  const clinic = await onboard('Dental clinic in Kochi', 'Smile Dental');
+  const clinic = await onboard('public-services', 'Dental clinic in Kochi', 'Dental clinic in Kochi', 'Smile Dental');
   const labels = clinic.ws.pack.entities.map((e) => e.label).join(', ');
   log('Generated pack for dental clinic', `${clinic.draft.generator}: ${clinic.ws.pack.name} | entities: ${labels}`);
 

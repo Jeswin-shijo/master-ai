@@ -1,4 +1,6 @@
 import type { AgentClearance, AutonomyLevel, DataClass, ModelTier } from './autonomy';
+import type { CaseFile, Requester } from './case';
+import type { CaseLabel, CaseRisk, CaseSource, PriorityId, SectorId, StageKey } from './lifecycle';
 import type { PackAgent, ResolvedPack, RoutineQuestion } from './pack';
 
 /** Response shapes returned by the API. Dates are ISO strings on the wire. */
@@ -26,6 +28,10 @@ export interface TenantSummary {
   id: string;
   name: string;
   industry: string;
+  /** Chosen at signup; null for companies created before sectors existed. */
+  sector: SectorId | null;
+  /** The ready-made organization type (its pack id), or null when the owner typed their own. */
+  orgType: string | null;
   status: RunStatus;
   onboarded: boolean;
   settings: TenantSettings;
@@ -38,6 +44,8 @@ export interface TenantSettings {
   riskBands: { level1Below: number; level2Below: number; level3Below: number };
   /** Hours an approval waits before it expires and the task escalates. */
   approvalTtlHours: number;
+  /** Days a case waits for missing details before it is cancelled. */
+  needsInfoDays: number;
   calls: CallSettings;
 }
 
@@ -253,17 +261,24 @@ export interface WorkReport {
   period: ReportPeriod;
   from: string | null;
   to: string;
-  totals: { goals: number; finished: number; needYou: number; actions: number; messages: number; calls: number; costInr: number };
+  totals: { goals: number; cases: number; finished: number; needYou: number; actions: number; messages: number; calls: number; costInr: number };
   goals: GoalReport[];
+  cases: CaseReport[];
 }
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'edited' | 'expired';
 
+export type ApprovalKind = 'action' | 'case_gate';
+
 export interface ApprovalRequest {
   id: string;
-  goalId: string;
-  taskId: string;
-  toolCallId: string;
+  /** `action`: an agent's step inside a goal. `case_gate`: a case's approval (stage 5) or sign-off (stage 7). */
+  kind: ApprovalKind;
+  goalId: string | null;
+  taskId: string | null;
+  toolCallId: string | null;
+  caseId: string | null;
+  stage: StageKey | null;
   agentId: string;
   agentName: string;
   tool: string;
@@ -321,6 +336,7 @@ export interface KnowledgeDoc {
   id: string;
   title: string;
   chunks: number;
+  source: 'owner' | 'pack';
   createdAt: string;
 }
 
@@ -545,4 +561,120 @@ export interface RoutineDay {
   summary: RoutineDaySummary;
   /** Earlier days, newest first. */
   history: RoutineDaySummary[];
+}
+
+export type CaseStatus =
+  | 'open'
+  | 'needs_info'
+  | 'waiting_approval'
+  | 'in_progress'
+  | 'waiting_signoff'
+  | 'closed'
+  | 'rejected'
+  | 'cancelled'
+  | 'escalated';
+
+export type CaseStageStatus = 'pending' | 'running' | 'needs_info' | 'waiting_approval' | 'done' | 'skipped' | 'failed';
+
+export interface CaseAssignee {
+  staffId?: string;
+  name: string;
+  title?: string;
+}
+
+/** A request moving through the 8 stages. */
+export interface Case {
+  id: string;
+  workspaceId: string;
+  number: number;
+  /** As people see it, e.g. WO-0042. */
+  code: string;
+  title: string;
+  source: CaseSource;
+  requester: Requester;
+  category: string | null;
+  categoryName: string | null;
+  priority: PriorityId | null;
+  risk: CaseRisk | null;
+  department: string | null;
+  amountInr: number | null;
+  assignee: CaseAssignee | null;
+  respondBy: string | null;
+  resolveBy: string | null;
+  stage: StageKey;
+  status: CaseStatus;
+  /** One plain sentence once the case ends. */
+  outcome: string | null;
+  goalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+}
+
+/** One attempt at one stage. */
+export interface CaseStage {
+  stage: StageKey;
+  attempt: number;
+  /** As the organization names it, e.g. "Permit & Isolation Approval". */
+  name: string;
+  status: CaseStageStatus;
+  /** One plain sentence for people. */
+  summary: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+/** What a case achieved, in words a client understands. */
+export interface CaseReport {
+  caseId: string;
+  code: string;
+  title: string;
+  status: CaseStatus;
+  outcome: string | null;
+  /** The stage-8 report, or a line saying where the case is. */
+  text: string;
+  slaMet: boolean | null;
+  recurring: { count: number; note: string } | null;
+  stages: { stage: StageKey; name: string; status: CaseStageStatus; minutes: number | null; summary: string | null }[];
+  /** What the stage-6 work did. */
+  work: GoalReport | null;
+  createdAt: string;
+  closedAt: string | null;
+}
+
+export interface CaseDetail {
+  case: Case;
+  /** This organization's word for a case, e.g. Work order / Work orders / WO. */
+  label: CaseLabel;
+  /** Each stage's findings. The apps show them in words, never as JSON. */
+  file: CaseFile;
+  stages: CaseStage[];
+  approvals: ApprovalRequest[];
+  report: CaseReport;
+}
+
+export interface IntakeKey {
+  id: string;
+  kind: 'form' | 'api';
+  source: 'customer' | 'system' | 'partner';
+  label: string;
+  /** The first characters of the key, to tell keys apart. */
+  hint: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+/** Returned once, when the key is made. */
+export interface CreatedIntakeKey extends IntakeKey {
+  key: string;
+  /** Form keys: the public form's path, `/r/<tenantId>/<key>`. */
+  formPath: string | null;
+}
+
+/** What the public request form shows above its fields. */
+export interface PublicForm {
+  companyName: string;
+  /** e.g. "Service request". */
+  caseLabel: string;
 }

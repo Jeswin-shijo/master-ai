@@ -21,6 +21,10 @@ export const RequestPartSchema = z.object({
   receivedAt: z.string(),
   /** The requester's own words. Untrusted for customer, system and partner sources. */
   text: z.string().min(1),
+  /** Amount typed into a form or sent by a system, in rupees. Wins over amounts read from the text. */
+  amountInr: z.number().nonnegative().optional(),
+  /** Case type chosen when the request was made (a trusted person starting a workflow). */
+  presetCategory: z.string().optional(),
 });
 export type RequestPart = z.infer<typeof RequestPartSchema>;
 

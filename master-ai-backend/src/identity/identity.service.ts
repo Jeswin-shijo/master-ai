@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { ORG_TYPES } from '@onehuman/schemas';
 import type {
   AuthResponse,
   DeviceKey,
@@ -39,9 +40,11 @@ export class IdentityService {
         .insert(users)
         .values({ email: input.email, name: input.ownerName, passwordHash: hashPassword(input.password) })
         .returning();
+      const ready = ORG_TYPES.find((t) => t.id === input.orgType && t.sector === input.sector);
+      const industry = input.industry ?? (ready ? ready.name : input.orgType);
       const [tenant] = await tx
         .insert(tenants)
-        .values({ id: tenantId, name: input.companyName, industry: input.industry, settings: DEFAULT_TENANT_SETTINGS })
+        .values({ id: tenantId, name: input.companyName, industry, sector: input.sector, orgType: ready?.id ?? null, settings: DEFAULT_TENANT_SETTINGS })
         .returning();
       const [owner] = await tx
         .insert(principals)
@@ -50,7 +53,7 @@ export class IdentityService {
       await this.audit.append(tx, tenantId, {
         type: 'tenant.created',
         actor: { id: owner!.id, kind: 'human' },
-        payload: { name: input.companyName, industry: input.industry },
+        payload: { name: input.companyName, industry, sector: input.sector, orgType: ready?.id ?? null },
       });
       const session: Session = { userId: user!.id, principalId: owner!.id, tenantId, role: 'owner' };
       return {

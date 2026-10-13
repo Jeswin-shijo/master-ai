@@ -1,5 +1,7 @@
 import type {
   ApprovalRequest,
+  Case,
+  CaseStage,
   Goal,
   GoalStatus,
   PackDraft,
@@ -13,6 +15,8 @@ import type {
 } from '@onehuman/schemas';
 import type {
   approvalRequests,
+  cases,
+  caseStages,
   goals,
   packDrafts,
   tasks,
@@ -25,6 +29,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   redactPii: true,
   riskBands: { level1Below: 15, level2Below: 35, level3Below: 75 },
   approvalTtlHours: 72,
+  needsInfoDays: 7,
   calls: { provider: 'simulator', simulatorMode: 'interactive', fastSchedule: true, maxAttempts: 3, retryMinutes: 15 },
 };
 
@@ -33,6 +38,8 @@ export function toTenant(t: typeof tenants.$inferSelect): TenantSummary {
     id: t.id,
     name: t.name,
     industry: t.industry,
+    sector: t.sector ?? null,
+    orgType: t.orgType ?? null,
     status: t.status,
     onboarded: t.onboarded,
     settings: { ...DEFAULT_TENANT_SETTINGS, ...t.settings, calls: { ...DEFAULT_TENANT_SETTINGS.calls, ...t.settings.calls } },
@@ -122,9 +129,12 @@ export function toToolCall(c: typeof toolCalls.$inferSelect): ToolCall {
 export function toApproval(a: typeof approvalRequests.$inferSelect, agentName: string): ApprovalRequest {
   return {
     id: a.id,
+    kind: a.kind,
     goalId: a.goalId,
     taskId: a.taskId,
     toolCallId: a.toolCallId,
+    caseId: a.caseId,
+    stage: a.stage,
     agentId: a.agentId,
     agentName,
     tool: a.tool,
@@ -187,4 +197,46 @@ export function describeAction(tool: string, args: Record<string, unknown>, targ
 
 export function truncate(s: string, n: number): string {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
+const isoOrNull = (d: Date | null) => d?.toISOString() ?? null;
+
+export function toCase(c: typeof cases.$inferSelect): Case {
+  return {
+    id: c.id,
+    workspaceId: c.workspaceId,
+    number: c.number,
+    code: c.code,
+    title: c.title,
+    source: c.source,
+    requester: c.requester,
+    category: c.category,
+    categoryName: c.categoryName,
+    priority: c.priority,
+    risk: c.risk,
+    department: c.department,
+    amountInr: c.amountInr,
+    assignee: c.assignee,
+    respondBy: isoOrNull(c.respondBy),
+    resolveBy: isoOrNull(c.resolveBy),
+    stage: c.stage,
+    status: c.status,
+    outcome: c.outcome,
+    goalId: c.goalId,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+    closedAt: isoOrNull(c.closedAt),
+  };
+}
+
+export function toCaseStage(s: typeof caseStages.$inferSelect): CaseStage {
+  return {
+    stage: s.stage,
+    attempt: s.attempt,
+    name: s.name,
+    status: s.status,
+    summary: s.summary,
+    startedAt: isoOrNull(s.startedAt),
+    completedAt: isoOrNull(s.completedAt),
+  };
 }
