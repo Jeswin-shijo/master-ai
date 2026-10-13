@@ -49,7 +49,7 @@ describe('pack registry', () => {
 
   it('travel-agency inherits bookings and crm and overrides booking-coordinator', () => {
     const travel = resolvePack(registry.get('travel-agency')!, lookup);
-    expect(travel.lineage).toEqual(['core-business', 'crm-base', 'bookings-base', 'travel-agency']);
+    expect(travel.lineage).toEqual(['core-business', 'crm-base', 'sector-trade-logistics-tourism', 'bookings-base', 'travel-agency']);
     const roles = travel.agents.map((a) => a.role);
     expect(roles).toEqual(expect.arrayContaining(['ops-assistant', 'enquiry-intake', 'trip-intake', 'booking-coordinator']));
     const coordinator = travel.agents.find((a) => a.role === 'booking-coordinator')!;
@@ -65,7 +65,7 @@ describe('industry matching', () => {
     expect(matchIndustry(text, industryPacks)?.pack.id).toBe('travel-agency');
   });
 
-  it.each(['dental clinic', 'coaching institute', 'cloud kitchen'])('does not force a match for %s', (text) => {
+  it.each(['cloud kitchen', 'pet grooming'])('does not force a match for %s', (text) => {
     expect(matchIndustry(text, industryPacks)).toBeNull();
   });
 
