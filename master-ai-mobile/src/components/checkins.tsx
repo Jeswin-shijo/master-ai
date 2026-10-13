@@ -14,12 +14,12 @@ function ProgressBar({ value, done }: { value: number; done: boolean }) {
     Animated.spring(width, { toValue: value, useNativeDriver: false, friction: 8, tension: 40 }).start();
   }, [value, width]);
   return (
-    <View style={{ height: 8, borderRadius: radius.lg, backgroundColor: c.surfaceMuted, overflow: 'hidden' }}>
+    <View style={{ height: 8, borderRadius: radius.lg, backgroundColor: c.line10, overflow: 'hidden' }}>
       <Animated.View
         style={{
           height: '100%',
           borderRadius: radius.lg,
-          backgroundColor: done ? c.success : c.primary,
+          backgroundColor: done ? c.success : c.accent,
           width: width.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
         }}
       />

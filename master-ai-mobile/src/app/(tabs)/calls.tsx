@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Pressable, RefreshControl, View } from 'react-native';
 import type { CallStage, Delegation } from '@onehuman/schemas';
-import { Badge, Card, Empty, Screen, T } from '@/components/ui';
+import { Badge, Card, Empty, H, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { radius, space, useTheme } from '@/lib/theme';
 
@@ -28,10 +28,10 @@ export default function CallsScreen() {
   const delegations = useQuery({ queryKey: ['delegations', 'all'], queryFn: () => api.delegations.list() });
   return (
     <Screen refreshControl={<RefreshControl refreshing={delegations.isRefetching} onRefresh={() => delegations.refetch()} />}>
-      <T size="xxl" weight="700">Calls</T>
-      <T tone="muted">Work handed to your team by phone: assign → follow up → confirm.</T>
+      <H lead="Calls with" title="your team." />
+      <T tone="lead">Work handed to your team by phone: assign, follow up, confirm.</T>
       {delegations.error && <T tone="danger">{errorMessage(delegations.error)}</T>}
-      {delegations.data?.length === 0 && <Empty title="No calls yet">Give a goal like “Make sure the hotel rooms are inspected before Friday”.</Empty>}
+      {delegations.data?.length === 0 && <Empty title="No calls yet">Work handed to people by phone shows up here.</Empty>}
       {delegations.data?.map((d) => <DelegationRow key={d.id} d={d} />)}
     </Screen>
   );
@@ -62,7 +62,7 @@ function DelegationRow({ d }: { d: Delegation }) {
                   borderRadius: radius.md,
                   paddingVertical: 6,
                   alignItems: 'center',
-                  backgroundColor: done ? c.successSoft : active ? c.infoSoft : c.surfaceMuted,
+                  backgroundColor: done ? c.successSoft : active ? c.infoSoft : c.line5,
                 }}
               >
                 <T size="xs" weight="600" tone={done ? 'success' : active ? 'primary' : 'muted'}>{label}</T>
@@ -83,7 +83,7 @@ function DelegationRow({ d }: { d: Delegation }) {
                   style={{
                     alignSelf: l.speaker === 'person' ? 'flex-end' : 'flex-start',
                     maxWidth: '88%',
-                    backgroundColor: l.speaker === 'person' ? c.surfaceMuted : c.accentSoft,
+                    backgroundColor: l.speaker === 'person' ? c.line5 : c.accentSoft,
                     borderRadius: radius.lg,
                     paddingHorizontal: space.md,
                     paddingVertical: space.xs + 2,
