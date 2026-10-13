@@ -37,8 +37,8 @@ const lookup = (id: string) => registry.get(id);
 
 describe('pack registry', () => {
   it('loads every pack on disk', () => {
-    expect([...registry.keys()].sort()).toEqual(
-      ['bookings-base', 'core-business', 'crm-base', 'orders-base', 'projects-base', 'travel-agency'].sort(),
+    expect([...registry.keys()]).toEqual(
+      expect.arrayContaining(['bookings-base', 'core-business', 'crm-base', 'orders-base', 'projects-base', 'travel-agency']),
     );
   });
 

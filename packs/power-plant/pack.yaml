@@ -1,0 +1,575 @@
+# Ready-made pack: power generation and electricity utilities (thermal, hydro,
+# solar, wind, substations and distribution). Built from researched Indian
+# practice: CEA Safety Regulations 2023, the Indian Electricity Grid Code 2023,
+# the Electricity (Rights of Consumers) Rules 2020 and utility safety manuals.
+id: power-plant
+version: 1.0.0
+name: Power plant & utilities
+description: Breakdowns, permits-to-work, shutdowns with the load despatch centre, accidents, consumer complaints, new connections and purchases for power plants and electricity utilities.
+kind: industry
+sector: energy-heavy-industry
+extends: [sector-energy-heavy-industry]
+match:
+  keywords: [power plant, power station, thermal power, thermal plant, power generation, generating station, electricity board, discom, power distribution company, electricity utility, transmission utility, solar power plant, hydro power plant]
+
+labels:
+  Customer: Consumer
+
+entities:
+  - name: Equipment
+    label: Equipment
+    plural_label: Equipment
+    title_field: name
+    list_columns: [tag, name, location, kind, status]
+    fields:
+      - { name: tag, label: Tag / code, type: string, required: true }
+      - { name: name, label: Name, type: string, required: true }
+      - { name: location, label: Unit / bay / feeder, type: string }
+      - name: kind
+        label: Type
+        type: enum
+        options: [boiler, turbine, generator, transformer, breaker, line-feeder, cable, pump, motor, fan, solar-inverter, wind-turbine, other]
+      - { name: voltageKv, label: Voltage (kV), type: number }
+      - name: criticality
+        label: Criticality
+        type: enum
+        options: [critical, important, normal]
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [in-service, standby, under-maintenance, forced-outage, retired]
+      - { name: lastMaintenance, label: Last maintenance, type: date }
+      - { name: nextMaintenance, label: Next maintenance, type: date }
+  - name: WorkPermit
+    label: Permit to work
+    plural_label: Permits to work
+    title_field: permitNo
+    list_columns: [permitNo, permitType, equipment, receivedBy, status]
+    fields:
+      - { name: permitNo, label: Permit number, type: string, required: true }
+      - name: permitType
+        label: Permit type
+        type: enum
+        required: true
+        options: [electrical, mechanical, line-clear, hot-work, confined-space, work-at-height, excavation]
+      - { name: equipment, label: Equipment, type: string, required: true }
+      - { name: isolationPoints, label: Isolation points, type: text }
+      - { name: earthsFixed, label: Earths fixed, type: integer }
+      - { name: gasTestOk, label: Gas test passed, type: boolean }
+      - { name: issuedBy, label: Issued by, type: string }
+      - { name: receivedBy, label: Person in charge of the work, type: string }
+      - { name: receiverPhone, label: Their phone, type: phone }
+      - { name: crewCount, label: Crew size, type: integer }
+      - { name: validTill, label: Valid till, type: datetime }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [requested, issued, suspended, returned, cancelled]
+  - name: Outage
+    label: Shutdown
+    plural_label: Shutdowns
+    title_field: element
+    list_columns: [element, outageType, plannedStart, plannedEnd, status]
+    fields:
+      - { name: element, label: Unit / line / feeder, type: string, required: true }
+      - name: outageType
+        label: Type
+        type: enum
+        required: true
+        options: [planned, emergency, forced]
+      - { name: work, label: Work to be done, type: text }
+      - { name: plannedStart, label: Planned start, type: datetime }
+      - { name: plannedEnd, label: Planned end, type: datetime }
+      - { name: ldcCode, label: Load despatch clearance code, type: string }
+      - { name: consumersAffected, label: Consumers affected, type: integer }
+      - { name: noticeSent, label: 24-hour notice sent, type: boolean }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [requested, approved, cleared, in-progress, returned, deferred, cancelled]
+  - name: Incident
+    label: Accident or near miss
+    plural_label: Accidents and near misses
+    title_field: place
+    list_columns: [occurredAt, place, kind, personName, status]
+    fields:
+      - { name: occurredAt, label: When, type: datetime, required: true }
+      - { name: place, label: Where, type: string, required: true }
+      - name: kind
+        label: Kind
+        type: enum
+        required: true
+        options: [fatal, non-fatal, near-miss, fire, dangerous-occurrence, animal]
+      - { name: personName, label: Person hurt, type: string }
+      - name: personType
+        label: Who
+        type: enum
+        options: [employee, contractor, public]
+      - { name: injuries, label: Injuries, type: text }
+      - { name: permitTaken, label: Permit was taken, type: boolean }
+      - { name: formASentAt, label: Form A sent, type: datetime }
+      - { name: rootCause, label: Root cause, type: text }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [open, reported, investigating, closed]
+
+tools:
+  - name: equipment.search
+    description: Search plant equipment by tag, name, place or status.
+    uses: records.search
+    with: { entity: Equipment }
+  - name: permits.search
+    description: Search permits-to-work by number, equipment or status.
+    uses: records.search
+    with: { entity: WorkPermit }
+  - name: permit.request
+    description: Prepare a permit-to-work request for the shift in-charge to issue. It is not live until a person issues it.
+    uses: records.create
+    with: { entity: WorkPermit, data: { status: requested } }
+  - name: outage.log
+    description: Log a planned or emergency shutdown with its times and the work to be done.
+    uses: records.create
+    with: { entity: Outage }
+  - name: incidents.search
+    description: Search accidents and near misses.
+    uses: records.search
+    with: { entity: Incident }
+  - name: incident.log
+    description: Record an accident or near miss with what happened, where and who was hurt.
+    uses: records.create
+    with: { entity: Incident }
+
+agents:
+  - role: maintenance-planner
+    name: Maintenance planner
+    description: Logs breakdowns and planned jobs against the equipment, prepares permit requests and shutdown requests to the load despatch centre, checks spares, compares quotes, and hands the work to the crew in charge by phone.
+    instructions: Never mark a permit as issued and never tell anyone to start work; only the shift in-charge issues permits. Quote the equipment tag in everything you write.
+    autonomy: 3
+    tools: [equipment.search, permits.search, permit.request, outage.log, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: internal }
+    budgets: { tokens_per_task: 150000, money_per_task_inr: 0, max_steps: 30 }
+  - role: safety-desk
+    name: Safety desk
+    description: Records accidents and near misses, keeps the reporting clock, drafts the Form A report for the Electrical Inspector, prepares high-risk work permits and follows up corrective actions.
+    instructions: Life and safety first. Never mark a report as sent; a person signs and sends statutory reports.
+    autonomy: 2
+    tools: [incidents.search, incident.log, permits.search, permit.request, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 120000, money_per_task_inr: 0, max_steps: 20 }
+  - role: consumer-desk
+    name: Consumer service desk
+    description: Registers supply complaints and connection applications with a number, keeps consumers updated by SMS, and sends the line crew or field team by phone.
+    instructions: Give every consumer a registration number and the standard time for their request. If only part of a house is dark, explain kindly that a licensed electrician must check the house wiring.
+    autonomy: 3
+    tools: [records.search, records.create, records.update, knowledge.search, message.send, message.draft, staff.delegate, human.handoff]
+    model: { tier: standard, fallback: small, data_class: confidential }
+    budgets: { tokens_per_task: 100000, money_per_task_inr: 0, max_steps: 20 }
+
+workflows:
+  - id: breakdown-response
+    name: Breakdown response
+    description: Log the breakdown, prepare the permit and get the crew in charge repairing it.
+    keywords: [breakdown, tripped, failure, leak, fault, repair]
+    steps:
+      - key: log-and-permit
+        title: Log the breakdown and prepare the permit
+        agent: maintenance-planner
+        instructions: Find the equipment, log the defect with time and place, check spares stock, prepare the permit request for the shift in-charge and draft the message to the load despatch centre if a unit or line is out.
+      - key: repair
+        title: Get the crew repairing it
+        agent: maintenance-planner
+        depends_on: [log-and-permit]
+        instructions: Hand the repair to the crew supervisor in charge by phone with the equipment, place, permit and target time, and report when it is back in service.
+  - id: planned-maintenance-job
+    name: Planned maintenance job
+    description: Book the permit and the crew for a scheduled job and file the readings.
+    keywords: [pm, preventive, maintenance, schedule, calibration]
+    steps:
+      - key: book
+        title: Book the permit and the crew
+        agent: maintenance-planner
+        instructions: Prepare the permit request, check spares, and hand the job to the crew in charge by phone with the checklist and due date. Record the readings they report.
+  - id: shutdown-planning
+    name: Shutdown planning
+    description: Prepare the shutdown request for the load despatch centre and the 24-hour consumer notice.
+    keywords: [shutdown, outage, overhaul, sldc, rldc]
+    steps:
+      - key: request
+        title: Prepare the shutdown request and notice
+        agent: maintenance-planner
+        instructions: Log the shutdown with element, dates and work, draft the outage request to SLDC or RLDC and the 24-hour notice for affected consumers.
+      - key: switching
+        title: Arrange the switching
+        agent: maintenance-planner
+        depends_on: [request]
+        instructions: Once cleared, hand the switching and work to the shift in-charge by phone with the clearance code and times.
+  - id: high-risk-permit
+    name: High-risk work permit
+    description: Prepare a hot work, confined space, height or excavation permit and line up the safety precautions.
+    keywords: [hot work, welding, confined space, height, excavation, permit]
+    steps:
+      - key: prepare
+        title: Prepare the permit and precautions
+        agent: safety-desk
+        instructions: Prepare the permit request with the work, place, crew and precautions (gas test, fire watcher, standby person, harness), and ask the contractor supervisor by phone to confirm the precautions are in place.
+  - id: accident-reporting
+    name: Accident reporting
+    description: Record the accident, keep the reporting clock and draft the statutory report.
+    keywords: [accident, injury, shock, near miss, form a]
+    steps:
+      - key: record
+        title: Record it and draft Form A
+        agent: safety-desk
+        instructions: Record what happened, where, who was hurt and whether a permit was taken. Draft the Form A report for the Electrical Inspector and list the reporting deadlines.
+      - key: follow-up
+        title: Follow up the corrective actions
+        agent: safety-desk
+        depends_on: [record]
+        instructions: Hand the investigation follow-up to the safety officer by phone and report the corrective actions agreed.
+  - id: supply-complaint
+    name: Supply complaint
+    description: Register the complaint, keep the consumer updated and send the line crew.
+    keywords: [no power, no supply, low voltage, fuse, complaint]
+    steps:
+      - key: register
+        title: Register and send the line crew
+        agent: consumer-desk
+        instructions: Register the complaint with a number, text the consumer the number and standard time, and hand the job to the line crew in charge of that area by phone.
+  - id: new-connection
+    name: New or changed connection
+    description: Register the application, send the registration number and arrange the site inspection.
+    keywords: [new connection, meter, load, net meter, rooftop solar]
+    steps:
+      - key: register
+        title: Register and arrange the inspection
+        agent: consumer-desk
+        instructions: Register the application, text the applicant the registration number and the connection timeline, and hand the site inspection and wiring test to the section engineer's team by phone.
+
+lifecycle:
+  case: { label: Job, plural: Jobs, prefix: JOB }
+  stages:
+    request:
+      name: Job raised
+      description: A defect, alarm, consumer complaint, shutdown or permit request, or purchase need comes in by phone, app, SCADA alarm or letter and is logged as a job with the equipment or consumer number.
+    review:
+      name: Engineer's first check
+      description: The engineer on duty checks the details and papers, makes the place safe first if anyone is in danger, and sends back anything incomplete or not ours to fix.
+      checks:
+        - Equipment tag or consumer number, and the exact place, are given
+        - Danger to life or fire? Make it safe first and mark the job P1
+        - "Fault is on our side of the meter, not in the consumer's own wiring"
+        - "Papers attached where needed: ID and ownership proof, quotes, drawings"
+        - Not a repeat of a job that is already open
+    classify:
+      name: Category & priority set
+      description: The job gets its category, priority (P1 to P4), risk level and owning section, which starts the response clock.
+    assign:
+      name: Crew & supervisor named
+      description: A supervisor and crew or contractor are named with a target time, and the permit issuer and stores are told.
+    approve:
+      name: Permit & clearance
+      description: The named approver clears the job. The shift in-charge issues the permit-to-work, the safety officer clears high-risk work, and the plant head clears shutdowns, big purchases and accident reports.
+      checks:
+        - Permit signed by both the issuer and the person in charge of the work
+        - Load despatch (SLDC/RLDC) clearance code noted for shutdowns
+        - "Amount within the approver's limit"
+    execute:
+      name: Work under permit
+      description: The crew works only while the permit is live, with isolation, locks and earths in place, and progress, spares, costs and photos are logged against the target time.
+      checks:
+        - Only designated (authorised) staff on the job
+        - Supervisor stays at site and nobody works alone
+        - Earths checked every morning on jobs longer than a day
+        - Delays reported before the target time runs out
+    close:
+      name: Permit return & sign-off
+      description: Men, tools and earths are cleared, the permit is returned and cancelled, the equipment or supply is tested and back, and the named person signs off.
+      checks:
+        - All men and tools clear; earths and locks removed by those who fixed them
+        - Permit returned by the person who took it and cancelled by the shift in-charge
+        - Test or trial run normal and equipment back in service
+        - Consumer confirms supply is back (complaints) or meter is sealed (connections)
+        - "Statutory reports sent where needed: Form A for accidents, CEA failure report for 220 kV and above"
+    report:
+      name: Monthly review & lessons
+      description: Each month the team reviews availability, outages, repeat failures, permit lapses, accidents and complaint times, and fixes the causes that keep coming back.
+      checks:
+        - Repeat failures on the same equipment flagged
+        - Accidents and near misses reviewed in the monthly safety committee
+        - Complaints past the standard time, and compensation paid, listed
+  priorities:
+    - { id: P1, name: Emergency, respond_within_hours: 0.25, resolve_within_hours: 4 }
+    - { id: P2, name: Urgent, respond_within_hours: 1, resolve_within_hours: 18 }
+    - { id: P3, name: Planned, respond_within_hours: 24, resolve_within_hours: 168 }
+    - { id: P4, name: Routine, respond_within_hours: 72, resolve_within_hours: 720 }
+  roles:
+    - { id: plant-head, name: Plant or division head, approves: "Planned shutdowns, purchases above ₹1,00,000 and accident reports before they go to the Electrical Inspector" }
+    - { id: shift-charge-engineer, name: Shift in-charge, approves: "Permits-to-work and line clear, breakdown isolation, and putting equipment back in service" }
+    - { id: safety-officer, name: Safety officer, approves: "Hot work, confined space, work-at-height and excavation permits; closes accident investigations" }
+    - { id: maintenance-engineer, name: Maintenance in-charge, approves: Finished planned maintenance and delivered spares and services }
+    - { id: section-engineer, name: Section engineer (JE/AE), approves: New and changed connections after the wiring test and meter sealing }
+  urgent_keywords: [fire, caught fire, explosion, electrocuted, electrocution, shock, live wire, wire on road, smoke, fatal, died, gas leak, hydrogen leak, injured, accident]
+  categories:
+    - id: breakdown
+      name: Breakdown repair
+      keywords: [trip, tripped, breakdown, failed, failure, leak, tube leak, forced outage, high vibration, overheating, flashover, snapped, wire on road, live wire, pole fallen, inverter fault, wtg fault, earth fault, relay operated]
+      priority: P1
+      risk: high
+      department: Operation & maintenance
+      required_details:
+        - key: equipment
+          label: Which unit, equipment or line
+          kind: keywords
+          keywords: [unit, boiler, turbine, generator, transformer, feeder, line, pole, pump, motor, fan, breaker, inverter, wtg, conveyor, mill, bay, substation, cable, bfp, id fan, fd fan]
+      required_checks:
+        - Equipment tag, place and time of the fault
+        - SLDC/RLDC told at once with the expected restoration time (units and grid lines)
+        - Permit-to-work from the shift in-charge before anyone touches it
+        - Isolated, locked, tagged, tested dead and earthed
+      approval: { required: high_risk_or_p1, role: shift-charge-engineer }
+      signoff: { required: true, role: shift-charge-engineer }
+      workflow: breakdown-response
+      execution: both
+    - id: planned-maintenance
+      name: Planned maintenance
+      keywords: [pm due, preventive maintenance, pm schedule, routine maintenance, quarterly, monthly check, calibration, lubrication, greasing, oil top-up, module cleaning, insulator cleaning, thermography, inspection due]
+      priority: P3
+      risk: low
+      department: Maintenance
+      required_checks:
+        - Job is in the maintenance schedule
+        - No unit or grid shutdown needed (otherwise raise a shutdown request)
+        - Spares, tools and crew ready
+        - Permit-to-work and isolation booked with the shift in-charge
+      approval: { required: never }
+      signoff: { required: true, role: maintenance-engineer }
+      workflow: planned-maintenance-job
+      execution: both
+    - id: shutdown-request
+      name: Shutdown request
+      keywords: [shutdown, s/d, outage plan, planned outage, annual overhaul, capital overhaul, bay shutdown, feeder shutdown, line shutdown, sldc, rldc, clearance code, power cut notice, take out of service]
+      priority: P3
+      risk: medium
+      department: Operations
+      required_details:
+        - { key: when, label: Date and time of the shutdown, kind: date }
+      required_checks:
+        - Element, date, start and end time, and work scope given
+        - In the yearly or monthly outage plan, or the change cleared with the RPC
+        - Clearance code from SLDC/RLDC before switching
+        - Consumers who will lose supply told 24 hours ahead
+      approval: { required: always, role: plant-head }
+      signoff: { required: true, role: shift-charge-engineer }
+      workflow: shutdown-planning
+      execution: both
+    - id: high-risk-permit
+      name: High-risk work permit
+      keywords: [hot work, welding, gas cutting, grinding, confined space, boiler entry, tank entry, manhole, work at height, scaffolding, excavation, digging, crane lift, heavy lift, chemical cleaning, radiography]
+      priority: P2
+      risk: high
+      department: Safety
+      required_details:
+        - { key: when, label: When the work starts, kind: date }
+      required_checks:
+        - Main permit-to-work and isolation already in place
+        - Gas test done and recorded for confined spaces or near fuel lines
+        - "Hot work: combustibles cleared, fire watcher and extinguisher at site"
+        - "Height: harness or lifeline; excavation: shoring, fencing and warning signs"
+        - Workers trained and fit, with a standby person outside confined spaces
+      approval: { required: always, role: safety-officer }
+      signoff: { required: true, role: safety-officer }
+      workflow: high-risk-permit
+      execution: team
+    - id: accident
+      name: Accident or near miss
+      keywords: [accident, injured, injury, shock, electrocuted, burns, hospital, fell, fall from height, fatal, died, caught fire, fire broke out, explosion, near miss, dangerous occurrence, animal died]
+      priority: P1
+      risk: high
+      department: Safety
+      required_details:
+        - key: place
+          label: Where it happened
+          kind: keywords
+          keywords: [feeder, pole, substation, unit, line, bay, site, plant, yard, switchyard, boiler, turbine, colony, village, road]
+      required_checks:
+        - Area made safe and supply isolated
+        - First aid given and the injured person taken to hospital
+        - Electrical Inspector phoned at once; Form A within 48 hours (written message within 24 hours if fatal)
+        - District Magistrate and police told where needed
+        - "Evidence kept: permit, isolation, earthing and safety gear noted"
+      approval: { required: high_risk_or_p1, role: plant-head }
+      signoff: { required: true, role: safety-officer }
+      workflow: accident-reporting
+      execution: both
+    - id: supply-complaint
+      name: Supply complaint
+      keywords: [no power, no supply, no current, power cut, bijli nahi, light nahi, current nahi, low voltage, high voltage, voltage fluctuation, fuse off, fuse gone, meter burnt, meter not working, transformer burnt, lineman, wiring]
+      priority: P2
+      risk: medium
+      department: Distribution O&M
+      required_details:
+        - key: location
+          label: Consumer number or exact place
+          kind: keywords
+          keywords: [consumer no, consumer number, account number, lane, colony, street, road, ward, village, sector, nagar, area, block, mohalla]
+      required_checks:
+        - Feeder and transformer identified
+        - Fault is on the utility side of the meter
+        - Line clear from the substation and earths fixed before anyone climbs
+        - Consumer told by SMS when supply is back
+      not_eligible:
+        - keywords: [other rooms, rest of the house, rest of the rooms, only one room, only my room, inside the house, house wiring, own wiring, internal wiring, one switch board]
+          reason: Only part of the house has no supply, so the fault is in the house wiring past the meter. A licensed electrician must check it (CEA Safety Regulations 2023, Reg 31).
+      approval: { required: never }
+      signoff: { required: false }
+      workflow: supply-complaint
+      execution: both
+    - id: new-connection
+      name: New or changed connection
+      keywords: [new connection, new meter, load increase, load extension, load reduction, shift meter, name change, change of name, rooftop solar, net meter, temporary connection, three phase connection]
+      priority: P3
+      risk: low
+      department: Customer service
+      required_details:
+        - key: idProof
+          label: Identity proof
+          kind: keywords
+          keywords: [aadhaar, aadhar, pan card, voter id, passport, driving licence, driving license, id proof]
+        - key: ownershipProof
+          label: Proof of ownership or occupancy
+          kind: keywords
+          keywords: [sale deed, ownership, property tax, house tax, rent agreement, lease deed, allotment letter, occupancy, registry, khata, patta, electricity bill]
+      required_checks:
+        - Registration number sent to the applicant
+        - "Site checked: is a line extension or new transformer needed?"
+        - Charges and security deposit paid
+        - Wiring test report by a licensed contractor, or our own test
+      approval: { required: never }
+      signoff: { required: true, role: section-engineer }
+      workflow: new-connection
+      execution: both
+    - id: purchase
+      name: Spares and services purchase
+      keywords: [purchase, buy, spare, spares, indent, quote, quotes, quotation, rate contract, purchase order, work order, vendor, amc, service contract, tender]
+      priority: P4
+      risk: low
+      department: Stores & purchase
+      required_details:
+        - { key: amount, label: Quoted or estimated cost, kind: amount }
+      required_checks:
+        - Indent with item, quantity and specification
+        - Stock checked and not already on order
+        - Three quotes or a rate contract for orders above ₹1,00,000
+        - Vendor GST and bank details checked
+      approval: { required: above_amount, role: plant-head, amount_inr: 100000 }
+      signoff: { required: true, role: maintenance-engineer }
+      execution: agents
+  examples:
+    - { request: Unit 1 boiler tube leak; we have to take the unit off bar by tonight, category: breakdown, priority: P1, approval: true }
+    - { request: "33 kV feeder from Nandpur substation tripped on earth fault, restore please", category: breakdown, priority: P1, approval: true }
+    - { request: Thermography of the 220 kV switchyard is due this month, category: planned-maintenance, priority: P3, approval: false }
+    - { request: Insulator cleaning on the 66 kV line before the monsoon, category: planned-maintenance, priority: P3, approval: false }
+    - { request: We need a feeder shutdown next Tuesday 9 am to 1 pm to replace the jumper, category: shutdown-request, priority: P3, approval: true }
+    - { request: Take ash handling Unit-2 out of service for the capital overhaul in January, category: shutdown-request, priority: P3, approval: true }
+    - { request: Gas cutting work on the coal bunker plates starts Monday morning, category: high-risk-permit, priority: P2, approval: true }
+    - { request: Two men will enter the deaerator tank for inspection on Thursday, category: high-risk-permit, priority: P2, approval: true }
+    - { request: Helper fell from the cable tray ladder in the TG hall and hurt his back, category: accident, priority: P1, approval: true }
+    - { request: A cow died after touching a fallen stay wire near Bhimpur village, category: accident, priority: P1, approval: true }
+    - { request: "No supply in Shanti colony block B since 6 am, consumer number 330091842", category: supply-complaint, priority: P2, approval: false }
+    - { request: Voltage fluctuation every evening in ward 12 and fans run slow, category: supply-complaint, priority: P2, approval: false }
+    - { request: I want to increase my shop load from 3 kW to 8 kW, category: new-connection, priority: P3, approval: false }
+    - { request: Apply for a net meter for my 5 kW rooftop solar, category: new-connection, priority: P3, approval: false }
+    - { request: Indent for 50 litres of turbine oil from the rate contract vendor, category: purchase, priority: P4, approval: false }
+    - { request: Annual service contract for the station batteries at ₹1.6 lakh, category: purchase, priority: P4, approval: true }
+
+playbooks:
+  - id: permit-to-work
+    title: Permit-to-work and isolation
+    source: CEA (Measures relating to Safety and Electric Supply) Regulations, 2023, Reg 3, Reg 21 and Schedule I Part II; MSETCL Safety Manual, Chapter 9
+    body: |
+      1. No one touches a line or machine without a written permit-to-work from the shift in-charge, and only designated (authorised) staff work on it.
+      2. Switch off and isolate from every source, lock and tag the switches, test that it is dead, then earth it on both sides of the work spot.
+      3. Brief the whole crew on the hazards before starting, keep a list of everyone on the job, and never let anyone work alone.
+      4. The supervisor stays at site till the job ends; on jobs longer than a day, check the earths every morning before work restarts.
+      5. A permit given by phone needs read-back and a code word, written in the line-clear book at both ends.
+      6. The person who took the permit returns it after all men, tools and earths are clear; nothing is charged until the shift in-charge cancels it.
+  - id: planned-shutdown
+    title: Planned shutdown with the load despatch centre
+    source: CERC Indian Electricity Grid Code Regulations, 2023, Reg 32 and Reg 49(7); CEA Safety Regulations 2023, Reg 41(4)
+    body: |
+      1. Put planned shutdowns in the yearly outage plan (proposals reach the RPC by 31 October for next year); any change needs RPC permission.
+      2. Apply ahead on the shutdown form; the plant or division head approves before anything is switched.
+      3. Get the final clearance code from SLDC or RLDC before switching off; they can defer it if the grid is under stress.
+      4. Tell every consumer who will lose supply at least 24 hours ahead (not needed in an emergency).
+      5. If a unit trips, tell SLDC or RLDC at once with the expected restoration time.
+      6. Return the element on time; if more time is needed, ask the load despatch centre before the end time.
+  - id: electrical-accident
+    title: Electrical accident
+    source: Intimation of Accidents (Form and Time of Service of Notice) Rules, 2005; MSETCL Safety Manual, Chapter 5
+    body: |
+      1. Make the place safe first: switch off, give first aid and resuscitation, and take the injured person to hospital.
+      2. Phone the Electrical Inspector at once.
+      3. For a death, send a written message within 24 hours; send the Form A report within 48 hours for every accident, signed by an officer of Junior Engineer rank or above.
+      4. Note whether a permit was taken, whether the section was isolated and earthed, and what safety gear was used. Tell the District Magistrate and police where needed and keep the evidence.
+      5. Find the root cause and track each corrective action until it is checked to work.
+  - id: supply-complaint-handling
+    title: Consumer supply complaint
+    source: Electricity (Rights of Consumers) Rules, 2020, Rules 10, 13 and 14; MERC Supply Code and Standards of Performance Regulations, 2021; CEA Safety Regulations 2023, Reg 31
+    body: |
+      1. Register every complaint with a number, send an SMS, and keep the consumer updated until it is closed.
+      2. A live wire on the ground or sparking near people: switch off first and raise it as a P1 breakdown.
+      3. Take line clear from the substation and earth the line before anyone climbs.
+      4. Restore within the standard time. In Maharashtra, for example: fuse-off 3 h urban and 18 h rural, overhead line 4 h and 24 h, transformer failure 18 h and 48 h.
+      5. If only part of a house is dark, the fault is in the consumer's wiring: advise a licensed electrician.
+      6. Delays past the standard time earn the consumer compensation through the bill, so escalate before the clock runs out.
+  - id: new-connection-steps
+    title: New connection
+    source: Electricity (Rights of Consumers) Rules, 2020, Rule 4 with the 2024 timelines; CEA Safety Regulations 2023, Reg 33
+    body: |
+      1. Up to 10 kW, ask for only two papers: identity proof, and proof of ownership or occupancy (or another address proof).
+      2. Give a registration number once the application is complete, and send the status by SMS at each step.
+      3. Connect within 3 days in metro cities, 7 days in other towns and 15 days in rural areas; up to 90 days if a line extension or new substation is needed.
+      4. Test the consumer's wiring, or accept a licensed contractor's test report, before connecting.
+      5. Late connections can cost a penalty of up to ₹1,000 per day.
+
+kpis:
+  - id: plant-availability
+    name: Plant availability
+    description: Average daily declared capacity as a share of installed capacity (less auxiliary use) over the year, as CERC defines it.
+    unit: percent
+    direction: up
+    target: 85
+  - id: forced-outage-rate
+    name: Forced outage rate
+    description: Hours units or lines were out on unplanned trips, as a share of hours in service plus those outage hours.
+    unit: percent
+    direction: down
+  - id: pm-on-time
+    name: Planned maintenance on time
+    description: Planned maintenance jobs finished by their due date, as a share of jobs due in the month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: reportable-accidents
+    name: Reportable accidents
+    description: Accidents to staff, contractors, the public or animals that had to be reported to the Electrical Inspector this month.
+    unit: count
+    direction: down
+    target: 0
+  - id: complaints-in-time
+    name: Complaints fixed in standard time
+    description: Supply complaints restored within the regulator's standard time, as a share of all supply complaints.
+    unit: percent
+    direction: up
+    target: 100
+  - id: atc-loss
+    name: AT&C loss
+    description: Share of energy brought in that is not billed or not paid for.
+    unit: percent
+    direction: down
+    target: 15

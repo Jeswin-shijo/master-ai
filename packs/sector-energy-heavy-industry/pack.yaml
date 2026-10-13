@@ -1,0 +1,215 @@
+# Sector base for energy and heavy industry: power, manufacturing, construction,
+# mining and process plants. Ready-made types extend it; typed-in types borrow
+# the closest ready-made type (other_org_types) or use it directly.
+id: sector-energy-heavy-industry
+version: 1.0.0
+name: Energy & Heavy Industry
+description: Work orders, breakdowns, permits, safety and purchases for power plants, factories, construction sites and other heavy industry.
+kind: base
+sector: energy-heavy-industry
+extends: [crm-base]
+
+lifecycle:
+  case: { label: Work order, plural: Work orders, prefix: WO }
+  stages:
+    request:
+      name: Request or alarm raised
+      description: A breakdown, alarm, safety report, maintenance due date or purchase need comes in from the floor, a system alarm or a customer.
+    review:
+      name: Details and safety check
+      description: The engineer on duty checks that the machine, place and time are given, makes the area safe first if anyone is in danger, and sends back anything incomplete.
+      checks:
+        - Machine or area, place and time are given
+        - Danger to life or fire? Make it safe first and mark it P1
+        - Papers attached where needed (quotes, drawings, test reports)
+        - Not a repeat of a work order that is already open
+    classify:
+      name: Priority and risk
+      description: The work order gets its type, priority (P1 to P4), risk and owning department, which starts the response clock.
+    assign:
+      name: Assign in-charge and deadline
+      description: A supervisor and crew or contractor are named with a target time, and stores and the permit issuer are told.
+    approve:
+      name: Permit or approval
+      description: The named approver clears the work. Risky work needs a permit, and big purchases or shutdowns need the plant head.
+    execute:
+      name: Work in progress
+      description: The crew does the work under its permit while progress, spares, cost and photos are logged against the target time.
+    close:
+      name: Inspect and sign off
+      description: The work is inspected, men and tools are cleared, the permit is closed and the named person signs off.
+      checks:
+        - Men, tools, locks and earths cleared
+        - Permit returned and closed
+        - Trial run or test normal
+        - Statutory report sent where the law needs one
+    report:
+      name: Monthly review and lessons
+      description: Each month the team reviews breakdowns, repeat failures, accidents, near misses and late work, and fixes the causes that keep coming back.
+  priorities:
+    - { id: P1, name: Emergency, respond_within_hours: 0.5, resolve_within_hours: 4 }
+    - { id: P2, name: Urgent, respond_within_hours: 2, resolve_within_hours: 24 }
+    - { id: P3, name: Planned, respond_within_hours: 24, resolve_within_hours: 168 }
+    - { id: P4, name: Routine, respond_within_hours: 72, resolve_within_hours: 720 }
+  roles:
+    - { id: plant-head, name: Plant head, approves: "Shutdowns, purchases above the limit and accident reports" }
+    - { id: safety-officer, name: Safety officer, approves: High-risk work permits and accident investigations }
+    - { id: maintenance-head, name: Maintenance head, approves: Breakdown repairs and finished maintenance }
+    - { id: quality-head, name: Quality head, approves: Quality problems and corrective actions }
+  urgent_keywords: [fire, explosion, injured, injury, accident, electrocution, electrocuted, shock, gas leak, collapse, collapsed, fatal, trapped, smoke, spill]
+  categories:
+    - id: breakdown
+      name: Breakdown repair
+      keywords: [breakdown, broke down, tripped, stopped working, not working, failed, failure, leaking, overheating, vibration, jammed, damaged]
+      priority: P2
+      risk: medium
+      department: Maintenance
+      required_details:
+        - key: equipment
+          label: Which machine or area
+          kind: keywords
+          keywords: [machine, pump, motor, boiler, turbine, conveyor, crusher, compressor, generator, transformer, panel, feeder, crane, mixer, kiln, furnace, unit, line, belt, valve, pipe, tank, fan]
+      required_checks: [Area made safe and isolated, Permit-to-work issued before anyone touches it]
+      approval: { required: high_risk_or_p1, role: maintenance-head }
+      signoff: { required: true, role: maintenance-head }
+      workflow: delegate-work
+      execution: team
+    - id: accident
+      name: Accident or near miss
+      keywords: [accident, injured, injury, near miss, fell, fall from height, burns, hurt, first aid, unsafe, dangerous occurrence]
+      priority: P1
+      risk: high
+      department: Safety
+      required_checks: [Area made safe, Injured person given first aid and taken to hospital, Statutory report sent within the time limit]
+      approval: { required: high_risk_or_p1, role: plant-head }
+      signoff: { required: true, role: safety-officer }
+      workflow: delegate-work
+      execution: both
+    - id: planned-maintenance
+      name: Planned maintenance
+      keywords: [preventive maintenance, pm due, servicing, service due, calibration, lubrication, greasing, inspection due, overhaul, scheduled maintenance]
+      priority: P3
+      risk: low
+      department: Maintenance
+      required_checks: [Job is in the maintenance schedule, Spares and crew ready]
+      approval: { required: never }
+      signoff: { required: true, role: maintenance-head }
+      workflow: delegate-work
+      execution: team
+    - id: purchase
+      name: Spares and services purchase
+      keywords: [purchase, buy, spares, spare parts, indent, quote, quotation, vendor, purchase order, rate contract, amc]
+      priority: P4
+      risk: low
+      department: Stores and purchase
+      required_details:
+        - { key: amount, label: Estimated cost, kind: amount }
+      required_checks: [Stock checked and not already on order, Three quotes for bigger orders, Budget available]
+      approval: { required: above_amount, role: plant-head, amount_inr: 100000 }
+      signoff: { required: false }
+      execution: agents
+    - id: quality-problem
+      name: Quality problem
+      keywords: [quality problem, defect, defective, rejection, rejected, out of spec, non conformance, customer complaint about quality, rework]
+      priority: P2
+      risk: medium
+      department: Quality
+      required_checks: [Bad material held and labelled, Root cause found]
+      approval: { required: never }
+      signoff: { required: true, role: quality-head }
+      workflow: delegate-work
+      execution: both
+    - id: compliance
+      name: Statutory compliance
+      keywords: [statutory, inspector, show cause notice, licence renewal, license renewal, consent to operate, pollution control board, factories act, compliance audit]
+      priority: P2
+      risk: medium
+      department: Compliance
+      required_details:
+        - { key: dueDate, label: Due date, kind: date }
+      required_checks: [Notice or letter attached, Reply or filing prepared before the due date]
+      approval: { required: always, role: plant-head }
+      signoff: { required: false }
+      execution: agents
+  examples:
+    - { request: The main conveyor belt stopped working halfway through the shift, category: breakdown, priority: P2, approval: false }
+    - { request: Cooling water pump 2 is leaking from the gland, category: breakdown, priority: P2, approval: false }
+    - { request: A fitter slipped near the scaffolding and hurt his ankle, category: accident, priority: P1, approval: true }
+    - { request: "Near miss today, a spanner dropped from the gantry and missed two workers", category: accident, priority: P1, approval: true }
+    - { request: Monthly greasing of the crusher bearings is due on Friday, category: planned-maintenance, priority: P3, approval: false }
+    - { request: Calibration of the weighbridge is due this week, category: planned-maintenance, priority: P3, approval: false }
+    - { request: "Please buy 4 spare V-belts for the blower, about ₹6,000", category: purchase, priority: P4, approval: false }
+    - { request: Raise an indent for welding rods and grinding discs worth ₹2.4 lakh, category: purchase, priority: P4, approval: true }
+    - { request: The last batch of castings was rejected for porosity, category: quality-problem, priority: P2, approval: false }
+    - { request: "Customer complaint about quality, the coating is peeling on 40 panels", category: quality-problem, priority: P2, approval: false }
+    - { request: Pollution control board consent to operate expires on 30 November, category: compliance, priority: P2, approval: true }
+    - { request: The factory inspector sent a show cause notice about guarding on the press line, category: compliance, priority: P2, approval: true }
+
+playbooks:
+  - id: sector-permit-to-work
+    title: Permit-to-work
+    source: Factories Act, 1948 and state factory rules; CEA (Measures relating to Safety and Electric Supply) Regulations, 2023
+    body: |
+      1. Nobody touches a machine, line or vessel under repair without a written permit-to-work from the person in charge of the area.
+      2. Isolate every energy source (electrical, steam, air, hydraulic, gravity), lock and tag it, and test that it is dead before work starts.
+      3. Hot work, confined space, work at height and excavation need their own permit on top, with a gas test, a fire watcher or a standby person as the work needs.
+      4. Brief the crew on the hazards, keep a list of who is on the job, and never let anyone work alone.
+      5. When the work is done, clear men, tools and locks, return the permit and only then put the equipment back in service.
+  - id: sector-incident-reporting
+    title: Accidents and near misses
+    source: Factories Act, 1948 (section 88 and state rules); Building and Other Construction Workers and OSH Code rules as notified by the state
+    body: |
+      1. Make the place safe first: stop the machine, isolate supply, and give first aid.
+      2. Take the injured person to hospital and tell the family.
+      3. Report to the authority within the time the law sets for your type of site (an inspector notice for serious injury, at once for a death), and keep the evidence.
+      4. Record near misses the same day, even when nobody was hurt; they show where the next accident will come from.
+      5. Find the root cause, assign each corrective action to a person with a date, and check it worked.
+  - id: sector-purchase-approval
+    title: Buying spares and services
+    source: Common practice for plant stores and purchase departments
+    body: |
+      1. Raise an indent with the item, quantity, specification and the machine it is for.
+      2. Check the stock and open orders first so nothing is bought twice.
+      3. Get three quotes, or use the rate contract, for orders above ₹1,00,000.
+      4. Check the vendor's GST number and bank details before the first order.
+      5. Orders above the plant head's limit need the plant head's approval; the stores team inspects on delivery before the bill is passed.
+
+kpis:
+  - id: mean-time-to-repair
+    name: Mean time to repair
+    description: Average hours from a breakdown being raised to the machine back in service.
+    unit: hours
+    direction: down
+  - id: pm-compliance
+    name: Planned maintenance done on time
+    description: Share of planned maintenance jobs finished by their due date this month.
+    unit: percent
+    direction: up
+    target: 95
+  - id: lost-time-injuries
+    name: Lost-time injuries
+    description: Injuries this month that kept someone off work for a shift or more.
+    unit: count
+    direction: down
+    target: 0
+  - id: breakdowns-per-month
+    name: Breakdowns this month
+    description: Number of breakdown work orders raised this month.
+    unit: count
+    direction: down
+
+other_org_types:
+  - { name: Cement plant, keywords: [cement, clinker, grinding unit], closest: manufacturing-plant }
+  - { name: Steel or metals plant, keywords: [steel, rolling mill, foundry, forging, casting unit, smelter], closest: manufacturing-plant }
+  - { name: Chemical or pharma plant, keywords: [chemical, chemicals, pharma, pharmaceutical, fertiliser, fertilizer, paints], closest: manufacturing-plant }
+  - { name: Food processing plant, keywords: [food processing, dairy plant, rice mill, flour mill, sugar mill, bottling plant], closest: manufacturing-plant }
+  - { name: Textile mill, keywords: [textile, spinning mill, weaving, garment factory, dyeing unit], closest: manufacturing-plant }
+  - { name: Oil and gas operations, keywords: [oil and gas, oil field, refinery, gas plant, pipeline operator, lpg bottling], closest: manufacturing-plant }
+  - { name: Shipyard, keywords: [shipyard, ship repair, dockyard, boat building], closest: manufacturing-plant }
+  - { name: Solar park, keywords: [solar park, solar farm, solar plant, solar power, rooftop solar developer], closest: power-plant }
+  - { name: Wind farm, keywords: [wind farm, wind power, windmill, wind energy], closest: power-plant }
+  - { name: Hydro power station, keywords: [hydro, hydel, hydroelectric, small hydro], closest: power-plant }
+  - { name: Substation or distribution company, keywords: [substation, discom, electricity distribution, transmission company, power distribution], closest: power-plant }
+  - { name: EPC or infrastructure contractor, keywords: [epc, infrastructure, road construction, highway, bridge, civil contractor, metro project], closest: construction }
+  - { name: Real estate developer, keywords: [real estate, builder, housing project, apartment project, township], closest: construction }
+  - { name: Mining or quarry, keywords: [mining, mine, quarry, stone crusher, coal mine, sand mining], closest: construction }

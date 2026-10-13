@@ -1,0 +1,102 @@
+# Power plant & utilities: realistic requests from the control room, consumers,
+# staff, contractors and the owner, with what the stages should decide.
+pack: power-plant
+cases:
+  - id: unit-trip
+    request: "ALERT 02:14 Unit-2 TRIPPED. First up: drum level very low. Load before trip 205 MW. Boiler purge done."
+    source: system
+    expect:
+      category: breakdown
+      priority: P1
+      review: complete
+      approval: { required: true, role: shift-charge-engineer }
+      signoff: { required: true, role: shift-charge-engineer }
+    why: Tripped is a breakdown word; breakdowns are P1, so the shift in-charge clears the permit. Unit, cause and time are given.
+  - id: no-supply-lane
+    request: "Bijli nahi hai since 7 pm in whole Gandhi Nagar lane 3. Consumer no 410023456. Please send lineman."
+    source: customer
+    expect:
+      category: supply-complaint
+      priority: P2
+      review: complete
+      approval: { required: false }
+      signoff: { required: false }
+    why: Bijli nahi and lineman mark a supply complaint (P2, no approval, no sign-off). Consumer number and place are given.
+  - id: one-room-dark
+    request: "Light and fan in my bedroom not working since morning, other rooms have current. Send lineman to check the wiring. Consumer no 210045789."
+    source: customer
+    expect:
+      category: supply-complaint
+      priority: P2
+      review: not_eligible
+    why: The rest of the house has supply, so the fault is in the house wiring past the meter. A licensed electrician must fix it (CEA 2023 Reg 31), not the utility.
+  - id: new-connection-one-paper
+    request: "Namaste, I want new connection for my house in Sector 4, 2 kW single phase. Sending Aadhaar photo."
+    source: customer
+    expect:
+      category: new-connection
+      priority: P3
+      review: needs_info
+    why: Up to 10 kW the rules need ID proof and a second paper for ownership or occupancy; only Aadhaar is sent, so ask for the second paper.
+  - id: lineman-shock
+    request: "Sir, contract lineman Ramesh got shock on 11 kV Kamalpur feeder pole at 3:40 pm while changing DO fuse. Burns on right hand, admitted in district hospital."
+    source: staff
+    expect:
+      category: accident
+      priority: P1
+      review: complete
+      approval: { required: true, role: plant-head }
+      signoff: { required: true, role: safety-officer }
+    why: Shock, burns and hospital mark an accident (P1). The plant head clears the report to the Electrical Inspector; the safety officer closes the investigation.
+  - id: fan-bearings
+    request: "ID fan 2A NDE bearing making noise. Need 2 nos SKF 23240 bearings as spare. Best of 3 quotes is ₹3,80,000 incl GST. Pls process."
+    source: staff
+    amount_inr: 380000
+    expect:
+      category: purchase
+      priority: P4
+      review: complete
+      approval: { required: true, role: plant-head }
+      signoff: { required: true, role: maintenance-engineer }
+    why: Spare and quotes mark a purchase. ₹3,80,000 is above the ₹1,00,000 limit, so the plant head approves.
+  - id: oil-filtration
+    request: "From Shakti Transformer Services: quotation for oil filtration of 10 MVA Transformer-2 at Rampur substation, ₹53,100 incl. GST, 2 days work. Please issue work order."
+    source: partner
+    amount_inr: 53100
+    expect:
+      category: purchase
+      priority: P4
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: maintenance-engineer }
+    why: A quotation and a work order mark a purchase. ₹53,100 is under the ₹1,00,000 limit, so no approval; the maintenance in-charge signs off the finished service.
+  - id: contractor-welding
+    request: "M/s Shree Fabricators: we will start welding of chute liner plates at Conveyor 3B transfer house tomorrow 10 am, 4 welders and 1 helper. Please arrange hot work permit."
+    source: partner
+    expect:
+      category: high-risk-permit
+      priority: P2
+      review: complete
+      approval: { required: true, role: safety-officer }
+      signoff: { required: true, role: safety-officer }
+    why: Welding and hot work need the safety officer's approval and sign-off. Place, time and crew are given.
+  - id: annual-overhaul
+    request: "Plan Unit-1 annual overhaul from 1 Dec for 20 days. It is in this year's outage plan. Get SLDC clearance and tell me."
+    source: owner
+    expect:
+      category: shutdown-request
+      priority: P3
+      review: complete
+      approval: { required: true, role: plant-head }
+      signoff: { required: true, role: shift-charge-engineer }
+    why: An annual overhaul with SLDC clearance is a shutdown request, which always needs the plant head; the shift in-charge signs off when the unit is back.
+  - id: pm-due
+    request: "PM DUE: BFP-2B quarterly vibration reading and lube oil top-up, due 20-Oct. Last done 18-Jul."
+    source: system
+    expect:
+      category: planned-maintenance
+      priority: P3
+      review: complete
+      approval: { required: false }
+      signoff: { required: true, role: maintenance-engineer }
+    why: PM due marks planned maintenance, which needs no approval; the maintenance in-charge signs off the readings.
