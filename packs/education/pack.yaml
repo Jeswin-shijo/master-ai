@@ -382,7 +382,7 @@ lifecycle:
       description: The principal or office head names the person in charge (class teacher, exam in-charge, accounts clerk, counsellor, transport in-charge) and sets the deadline; agents send the reminders.
     approve:
       name: Principal or management approval
-      description: The right person decides within their powers (the principal for admissions, staff leave and action in child-protection cases, the exam in-charge for exam changes, the management for concessions, refunds and spending above the limit); reports the law requires, such as to the police, never wait for an approval.
+      description: The right person decides within their powers (the principal for admissions and staff leave, the exam in-charge for exam changes, the management for concessions, refunds and spending above the limit); reports the law requires, such as to the police, never wait for an approval, and child-protection cases have no approval step at all.
     execute:
       name: Action and follow-up
       description: Staff and agents do the work and track it (admission and fee records, certificates, re-tests, substitute timetables, repairs and bus checks, replies to families), keeping costs, papers and dates on the request.
@@ -406,7 +406,7 @@ lifecycle:
     - { id: P4, name: Low, respond_within_hours: 48, resolve_within_hours: 240 }
   roles:
     - { id: owner, name: Management (trust or society), approves: "Concessions, waivers and refunds above ₹10,000, repairs and purchases above ₹25,000, anything above ₹5,00,000, and closing every child-protection case" }
-    - { id: head-of-institution, name: Principal or centre head, approves: "Every admission including RTE seats, staff leave, and action against staff or students in child-protection cases such as removal from duty or suspension; signs every certificate and TC" }
+    - { id: head-of-institution, name: Principal or centre head, approves: "Every admission including RTE seats and staff leave; signs every certificate and TC. Decides action against staff or students in child-protection cases (removal from duty, suspension) after the report is made, unless the principal is the person accused, when the management decides" }
     - { id: exam-in-charge, name: Exam in-charge (Controller of Examinations in a college), approves: "Re-tests, mark changes after rechecking, attendance shortage cases, board or university registration corrections and any change to exam dates" }
     - { id: safety-officer, name: Safety in-charge, approves: "Signs off emergencies once every child is safe and cared for, parents are told and the police or authority are informed (vice-principal or head of the school safety committee; the proctor in a college)" }
     - { id: grievance-officer, name: Grievance committee, approves: "Signs off the written reply to every complaint and says where to appeal (in a school the principal with two senior teachers; in a college the Students' Grievance Redressal Committee, with appeal to the Ombudsperson)" }
@@ -603,7 +603,9 @@ lifecycle:
         - "Evidence kept: CCTV, bus GPS, messages, written statements; the child tells it once, not again and again"
         - Child's name and photo shared only with those who must know
         - "If the principal or a trustee is the person accused, the management or trust board takes their place"
-      approval: { required: always, role: head-of-institution }
+      # POCSO s.19 and s.21: reporting is mandatory and cannot wait for anyone's approval, and the head may be the accused.
+      # So no approval gate; the management signs off the closure.
+      approval: { required: never }
       signoff: { required: true, role: owner }
       workflow: child-protection-response
       execution: team
@@ -630,9 +632,9 @@ lifecycle:
     - { request: "Aditya had typhoid during the half-yearly exams, doctor's certificate attached; can he write the papers he missed?", category: exam, priority: P2, approval: true }
     - { request: "The total on my son's chemistry pre-board answer sheet is added wrongly, please recheck", category: exam, priority: P2, approval: true }
     - { request: "The hall ticket for the semester exam shows the wrong subject code, please correct it before Monday", category: exam, priority: P2, approval: true }
-    - { request: "A Class 5 girl told her class teacher that the PT sir touched her and asked her to keep it a secret", category: child-protection, priority: P1, approval: true }
-    - { request: Seniors in the boys' hostel are ragging the first-year students at night and making them do sit-ups, category: child-protection, priority: P1, approval: true }
-    - { request: Parents say the maths teacher slapped their son and made him kneel outside the class for an hour, category: child-protection, priority: P1, approval: true }
+    - { request: "A Class 5 girl told her class teacher that the PT sir touched her and asked her to keep it a secret", category: child-protection, priority: P1, approval: false }
+    - { request: Seniors in the boys' hostel are ragging the first-year students at night and making them do sit-ups, category: child-protection, priority: P1, approval: false }
+    - { request: Parents say the maths teacher slapped their son and made him kneel outside the class for an hour, category: child-protection, priority: P1, approval: false }
 
 playbooks:
   - id: admissions-and-rte-seats

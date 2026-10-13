@@ -68,9 +68,9 @@ cases:
       category: child-protection
       priority: P1
       review: complete
-      approval: { required: true, role: head-of-institution }
+      approval: { required: false }
       signoff: { required: true, role: owner }
-    why: Touching and being told not to tell anyone mark child protection (P1), ahead of the van and route words. What the child said is enough; the police or Special Juvenile Police Unit are told today without the school's own checking (POCSO Section 19), and that never waits for approval. The principal approves taking the driver off the route; the management signs off the closure.
+    why: Touching and being told not to tell anyone mark child protection (P1), ahead of the van and route words. What the child said is enough; the police or Special Juvenile Police Unit are told today without the school's own checking (POCSO Section 19), and that never waits for approval, so the case has no approval gate (the head may be the person accused). The management signs off the closure.
   - id: maternity-leave
     request: "I am Dr Sneha Patil, Assistant Professor, Chemistry. I am 7 months pregnant with my first child and want maternity leave from 1 December 2026 for 26 weeks. Doctor's certificate attached. Prof. Kulkarni will take my B.Sc second-year classes."
     source: staff
