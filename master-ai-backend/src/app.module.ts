@@ -7,6 +7,7 @@ import { ApprovalsService } from './approvals/approvals.service';
 import { AuditController } from './audit/audit.controller';
 import { AuditModule } from './audit/audit.service';
 import { CasesController, CasesService } from './cases/cases.service';
+import { IntakeController, IntakeService } from './cases/intake.service';
 import { StageModel } from './cases/stage-model';
 import { CaseStagesService } from './cases/stages.service';
 import { AuthGuard } from './common/auth';
@@ -60,6 +61,7 @@ import { TeamController, TeamService } from './voice/team.service';
     AgentsController,
     GoalsController,
     CasesController,
+    IntakeController,
     ApprovalsController,
     AuditController,
     RecordsController,
@@ -86,6 +88,7 @@ import { TeamController, TeamService } from './voice/team.service';
     // Cases
     CasesService,
     CaseStagesService,
+    IntakeService,
     StageModel,
     ApprovalsService,
     PolicyService,
