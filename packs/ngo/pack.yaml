@@ -1021,7 +1021,8 @@ lifecycle:
         - "Sexual harassment at work goes to the Internal Committee (the district Local Committee if we have fewer than 10 staff): complaint within 3 months, inquiry within 90 days"
         - Evidence kept and donors told as the grant agreement requires
         - If the chief functionary is named, the board chair handles it
-      approval: { required: always, role: owner }
+      # POCSO s.19/21 and POSH: reporting cannot wait for an approval, and a senior person may be the accused.
+      approval: { required: never }
       signoff: { required: true, role: board-chair }
       workflow: safeguarding-response
       execution: both
@@ -1054,9 +1055,9 @@ lifecycle:
     - { request: Our accountant found fake bills of ₹1.8 lakh from a stationery shop that does not exist, category: fraud-alert, priority: P1, approval: true }
     - { request: Women in Bhaisdehi say the community resource person asked for money and took a bribe to put their names on the selection list, category: fraud-alert, priority: P1, approval: true }
     - { request: Our donor portal was hacked and donors' PAN details may have leaked, category: fraud-alert, priority: P1, approval: true }
-    - { request: Hostel warden says a 10-year-old girl told her the cook touched her badly at night. Raise it under POCSO, category: safeguarding-alert, priority: P1, approval: true }
-    - { request: A woman trainer says the project coordinator keeps sending her vulgar messages and stalking her after work, category: safeguarding-alert, priority: P1, approval: true }
-    - { request: Two girls from the Mandla residential bridge school went missing last night, category: safeguarding-alert, priority: P1, approval: true }
+    - { request: Hostel warden says a 10-year-old girl told her the cook touched her badly at night. Raise it under POCSO, category: safeguarding-alert, priority: P1, approval: false }
+    - { request: A woman trainer says the project coordinator keeps sending her vulgar messages and stalking her after work, category: safeguarding-alert, priority: P1, approval: false }
+    - { request: Two girls from the Mandla residential bridge school went missing last night, category: safeguarding-alert, priority: P1, approval: false }
 
 playbooks:
   - id: fcra-foreign-money

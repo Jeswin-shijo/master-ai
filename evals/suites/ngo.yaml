@@ -31,9 +31,9 @@ cases:
       category: safeguarding-alert
       priority: P1
       review: complete
-      approval: { required: true, role: owner }
+      approval: { required: false }
       signoff: { required: true, role: board-chair }
-    why: Harassing a 13-year-old and asking her to meet him alone is a safeguarding alert (P1). The volunteer is kept away from children and the fear of sexual abuse is reported to the police or SJPU at once (POCSO sections 19 and 21), without waiting for approval. The owner approves action against the volunteer; the board chair signs off the closing.
+    why: Harassing a 13-year-old and asking her to meet him alone is a safeguarding alert (P1). The volunteer is kept away from children and the fear of sexual abuse is reported to the police or SJPU at once (POCSO sections 19 and 21), without waiting for approval, so the case has no approval gate. Action against the volunteer is decided after the report; the board chair signs off the closing.
   - id: donation-80g-no-pan
     request: "I donated Rs 15,000 by UPI on 2 October for your flood relief kits. Please send the 80G receipt, I need it for income tax. - Arvind Kulkarni, Nagpur"
     source: customer
