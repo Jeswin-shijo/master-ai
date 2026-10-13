@@ -9,6 +9,7 @@ import { useSession } from '@/lib/session';
 import { AgentsPage } from '@/routes/agents';
 import { ApprovalsPage } from '@/routes/approvals';
 import { AuditPage } from '@/routes/audit';
+import { CasePage } from '@/routes/case';
 import { CasesPage } from '@/routes/cases';
 import { LoginPage, SignupPage } from '@/routes/auth';
 import { InvitePage } from '@/routes/invite';
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <CommandCenterPage /> },
       { path: 'cases', element: <CasesPage /> },
+      { path: 'cases/:id', element: <CasePage /> },
       { path: 'goals/:id', element: <GoalDetailPage /> },
       { path: 'workflows', element: <WorkflowsPage /> },
       { path: 'approvals', element: <ApprovalsPage /> },
