@@ -11,6 +11,8 @@ const badgeVariants = cva('inline-flex items-center gap-1 rounded-full px-2 py-0
       warning: 'bg-warning-soft text-warning',
       danger: 'bg-danger-soft text-danger',
       info: 'bg-info-soft text-info',
+      waiting: 'bg-warning-soft text-warning',
+      cool: 'bg-accent-soft text-accent',
     },
   },
   defaultVariants: { tone: 'neutral' },

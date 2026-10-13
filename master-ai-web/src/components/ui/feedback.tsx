@@ -1,5 +1,6 @@
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { motion } from 'motion/react';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -32,14 +33,22 @@ export function EmptyState({ icon, title, children }: { icon?: ReactNode; title:
   );
 }
 
-export function PageHeader({ title, description, action }: { title: string; description?: ReactNode; action?: ReactNode }) {
+export function PageHeader({ title, lead, description, action }: { title: string; lead?: string; description?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-fg">{title}</h1>
-        {description && <p className="mt-1 text-sm text-fg-muted">{description}</p>}
+    <motion.div
+      initial={{ opacity: 0, y: 25 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      className="mb-8 flex flex-wrap items-end justify-between gap-4"
+    >
+      <div className="min-w-0">
+        <h1 className="font-display text-3xl font-light leading-tight tracking-tight text-fg md:text-4xl">
+          {lead && <span className="text-fg-lead">{lead} </span>}
+          {title}
+        </h1>
+        {description && <p className="mt-2 max-w-2xl text-sm text-fg-lead">{description}</p>}
       </div>
       {action}
-    </div>
+    </motion.div>
   );
 }
