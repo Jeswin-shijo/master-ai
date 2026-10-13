@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText } from 'lucide-react';
 import type { ReportPeriod } from '@onehuman/schemas';
+import { CaseReportCard } from '@/components/case-report';
 import { CopyReportButton, GoalReportCard, PrintButton, reportText } from '@/components/goal-report';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
@@ -25,7 +26,7 @@ export function ReportsPage() {
 
   const stats = data
     ? [
-        { label: 'Jobs', value: data.totals.goals, hint: `${data.totals.finished} finished` },
+        { label: 'Requests', value: data.totals.cases, hint: `${data.totals.goals} agent job${data.totals.goals === 1 ? '' : 's'}` },
         { label: 'Need you', value: data.totals.needYou, hint: 'waiting or stuck', tone: data.totals.needYou ? 'text-warning' : undefined },
         { label: 'Things done', value: data.totals.actions, hint: `${data.totals.messages} message${data.totals.messages === 1 ? '' : 's'}` },
         { label: 'Calls to the team', value: data.totals.calls },
@@ -33,16 +34,24 @@ export function ReportsPage() {
       ]
     : [];
   const allText = data
-    ? [`${company ?? 'Work'} report: ${label.toLowerCase()}`, '', ...data.goals.map((g) => `${reportText(g)}\n`)].join('\n').trim()
+    ? [
+        `${company ?? 'Work'} report: ${label.toLowerCase()}`,
+        '',
+        ...data.cases.map((c) => `${c.code}: ${c.title}\n${c.text}\n`),
+        ...data.goals.map((g) => `${reportText(g)}\n`),
+      ]
+        .join('\n')
+        .trim()
     : '';
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reports"
-        description="What your agents and team got done, in plain words. Share it with a client, or print it as a PDF."
+        lead="What got done,"
+        title="in plain words."
+        description="From your team and your agents. Share it with a client, or print it as a PDF."
         action={
-          data && data.goals.length > 0 ? (
+          data && (data.goals.length > 0 || data.cases.length > 0) ? (
             <div className="flex gap-2 print:hidden">
               <CopyReportButton text={allText} label="Copy all" />
               <PrintButton />
@@ -62,8 +71,8 @@ export function ReportsPage() {
             aria-selected={period === p.value}
             onClick={() => setPeriod(p.value)}
             className={cn(
-              'rounded-full border px-3 py-1 text-sm transition-colors',
-              period === p.value ? 'border-primary bg-primary-soft text-fg' : 'border-border text-fg-muted hover:text-fg',
+              'h-9 rounded-full px-4 text-sm transition-colors duration-300 max-sm:h-11',
+              period === p.value ? 'nav-active text-fg' : 'text-fg-muted hover:bg-line-5 hover:text-fg',
             )}
           >
             {p.label}
@@ -77,7 +86,7 @@ export function ReportsPage() {
       {data && (
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-xl border border-border bg-surface px-4 py-3">
+            <div key={s.label} className="glass rounded-lg px-4 py-3">
               <dt className="text-xs text-fg-muted">{s.label}</dt>
               <dd className={cn('mt-1 text-xl font-semibold tabular-nums text-fg', s.tone)}>{s.value}</dd>
               {s.hint && <dd className="text-xs text-fg-muted">{s.hint}</dd>}
@@ -86,14 +95,27 @@ export function ReportsPage() {
         </dl>
       )}
 
-      {data?.goals.length === 0 && (
+      {data && data.goals.length === 0 && data.cases.length === 0 && (
         <EmptyState icon={<FileText />} title="Nothing in this period">
-          Give the company a goal from the command center; its report appears here when the work is done.
+          Raise a request with New request. Its report appears here when it closes.
         </EmptyState>
       )}
-      <div className="space-y-4">
-        {data?.goals.map((g) => <GoalReportCard key={g.goalId} report={g} linked />)}
-      </div>
+      {data && data.cases.length > 0 && (
+        <section className="space-y-4" aria-label="Requests">
+          <h2 className="font-display text-xl font-light text-fg">Requests</h2>
+          {data.cases.map((c) => (
+            <CaseReportCard key={c.caseId} report={c} linked />
+          ))}
+        </section>
+      )}
+      {data && data.goals.length > 0 && (
+        <section className="space-y-4" aria-label="Agent jobs">
+          <h2 className="font-display text-xl font-light text-fg">Agent jobs</h2>
+          {data.goals.map((g) => (
+            <GoalReportCard key={g.goalId} report={g} linked />
+          ))}
+        </section>
+      )}
     </div>
   );
 }

@@ -35,8 +35,9 @@ export function ApprovalsPage() {
   return (
     <div>
       <PageHeader
-        title="Approvals"
-        description="Actions your agents want to take that need you. The policy engine, not the AI, decided each one needs approval."
+        lead="Decisions"
+        title="waiting for you."
+        description="Approvals and sign-offs for your role, and agent steps your rules stopped. The rules, not the AI, decided each one needs a person."
         action={
           lowRisk.length > 1 && (
             <Button variant="secondary" onClick={() => batch.mutate()} loading={batch.isPending}>
@@ -45,25 +46,25 @@ export function ApprovalsPage() {
           )
         }
       />
-      <div className="mb-4 flex gap-1 border-b border-border" role="tablist">
+      <div className="mb-5 flex flex-wrap items-center gap-2" role="tablist" aria-label="Approvals">
         {(['pending', 'all'] as const).map((t) => (
           <button
             key={t}
             role="tab"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={cn('-mb-px border-b-2 px-3 py-2 text-sm', tab === t ? 'border-primary font-medium text-fg' : 'border-transparent text-fg-muted hover:text-fg')}
+            className={cn('h-9 rounded-full px-4 text-sm transition-colors duration-300 max-sm:h-11', tab === t ? 'nav-active text-fg' : 'text-fg-muted hover:bg-line-5 hover:text-fg')}
           >
             {t === 'pending' ? 'Waiting for you' : 'History'}
           </button>
         ))}
+        {role !== 'member' && (
+          <label className="ml-auto flex items-center gap-2 text-sm text-fg-lead">
+            <input type="checkbox" checked={!mine} onChange={(e) => setMine(!e.target.checked)} className="size-4 accent-[var(--oh-glow)]" />
+            Everyone's, not only mine
+          </label>
+        )}
       </div>
-      {role !== 'member' && (
-        <label className="mb-4 flex items-center gap-2 text-sm text-fg-muted">
-          <input type="checkbox" checked={!mine} onChange={(e) => setMine(!e.target.checked)} />
-          Show everyone's approvals, not only the ones for me
-        </label>
-      )}
       <ErrorNote error={list.error ?? batch.error} className="mb-4" />
       {list.isLoading ? (
         <Spinner />
@@ -73,9 +74,11 @@ export function ApprovalsPage() {
         </EmptyState>
       ) : (
         <div className="space-y-4">
-          {list.data?.map((a) => (
-            <ApprovalCard key={a.id} approval={a} compact={tab === 'all'} />
-          ))}
+          {[...(list.data ?? [])]
+            .sort((a, b) => Number(b.kind === 'case_gate') - Number(a.kind === 'case_gate'))
+            .map((a) => (
+              <ApprovalCard key={a.id} approval={a} compact={tab === 'all'} />
+            ))}
         </div>
       )}
     </div>

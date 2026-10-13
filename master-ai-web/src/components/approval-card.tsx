@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bot, Check, Clock, PencilLine, ShieldCheck, X } from 'lucide-react';
+import { Bot, Check, Clock, FolderKanban, PencilLine, ShieldCheck, X } from 'lucide-react';
 import { Link } from 'react-router';
 import type { ApprovalRequest } from '@onehuman/schemas';
 import { readableFields } from '@onehuman/sdk';
@@ -49,12 +49,21 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
   };
 
   return (
-    <article className="rounded-lg border border-border bg-surface">
+    <article className="glass rounded-lg" data-kind={approval.kind}>
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-            <Bot className="size-3.5" aria-hidden />
-            <span>{approval.agentName}</span>
+            {approval.kind === 'case_gate' ? (
+              <>
+                <FolderKanban className="size-3.5 text-warning" aria-hidden />
+                <span className="text-warning">{approval.stage === 'close' ? 'Sign-off' : 'Approval'}</span>
+              </>
+            ) : (
+              <>
+                <Bot className="size-3.5" aria-hidden />
+                <span>{approval.agentName}</span>
+              </>
+            )}
             <span aria-hidden>·</span>
             <span>{timeAgo(approval.createdAt)}</span>
           </div>
@@ -76,7 +85,7 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
         </ul>
 
         {approval.rationale && (
-          <blockquote className="border-l-2 border-primary/40 pl-3 text-sm text-fg-muted">“{approval.rationale}”</blockquote>
+          <blockquote className="border-l-2 border-line-20 pl-3 text-sm text-fg-muted">“{approval.rationale}”</blockquote>
         )}
 
         {!compact && (
@@ -106,6 +115,11 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
             {approval.decidedAt ? `Decided ${timeAgo(approval.decidedAt)}` : 'Closed'}
             {approval.decisionNotes ? ` — “${approval.decisionNotes}”` : ''}
             {approval.signature && <span className="ml-2 inline-flex items-center gap-1 text-success"><ShieldCheck className="size-3.5" /> signed</span>}
+            {approval.caseId && (
+              <Link to={`/cases/${approval.caseId}`} className="ml-3 text-xs text-accent hover:underline">
+                Open the case
+              </Link>
+            )}
           </p>
         )}
 
@@ -127,10 +141,10 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
       </div>
 
       {pending && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
+        <div className="flex flex-wrap items-center gap-2 border-t border-line-10 px-5 py-3">
           {mode === 'view' && (
             <>
-              <Button variant="success" onClick={() => decide.mutate('approved')} loading={decide.isPending && decide.variables === 'approved'}>
+              <Button onClick={() => decide.mutate('approved')} loading={decide.isPending && decide.variables === 'approved'}>
                 <Check /> Approve
               </Button>
               {approval.kind === 'action' && (
@@ -145,7 +159,7 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
           )}
           {mode === 'edit' && (
             <>
-              <Button variant="success" onClick={submitEdit} loading={decide.isPending}>
+              <Button onClick={submitEdit} loading={decide.isPending}>
                 <Check /> Approve edited
               </Button>
               <Button variant="ghost" onClick={() => setMode('view')}>Cancel</Button>
@@ -165,6 +179,11 @@ export function ApprovalCard({ approval, compact }: { approval: ApprovalRequest;
           {compact && approval.goalId && (
             <Link to={`/goals/${approval.goalId}`} className="text-xs text-primary hover:underline">
               View goal
+            </Link>
+          )}
+          {approval.caseId && (
+            <Link to={`/cases/${approval.caseId}`} className="text-xs text-accent hover:underline">
+              Open the case
             </Link>
           )}
         </div>

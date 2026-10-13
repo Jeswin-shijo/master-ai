@@ -13,8 +13,8 @@ import { CasePage } from '@/routes/case';
 import { CasesPage } from '@/routes/cases';
 import { LoginPage, SignupPage } from '@/routes/auth';
 import { InvitePage } from '@/routes/invite';
-import { CommandCenterPage } from '@/routes/command-center';
 import { GoalDetailPage } from '@/routes/goal-detail';
+import { HomePage } from '@/routes/home';
 import { KnowledgePage } from '@/routes/knowledge';
 import { OnboardingPage } from '@/routes/onboarding';
 import { PackPage } from '@/routes/pack';
@@ -56,7 +56,7 @@ const router = createBrowserRouter([
   {
     element: <RequireSession><AppShell /></RequireSession>,
     children: [
-      { index: true, element: <CommandCenterPage /> },
+      { index: true, element: <HomePage /> },
       { path: 'cases', element: <CasesPage /> },
       { path: 'cases/:id', element: <CasePage /> },
       { path: 'goals/:id', element: <GoalDetailPage /> },
