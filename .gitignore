@@ -22,3 +22,5 @@ master-ai-mobile/android/
 
 # Brainstorming mockups (visual companion)
 .superpowers/
+master-ai-web/test-results
+master-ai-web/playwright-report

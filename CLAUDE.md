@@ -8,6 +8,7 @@ Read `README.md` first. The spec is `docs/architecture-plan.md`; decisions are i
 - `pnpm infra:up` · `pnpm db:migrate` · `pnpm dev` (packages + API :3000 + worker + web :5173)
 - `pnpm turbo run build typecheck test` — must stay green
 - `pnpm smoke` — end-to-end against a running API + worker (offline LLM mode); it switches the tenant's calls to auto mode
+- `pnpm e2e` — browser tests (Playwright, Chromium) against a running `pnpm dev`: the signup-to-report journey at desktop width, plus a 390px phone project
 - Run only one `pnpm dev`. A second one fights the first over :3000 and keeps crashing the API (its web lands on :5174).
 - New migration: edit `master-ai-backend/src/db/schema.ts`, then `pnpm --filter @onehuman/backend db:generate`
 
