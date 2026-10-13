@@ -25,13 +25,17 @@ match:
     - production unit
     - production plant
     - processing plant
-    - auto parts
-    - auto components
+    - auto parts manufacturer
+    - auto parts maker
+    - auto parts unit
+    - auto components manufacturer
+    - auto components maker
     - auto ancillary
     - component manufacturer
-    - machine shop
+    - machining
     - cnc machining
-    - press shop
+    - sheet metal
+    - stamping unit
     - forging unit
     - foundry
     - casting unit
@@ -383,10 +387,10 @@ lifecycle:
         - Contract workers have safety induction, gate pass and PPE
     approve:
       name: Permit or approval
-      description: Where the rules say so, the shift in-charge signs the permit and lock-out, the quality head decides on the material, or the plant head or owner approves before work starts.
+      description: Where the rules say so, the shift in-charge signs the permit and lock-out, the safety officer clears hot work, height and confined-space permits, the quality head decides on the material, or the plant head or owner approves before work starts.
       checks:
         - "Breakdown and maintenance jobs: shift in-charge releases the machine and signs the permit and lock-out"
-        - "Hot work, height and confined-space permits: countersigned by the safety officer"
+        - "Hot work, height and confined-space permits: the safety officer clears them after the shift in-charge releases the machine"
         - "Quality problems and CAPA plans: quality head"
         - "Accidents, emergencies and pollution alarms: plant head approves the notice and the restart"
         - "Statutory notices, licence and consent renewals: plant head signs the reply"
@@ -424,7 +428,7 @@ lifecycle:
   roles:
     - { id: plant-head, name: Plant head (factory manager), approves: "Statutory notices after an accident, dangerous occurrence or pollution alarm, replies to inspectors and the pollution board, and restarting the machine or area afterwards" }
     - { id: shift-in-charge, name: Shift in-charge, approves: "Releases the machine and signs the permit and lock-out before any breakdown or maintenance job; accepts the machine back after the trial run" }
-    - { id: safety-officer, name: Safety officer (EHS), approves: "Countersigns hot work, height and confined-space permits; signs off accidents, emergencies and near misses once the investigation and fixes are done" }
+    - { id: safety-officer, name: Safety officer (EHS), approves: "Clears (countersigns) hot work, height and confined-space permits; signs off accidents, emergencies and near misses once the investigation and fixes are done" }
     - { id: quality-head, name: Quality head (QA/QC), approves: "Decides what happens to rejected material (rework, scrap, return, or use as is with the customer's concession) and approves CAPA plans; signs off quality problems, CAPAs and the final inspection before dispatch" }
     - { id: maintenance-head, name: Maintenance in-charge, approves: "Signs off finished preventive maintenance checklists and statutory test certificates" }
   urgent_keywords:
@@ -495,12 +499,25 @@ lifecycle:
         - chot lagi
         - caught fire
         - fire broke out
+        - on fire
+        - fire in
+        - fire at
+        - fire near
+        - small fire
+        - flames
         - aag
         - smoke
         - explosion
         - gas leak
         - gas leaking
         - ammonia leak
+        - ammonia leaking
+        - chlorine leak
+        - chlorine leaking
+        - lpg leak
+        - cylinder leak
+        - cylinder leaking
+        - toxic gas
         - chemical spill
         - acid spill
         - fainted
@@ -520,14 +537,10 @@ lifecycle:
       priority: P1
       risk: high
       department: Safety (EHS)
-      required_details:
-        - key: place
-          label: Where it happened
-          kind: keywords
-          keywords: [shop, line, bay, press, machine, area, section, floor, yard, store, stores, gate, canteen, loading, dock, plant, kiln, furnace, mill, boiler, tank, reactor, stack, chimney, etp, outlet, warehouse, godown, road, room, cell, unit, conveyor, belt, crane, hoist, forklift, lathe, cnc, grinder, mixer, crusher, compressor, panel, ladder, scaffolding, roof, silo, hopper, booth, shed]
+      # P1: no required details, so it never waits as "needs info".
       required_checks:
         - Person cared for (first aid, hospital) and area made safe
-        - Name, time, place and what happened recorded
+        - "Name, time, place and what happened recorded (phone the person who raised it for anything missing)"
         - Machine or area isolated and left as found for the investigation
         - Witness statements, photos and CCTV collected
         - "Notice decided and sent in time where the law needs one: death, 48 hours or more off work, dangerous occurrence or pollution exceedance"
@@ -590,13 +603,10 @@ lifecycle:
       priority: P1
       risk: high
       department: Maintenance
-      required_details:
-        - key: machine
-          label: Which machine or line
-          kind: keywords
-          keywords: [machine no, machine number, m/c no, press, lathe, cnc, vmc, hmc, grinder, conveyor, belt, kiln, mill, furnace, ladle, caster, rolling, compressor, pump, motor, gearbox, boiler, crane, hoist, forklift, mixer, extruder, moulding, blower, fan, crusher, packer, filler, capper, labeller, oven, dryer, reactor, centrifuge, chiller, cooling tower, dg set, transformer, panel, robot, line, cell, silo, hopper, elevator, esp, bag filter, etp, pasteuriser, retort, loom, ring frame, stenter]
+      # P1: no required details, so it never waits as "needs info". The shift
+      # in-charge phones back for the machine while the fitter is sent.
       required_checks:
-        - Machine, line and location named
+        - Machine, line and location named (phone the person who raised it if they are missing)
         - What stopped and the time it stopped
         - Machine isolated, locked and tagged (LOTO) before anyone works on it
         - Hot work, height or confined-space permit if the repair needs one
@@ -775,20 +785,6 @@ lifecycle:
         - sensor
         - interlock
         - limit switch
-        - hot work
-        - welding work
-        - welding job
-        - welding repair
-        - gas cutting
-        - work at height
-        - height work
-        - roof work
-        - scaffolding
-        - confined space
-        - tank cleaning
-        - hopper cleaning
-        - silo cleaning
-        - duct cleaning
         - loto
         - lockout
         - work permit
@@ -816,10 +812,49 @@ lifecycle:
         - Contract workers inducted, with gate pass and PPE
         - Statutory test dates kept (lifts and hoists, lifting tackle, pressure vessels) where the job is one of them
       not_eligible:
-        - keywords: [bypass, bypassed, bypassing, by pass, jumper, jumpered, short the interlock, override the interlock, defeat the interlock, disable, disabled, deactivate, remove the guard, remove guard, removing the guard, remove the light curtain, remove light curtain, remove the sensor, remove the interlock, take off the guard, mute the light curtain, switch off the sensor, switch off the light curtain, run without guard, run without the guard, without light curtain, without sensor, for this shift, just for today, for today only, only for today, till we meet the target, to meet the target]
+        - keywords: [bypass it, bypass kar, bypass karo, bypass the guard, bypass the light curtain, bypass the sensor, bypass the interlock, bypass the safety, safety bypass, interlock bypass, sensor bypass, bypassed the interlock, bypassed the sensor, jumper the interlock, jumper the sensor, short the interlock, override the interlock, defeat the interlock, disable the interlock, disable the sensor, disable the light curtain, disable the guard, remove the guard, remove guard, removing the guard, take off the guard, remove the light curtain, remove light curtain, remove the sensor, remove the interlock, mute the light curtain, switch off the light curtain, switch off the sensor, run without guard, run without the guard, without light curtain, without the light curtain, without sensor, without the sensor, without the interlock]
           reason: It asks to remove or bypass a guard, light curtain, sensor or interlock to keep production going. The law forbids interfering with safety devices (OSH Code 2020; Factories Act 1948 s.111), so fix the device or stop the machine instead.
       approval: { required: always, role: shift-in-charge }
       signoff: { required: true, role: maintenance-head }
+      workflow: maintenance-job
+      execution: team
+    - id: high-risk-permit
+      name: Hot work, height or confined space
+      keywords:
+        - hot work
+        - welding work
+        - welding job
+        - welding repair
+        - gas cutting
+        - work at height
+        - height work
+        - roof work
+        - roof sheet
+        - fragile roof
+        - scaffolding
+        - confined space
+        - tank entry
+        - vessel entry
+        - manhole entry
+        - tank cleaning
+        - hopper cleaning
+        - silo cleaning
+        - duct cleaning
+        - pit cleaning
+        - sump cleaning
+      priority: P2
+      risk: high
+      department: Maintenance
+      required_details:
+        - { key: when, label: When the work starts, kind: date }
+      required_checks:
+        - Machine or area released by the shift in-charge and isolated, locked and tagged
+        - "Confined space: a competent person tests the air and certifies it in writing; one person stays outside with a rope and a way to call for help"
+        - "Hot work: combustibles cleared or covered, fire watcher with an extinguisher until 30 minutes after the work ends"
+        - "Height: full-body harness tied to a lifeline; crawling boards over fragile roof sheets"
+        - Contract workers inducted, with gate pass and PPE
+      approval: { required: always, role: safety-officer }
+      signoff: { required: true, role: shift-in-charge }
       workflow: maintenance-job
       execution: team
     - id: production-order
@@ -838,7 +873,6 @@ lifecycle:
         - sales order
         - customer order
         - customer po
-        - po
         - new order
         - repeat order
         - bulk order
@@ -889,6 +923,7 @@ lifecycle:
         - send the po
         - release po
         - release the po
+        - po
         - quote
         - quotation
         - best quote
@@ -989,10 +1024,7 @@ lifecycle:
         - repeated
         - repeating
         - recurring
-        - again and again
-        - third time
-        - second time
-        - back again
+        - recurrence
         - permanent fix
         - permanent solution
         - corrective action
@@ -1035,7 +1067,10 @@ lifecycle:
     - { request: Coolant all over the walkway near CNC cell 3 and it is very slippery, category: near-miss, priority: P3, approval: false }
     - { request: "Quarterly PM due on the 250 T power press: clutch and brake check and lubrication", category: planned-maintenance, priority: P3, approval: true }
     - { request: Six-monthly load test of the 5 T EOT crane hoist is due on 15 November, category: planned-maintenance, priority: P3, approval: true }
-    - { request: Welding repair of the cyclone duct on Sunday needs a hot work permit, category: planned-maintenance, priority: P3, approval: true }
+    - { request: Welding repair of the cyclone duct on Sunday needs a hot work permit, category: high-risk-permit, priority: P2, approval: true }
+    - { request: "Two contract workers for silo cleaning in the fly ash silo on Saturday, standby man outside", category: high-risk-permit, priority: P2, approval: true }
+    - { request: Roof sheet replacement over the paint shop next Monday; the old sheets are brittle, category: high-risk-permit, priority: P2, approval: true }
+    - { request: "PM job on Sunday: change the worn coupling of the raw mill fan", category: planned-maintenance, priority: P3, approval: true }
     - { request: "Sales order from Shree Agro: 40 tonnes of cattle feed pellets, dispatch by 5 December", category: production-order, priority: P3, approval: false }
     - { request: "Job card for 2,500 bottles of 1 litre floor cleaner, batch size 500, due Friday", category: production-order, priority: P3, approval: false }
     - { request: "Indent for 20 grinding wheels for the cylindrical grinder at ₹18,500 from the rate contract vendor", category: purchase, priority: P3, approval: false }
@@ -1055,7 +1090,7 @@ playbooks:
     body: |
       1. Stop the machine, isolate the supply, give first aid and get the injured person to hospital (the ESIC hospital or dispensary if they are covered by ESI). Leave the spot as it was for the investigation.
       2. Phone the plant head, the owner and the safety officer at once, and tell the family.
-      3. A death, an injury that may keep someone off work 48 hours or more, or a dangerous occurrence (fire, explosion, gas leak, crane, hoist or scaffold failure) needs a notice to the Inspector-cum-Facilitator: phone at once, then send the written notice in the form and time your state's OSH rules set (Gujarat: Form 6 within 12 hours).
+      3. A death, an injury that may keep someone off work 48 hours or more, or a dangerous occurrence (fire, explosion, gas leak, crane, hoist or scaffold failure) needs a notice to the Inspector-cum-Facilitator: phone at once, then send the written notice in the form and time your state's OSH rules set (for example, Gujarat's rules say Form 6 within 12 hours; check the current rule for your state).
       4. For a worker covered by ESI, send the accident report to the ESIC branch office within 24 hours. For others, keep the papers for an Employee's Compensation claim.
       5. Collect photos, CCTV, witness statements and the permit and lock-out record before the shift ends.
       6. Restart only after the plant head approves, then open a CAPA work order for the root cause and track each action to closure.

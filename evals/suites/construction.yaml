@@ -11,7 +11,7 @@ cases:
       review: complete
       approval: { required: true, role: project-manager }
       signoff: { required: true, role: safety-officer }
-    why: Fell from, injury and taken to hospital mark an accident (P1); the place is given. The project manager approves the report and the restart once the safety officer clears the area; the safety officer closes the investigation.
+    why: Fell from, injury and taken to hospital mark an accident (P1), which never waits as "needs info". The project manager approves the report and the restart once the safety officer clears the area; the safety officer closes the investigation.
   - id: low-cubes-owner
     request: "Cubes for Tower A 6th floor slab came 21 and 22 N/mm2, it was M25. The client's audit is next week. Don't stop anything, cast the 7th floor slab on Saturday as planned, we will sort this out later."
     source: owner

@@ -11,7 +11,7 @@ cases:
       review: complete
       approval: { required: true, role: shift-charge-engineer }
       signoff: { required: true, role: shift-charge-engineer }
-    why: Tripped is a breakdown word; breakdowns are P1, so the shift in-charge clears the permit. Unit, cause and time are given.
+    why: Tripped is a breakdown word; breakdowns are P1, so the shift in-charge clears the permit. A P1 never waits as "needs info"; the alarm gives the unit, cause and time anyway.
   - id: no-supply-lane
     request: "Bijli nahi hai since 7 pm in whole Gandhi Nagar lane 3. Consumer no 410023456. Please send lineman."
     source: customer

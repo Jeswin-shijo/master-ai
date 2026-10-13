@@ -56,7 +56,8 @@ lifecycle:
     - { id: safety-officer, name: Safety officer, approves: High-risk work permits and accident investigations }
     - { id: maintenance-head, name: Maintenance head, approves: Breakdown repairs and finished maintenance }
     - { id: quality-head, name: Quality head, approves: Quality problems and corrective actions }
-  urgent_keywords: [fire, explosion, injured, injury, accident, electrocution, electrocuted, shock, gas leak, collapse, collapsed, fatal, trapped, smoke, spill]
+  # Not a bare "fire": fire NOCs, fire extinguishers and fire hydrant jobs are routine work.
+  urgent_keywords: [caught fire, fire broke out, on fire, fire in, fire at, fire near, flames, explosion, injured, injury, accident, electrocution, electrocuted, shock, gas leak, collapse, collapsed, fatal, trapped, smoke, spill]
   categories:
     - id: breakdown
       name: Breakdown repair
@@ -76,7 +77,7 @@ lifecycle:
       execution: team
     - id: accident
       name: Accident or near miss
-      keywords: [accident, injured, injury, near miss, fell, fall from height, burns, hurt, first aid, unsafe, dangerous occurrence]
+      keywords: [accident, injured, injury, near miss, fell, fall from height, burns, hurt, first aid, unsafe, dangerous occurrence, caught fire, fire broke out, on fire, fire in, fire at, explosion, gas leak]
       priority: P1
       risk: high
       department: Safety
@@ -87,13 +88,31 @@ lifecycle:
       execution: both
     - id: planned-maintenance
       name: Planned maintenance
-      keywords: [preventive maintenance, pm due, servicing, service due, calibration, lubrication, greasing, inspection due, overhaul, scheduled maintenance]
+      keywords: [preventive maintenance, pm due, servicing, service due, calibration, lubrication, greasing, inspection due, overhaul, scheduled maintenance, load test, statutory test]
       priority: P3
       risk: low
       department: Maintenance
       required_checks: [Job is in the maintenance schedule, Spares and crew ready]
       approval: { required: never }
       signoff: { required: true, role: maintenance-head }
+      workflow: delegate-work
+      execution: team
+    - id: high-risk-permit
+      name: High-risk work permit
+      keywords: [hot work, welding work, gas cutting, confined space, tank entry, vessel entry, manhole entry, sewer entry, work at height, height work, excavation permit, deep excavation, heavy lift, critical lift, lifting plan]
+      priority: P2
+      risk: high
+      department: Safety
+      required_details:
+        - { key: when, label: When the work starts, kind: date }
+      required_checks:
+        - Main permit-to-work and isolation already in place
+        - "Confined space: air tested and recorded, and a standby person outside"
+        - "Hot work: combustibles cleared, fire watcher and extinguisher at site"
+        - "Height: harness tied to a lifeline; excavation: shoring, fencing and signs"
+        - Crew trained, fit and briefed on the hazards
+      approval: { required: always, role: safety-officer }
+      signoff: { required: true, role: safety-officer }
       workflow: delegate-work
       execution: team
     - id: purchase
@@ -121,7 +140,7 @@ lifecycle:
       execution: both
     - id: compliance
       name: Statutory compliance
-      keywords: [statutory, inspector, show cause notice, licence renewal, license renewal, consent to operate, pollution control board, factories act, compliance audit]
+      keywords: [statutory, inspector, show cause notice, licence renewal, license renewal, consent to operate, consent to establish, pollution control board, spcb, environmental clearance, fire noc, ceig, electrical inspection, boiler inspector, factories act, compliance audit]
       priority: P2
       risk: medium
       department: Compliance
@@ -138,12 +157,14 @@ lifecycle:
     - { request: "Near miss today, a spanner dropped from the gantry and missed two workers", category: accident, priority: P1, approval: true }
     - { request: Monthly greasing of the crusher bearings is due on Friday, category: planned-maintenance, priority: P3, approval: false }
     - { request: Calibration of the weighbridge is due this week, category: planned-maintenance, priority: P3, approval: false }
+    - { request: Two welders need a hot work permit for the dryer duct repair on Saturday, category: high-risk-permit, priority: P2, approval: true }
+    - { request: Confined space entry into the effluent sump for desilting next Tuesday, category: high-risk-permit, priority: P2, approval: true }
     - { request: "Please buy 4 spare V-belts for the blower, about ₹6,000", category: purchase, priority: P4, approval: false }
     - { request: Raise an indent for welding rods and grinding discs worth ₹2.4 lakh, category: purchase, priority: P4, approval: true }
     - { request: The last batch of castings was rejected for porosity, category: quality-problem, priority: P2, approval: false }
     - { request: "Customer complaint about quality, the coating is peeling on 40 panels", category: quality-problem, priority: P2, approval: false }
     - { request: Pollution control board consent to operate expires on 30 November, category: compliance, priority: P2, approval: true }
-    - { request: The factory inspector sent a show cause notice about guarding on the press line, category: compliance, priority: P2, approval: true }
+    - { request: The factory inspector sent a show cause notice about guarding on the press line; reply within 30 days, category: compliance, priority: P2, approval: true }
 
 playbooks:
   - id: sector-permit-to-work
@@ -200,16 +221,20 @@ kpis:
 
 other_org_types:
   - { name: Cement plant, keywords: [cement, clinker, grinding unit], closest: manufacturing-plant }
+  - { name: Engineering workshop or machine shop, keywords: [machine shop, engineering workshop, engineering works, fabrication shop, job shop, cnc, vmc, tool room], closest: manufacturing-plant }
   - { name: Steel or metals plant, keywords: [steel, rolling mill, foundry, forging, casting unit, smelter], closest: manufacturing-plant }
   - { name: Chemical or pharma plant, keywords: [chemical, chemicals, pharma, pharmaceutical, fertiliser, fertilizer, paints], closest: manufacturing-plant }
   - { name: Food processing plant, keywords: [food processing, dairy plant, rice mill, flour mill, sugar mill, bottling plant], closest: manufacturing-plant }
   - { name: Textile mill, keywords: [textile, spinning mill, weaving, garment factory, dyeing unit], closest: manufacturing-plant }
   - { name: Oil and gas operations, keywords: [oil and gas, oil field, refinery, gas plant, pipeline operator, lpg bottling], closest: manufacturing-plant }
   - { name: Shipyard, keywords: [shipyard, ship repair, dockyard, boat building], closest: manufacturing-plant }
+  - { name: "Paper, glass, rubber or ceramics plant", keywords: [paper mill, paper plant, tyre plant, tyre factory, rubber products, glass factory, glass plant, ceramic, ceramics, tiles factory, brick kiln, distillery, brewery, ready mix concrete, rmc plant], closest: manufacturing-plant }
   - { name: Solar park, keywords: [solar park, solar farm, solar plant, solar power, rooftop solar developer], closest: power-plant }
   - { name: Wind farm, keywords: [wind farm, wind power, windmill, wind energy], closest: power-plant }
   - { name: Hydro power station, keywords: [hydro, hydel, hydroelectric, small hydro], closest: power-plant }
+  - { name: Biomass or waste-to-energy plant, keywords: [biomass, biogas, waste to energy, cogeneration, captive power], closest: power-plant }
   - { name: Substation or distribution company, keywords: [substation, discom, electricity distribution, transmission company, power distribution], closest: power-plant }
   - { name: EPC or infrastructure contractor, keywords: [epc, infrastructure, road construction, highway, bridge, civil contractor, metro project], closest: construction }
+  - { name: Specialist contractor, keywords: [electrical contractor, plumbing contractor, hvac contractor, interior contractor, fit out contractor, interior fit out, fabrication contractor, waterproofing contractor, solar installer, solar rooftop installer, rooftop solar installer, solar epc], closest: construction }
   - { name: Real estate developer, keywords: [real estate, builder, housing project, apartment project, township], closest: construction }
   - { name: Mining or quarry, keywords: [mining, mine, quarry, stone crusher, coal mine, sand mining], closest: construction }

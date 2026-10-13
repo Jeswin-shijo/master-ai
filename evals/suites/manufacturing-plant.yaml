@@ -28,20 +28,18 @@ cases:
     expect:
       category: breakdown
       priority: P1
-      review: needs_info
+      review: complete
       approval: { required: true, role: shift-in-charge }
       signoff: { required: true, role: shift-in-charge }
-    why: Machine band ho gayi means a stopped machine, so breakdown, P1. It does not say which machine or line, so review asks for it. The gate rule is still the shift in-charge's permit.
+    why: Machine band ho gayi means a stopped machine, so breakdown, P1. A P1 never waits as "needs info"; the shift in-charge phones back for the machine and line while a fitter is sent. The shift in-charge still signs the permit and lock-out and accepts the machine back.
   - id: customer-rejection-brackets
-    request: "From ABC Auto quality: 140 of 2,000 brake brackets (part BB-2231, your invoice 4471, lot 0925-B) have hole position out of tolerance. Parts are on hold at our end. Arrange sorting and send your containment plan today."
+    request: "Ravi from ABC Auto quality here. The brake brackets you sent this week have hole position out of tolerance, 140 bad in 2,000 checked so far. We have put them on hold at our line. Arrange sorting and send your containment plan today."
     source: customer
     expect:
       category: quality-problem
       priority: P2
-      review: complete
-      approval: { required: true, role: quality-head }
-      signoff: { required: true, role: quality-head }
-    why: A customer rejection with part, invoice, lot and quantity is a quality problem (P2, contain within 24 hours). The quality head always decides what happens to the parts and signs off.
+      review: needs_info
+    why: A customer rejection is a quality problem (P2, contain within 24 hours). It gives no part number, invoice or lot, so the right stock cannot be traced and held; review asks the customer for it before the containment plan.
   - id: forklift-near-miss
     request: "Near miss at dispatch bay, 4:15 pm today: forklift FL-02 reversed with its reverse horn dead and almost hit a loader. Nobody was hit. Please get the horn fixed and remind all drivers."
     source: staff
@@ -53,7 +51,7 @@ cases:
       signoff: { required: true, role: safety-officer }
     why: Nobody was hurt and the place, time and cause are given, so it is a near miss (P3). Near misses need no approval; the safety officer signs off once the horn is fixed and the drivers are briefed.
   - id: light-curtain-removal
-    request: "Light curtain on press 5 keeps cutting the stroke and we're behind target. Tell maintenance to remove it for this shift, we'll refit it tomorrow."
+    request: "Light curtain on press 5 keeps cutting the stroke and we're behind target. Tell maintenance to bypass it for this shift, we'll set it right tomorrow."
     source: staff
     expect:
       category: planned-maintenance
@@ -61,7 +59,7 @@ cases:
       review: not_eligible
       approval: { required: true, role: shift-in-charge }
       signoff: { required: true, role: maintenance-head }
-    why: It asks maintenance to take a light curtain off for the shift to keep output up. The law forbids interfering with safety devices (OSH Code 2020; Factories Act s.111), so review refuses it. The gates show the maintenance-job rule, but the work order stops at review.
+    why: It asks maintenance to bypass a light curtain for the shift to keep output up. The law forbids interfering with safety devices (OSH Code 2020; Factories Act s.111), so review refuses it. The gates show the maintenance-job rule, but the work order stops at review.
   - id: gear-blank-schedule
     request: "November schedule: gear blank 55210, drawing rev C, 8,000 pcs - 4,000 by 14 Nov and 4,000 by 28 Nov. PO 7781 attached."
     source: customer

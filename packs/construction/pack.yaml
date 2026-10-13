@@ -343,7 +343,7 @@ lifecycle:
       description: The project names the person responsible (site engineer, safety officer, QS, storekeeper, labour officer or CRM executive), sets the deadline and tells the subcontractor if their crew is involved.
     approve:
       name: Approval before work
-      description: Where the type needs it, the named person approves before money is committed or work starts or restarts. The project manager clears accident reports, restarts and quality fixes, the owner clears big purchases and changes, and the HR manager clears labour filings and wages paid on a contractor's behalf.
+      description: Where the type needs it, the named person approves before money is committed or work starts or restarts. The safety officer clears hot work, confined space, height and deep excavation permits, the project manager clears accident reports, restarts and quality fixes, the owner clears big purchases and changes, the projects head clears statutory replies, and the HR manager clears labour filings and wages paid on a contractor's behalf.
       checks:
         - Safety officer has cleared the area before work restarts after an accident
         - Written instruction or the buyer's signed request in hand before change work
@@ -383,7 +383,7 @@ lifecycle:
       approves: "Accident reports to the authorities and the restart of work once the safety officer clears it; the fix for a quality problem and its cost; signs off hold-ups once work restarts"
     - id: safety-officer
       name: Safety officer (safety in-charge on smaller sites)
-      approves: "Closes accident, near miss and unsafe-condition cases once the corrective actions are checked, and can stop unsafe work. Sites with 250 or more workers need a qualified safety officer."
+      approves: "Clears hot work, confined space, height and deep excavation permits; closes accident, near miss and unsafe-condition cases once the corrective actions are checked, and can stop unsafe work. Sites with 250 or more workers need a qualified safety officer."
     - id: quality-head
       name: QA/QC manager
       approves: Signs off quality problems after checking the repaired work and the new test results
@@ -401,21 +401,19 @@ lifecycle:
       approves: "Breakdown repairs and servicing of cranes, hoists, batching plants and other site machines"
     - id: plant-head
       name: Projects head (GM or director)
-      approves: "Replies to statutory notices, licence renewals and consents for the company's sites"
-  urgent_keywords: [fire, caught fire, explosion, injured, injury, accident, electrocuted, electric shock, shock, collapse, collapsed, caved in, fell from, fall from height, fatal, died, death, unconscious, trapped, buried, gas leak, smoke, crane toppled]
+      approves: "Replies to statutory notices, RERA filings, licence renewals, NOCs and consents for the company's sites"
+  # Not a bare "fire": fire NOCs, fire-fighting works and fire alarm jobs are routine for builders.
+  urgent_keywords: [caught fire, fire broke out, on fire, fire in, fire at, fire near, flames, explosion, injured, injury, accident, electrocuted, electric shock, shock, collapse, collapsed, caved in, fell from, fall from height, fatal, died, death, unconscious, trapped, buried, gas leak, smoke, crane toppled]
   categories:
     - id: accident
       name: Accident or unsafe site
-      keywords: [accident, injured, injury, hurt, fell from, fall from height, fell down, collapsed, collapse, caved in, electric shock, electrocuted, caught fire, fire broke out, died, death, fatal, unconscious, taken to hospital, ambulance, crane toppled, hoist failure, near miss, dangerous occurrence, unsafe, no railing, no edge protection, without harness, no safety net, without helmet, snake bite, heat stroke, durghatna, chot lagi]
+      keywords: [accident, injured, injury, hurt, broke his, broke her, fracture, fractured, fell from, fall from height, fell down, collapsed, collapse, caved in, electric shock, electrocuted, caught fire, fire broke out, on fire, fire in, fire at, died, death, fatal, unconscious, taken to hospital, ambulance, crane toppled, hoist failure, near miss, dangerous occurrence, unsafe, no railing, no edge protection, without harness, no safety net, without helmet, snake bite, heat stroke, durghatna, chot lagi]
       priority: P1
       risk: high
       department: Safety
-      required_details:
-        - key: place
-          label: Where on site it happened
-          kind: keywords
-          keywords: [tower, block, wing, floor, slab, site, chainage, km, pier, span, basement, excavation, trench, scaffolding, lift shaft, staircase, terrace, labour camp, camp, batching plant, yard, store, gate, culvert, bridge, road, villa, plot, phase]
+      # P1: no required details, so it never waits as "needs info".
       required_checks:
+        - "Exact place (tower, floor or chainage), time and who was hurt recorded; phone the person who raised it for anything missing"
         - "Work stopped in the area, first aid given and the injured taken to hospital; photos taken and the scene left as it is except for rescue"
         - "A death: the labour authority, police, District Magistrate or SDO and the family told at once"
         - "Serious injury (off work 48 hours or more) or a dangerous occurrence (collapse, crane or hoist failure, fire, falling objects): written report within the time the state's rules set"
@@ -426,6 +424,42 @@ lifecycle:
       signoff: { required: true, role: safety-officer }
       workflow: accident-response
       execution: both
+    - id: breakdown
+      name: Site machine breakdown
+      keywords: [breakdown, broke down, broken down, machine stopped, machine not working, not starting, tripped, tripping, hydraulic leak, hose burst, oil leak, seized, overheating, motor burnt, brake failure, brake not working, wire rope damaged]
+      priority: P2
+      risk: medium
+      department: Plant and machinery (P&M)
+      required_details:
+        - key: machine
+          label: Which machine
+          kind: keywords
+          keywords: [machine, crane, tower crane, hoist, winch, batching plant, transit mixer, concrete pump, boom placer, excavator, jcb, poclain, hydra, loader, dg, dg set, generator, compressor, vibrator, mixer, bar bending, bar cutting, paver, roller, grader, piling rig, rig, dumper, tipper, tractor, pump, motor]
+      required_checks:
+        - Machine stopped, tagged and kept out of use until it is checked
+        - "Cranes and hoists: brakes, limit switches and wire ropes checked, and tested by a competent person before use again"
+        - "Hired machine: owner told to repair or replace it under the hire terms"
+        - Idle crews and machines recorded and moved to other work
+      approval: { required: high_risk_or_p1, role: maintenance-head }
+      signoff: { required: true, role: maintenance-head }
+      workflow: delegate-work
+      execution: team
+    - id: compliance
+      name: Statutory approvals and notices
+      keywords: [statutory, show cause, closure notice, licence renewal, license renewal, consent to establish, consent to operate, pollution control board, spcb, environmental clearance, ec compliance, rera quarterly, rera update, rera return, rera registration, rera extension, fire noc, occupancy certificate, completion certificate, commencement certificate, building permission, plan sanction, municipal notice, compliance audit]
+      priority: P2
+      risk: medium
+      department: Statutory approvals and liaison
+      required_details:
+        - { key: dueDate, label: Due date or expiry date, kind: date }
+      required_checks:
+        - Notice, letter or certificate attached, with its due or expiry date
+        - "Papers, drawings, forms and fees listed"
+        - Reply or application signed by the projects head before the due date
+        - "Acknowledgement kept, and the RERA website updated where needed"
+      approval: { required: always, role: plant-head }
+      signoff: { required: false }
+      execution: agents
     - id: site-hold-up
       name: Site hold-up or hindrance
       keywords: [work stopped, stopped work, stop work, work stoppage, stop construction, construction ban, grap, hindrance, hold up, held up, on hold, idle, standing idle, no front, front not available, site not handed over, land not handed over, right of way, encroachment, utility shifting, forest clearance, tree cutting permission, no power, power cut, no water, waterlogged, flooded, heavy rain, neighbour complaint, police stopped, villagers stopped, locals stopped, stay order, kaam band]
@@ -495,7 +529,7 @@ lifecycle:
       execution: both
     - id: change-order
       name: Change order or extra work
-      keywords: [change order, variation, variation order, extra work, extra item, additional work, change of scope, scope change, customisation, customization, modification, alteration, deviation, extra cost, change request]
+      keywords: [change order, variation, variation order, extra work, extra item, additional work, site instruction, client instruction, non boq, not in boq, extra quantity, change of scope, scope change, customisation, customization, modification, alteration, deviation, extra cost, change request, layout change, change in layout, enclose the balcony, extend the balcony, balcony enclosure, terrace room, room on the terrace, merge two flats, combine two flats]
       priority: P3
       risk: medium
       department: Contracts and billing
@@ -511,7 +545,7 @@ lifecycle:
         - "Home buyers: minor, non-structural change to their own flat only; plan or common-area changes need two-thirds of buyers (RERA)"
         - Entered in the variation register, savings included
       not_eligible:
-        - keywords: [remove column, shift column, cut beam, cut the beam, break the slab, cut the slab, shear wall, rcc wall, load bearing wall, extra floor, terrace room, room on the terrace, extend the balcony, enclose the balcony]
+        - keywords: [remove the column, remove a column, shift the column, cut the beam, remove the beam, load bearing wall, remove the shear wall, break the shear wall, cut the shear wall, terrace room, room on the terrace, extend the balcony, enclose the balcony, balcony enclosure, merge two flats, combine two flats, join two flats]
           reason: "This is a structural change or a change to the sanctioned plan. It cannot be done for one buyer: RERA does not allow structural changes as minor alterations, and plan changes need the written consent of two-thirds of the buyers and a revised sanction."
       approval: { required: above_amount, role: owner, amount_inr: 200000 }
       signoff: { required: true, role: contracts-manager }
@@ -563,7 +597,7 @@ lifecycle:
       execution: both
     - id: snag-handover
       name: Snags, defects or handover
-      keywords: [snag, snag list, punch list, joint inspection, defect, defect liability, warranty, seepage, dampness, leakage, water leakage, bathroom leakage, roof leaking, terrace leaking, leaking from ceiling, crack, hollow tiles, tiles cracked, took possession, after possession, possession letter, handover documents, taking over, keys handover]
+      keywords: [snag, snag list, punch list, joint inspection, defect, defect liability, warranty, seepage, dampness, leak, leaking, leakage, water leakage, tiles damaged, damaged tiles, broken tiles, since possession, since handover, after handover, bathroom leakage, roof leaking, terrace leaking, leaking from ceiling, crack, hollow tiles, tiles cracked, took possession, after possession, possession letter, handover documents, taking over, keys handover]
       priority: P3
       risk: low
       department: Customer care (CRM)
@@ -579,7 +613,7 @@ lifecycle:
         - "Defects reported within 5 years of possession fixed free within 30 days (RERA)"
         - "Possession: dues cleared, possession letter signed; keys, meter readings, warranty cards and manuals handed over"
       not_eligible:
-        - keywords: [more than 5 years, more than five years, over 5 years, over five years, 6 years ago, 7 years ago, 8 years ago, 10 years ago, six years ago, seven years ago, eight years ago, ten years ago, "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020"]
+        - keywords: [more than 5 years, more than five years, over 5 years, over five years, 6 years ago, 7 years ago, 8 years ago, 10 years ago, six years ago, seven years ago, eight years ago, ten years ago, "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2017", "2018", "2019", "2020"]
           reason: "Possession was given more than 5 years ago, so the free defect repair period under RERA has ended. Reply politely in writing and offer a paid repair."
         - keywords: [our interior work, own interior work, our interior contractor, our carpenter, our own plumber, own plumber, own electrician, after our renovation, we broke the wall, we changed the flooring]
           reason: The damage comes from the buyer's own interior or alteration work, which the free defect repair does not cover. Reply politely in writing and offer a paid repair.
@@ -602,6 +636,10 @@ lifecycle:
     - { request: "Client's site instruction SI-14: add a 150 mm RCC kerb along the boundary wall, about 220 m; price it at BOQ rates", category: change-order, priority: P3, approval: true }
     - { request: "Change request from the buyer of villa 23: Italian marble in the living room instead of vitrified tiles, extra cost quoted ₹1.35 lakh", category: change-order, priority: P3, approval: false }
     - { request: "Authority Engineer's letter asks for an extra item: 600 m of crash barrier on the curve at Km 31, estimated ₹38 lakh", category: change-order, priority: P3, approval: true }
+    - { request: Concrete pump at the Phase 2 villas broke down in the middle of the roof slab pour, category: breakdown, priority: P2, approval: false }
+    - { request: Transit mixer TM-04 is not starting at the Km 22 batching plant, category: breakdown, priority: P2, approval: false }
+    - { request: RERA quarterly progress update for Phase 2 is due on 15 January, category: compliance, priority: P2, approval: true }
+    - { request: "SPCB show cause about dust from the Sector 62 site; reply within 7 days", category: compliance, priority: P2, approval: true }
     - { request: "Indent for 300 bags of OPC 53 cement for the Phase 2 villas, needed by Thursday, about ₹1.1 lakh", category: purchase, priority: P3, approval: false }
     - { request: "Raise the purchase order for 25 MT of 16 mm TMT at the rate contract price, ₹14.6 lakh", category: purchase, priority: P3, approval: true }
     - { request: "Diesel at the road site store is down to 400 litres; reorder 4,000 litres, about ₹3.6 lakh", category: purchase, priority: P3, approval: true }
@@ -610,7 +648,7 @@ lifecycle:
     - { request: Gang of 18 helpers under Shiva Labour Supply says their wages are pending for three weeks, category: labour-bocw, priority: P2, approval: true }
     - { request: "Buyer of flat 804 reports hollow tiles in the living room and a crack above the bedroom door; possession was in April 2025", category: snag-handover, priority: P3, approval: false }
     - { request: "Joint inspection with the school client on Friday; close the punch list and get the handover documents ready", category: snag-handover, priority: P3, approval: false }
-    - { request: Water leakage from the bathroom ceiling of 1203 since the monsoon; we moved in last year, category: snag-handover, priority: P3, approval: false }
+    - { request: Water leakage from the bathroom ceiling of flat 1203 since the monsoon; we moved in last year, category: snag-handover, priority: P3, approval: false }
 
 playbooks:
   - id: site-accident-reporting
@@ -620,7 +658,7 @@ playbooks:
       1. Stop work in the area, give first aid and get the injured person to hospital. Leave the scene as it is, except for rescue, and take photos.
       2. Phone the safety officer and the project manager at once. For a death or serious injury, also tell the owner and the family.
       3. A death: tell the labour authority (Inspector-cum-Facilitator), the police station and the District Magistrate or SDO at once, as the state's rules require.
-      4. An injury that keeps a worker off work 48 hours or more, or a dangerous occurrence even with no one hurt (collapse of a structure, scaffold or shuttering, crane or hoist failure, fire, falling objects, electric flash): send the written report in the time the rules set. The OSH Central Rules give 12 hours.
+      4. An injury that keeps a worker off work 48 hours or more, or a dangerous occurrence even with no one hurt (collapse of a structure, scaffold or shuttering, crane or hoist failure, fire, falling objects, electric flash): send the written report in the time the rules set. The OSH Central Rules give 12 hours; check the current rule for your state.
       5. If a worker from another state is killed or badly hurt, and the site has 10 or more such workers, report it to both states and the next of kin.
       6. Check the worker's welfare board registration, ESI and insurance, and start the compensation papers. The owner decides any ex gratia help to the family.
       7. The safety officer finds the cause. Work restarts only after the safety officer clears the area and the project manager approves, with a toolbox talk for the crew.

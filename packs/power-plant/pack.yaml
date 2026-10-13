@@ -10,7 +10,7 @@ kind: industry
 sector: energy-heavy-industry
 extends: [sector-energy-heavy-industry]
 match:
-  keywords: [power plant, power station, thermal power, thermal plant, power generation, generating station, electricity board, discom, power distribution company, electricity utility, transmission utility, solar power plant, hydro power plant]
+  keywords: [power plant, power station, thermal power, thermal plant, power generation, generating station, electricity board, discom, power distribution company, electricity distribution, electricity utility, transmission utility, solar power plant, hydro power plant]
 
 labels:
   Customer: Consumer
@@ -313,21 +313,20 @@ lifecycle:
     - { id: safety-officer, name: Safety officer, approves: "Hot work, confined space, work-at-height and excavation permits; closes accident investigations" }
     - { id: maintenance-engineer, name: Maintenance in-charge, approves: Finished planned maintenance and delivered spares and services }
     - { id: section-engineer, name: Section engineer (JE/AE), approves: New and changed connections after the wiring test and meter sealing }
-  urgent_keywords: [fire, caught fire, explosion, electrocuted, electrocution, shock, live wire, wire on road, smoke, fatal, died, gas leak, hydrogen leak, injured, accident]
+    - { id: quality-head, name: Fuel and quality in-charge, approves: "Signs off coal, oil and material quality findings and the claims raised on suppliers" }
+  # Not a bare "fire": fire hydrant, fire alarm and fire NOC jobs are routine work.
+  urgent_keywords: [caught fire, fire broke out, on fire, fire in, fire at, fire near, flames, explosion, electrocuted, electrocution, shock, live wire, wire on road, smoke, fatal, died, gas leak, hydrogen leak, injured, accident]
   categories:
     - id: breakdown
       name: Breakdown repair
-      keywords: [trip, tripped, breakdown, failed, failure, leak, tube leak, forced outage, high vibration, overheating, flashover, snapped, wire on road, live wire, pole fallen, inverter fault, wtg fault, earth fault, relay operated]
+      keywords: [trip, tripped, breakdown, failed, failure, leak, tube leak, forced outage, high vibration, overheating, flashover, sparking, hot spot, snapped, cable cut, cable damaged, cable fault, line down, conductor down, tree fell, tree fallen, wire on road, live wire, pole fallen, inverter fault, wtg fault, earth fault, relay operated, defect, defect noticed, abnormal sound, abnormal noise]
       priority: P1
       risk: high
       department: Operation & maintenance
-      required_details:
-        - key: equipment
-          label: Which unit, equipment or line
-          kind: keywords
-          keywords: [unit, boiler, turbine, generator, transformer, feeder, line, pole, pump, motor, fan, breaker, inverter, wtg, conveyor, mill, bay, substation, cable, bfp, id fan, fd fan]
+      # P1: no required details, so it never waits as "needs info". The engineer
+      # on duty phones back for the tag and place while the crew is sent.
       required_checks:
-        - Equipment tag, place and time of the fault
+        - Equipment tag, place and time of the fault (phone the person who raised it if they are missing)
         - SLDC/RLDC told at once with the expected restoration time (units and grid lines)
         - Permit-to-work from the shift in-charge before anyone touches it
         - Isolated, locked, tagged, tested dead and earthed
@@ -369,7 +368,7 @@ lifecycle:
       execution: both
     - id: high-risk-permit
       name: High-risk work permit
-      keywords: [hot work, welding, gas cutting, grinding, confined space, boiler entry, tank entry, manhole, work at height, scaffolding, excavation, digging, crane lift, heavy lift, chemical cleaning, radiography]
+      keywords: [hot work, welding work, welding job, arc welding, gas cutting, grinding work, confined space, boiler entry, tank entry, vessel entry, drum entry, furnace entry, duct entry, manhole, work at height, scaffolding, excavation, digging work, crane lift, heavy lift, chemical cleaning, radiography]
       priority: P2
       risk: high
       department: Safety
@@ -387,17 +386,14 @@ lifecycle:
       execution: team
     - id: accident
       name: Accident or near miss
-      keywords: [accident, injured, injury, shock, electrocuted, burns, hospital, fell, fall from height, fatal, died, caught fire, fire broke out, explosion, near miss, dangerous occurrence, animal died]
+      keywords: [accident, injured, injury, hurt, shock, electrocuted, burns, hospital, fell from, fell down, fell off, fall from height, fatal, died, caught fire, fire broke out, on fire, fire in, fire at, smoke, explosion, near miss, dangerous occurrence, animal died]
       priority: P1
       risk: high
       department: Safety
-      required_details:
-        - key: place
-          label: Where it happened
-          kind: keywords
-          keywords: [feeder, pole, substation, unit, line, bay, site, plant, yard, switchyard, boiler, turbine, colony, village, road]
+      # P1: no required details, so it never waits as "needs info".
       required_checks:
         - Area made safe and supply isolated
+        - "Place, time, who was hurt and how recorded (phone the person who raised it for anything missing)"
         - First aid given and the injured person taken to hospital
         - Electrical Inspector phoned at once; Form A within 48 hours (written message within 24 hours if fatal)
         - District Magistrate and police told where needed
@@ -406,9 +402,24 @@ lifecycle:
       signoff: { required: true, role: safety-officer }
       workflow: accident-reporting
       execution: both
+    - id: quality-problem
+      name: Coal or material quality problem
+      keywords: [coal quality, grade slippage, high ash, ash content, wet coal, high moisture, stones in coal, shale, boulders, oversize coal, low gcv, gcv, third party sampling, rake rejected, material rejected, rejected material, failed inspection, failed in inspection, rejected at inspection, not as per specification, not as per spec, substandard, poor quality, quality problem, non conformance, rework]
+      priority: P3
+      risk: medium
+      department: Fuel management & quality
+      required_checks:
+        - "Rake, lot or supplier, and the sample or inspection report, noted"
+        - Joint or third-party sample taken and sealed
+        - Bad material kept apart and not used or paid for
+        - "Claim, debit note or replacement raised on the supplier as the contract allows"
+      approval: { required: never }
+      signoff: { required: true, role: quality-head }
+      workflow: delegate-work
+      execution: both
     - id: supply-complaint
       name: Supply complaint
-      keywords: [no power, no supply, no current, power cut, bijli nahi, light nahi, current nahi, low voltage, high voltage, voltage fluctuation, fuse off, fuse gone, meter burnt, meter not working, transformer burnt, lineman, wiring]
+      keywords: [no power, no supply, no current, power cut, bijli nahi, light nahi, current nahi, low voltage, high voltage, voltage fluctuation, fuse off, fuse gone, meter burnt, meter not working, defective meter, meter defective, faulty meter, meter faulty, transformer burnt, lineman, wiring]
       priority: P2
       risk: medium
       department: Distribution O&M
@@ -431,7 +442,7 @@ lifecycle:
       execution: both
     - id: new-connection
       name: New or changed connection
-      keywords: [new connection, new meter, load increase, load extension, load reduction, shift meter, name change, change of name, rooftop solar, net meter, temporary connection, three phase connection]
+      keywords: [new connection, ht connection, new meter, load increase, load extension, load enhancement, additional load, sanctioned load, load reduction, shift meter, name change, change of name, rooftop solar, net meter, temporary connection, three phase connection]
       priority: P3
       risk: low
       department: Customer service
@@ -475,16 +486,18 @@ lifecycle:
     - { request: Thermography of the 220 kV switchyard is due this month, category: planned-maintenance, priority: P3, approval: false }
     - { request: Insulator cleaning on the 66 kV line before the monsoon, category: planned-maintenance, priority: P3, approval: false }
     - { request: We need a feeder shutdown next Tuesday 9 am to 1 pm to replace the jumper, category: shutdown-request, priority: P3, approval: true }
-    - { request: Take ash handling Unit-2 out of service for the capital overhaul in January, category: shutdown-request, priority: P3, approval: true }
+    - { request: Take ash handling Unit-2 out of service for the capital overhaul from 6 January, category: shutdown-request, priority: P3, approval: true }
     - { request: Gas cutting work on the coal bunker plates starts Monday morning, category: high-risk-permit, priority: P2, approval: true }
-    - { request: Two men will enter the deaerator tank for inspection on Thursday, category: high-risk-permit, priority: P2, approval: true }
+    - { request: Vessel entry into the deaerator on Thursday for the internal inspection; two fitters and a standby man, category: high-risk-permit, priority: P2, approval: true }
     - { request: Helper fell from the cable tray ladder in the TG hall and hurt his back, category: accident, priority: P1, approval: true }
     - { request: A cow died after touching a fallen stay wire near Bhimpur village, category: accident, priority: P1, approval: true }
+    - { request: "Third party sampling of the coal rake received on Monday shows grade slippage from G11 to G13; raise the claim", category: quality-problem, priority: P3, approval: false }
+    - { request: 120 disc insulators from the new vendor failed inspection at stores; keep them apart and ask for replacement, category: quality-problem, priority: P3, approval: false }
     - { request: "No supply in Shanti colony block B since 6 am, consumer number 330091842", category: supply-complaint, priority: P2, approval: false }
     - { request: Voltage fluctuation every evening in ward 12 and fans run slow, category: supply-complaint, priority: P2, approval: false }
-    - { request: I want to increase my shop load from 3 kW to 8 kW, category: new-connection, priority: P3, approval: false }
+    - { request: Please raise the sanctioned load of my shop from 3 kW to 8 kW, category: new-connection, priority: P3, approval: false }
     - { request: Apply for a net meter for my 5 kW rooftop solar, category: new-connection, priority: P3, approval: false }
-    - { request: Indent for 50 litres of turbine oil from the rate contract vendor, category: purchase, priority: P4, approval: false }
+    - { request: "Indent for 50 litres of turbine oil from the rate contract vendor, about ₹21,000", category: purchase, priority: P4, approval: false }
     - { request: Annual service contract for the station batteries at ₹1.6 lakh, category: purchase, priority: P4, approval: true }
 
 playbooks:
