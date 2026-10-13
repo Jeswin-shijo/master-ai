@@ -120,3 +120,12 @@ export function homeBuckets(cases: Case[], now: Date) {
     .sort((a, b) => Date.parse(a.resolveBy!) - Date.parse(b.resolveBy!));
   return { open: open.length, byStage, waiting: open.filter((c) => WAITING_ON_PEOPLE.includes(c.status)), atRisk };
 }
+
+/** "Due in 3 hours", "Overdue by 2 days", or null without a deadline. */
+export function dueWords(resolveBy: string | null, now: Date): { text: string; late: boolean } | null {
+  if (!resolveBy) return null;
+  const ms = Date.parse(resolveBy) - now.getTime();
+  const hours = Math.round(Math.abs(ms) / 3_600_000);
+  const span = hours < 1 ? 'less than an hour' : hours < 48 ? `${hours} hour${hours === 1 ? '' : 's'}` : `${Math.round(hours / 24)} days`;
+  return ms >= 0 ? { text: `Due in ${span}`, late: false } : { text: `Overdue by ${span}`, late: true };
+}

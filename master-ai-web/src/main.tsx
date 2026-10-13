@@ -9,6 +9,7 @@ import { useSession } from '@/lib/session';
 import { AgentsPage } from '@/routes/agents';
 import { ApprovalsPage } from '@/routes/approvals';
 import { AuditPage } from '@/routes/audit';
+import { CasesPage } from '@/routes/cases';
 import { LoginPage, SignupPage } from '@/routes/auth';
 import { InvitePage } from '@/routes/invite';
 import { CommandCenterPage } from '@/routes/command-center';
@@ -16,6 +17,7 @@ import { GoalDetailPage } from '@/routes/goal-detail';
 import { KnowledgePage } from '@/routes/knowledge';
 import { OnboardingPage } from '@/routes/onboarding';
 import { PackPage } from '@/routes/pack';
+import { PublicFormPage } from '@/routes/public-form';
 import { RecordsPage } from '@/routes/records';
 import { SettingsPage } from '@/routes/settings';
 import { CallsPage } from '@/routes/calls';
@@ -54,6 +56,7 @@ const router = createBrowserRouter([
     element: <RequireSession><AppShell /></RequireSession>,
     children: [
       { index: true, element: <CommandCenterPage /> },
+      { path: 'cases', element: <CasesPage /> },
       { path: 'goals/:id', element: <GoalDetailPage /> },
       { path: 'workflows', element: <WorkflowsPage /> },
       { path: 'approvals', element: <ApprovalsPage /> },
@@ -71,6 +74,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: '/invite/:tenantId/:token', element: <InvitePage /> },
+  { path: '/r/:tenantId/:key', element: <PublicFormPage /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 

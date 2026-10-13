@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Case } from '@onehuman/schemas';
-import { caseMatches, dotLabel, dotsFromCase, dotsFromStages, GENERIC_STAGE_NAMES, homeBuckets, stageNames } from './cases';
+import { caseMatches, dotLabel, dotsFromCase, dotsFromStages, dueWords, GENERIC_STAGE_NAMES, homeBuckets, stageNames } from './cases';
 
 const base: Case = {
   id: 'c1', workspaceId: 'w1', number: 42, code: 'WO-0042', title: 'Boiler feed pump B vibration', source: 'staff',
@@ -70,5 +70,16 @@ describe('home', () => {
     expect(b.byStage.approve).toBe(1);
     expect(b.waiting.map((c) => c.id)).toEqual(['c1']);
     expect(b.atRisk.map((c) => c.id)).toEqual(['c2']);
+  });
+});
+
+describe('due times in words', () => {
+  const now = new Date('2026-10-13T10:00:00Z');
+
+  it('says how long is left, or how late it is', () => {
+    expect(dueWords('2026-10-13T20:00:00Z', now)).toEqual({ text: 'Due in 10 hours', late: false });
+    expect(dueWords('2026-10-13T10:20:00Z', now)).toEqual({ text: 'Due in less than an hour', late: false });
+    expect(dueWords('2026-10-11T10:00:00Z', now)).toEqual({ text: 'Overdue by 2 days', late: true });
+    expect(dueWords(null, now)).toBeNull();
   });
 });
