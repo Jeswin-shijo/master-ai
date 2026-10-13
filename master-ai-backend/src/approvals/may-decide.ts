@@ -32,3 +32,8 @@ export function routeApprover(role: string, holders: number, roleLabel: string):
 export function batchRefusal(kind: ApprovalKind): string | null {
   return kind === 'case_gate' ? 'A case step is approved on its own, after reading it, not in a batch.' : null;
 }
+
+/** The "mine" inbox: only approvals this person may decide. */
+export function forInbox<T extends { approver: string }>(person: { role: HumanRole; approverRoles: string[] }, approvals: T[]): T[] {
+  return approvals.filter((a) => mayDecide(person, a.approver));
+}

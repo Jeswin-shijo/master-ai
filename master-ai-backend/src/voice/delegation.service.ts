@@ -349,7 +349,7 @@ export class DelegationService {
       } satisfies DelegationResult;
     });
     if (ESCALATE.includes(status)) {
-      void this.notifications.pushToTenant(tenantId, { title: `Needs you: ${out.staff.name}`, body: out.summary, data: { delegationId } });
+      void this.notifications.pushToManagers(tenantId, { title: `Needs you: ${out.staff.name}`, body: out.summary, data: { delegationId } });
     }
     return out;
   }

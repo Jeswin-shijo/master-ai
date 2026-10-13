@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batchRefusal, mayDecide, routeApprover } from './may-decide';
+import { batchRefusal, forInbox, mayDecide, routeApprover } from './may-decide';
 
 describe('who may decide an approval', () => {
   it('lets the owner decide anything', () => {
@@ -45,5 +45,15 @@ describe('batch approval', () => {
   it('takes agent actions but never a case step', () => {
     expect(batchRefusal('action')).toBeNull();
     expect(batchRefusal('case_gate')).toMatch(/on its own/);
+  });
+});
+
+describe('the "mine" inbox', () => {
+  const items = [{ approver: 'owner' }, { approver: 'safety-officer' }, { approver: 'credit-manager' }];
+
+  it('lists only what the person may decide', () => {
+    expect(forInbox({ role: 'member', approverRoles: ['safety-officer'] }, items)).toEqual([{ approver: 'safety-officer' }]);
+    expect(forInbox({ role: 'admin', approverRoles: [] }, items)).toEqual([{ approver: 'owner' }]);
+    expect(forInbox({ role: 'owner', approverRoles: [] }, items)).toHaveLength(3);
   });
 });

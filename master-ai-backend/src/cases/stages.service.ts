@@ -209,7 +209,7 @@ export class CaseStagesService {
         await this.save(tx, ctx, i, { part: { review: part }, caseSet: { status: 'needs_info' }, status: 'needs_info', summary: stageSummary('review', { ...file, review: part }, ctx.lc), actor });
         await this.audit.append(tx, i.tenantId, { type: 'case.needs_info', actor: SYSTEM, refId: i.caseId, payload: { code: ctx.caseRow.code, missing } });
       });
-      void this.notifications.pushToTenant(i.tenantId, { title: 'More details needed', body: `${ctx.caseRow.code}: ${missing}`, data: { caseId: i.caseId } });
+      void this.notifications.pushToManagers(i.tenantId, { title: 'More details needed', body: `${ctx.caseRow.code}: ${missing}`, data: { caseId: i.caseId } });
       return { outcome: 'needs_info', waitMs: ctx.tenant.settings.needsInfoDays * 86_400_000 };
     }
 
@@ -218,7 +218,7 @@ export class CaseStagesService {
       await this.save(tx, ctx, i, { part: { review: part }, caseSet: { status: 'open' }, status: 'done', summary, actor });
       if (asking) await this.audit.append(tx, i.tenantId, { type: 'case.needs_info', actor: SYSTEM, refId: i.caseId, payload: { code: ctx.caseRow.code, missing, urgent: true } });
     });
-    if (asking) void this.notifications.pushToTenant(i.tenantId, { title: 'More details needed (work has started)', body: `${ctx.caseRow.code}: ${missing}`, data: { caseId: i.caseId } });
+    if (asking) void this.notifications.pushToManagers(i.tenantId, { title: 'More details needed (work has started)', body: `${ctx.caseRow.code}: ${missing}`, data: { caseId: i.caseId } });
     return part.outcome === 'not_eligible' ? { outcome: 'not_eligible', reason: `Not eligible: ${part.reason ?? 'it does not meet the rules'}` } : { outcome: 'done' };
   }
 
@@ -297,7 +297,7 @@ export class CaseStagesService {
   // ---------- gates (stage 5 approval, stage 7 sign-off) ----------
 
   async openGate(i: StageWorkflowInput & { gate: GateName }): Promise<GateOpened> {
-    const result = await this.db.tenant(i.tenantId, async (tx): Promise<{ opened: GateOpened; notify: string | null }> => {
+    const result = await this.db.tenant(i.tenantId, async (tx): Promise<{ opened: GateOpened; notify: { summary: string; approver: string } | null }> => {
       const ctx = await loadCaseContext(tx, i.caseId);
       const c = ctx.caseRow;
       const cls = c.file.classify;
@@ -398,10 +398,14 @@ export class CaseStagesService {
         refId: approval!.id,
         payload: { kind: 'case_gate', tool: toolName, summary, approver: route.approver, reasons: decision.reasons, caseId: c.id, code: c.code },
       });
-      return { opened: { status: 'waiting', approvalId: approval!.id, ttlMs }, notify: summary };
+      return { opened: { status: 'waiting', approvalId: approval!.id, ttlMs }, notify: { summary, approver: route.approver } };
     });
     if (result.notify && result.opened.status === 'waiting') {
-      void this.notifications.pushToTenant(i.tenantId, { title: 'Approval needed', body: result.notify, data: { approvalId: result.opened.approvalId } });
+      void this.notifications.pushToRole(i.tenantId, result.notify.approver, {
+        title: 'Approval needed',
+        body: result.notify.summary,
+        data: { approvalId: result.opened.approvalId },
+      });
     }
     return result.opened;
   }
@@ -652,6 +656,6 @@ export class CaseStagesService {
       await this.audit.append(tx, i.tenantId, { type: 'case.closed', actor: SYSTEM, refId: c.id, payload: { code: c.code, status: i.ending, outcome } });
       return i.ending === 'escalated' ? `${c.code}: ${outcome}` : null;
     });
-    if (notify) void this.notifications.pushToTenant(i.tenantId, { title: 'A case needs you', body: notify, data: { caseId: i.caseId } });
+    if (notify) void this.notifications.pushToManagers(i.tenantId, { title: 'A case needs you', body: notify, data: { caseId: i.caseId } });
   }
 }

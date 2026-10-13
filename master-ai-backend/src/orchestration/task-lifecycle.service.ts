@@ -188,7 +188,7 @@ export class TaskLifecycleService {
       const call = await this.toolCall(tx, toolCallId);
       const [existing] = await tx.select().from(approvalRequests).where(eq(approvalRequests.toolCallId, toolCallId));
       const ttlMs = ctx.tenant.settings.approvalTtlHours * 3_600_000;
-      if (existing) return { approvalId: existing.id, ttlMs: Math.max(0, existing.expiresAt.getTime() - Date.now()), summary: existing.summary };
+      if (existing) return { approvalId: existing.id, ttlMs: Math.max(0, existing.expiresAt.getTime() - Date.now()), summary: existing.summary, approver: existing.approver };
 
       const recent = await tx
         .select()
@@ -233,9 +233,9 @@ export class TaskLifecycleService {
         refId: approval!.id,
         payload: { tool: call.tool, summary, riskScore: call.decision?.riskScore, reasons: call.decision?.reasons, approver: approval!.approver },
       });
-      return { approvalId: approval!.id, ttlMs, summary };
+      return { approvalId: approval!.id, ttlMs, summary, approver: approval!.approver };
     });
-    void this.notifications.pushToTenant(tenantId, {
+    void this.notifications.pushToRole(tenantId, created.approver, {
       title: 'Approval needed',
       body: created.summary,
       data: { approvalId: created.approvalId },
@@ -296,7 +296,7 @@ export class TaskLifecycleService {
       });
       return ctx.task.title;
     });
-    void this.notifications.pushToTenant(tenantId, { title: 'A task needs you', body: `${title}: ${reason}`, data: { taskId } });
+    void this.notifications.pushToManagers(tenantId, { title: 'A task needs you', body: `${title}: ${reason}`, data: { taskId } });
   }
 
   async skipTask(tenantId: string, taskId: string, reason: string) {

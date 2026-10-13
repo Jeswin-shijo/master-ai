@@ -9,8 +9,8 @@ export class ApprovalsController {
   constructor(private readonly approvals: ApprovalsService) {}
 
   @Get()
-  list(@CurrentSession() s: Session, @Query('status') status?: string) {
-    return this.approvals.list(s.tenantId, status === 'all' ? 'all' : 'pending');
+  list(@CurrentSession() s: Session, @Query('status') status?: string, @Query('mine') mine?: string) {
+    return this.approvals.list(s, { status: status === 'all' ? 'all' : 'pending', mine: mine === 'true' });
   }
 
   @Post('batch')

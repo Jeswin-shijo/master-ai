@@ -114,7 +114,7 @@ export class OrchestratorService {
         },
       });
       if (!autoStart) {
-        void this.notifications.pushToTenant(tenantId, {
+        void this.notifications.pushToManagers(tenantId, {
           title: 'Plan ready for review',
           body: truncate(goal.text, 100),
           data: { goalId },

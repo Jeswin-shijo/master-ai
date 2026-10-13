@@ -392,7 +392,7 @@ export class RoutinesService {
     const { name, s } = summary;
     const missed = s.missed ? ` ${s.missed} missed.` : '';
     const body = s.flags.length ? `${s.flags.slice(0, 3).join(' · ')}${s.flags.length > 3 ? ` +${s.flags.length - 3} more` : ''}` : `${s.reported} of ${s.expected} reported, no problems.${missed}`;
-    void this.notifications.pushToTenant(tenantId, { title: s.flags.length ? `${name}: ${s.flags.length} problem${s.flags.length === 1 ? '' : 's'}` : name, body, data: { routineId } });
+    void this.notifications.pushToManagers(tenantId, { title: s.flags.length ? `${name}: ${s.flags.length} problem${s.flags.length === 1 ? '' : 's'}` : name, body, data: { routineId } });
   }
 
   // ---------- the conversation: simulator UI and provider webhooks ----------

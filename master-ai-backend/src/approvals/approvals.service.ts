@@ -7,7 +7,7 @@ import { verifyEd25519 } from '../common/crypto';
 import { toApproval } from '../common/mappers';
 import { DbService } from '../db/db.service';
 import { agents, approvalRequests, caseStages, deviceKeys, principals, toolCalls } from '../db/schema';
-import { batchRefusal, mayDecide } from './may-decide';
+import { batchRefusal, forInbox, mayDecide } from './may-decide';
 import { addFeedback } from '../orchestration/context';
 import { TemporalService } from '../orchestration/temporal.service';
 
@@ -23,18 +23,26 @@ export class ApprovalsService {
     private readonly temporal: TemporalService,
   ) {}
 
-  async list(tenantId: string, status: 'pending' | 'all'): Promise<ApprovalRequest[]> {
-    return this.db.tenant(tenantId, async (tx) => {
+  /**
+   * Pending or all approvals. `mine` keeps only what this person may decide;
+   * members always get "mine" (the owner and admins can also see everything).
+   */
+  async list(session: Session, opts: { status: 'pending' | 'all'; mine: boolean }): Promise<ApprovalRequest[]> {
+    return this.db.tenant(session.tenantId, async (tx) => {
       const rows = await tx
         .select({ approval: approvalRequests, agentName: agents.name })
         .from(approvalRequests)
         .innerJoin(agents, eq(agents.id, approvalRequests.agentId))
-        .where(status === 'pending' ? eq(approvalRequests.status, 'pending') : undefined)
+        .where(opts.status === 'pending' ? eq(approvalRequests.status, 'pending') : undefined)
         .orderBy(desc(approvalRequests.createdAt))
         .limit(200);
-      return rows.map((r) => toApproval(r.approval, r.agentName));
+      const views = rows.map((r) => toApproval(r.approval, r.agentName));
+      if (!opts.mine && session.role !== 'member') return views;
+      const [me] = await tx.select({ approverRoles: principals.approverRoles }).from(principals).where(eq(principals.id, session.principalId));
+      return forInbox({ role: session.role, approverRoles: me?.approverRoles ?? [] }, views);
     });
   }
+
 
   async get(tenantId: string, id: string): Promise<ApprovalRequest> {
     return this.db.tenant(tenantId, async (tx) => {
