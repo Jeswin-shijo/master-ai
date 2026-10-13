@@ -53,6 +53,16 @@ export function useRealtimeConnection(): RealtimeStatus {
           void queryClient.invalidateQueries({ queryKey: ['routines'] });
           void queryClient.invalidateQueries({ queryKey: ['routine'] });
         }
+        if (area === 'case' || area === 'approval') {
+          void queryClient.invalidateQueries({ queryKey: ['cases'] });
+          if (area === 'case' && event.refId) void queryClient.invalidateQueries({ queryKey: ['case', event.refId] });
+          if (area === 'approval') void queryClient.invalidateQueries({ queryKey: ['case'] });
+        }
+        if (area === 'member' || area === 'invite') {
+          void queryClient.invalidateQueries({ queryKey: ['members'] });
+          void queryClient.invalidateQueries({ queryKey: ['invites'] });
+        }
+        if (area === 'intake_key') void queryClient.invalidateQueries({ queryKey: ['intake-keys'] });
         if (area === 'tenant' || area === 'workspace' || area === 'pack') {
           void queryClient.invalidateQueries({ queryKey: ['tenant'] });
           void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
