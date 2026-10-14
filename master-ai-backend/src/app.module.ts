@@ -32,6 +32,8 @@ import { PackGenerator } from './packs/generator.service';
 import { PackRegistry } from './packs/registry.service';
 import { PolicyService } from './policy/policy.service';
 import { RealtimeGateway } from './realtime/realtime.gateway';
+import { ListsController } from './lists/lists.controller';
+import { ListsService } from './lists/lists.service';
 import { RecordsController } from './records/records.controller';
 import { RecordsService } from './records/records.service';
 import { OnboardingService } from './tenancy/onboarding.service';
@@ -67,6 +69,7 @@ import { TeamController, TeamService } from './voice/team.service';
     ApprovalsController,
     AuditController,
     RecordsController,
+    ListsController,
     KnowledgeController,
     OpsController,
     TeamController,
@@ -101,6 +104,7 @@ import { TeamController, TeamService } from './voice/team.service';
     TemporalService,
     // Data and connectors
     RecordsService,
+    ListsService,
     KnowledgeService,
     ConnectorsService,
     // Team and phone delegation

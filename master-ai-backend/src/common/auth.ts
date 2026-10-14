@@ -62,7 +62,7 @@ const IS_PUBLIC = 'onehuman:public';
 /** Mark a route as reachable without a session. */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
-const MANAGERS_ONLY = 'onehuman:managers-only';
+export const MANAGERS_ONLY = 'onehuman:managers-only';
 /** Owner and admins only: settings, the pack, rules, intake keys, the team and the kill switch. */
 export const ManagersOnly = () => SetMetadata(MANAGERS_ONLY, true);
 
