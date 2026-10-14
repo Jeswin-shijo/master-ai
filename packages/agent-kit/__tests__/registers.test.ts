@@ -160,8 +160,8 @@ describe('packs and lists', () => {
 
 describe('fittingRegisters', () => {
   it('keeps a list that fits its record type and drops one naming a field the type lacks', () => {
-    const good = { id: 'bills', entity: 'Bill', label: 'Bills', checks: [] } as Register;
-    const bad = { id: 'old', entity: 'Bill', label: 'Old', columns: ['nope'], checks: [] } as Register;
+    const good = { id: 'bills', entity: 'Bill', label: 'Bills', main: true, checks: [] } as Register;
+    const bad = { id: 'old', entity: 'Bill', label: 'Old', main: true, columns: ['nope'], checks: [] } as Register;
     expect(fittingRegisters({ entities: [Party, Bill], registers: [good, bad] }).map((r) => r.id)).toEqual(['bills']);
   });
 });
