@@ -7,7 +7,8 @@ const MINUTE = 60_000;
  * Limits on signing in and signing up, so passwords can't be guessed and
  * organizations can't be created in bulk. Wrong passwords count against the
  * email (10 per 15 minutes, from anywhere); every try counts against the
- * address (20 a minute, enough for an office behind one connection).
+ * address (20 a minute, enough for an office behind one connection), and so
+ * does each new organization (20 a minute).
  */
 export class SignInLimits {
   constructor(private readonly limiter = new RateLimiter()) {}
@@ -22,7 +23,7 @@ export class SignInLimits {
   }
 
   beforeSignup(ip: string) {
-    if (!this.limiter.take(`signup:${ip}`, 10, MINUTE)) throw tooMany('Too many new organizations from this connection. Try again in a minute.');
+    if (!this.limiter.take(`signup:${ip}`, 20, MINUTE)) throw tooMany('Too many new organizations from this connection. Try again in a minute.');
   }
 }
 

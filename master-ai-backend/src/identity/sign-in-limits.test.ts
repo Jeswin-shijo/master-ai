@@ -44,9 +44,9 @@ describe('SignInLimits', () => {
     expect(tooMany(() => l.beforeLogin('10.0.0.1', 'one-more@example.com'))).toBe(false);
   });
 
-  it('allows 10 new organizations a minute from one address', () => {
+  it('allows 20 new organizations a minute from one address', () => {
     const { limits: l } = limits();
-    for (let i = 0; i < 10; i++) expect(tooMany(() => l.beforeSignup('10.0.0.1'))).toBe(false);
+    for (let i = 0; i < 20; i++) expect(tooMany(() => l.beforeSignup('10.0.0.1'))).toBe(false);
     expect(tooMany(() => l.beforeSignup('10.0.0.1'))).toBe(true);
     expect(tooMany(() => l.beforeSignup('10.0.0.2'))).toBe(false);
   });
