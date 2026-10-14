@@ -8,4 +8,4 @@ export * from './case-view';
 export * from './case-report';
 export * from './labels';
 export type * from '@onehuman/schemas';
-export { approvalSigningMessage, summarizeEvent, AUTONOMY_LEVELS } from '@onehuman/schemas';
+export { approvalSigningMessage, summarizeEvent, AUTONOMY_LEVELS } from '@onehuman/schemas/plain';

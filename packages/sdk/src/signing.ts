@@ -1,5 +1,6 @@
 import nacl from 'tweetnacl';
-import { approvalSigningMessage, type ApprovalSigningInput } from '@onehuman/schemas';
+import { approvalSigningMessage } from '@onehuman/schemas/plain';
+import type { ApprovalSigningInput } from '@onehuman/schemas';
 
 /**
  * Device keys sign approval decisions, so the audit log can prove which device

@@ -1,27 +1,6 @@
 import { z } from 'zod';
 
-/**
- * One scale is used for both agents and actions.
- *
- * - An action's level is what the policy engine decided for one proposed tool call.
- * - An agent's `autonomy` is its clearance: the highest level it may run without
- *   approval. Anything above its clearance is escalated to Level 4.
- */
-export const AUTONOMY_LEVELS = {
-  1: { name: 'Observe', description: 'Read-only actions.', runsWithoutApproval: true },
-  2: {
-    name: 'Draft & recommend',
-    description: 'Drafts and internal notes. Nothing leaves the company.',
-    runsWithoutApproval: true,
-  },
-  3: {
-    name: 'Act within limits',
-    description: 'Reversible writes and low-risk actions, inside budgets.',
-    runsWithoutApproval: true,
-  },
-  4: { name: 'Act with approval', description: 'A human must approve first.', runsWithoutApproval: false },
-  5: { name: 'Forbidden', description: 'Blocked and logged.', runsWithoutApproval: false },
-} as const;
+export { AUTONOMY_LEVELS } from './values';
 
 export type AutonomyLevel = 1 | 2 | 3 | 4 | 5;
 

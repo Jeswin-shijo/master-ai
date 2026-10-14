@@ -16,6 +16,16 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./plain": {
+      "import": {
+        "types": "./dist/plain.d.mts",
+        "default": "./dist/plain.mjs"
+      },
+      "require": {
+        "types": "./dist/plain.d.ts",
+        "default": "./dist/plain.js"
+      }
     }
   },
   "files": [
@@ -32,5 +42,6 @@
   "devDependencies": {
     "tsup": "^8.5.0",
     "typescript": "~5.9.3"
-  }
+  },
+  "sideEffects": false
 }

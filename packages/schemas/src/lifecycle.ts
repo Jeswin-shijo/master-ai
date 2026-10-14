@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { PRIORITY_IDS, SECTOR_IDS, STAGE_KEYS } from './values';
+
+export { ORG_TYPES, PRIORITY_IDS, SECTOR_IDS, SECTORS, STAGE_KEYS } from './values';
 
 /**
  * The case lifecycle: the 8 stages every request runs through, named in each
@@ -6,49 +9,12 @@ import { z } from 'zod';
  * docs/superpowers/specs/2026-10-12-org-types-and-case-lifecycle-design.md.
  */
 
-export const STAGE_KEYS = ['request', 'review', 'classify', 'assign', 'approve', 'execute', 'close', 'report'] as const;
 export const StageKeySchema = z.enum(STAGE_KEYS);
 export type StageKey = z.infer<typeof StageKeySchema>;
 
-export const SECTOR_IDS = [
-  'energy-heavy-industry',
-  'trade-logistics-tourism',
-  'finance-development',
-  'technology-innovation',
-  'public-services',
-] as const;
 export const SectorIdSchema = z.enum(SECTOR_IDS);
 export type SectorId = z.infer<typeof SectorIdSchema>;
 
-/** The five sectors shown at signup, in order. */
-export const SECTORS: readonly { id: SectorId; name: string; examples: string }[] = [
-  { id: 'energy-heavy-industry', name: 'Energy & Heavy Industry', examples: 'Power plants, manufacturing, construction' },
-  { id: 'trade-logistics-tourism', name: 'Trade, Logistics & Tourism', examples: 'Logistics, wholesale & retail, travel' },
-  { id: 'finance-development', name: 'Finance & Development', examples: 'Lenders, accounting firms, NGOs' },
-  { id: 'technology-innovation', name: 'Technology & Innovation', examples: 'Software, IT services, digital agencies' },
-  { id: 'public-services', name: 'Essential Public & Service', examples: 'Hospitals, schools, citizen services' },
-];
-
-/** The ready-made organization types offered at signup, three per sector. Each has a pack with the same id. */
-export const ORG_TYPES: readonly { id: string; name: string; sector: SectorId }[] = [
-  { id: 'power-plant', name: 'Power plant & utilities', sector: 'energy-heavy-industry' },
-  { id: 'manufacturing-plant', name: 'Manufacturing plant', sector: 'energy-heavy-industry' },
-  { id: 'construction', name: 'Construction & infrastructure', sector: 'energy-heavy-industry' },
-  { id: 'logistics', name: 'Logistics & transport', sector: 'trade-logistics-tourism' },
-  { id: 'wholesale-retail', name: 'Wholesale & retail trade', sector: 'trade-logistics-tourism' },
-  { id: 'travel-agency', name: 'Travel agency & tour operator', sector: 'trade-logistics-tourism' },
-  { id: 'lender', name: 'Lender (NBFC, microfinance, co-op bank)', sector: 'finance-development' },
-  { id: 'accounting-firm', name: 'Accounting & tax firm', sector: 'finance-development' },
-  { id: 'ngo', name: 'NGO & development programme', sector: 'finance-development' },
-  { id: 'software-saas', name: 'Software & SaaS company', sector: 'technology-innovation' },
-  { id: 'it-services', name: 'IT services & support', sector: 'technology-innovation' },
-  { id: 'digital-agency', name: 'Digital agency', sector: 'technology-innovation' },
-  { id: 'hospital', name: 'Hospital & clinic', sector: 'public-services' },
-  { id: 'education', name: 'School, college & coaching', sector: 'public-services' },
-  { id: 'municipal', name: 'Municipal & citizen services', sector: 'public-services' },
-];
-
-export const PRIORITY_IDS = ['P1', 'P2', 'P3', 'P4'] as const;
 export const PriorityIdSchema = z.enum(PRIORITY_IDS);
 export type PriorityId = z.infer<typeof PriorityIdSchema>;
 

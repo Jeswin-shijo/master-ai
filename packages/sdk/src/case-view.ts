@@ -1,4 +1,5 @@
-import { STAGE_KEYS, type ApprovalRequest, type Case, type CaseStageStatus, type CaseStatus, type PriorityId, type StageKey } from '@onehuman/schemas';
+import { STAGE_KEYS } from '@onehuman/schemas/plain';
+import type { ApprovalRequest, Case, CaseStageStatus, CaseStatus, PriorityId, StageKey } from '@onehuman/schemas';
 
 /** The generic stage names (spec), for workspaces that name none of their own. */
 export const GENERIC_STAGE_NAMES: Record<StageKey, string> = {

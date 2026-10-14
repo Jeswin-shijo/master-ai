@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
-import { summarizeEvent, type AuditEventType } from '@onehuman/schemas';
+import { summarizeEvent } from '@onehuman/schemas/plain';
+import type { AuditEventType } from '@onehuman/schemas';
 import { JsonView } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

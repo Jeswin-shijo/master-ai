@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { FolderKanban, Plus, Search } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
-import { PRIORITY_IDS, STAGE_KEYS, type Case, type PriorityId, type StageKey } from '@onehuman/schemas';
+import { PRIORITY_IDS, STAGE_KEYS } from '@onehuman/schemas/plain';
+import type { Case, PriorityId, StageKey } from '@onehuman/schemas';
 import { StageDots } from '@/components/stage-dots';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';

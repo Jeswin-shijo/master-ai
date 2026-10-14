@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardCheck, Phone, PhoneMissed, Plus, Repeat, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
-import { STAGE_KEYS, type Case } from '@onehuman/schemas';
+import { STAGE_KEYS } from '@onehuman/schemas/plain';
+import type { Case } from '@onehuman/schemas';
 import { AnimatedNumber, ProgressRing, RingPulse } from '@/components/motion';
 import { StageDots } from '@/components/stage-dots';
 import { Button } from '@/components/ui/button';

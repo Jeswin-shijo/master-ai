@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { Background, BackgroundVariant, Handle, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Check, UserRound, X } from 'lucide-react';
-import { STAGE_KEYS, type StageKey } from '@onehuman/schemas';
+import { STAGE_KEYS } from '@onehuman/schemas/plain';
+import type { StageKey } from '@onehuman/schemas';
 import { dotLabel, type DotState } from '@/lib/cases';
 import { cn } from '@/lib/utils';
 
