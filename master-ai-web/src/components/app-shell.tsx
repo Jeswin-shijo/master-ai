@@ -14,6 +14,7 @@ import { useNewRequest } from '@/lib/new-request';
 import { useRealtimeConnection } from '@/lib/realtime';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
+import { navTitle, pageTitle } from '@/lib/title';
 
 /** Tenant white-labelling: apply the brand colour on top of the shared tokens. */
 function useBrandColor(brandColor?: string) {
@@ -83,6 +84,11 @@ export function AppShell() {
 
   const pendingCount = approvals.data?.length ?? 0;
   const location = useLocation();
+  // Menu pages are titled by their label; other pages title themselves (usePageTitle).
+  const menuTitle = navTitle(location.pathname);
+  useEffect(() => {
+    if (menuTitle) document.title = pageTitle(menuTitle);
+  }, [menuTitle]);
   const outlet = useOutlet();
 
   const nav = (

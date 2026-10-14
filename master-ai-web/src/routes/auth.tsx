@@ -11,6 +11,7 @@ import { Field, Input } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
+import { usePageTitle } from '@/lib/title';
 
 export function AuthLayout({ title, lead, subtitle, wide, children }: { title: string; lead?: string; subtitle: string; wide?: boolean; children: ReactNode }) {
   return (
@@ -35,6 +36,7 @@ export function AuthLayout({ title, lead, subtitle, wide, children }: { title: s
 }
 
 export function LoginPage() {
+  usePageTitle('Sign in');
   const signIn = useSession((s) => s.signIn);
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -108,6 +110,7 @@ function StepIndicator({ at }: { at: number }) {
 }
 
 export function SignupPage() {
+  usePageTitle('Create your organization');
   const signIn = useSession((s) => s.signIn);
   const navigate = useNavigate();
   const [at, setAt] = useState(0);

@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 import pg from 'pg';
+import { hostingConfig } from '../../master-ai-web/src/hosting.ts';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const BACKEND = join(ROOT, 'master-ai-backend');
@@ -173,8 +174,9 @@ async function start() {
   rmSync(STAGE, { recursive: true, force: true });
   cpSync(join(ROOT, 'master-ai-web/dist'), STAGE, { recursive: true });
   if (existsSync(LINK)) cpSync(LINK, join(STAGE, '.vercel'), { recursive: true });
-  // One page app: every path (/cases/…, /r/<tenant>/<form>, /invite/…) serves index.html.
-  writeFileSync(join(STAGE, 'vercel.json'), JSON.stringify({ rewrites: [{ source: '/(.*)', destination: '/index.html' }] }, null, 2));
+  // One page app: every path (/cases/…, /r/<tenant>/<form>, /invite/…) serves index.html, with the
+  // security headers and caching in master-ai-web/src/hosting.ts.
+  writeFileSync(join(STAGE, 'vercel.json'), JSON.stringify(hostingConfig(apiUrl), null, 2));
   const out = run('npx', ['--yes', VERCEL, 'deploy', STAGE, '--prod', '--yes'], { quiet: true, timeoutMs: 8 * 60_000 });
   mkdirSync(LINK, { recursive: true });
   cpSync(join(STAGE, '.vercel'), LINK, { recursive: true });

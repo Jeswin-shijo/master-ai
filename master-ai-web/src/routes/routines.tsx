@@ -13,6 +13,7 @@ import { EmptyState, ErrorNote, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
 import { useNewRequest } from '@/lib/new-request';
 import { cn, timeAgo } from '@/lib/utils';
+import { usePageTitle } from '@/lib/title';
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -427,6 +428,7 @@ export function RoutineBoardPage() {
   const update = useUpdateRoutine(id);
   const run = useMutation({ mutationFn: () => api.routines.run(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['routine', id] }) });
 
+  usePageTitle(day.data?.routine.name);
   if (day.isLoading) return <Spinner />;
   if (day.error || !day.data) return <ErrorNote error={day.error ?? new Error('Routine not found')} />;
   const { routine, entries, summary, history } = day.data;

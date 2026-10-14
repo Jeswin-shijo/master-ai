@@ -6,6 +6,7 @@ import { ErrorNote } from '@/components/ui/feedback';
 import { Field, Input } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
+import { usePageTitle } from '@/lib/title';
 
 /** Opened from an invite link: shows the company and the roles, then joins. */
 export function InvitePage() {
@@ -15,6 +16,7 @@ export function InvitePage() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const invite = useQuery({ queryKey: ['invite', tenantId, token], queryFn: () => api.invites.view(tenantId, token), retry: false });
+  usePageTitle(invite.data ? `Join ${invite.data.companyName}` : 'Join');
   const accept = useMutation({
     mutationFn: () => api.invites.accept(tenantId, token, { password, ...(name && { name }) }),
     onSuccess: (auth) => {

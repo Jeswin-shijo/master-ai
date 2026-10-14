@@ -8,6 +8,7 @@ import { ErrorNote, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { cn, formatDateTime } from '@/lib/utils';
+import { usePageTitle } from '@/lib/title';
 
 function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className="text-xs font-semibold tracking-wide text-fg-muted uppercase print:text-black/70">{children}</h2>;
@@ -39,6 +40,8 @@ export function CaseReportPage() {
   const company = useSession((s) => s.tenant?.name);
   const detail = useQuery({ queryKey: ['case', id], queryFn: () => api.cases.get(id) });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
+  // The title names the PDF when the report is printed.
+  usePageTitle(detail.data ? `${detail.data.case.code} · ${detail.data.case.title} · ${detail.data.label.label} report` : undefined);
 
   if (detail.isLoading) return <Spinner />;
   if (detail.error || !detail.data) return <ErrorNote error={detail.error ?? new Error('This report was not found')} />;

@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { cn, formatDateTime, formatInr, timeAgo } from '@/lib/utils';
+import { usePageTitle } from '@/lib/title';
 
 /** The agent's words while it decides its next step (server-sent events). */
 function useAgentText(taskId: string, active: boolean): string {
@@ -150,6 +151,7 @@ export function GoalDetailPage() {
   // Work done for a case: people see the case, not the instructions written for the agents.
   const parent = useQuery({ queryKey: ['case', caseId], queryFn: () => api.cases.get(caseId!), enabled: !!caseId });
   const [picked, setPicked] = useState<CanvasSelection | null>(null);
+  usePageTitle(parent.data ? `${parent.data.case.code} · ${parent.data.case.title} · step by step` : detail.data && !caseId ? detail.data.goal.text : undefined);
 
   if (detail.isLoading) return <Spinner />;
   if (detail.error || !detail.data) return <ErrorNote error={detail.error ?? new Error('Goal not found')} />;

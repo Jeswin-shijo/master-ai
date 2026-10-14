@@ -20,6 +20,7 @@ import { dotsFromStages, dueWords, FINAL_STATUSES, priorityTone, stageNames, sta
 import { signDecision } from '@/lib/device-key';
 import { useSession } from '@/lib/session';
 import { formatInr } from '@/lib/utils';
+import { usePageTitle } from '@/lib/title';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const FROM: Record<CaseSource, string> = { owner: 'Raised by the owner', staff: 'Raised by the team', customer: 'From a customer', system: 'From a system', partner: 'From a partner' };
@@ -170,6 +171,7 @@ export function CasePage() {
   });
   const mine = useQuery({ queryKey: ['approvals', 'pending', true], queryFn: () => api.approvals.list('pending', { mine: true }) });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
+  usePageTitle(detail.data ? `${detail.data.case.code} · ${detail.data.case.title}` : undefined);
 
   useEffect(() => {
     if (selected) document.getElementById(`stage-${selected}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

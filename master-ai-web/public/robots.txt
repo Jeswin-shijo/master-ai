@@ -1,0 +1,6 @@
+# Only sign-in and sign-up are public pages. Everything else needs a login,
+# and invite and request-form links carry keys.
+User-agent: *
+Allow: /login
+Allow: /signup
+Disallow: /

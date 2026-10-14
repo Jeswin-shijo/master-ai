@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { GENERIC_STAGE_NAMES, stageNames } from '@/lib/cases';
 import { useSession } from '@/lib/session';
+import { usePageTitle } from '@/lib/title';
 
 /**
  * The platform adapts to the organization: it picks a ready-made setup or
@@ -23,6 +24,7 @@ import { useSession } from '@/lib/session';
 export function OnboardingPage() {
   const tenant = useSession((s) => s.tenant);
   const setTenant = useSession((s) => s.setTenant);
+  usePageTitle('Set up');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [industry, setIndustry] = useState(tenant?.industry ?? '');

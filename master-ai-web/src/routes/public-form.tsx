@@ -7,6 +7,7 @@ import { ErrorNote, Spinner } from '@/components/ui/feedback';
 import { Field, Input, Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { AuthLayout } from '@/routes/auth';
+import { usePageTitle } from '@/lib/title';
 
 const withArticle = (noun: string) => `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
 
@@ -14,6 +15,7 @@ const withArticle = (noun: string) => `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${
 export function PublicFormPage() {
   const { tenantId = '', key = '' } = useParams();
   const form = useQuery({ queryKey: ['public-form', tenantId, key], queryFn: () => api.intake.form(tenantId, key), retry: false });
+  usePageTitle(form.data ? `${form.data.caseLabel} · ${form.data.companyName}` : 'Send a request');
   const [fields, setFields] = useState({ name: '', phone: '', email: '', text: '' });
   const set = (k: keyof typeof fields) => (e: { target: { value: string } }) => setFields((f) => ({ ...f, [k]: e.target.value }));
   const send = useMutation({
