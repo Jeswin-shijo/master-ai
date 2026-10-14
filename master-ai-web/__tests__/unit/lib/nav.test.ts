@@ -10,7 +10,13 @@ describe('navigation by access role', () => {
 
   it('the owner and admins also see the admin pages', () => {
     for (const role of ['owner', 'admin'] as const) {
-      expect(labels(role)).toEqual(expect.arrayContaining(['Workflows', 'Agents', 'Records', 'Industry pack', 'Audit', 'Settings']));
+      expect(labels(role)).toEqual(expect.arrayContaining(['Lists', 'Workflows', 'Agents', 'Industry pack', 'Audit', 'Settings']));
     }
+  });
+
+  it('puts Lists right under Cases, and has no Records page', () => {
+    const owner = labels('owner');
+    expect(owner.indexOf('Lists')).toBe(owner.indexOf('Cases') + 1);
+    expect(owner).not.toContain('Records');
   });
 });

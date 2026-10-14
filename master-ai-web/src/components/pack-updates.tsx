@@ -16,7 +16,7 @@ export function PackUpdatesBanner() {
   const apply = useMutation({
     mutationFn: () => api.workspaces.applyUpdates(ws!.id),
     onSuccess: () => {
-      for (const key of ['pack-updates', 'workspaces', 'agents', 'policy', 'routines']) void queryClient.invalidateQueries({ queryKey: [key] });
+      for (const key of ['pack-updates', 'workspaces', 'agents', 'policy', 'routines', 'lists']) void queryClient.invalidateQueries({ queryKey: [key] });
     },
   });
 
@@ -24,8 +24,11 @@ export function PackUpdatesBanner() {
   if (!u) return null;
   const extras = u.tools.length + u.policies.length + u.kpis.length + (u.lifecycle?.categories.length ?? 0) + (u.lifecycle?.roles.length ?? 0);
   const routines = u.routines ?? [];
+  const registers = u.registers ?? [];
+  const entities = u.entities ?? [];
+  const fieldCount = (u.fields ?? []).reduce((n, x) => n + x.fields.length, 0);
   const lifecycle = u.lifecycle?.whole ?? null;
-  if (u.agents.length + u.workflows.length + routines.length + (u.playbooks?.length ?? 0) + extras + (lifecycle ? 1 : 0) === 0) return null;
+  if (u.agents.length + u.workflows.length + routines.length + (u.playbooks?.length ?? 0) + registers.length + entities.length + fieldCount + extras + (lifecycle ? 1 : 0) === 0) return null;
   const callsTeam = u.agents.some((a) => a.tools.includes('staff.delegate'));
 
   return (
@@ -56,6 +59,13 @@ export function PackUpdatesBanner() {
             {routines.map((r) => (
               <li key={r.id}><span className="font-medium text-fg">{r.name}</span> <span className="text-fg-muted">· daily check-in · {r.description}</span></li>
             ))}
+            {registers.map((r) => (
+              <li key={r.id}><span className="font-medium text-fg">{r.label ?? r.entity}</span> <span className="text-fg-muted">· a list on the Lists page</span></li>
+            ))}
+            {entities.map((e) => (
+              <li key={e.name}><span className="font-medium text-fg">{e.plural_label ?? e.label}</span> <span className="text-fg-muted">· a new kind of record</span></li>
+            ))}
+            {fieldCount > 0 && <li className="text-fg-muted">plus {fieldCount} new field{fieldCount === 1 ? '' : 's'} on records you have</li>}
             {(u.playbooks ?? []).map((p) => (
               <li key={p.id}><span className="font-medium text-fg">{p.title}</span> <span className="text-fg-muted">· playbook for your agents</span></li>
             ))}

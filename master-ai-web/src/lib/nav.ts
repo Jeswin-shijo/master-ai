@@ -1,11 +1,11 @@
 import {
   Bot,
   BookOpen,
-  Database,
   FileText,
   FolderKanban,
   Home,
   Inbox,
+  ListChecks,
   Package,
   Phone,
   Repeat,
@@ -29,6 +29,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/cases', label: 'Cases', icon: FolderKanban },
+  { to: '/lists', label: 'Lists', icon: ListChecks, managersOnly: true },
   { to: '/approvals', label: 'Approvals', icon: Inbox },
   { to: '/team', label: 'Team', icon: Users },
   { to: '/routines', label: 'Routines', icon: Repeat },
@@ -37,7 +38,6 @@ export const NAV: NavItem[] = [
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/workflows', label: 'Workflows', icon: Workflow, managersOnly: true },
   { to: '/agents', label: 'Agents', icon: Bot, managersOnly: true },
-  { to: '/records', label: 'Records', icon: Database, managersOnly: true },
   { to: '/pack', label: 'Industry pack', icon: Package, managersOnly: true },
   { to: '/audit', label: 'Audit', icon: ScrollText, managersOnly: true },
   { to: '/settings', label: 'Settings', icon: Settings, managersOnly: true },
