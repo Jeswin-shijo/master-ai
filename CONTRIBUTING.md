@@ -32,6 +32,8 @@ Open http://localhost:5173. No AI key is needed: without one, the platform runs 
 - Every change appends an audit event in the same transaction (`AuditService.append(tx, …)`). Live updates are published after the commit.
 - Public routes (the form, the intake API, invites) take the tenant id in the URL and check a hashed key or token under that tenant's security. Don't add global lookups.
 - Secrets live in `.env` files, which git ignores. Never commit or paste keys.
+- The session token never goes in a URL. Live streams open with a one-minute stream ticket from `POST /auth/stream-ticket`.
+- The web app's security headers and content security policy are in `master-ai-web/src/hosting.ts`. A new service the page calls goes in its `connect-src`.
 
 **AI and decisions**
 - Agents never decide permissions. A new risky tool needs risk metadata in `packages/agent-kit/src/catalog.ts` or a pack alias. Approval rules go in pack `policies`, never in prompts.
@@ -43,6 +45,9 @@ Open http://localhost:5173. No AI key is needed: without one, the platform runs 
 **What people see**
 - Owners and their clients never see tool names, ids or raw data. Use `narrateStep` and `forPeople` (agent-kit), `GoalReport` (reports), and `readableFields` (sdk). Raw data stays on the Audit page.
 - Colours come from `@onehuman/ui` tokens (`bg-surface`, `text-fg-muted`, …), never raw values. On mobile, font weights are font families (`font.semibold`), never `fontWeight`.
+
+**The web app's size**
+- Pages are lazy routes in `master-ai-web/src/main.tsx`. Run-time values come from `@onehuman/schemas/plain`, never the package root, so zod stays out of the browser. `bundle.test.ts` checks both.
 
 **Dependencies**
 - New dependencies are pinned to a release at least 14 days old.

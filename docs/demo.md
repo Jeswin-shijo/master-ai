@@ -15,7 +15,7 @@ flowchart LR
   W -.->|"AI calls"| G["Gemini or Claude<br/>(built-in rules if unavailable)"]
 ```
 
-- **Vercel** serves the web app.
+- **Vercel** serves the web app, with the security headers and caching in `master-ai-web/src/hosting.ts` (written to `vercel.json` on each deploy).
 - **Supabase** holds the database.
 - **This Mac** runs everything that must stay running: the API, the worker, Temporal and NATS. Vercel and Supabase can't host those, because they run only short-lived functions.
 - **A Cloudflare quick tunnel** gives the API a public HTTPS address without opening ports.
@@ -54,7 +54,7 @@ pnpm demo
 1. Builds the backend.
 2. Opens a tunnel and reads its address.
 3. Builds the web app against that address and deploys it to Vercel (project `onehuman-demo`).
-4. Starts the API and the worker against Supabase.
+4. Starts the API and the worker against Supabase. `<tunnel>/health/ready` answers 503 while the database can't be reached.
 
 **Ctrl-C** stops everything. Each run gets a new tunnel address, so the web app is redeployed each time; the Vercel link stays the same.
 

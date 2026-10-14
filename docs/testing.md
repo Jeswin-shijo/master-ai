@@ -10,7 +10,7 @@ There are six kinds of test, from fast checks on code to full runs through the r
 | `pnpm evals` | The 16 test sets, with a scorecard per organization type | Nothing running | seconds |
 | `pnpm smoke` | The whole platform end to end through the API. One organization per sector runs a case through all 8 stages, then the edge cases | `pnpm dev` | ~4 min |
 | `pnpm e2e:sectors` | Every organization type end to end: the 15 ready-made types and one typed in the owner's own words per sector | `pnpm dev` | ~3 min |
-| `pnpm e2e` | The web app in a real browser (Playwright, Chromium), at desktop and phone widths | `pnpm dev` | ~1 min |
+| `pnpm e2e` | The web app in a real browser (Playwright): Chromium at desktop and phone widths, and the main path in Firefox and WebKit | `pnpm dev` | ~2 min |
 | `pnpm e2e:mobile` | The phone app in Expo Go on the Android emulator (Maestro) | `pnpm dev`, Metro, the emulator | ~5 min |
 
 Run the first line before every commit. Run the others when you touch what they cover.
@@ -58,7 +58,7 @@ These scripts live in `master-ai-backend/scripts/` and talk to a running API exa
   - that nothing people read shows a tool name, an id or raw data.
 
   Use `--only <id>` to run a single organization. With a model configured (`GET /health` says `online`), it runs one organization per sector, one at a time, and reports where the model's judgement differs from the test set instead of failing.
-- **`pnpm e2e`** runs the Playwright tests in `master-ai-web/e2e/`. They cover signup to report in the browser at 1440 px (sector, type, preview, install, a new request, stages advancing live, approval by the role holder in a second browser, sign-off, the report), plus the main pages at 390 px phone width. Install the browser once with `pnpm --filter @onehuman/web exec playwright install chromium`.
+- **`pnpm e2e`** runs the Playwright tests in `master-ai-web/e2e/`. They cover signup to report in the browser at 1440 px (sector, type, preview, install, a new request, stages advancing live, approval by the role holder in a second browser, sign-off, the report), plus the main pages at 390 px phone width. `e2e/browsers.spec.ts` runs the main path (sign-up, a live request, the report, Copy, the print view) in Chromium, Firefox and WebKit, and fails on any page error or blocked script. Install the browsers once with `pnpm --filter @onehuman/web exec playwright install chromium firefox webkit`. On macOS 27.0.1 Playwright's Firefox doesn't start ("Could not find profile folder"); run `pnpm e2e --project=desktop --project=webkit` there, and CI covers Firefox.
 - **`pnpm e2e:mobile`** runs the Maestro flows in `master-ai-mobile/e2e/`: a role holder approves with the fingerprint-signed key, a member sees no approvals, and a new request from the phone runs its stages. Setup is in [master-ai-mobile/README.md](../master-ai-mobile/README.md#testing).
 
 ## CI
@@ -66,7 +66,7 @@ These scripts live in `master-ai-backend/scripts/` and talk to a running API exa
 GitHub Actions ([ci.yml](../.github/workflows/ci.yml)) runs two jobs on every push:
 
 1. **checks**: `pnpm turbo run build typecheck test`.
-2. **e2e**: starts Postgres, Temporal and NATS, then runs [infra/ci/e2e.sh](../infra/ci/e2e.sh). The script builds, starts the API, worker and production web build (always offline), and runs the smoke test, the sector run and the browser tests.
+2. **e2e**: starts Postgres, Temporal and NATS, then runs [infra/ci/e2e.sh](../infra/ci/e2e.sh). The script builds, starts the API, worker and production web build (always offline), and runs the smoke test, the sector run and the browser tests. The production build is served with the same security headers it is hosted with (`master-ai-web/src/hosting.ts`), so a script or connection the content security policy blocks fails the browser tests.
 
 To rehearse the e2e job locally, run `pnpm infra:up`, stop `pnpm dev`, then `bash infra/ci/e2e.sh`.
 

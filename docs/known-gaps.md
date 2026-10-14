@@ -2,6 +2,8 @@
 
 Things the build doesn't handle yet. Reviews found them while Plans 2–6 were built, and each was left for later because it is small, rare or needs a decision. Each line says what a person would notice. None of them lets someone decide what they shouldn't, or loses a decision.
 
+What's left before going live (hosting, backups, sessions, monitoring) is in [Production readiness](production-readiness.md).
+
 ## Cases and the 8 stages
 - Cancelling a case at the moment a stage starts can leave that stage running for a while; the cancel isn't passed on to it.
 - The reason given when cancelling a case isn't kept.
@@ -51,7 +53,6 @@ Things the build doesn't handle yet. Reviews found them while Plans 2–6 were b
 - The Agents page header repeats.
 - An empty "Needs: ." line can show.
 - Case search isn't on the server: outside the open tabs, the list shows the newest 200.
-- The web app keeps the last person's data in memory across sign-in.
 
 ## Mobile app
 - In reject mode, Approve stays visible and there's no Cancel.

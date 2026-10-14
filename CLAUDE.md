@@ -38,6 +38,10 @@ Read `README.md` first. The spec is `docs/architecture-plan.md`; decisions are i
 - Owners and their clients never see tool names, ids or JSON. Describe steps with `narrateStep` (agent-kit), goals with `GoalReport` (`ReportsService`), and action details with `readableFields` (sdk). Raw data stays in the Audit page.
 - Colours come from `@onehuman/ui` tokens (dark-first, n8n style). Use the token classes (`bg-surface`, `text-fg-muted`, `bg-canvas`, …), not raw Tailwind colours.
 - Shared packages are consumed from `dist/`. Rebuild them (`pnpm build:packages`) or run `pnpm dev`, which watches.
+- The session token never goes in a URL. WebSockets and SSE open with a one-minute stream ticket (`POST /auth/stream-ticket`, `issueStreamTicket`/`readStreamTicket`); a ticket can't call the API and a session token in a query string is refused.
+- The browser takes run-time values from `@onehuman/schemas/plain` (zod-free), never the package root; types come from the root with `import type`. Web pages are lazy routes in `main.tsx`. `master-ai-web/src/bundle.test.ts` checks both.
+- How the web build is served (CSP, framing, caching, noindex on keyed links) lives in `master-ai-web/src/hosting.ts`; `pnpm demo` writes it to `vercel.json` and `vite preview` serves it in CI. A new service the page calls goes in its `connect-src`.
+- Sign-in, sign-up and the public routes are rate limited in process (`RateLimiter`, `SignInLimits`). More than one API process needs a shared store first. What's left before going live is in `docs/production-readiness.md`.
 
 ## Mobile gotchas
 - Port 8081 may be taken locally; the `start` script uses 8082.

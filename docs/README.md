@@ -9,8 +9,8 @@ ONEHUMAN OS is one platform for any kind of organization: a power plant, a lende
 | **New to the product** (owner, manager, investor, designer) | [How it works](how-it-works.md) → [Glossary](glossary.md) → the [demo guide](demo.md) |
 | **A developer joining the project** | The [README](../README.md) → [Contributing](../CONTRIBUTING.md) → [How it works](how-it-works.md) → the README of the folder you will work in (below) |
 | **Writing content for a new kind of organization** | [How it works](how-it-works.md) → [Pack guide](packs.md) → [packs/](../packs/README.md) → [evals/](../evals/README.md) |
-| **Running the demo or a deployment** | [Demo guide](demo.md) → [infra/](../infra/README.md) |
-| **Checking what is unfinished** | [Known gaps](known-gaps.md) |
+| **Running the demo or a deployment** | [Demo guide](demo.md) → [Production readiness](production-readiness.md) → [infra/](../infra/README.md) |
+| **Checking what is unfinished** | [Known gaps](known-gaps.md) → [Production readiness](production-readiness.md) |
 
 ## Every document
 
@@ -18,6 +18,7 @@ ONEHUMAN OS is one platform for any kind of organization: a power plant, a lende
 - [How it works](how-it-works.md): one request's journey through the 8 stages, in plain words.
 - [Glossary](glossary.md): every term the product and the code use.
 - [Known gaps](known-gaps.md): what isn't handled yet, live-model findings, and questions for sector experts.
+- [Production readiness](production-readiness.md): performance, browsers, search, security and hosting, what was fixed and the decisions left before going live.
 
 **Building it**
 - [Contributing](../CONTRIBUTING.md): set up, the daily loop, the rules that are easy to break, and how to add things.

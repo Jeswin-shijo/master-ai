@@ -62,12 +62,16 @@ Owner- and admin-only pages are hidden from members (`src/lib/nav.ts`), and the 
 - People never see tool names, ids or raw data. Use the sdk's `readableFields`, `caseFileLines` and the report helpers.
 - Animations use `motion` inside the shell's `MotionConfig reducedMotion="user"`.
 - Don't bump React here alone: the repository shares Expo's version.
+- New pages are lazy routes in `main.tsx` (`bundle.test.ts` fails on a static page import) and name their tab with `usePageTitle` unless they are in the menu.
+- Take plain values (stage keys, sectors, event summaries) from `@onehuman/schemas/plain`, never the package root, so zod stays out of the browser. Types can come from the root with `import type`.
+- `src/hosting.ts` is how the build is served: its content security policy allows only this app's scripts and its API. A new external service the page calls must be added to `connect-src` there.
 
 ## Browser tests (`e2e/`)
 
-Playwright, Chromium only:
+Playwright. Chromium runs every spec; Firefox and WebKit run `browsers.spec.ts`:
 - `journey.spec.ts`: signup to report, including the role holder approving in a second browser context;
 - `cases.spec.ts`, `roles.spec.ts`, `theme.spec.ts`: cases, roles and themes;
-- `layout.spec.ts`: the main pages at 390 px phone width.
+- `layout.spec.ts`: the main pages at 390 px phone width;
+- `browsers.spec.ts`: the main path in Chromium, Firefox and WebKit.
 
 Run them against a running `pnpm dev` with `pnpm e2e`. Install the browser once with `pnpm --filter @onehuman/web exec playwright install chromium`. More in [docs/testing.md](../docs/testing.md).
