@@ -21,6 +21,8 @@
     "evals:live": "node --env-file-if-exists=master-ai-backend/.env evals/src/live.ts",
     "pack:check": "node evals/src/check.ts",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "demo:setup": "node infra/demo/demo.mts setup",
+    "demo": "node infra/demo/demo.mts start",
     "e2e": "pnpm --filter @onehuman/web e2e",
     "e2e:mobile": "node master-ai-mobile/e2e/run.mts",
     "e2e:sectors": "pnpm --filter @onehuman/backend e2e:sectors"
