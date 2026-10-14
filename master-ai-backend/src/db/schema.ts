@@ -452,10 +452,24 @@ export const records = pgTable(
     entity: text('entity').notNull(),
     data: jsonb('data').$type<Record<string, unknown>>().notNull(),
     createdBy: uuid('created_by'),
+    /** How the item came in: typed by a person, from a phone call, by an AI agent, or sample data. */
+    source: text('source', { enum: ['manual', 'call', 'agent', 'sample'] }).notNull().default('manual'),
+    /** The call (call) or tool call (agent) that added it. */
+    sourceRef: uuid('source_ref'),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid('updated_by'),
+    /** How it was last changed; null when it hasn't changed since lists began recording it. */
+    updatedVia: text('updated_via', { enum: ['manual', 'call', 'agent', 'system'] }),
+    updatedRef: uuid('updated_ref'),
+    /** An owner or admin agreed with the item. Anyone else's later change clears it. */
+    checkedBy: uuid('checked_by'),
+    checkedAt: timestamp('checked_at', { withTimezone: true }),
+    checkNote: text('check_note'),
+    /** Keys of the problems the person who checked it saw and accepted (agent-kit `checkKeys`). */
+    checkedProblems: text('checked_problems').array().notNull().default(sql`'{}'::text[]`),
   },
-  (t) => [index('records_entity_idx').on(t.tenantId, t.workspaceId, t.entity)],
+  (t) => [index('records_entity_idx').on(t.tenantId, t.workspaceId, t.entity), index('records_source_idx').on(t.tenantId, t.workspaceId, t.entity, t.source)],
 );
 
 /** What the sandbox connector "sent". Real connectors replace these with real effects. */
