@@ -25,7 +25,7 @@ This repository implements the [architecture plan](docs/architecture-plan.md) an
 | **Routines: manual or automatic** | Repeating check-ins (daily work report, stock check, bookings check-in) come from the pack. Each one is **Manual** (people fill in a short form) or **Automatic** (the AI phones each person and fills in the answers). A live board shows who has reported, and any problem raised becomes a case in one click ([ADR 0008](docs/adr/0008-routines-manual-or-automatic.md)). |
 | **Reports in plain words** | Every step is told as a sentence, never as tool names or data. Each case has a report: its stages, the work done, whether it met its deadline, and whether it keeps coming back. **Reports** collects them by period; owners copy, print, save as PDF or share from the phone. |
 | **Quality without fine-tuning** | Each ready-made type was researched from Indian rules and practice: its pack, playbooks for the knowledge base, worked examples for the stage prompts, and a scored test set of real-sounding requests (16 sets, about 150 requests). `pnpm evals` scores the rules on every build; `pnpm evals:live` scores the model. |
-| **Web app (Glow)** | A dark violet-navy look with warm orange actions, inspired by n8n.io. Home, Cases (with each case's 8 stages as dots), the case page (the stages on an animated canvas, the case file in sentences, the report), Approvals, Team with invites and roles, Reports, Routines, Calls, Records, Workflows, Agents, Knowledge, the Industry pack, Audit and Settings. Works at phone width. |
+| **Web app (Glow)** | A dark violet-navy look with warm orange actions, inspired by n8n.io. Home, Cases (with each case's 8 stages as dots), the case page (the stages on an animated canvas, the case file in sentences, the report), Approvals, Team with invites and roles, Reports, Routines, Calls, Lists (each organization type's own lists, with totals, problems found for you, corrections and checking), Workflows, Agents, Knowledge, the Industry pack, Audit and Settings. Works at phone width. |
 | **Phone app (Glow)** | Expo app with Cases, Approvals (with a badge), Calls, Pulse and Settings. The case screen shows the 8 stages with the live one pulsing (still under reduced motion); the approval screen asks the question in plain words with the risk and evidence, approves with the fingerprint and rejects with a note. Saved approvals work without signal and are kept per person on a shared phone. |
 
 ### Ready-made organization types
@@ -142,6 +142,7 @@ An installed workspace keeps a snapshot of its pack. When the base packs later g
 9. [Organization types first, and every request a case through 8 stages](docs/adr/0009-organization-types-and-the-case-lifecycle.md)
 10. [Named roles approve: invites, approver roles and who may decide](docs/adr/0010-roles-invites-and-gate-approvals.md)
 11. [Google Gemini as an optional second model provider](docs/adr/0011-gemini-as-a-second-model-provider.md)
+12. [Lists and checks](docs/adr/0012-lists-and-checks.md)
 
 ## Not built yet
 

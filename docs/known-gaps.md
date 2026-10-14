@@ -94,3 +94,14 @@ The sector content was researched from public sources, not reviewed by people wh
 - Software & SaaS: privacy officer or founder sign-off?
 - Legal facts were taken from news summaries and need a lawyer's check: DPDP dates, the 2026 IT Rules, the TCS rate, DGCA, FCRA 2026, Income-tax Act 2025 sections.
 - Municipal time limits use one state's list (Haryana).
+
+## Sector lists, part 1
+
+- Lists are on the web only; the phone app gets them in a later part.
+- A role holder (accounts, site engineer) can't yet see only their own list; lists are for the owner and admins.
+- Reference pickers in the item form offer the 100 most recently changed items of that type.
+- A CSV download holds at most 10,000 items.
+- A CSV cell that starts with `=`, `+`, `-` or `@` gets a leading `'` so a spreadsheet can't run it, so phone numbers like `+91…` show that quote in Excel. Cells that are plain numbers (a negative amount like -500) are left alone and stay numbers.
+- Default lists (record types a pack gives no list) only check that references point at real items.
+- A pack the model writes names its main lists but no checks.
+- Part 2, the AI's calls (collecting items from staff, following up with staff and outside parties), is designed in the spec and not built yet.
