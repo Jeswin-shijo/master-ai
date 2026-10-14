@@ -1,8 +1,10 @@
 /** Cells a spreadsheet would run as a formula start with one of these; a leading ' keeps them as text. */
 const FORMULA = /^[=+\-@\t\r]/;
+/** A plain number stays a number in the spreadsheet, so a negative amount still sums. */
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
 
 export function csvCell(v: string): string {
-  const safe = FORMULA.test(v) ? `'${v}` : v;
+  const safe = FORMULA.test(v) && !PLAIN_NUMBER.test(v) ? `'${v}` : v;
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 

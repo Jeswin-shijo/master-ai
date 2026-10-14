@@ -43,6 +43,7 @@ describe('parseListQuery', () => {
     expect(parseListQuery({ from: '2026-09-01', to: '2026-09-15' }, bills!, '2026-10-14').dates).toEqual({ from: '2026-09-01', to: '2026-09-15' });
     expect(() => parseListQuery({ from: '2026-09-15', to: '2026-09-01' }, bills!, '2026-10-14')).toThrow(/YYYY-MM-DD/);
     expect(() => parseListQuery({ from: '2026-09-15' }, bills!, '2026-10-14')).toThrow(/YYYY-MM-DD/);
+    expect(() => parseListQuery({ from: '2026-02-31', to: '2026-03-01' }, bills!, '2026-10-14')).toThrow(/YYYY-MM-DD/);
   });
 
   it("takes only this list's filters and their choices", () => {

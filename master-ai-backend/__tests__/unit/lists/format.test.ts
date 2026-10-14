@@ -61,6 +61,7 @@ describe('values in words and in CSV', () => {
     expect(dayOf('2026-10-14T20:00:00Z')).toBe('2026-10-15');
     expect(dayOf('2026-10-14')).toBe('2026-10-14');
     expect(dayOf('2026-13-45')).toBeNull();
+    expect(dayOf('2026-02-31')).toBeNull();
     expect(dayOf('soon')).toBeNull();
     expect(istStamp('2026-10-14T20:00:00Z')).toBe('2026-10-15 01:30');
   });

@@ -14,10 +14,16 @@ export function asNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** A real calendar day (YYYY-MM-DD): 2026-02-31 and 2026-99-99 are not. */
+export function isDay(d: string): boolean {
+  const t = Date.parse(`${d}T00:00:00Z`);
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
+}
+
 /** The India-time calendar day of a date or date-time, or null when the value isn't one. */
 export function dayOf(v: unknown): string | null {
-  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(v)) return null;
-  if (v.length === 10) return Number.isNaN(Date.parse(`${v}T00:00:00Z`)) ? null : v;
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(v) || !isDay(v.slice(0, 10))) return null;
+  if (v.length === 10) return v;
   const at = Date.parse(v);
   return Number.isNaN(at) ? null : new Date(at + IST_MS).toISOString().slice(0, 10);
 }

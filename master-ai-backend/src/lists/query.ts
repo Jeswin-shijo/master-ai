@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import type { EntityField } from '@onehuman/schemas';
 import type { ResolvedRegister } from '@onehuman/agent-kit';
+import { isDay } from './format';
 
 export const PAGE_SIZE = 50;
 export const RANGES = ['today', 'this_week', 'this_month', 'last_month', 'all'] as const;
@@ -57,7 +58,8 @@ export function parseListQuery(raw: Record<string, unknown>, reg: ResolvedRegist
   const from = one('from');
   const to = one('to');
   if (from || to) {
-    if (!from || !to || !DAY.test(from) || !DAY.test(to) || from > to) throw bad('Give both dates as YYYY-MM-DD, the first on or before the second.');
+    const realDay = (d: string) => DAY.test(d) && isDay(d);
+    if (!from || !to || !realDay(from) || !realDay(to) || from > to) throw bad('Give both dates as YYYY-MM-DD, the first on or before the second.');
     dates = { from, to };
   } else {
     const range = one('range') ?? (reg.dateField ? 'this_month' : 'all');

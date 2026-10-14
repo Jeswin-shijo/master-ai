@@ -9,7 +9,9 @@ describe('CSV for Excel', () => {
   it('keeps a cell from becoming a formula when the file is opened', () => {
     expect(csvCell('=HYPERLINK("http://x")')).toBe(`"'=HYPERLINK(""http://x"")"`);
     expect(csvCell('+91 98470 12345')).toBe("'+91 98470 12345");
-    expect(csvCell('-500')).toBe("'-500");
+    expect(csvCell('-500')).toBe('-500');
+    expect(csvCell('-2+3')).toBe("'-2+3");
+    expect(csvCell('-12.5')).toBe('-12.5');
     expect(csvCell('@SUM(A1)')).toBe("'@SUM(A1)");
   });
 
