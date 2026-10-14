@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { costUsd, resolvePack } from '@onehuman/agent-kit';
 import type { ModelTier } from '@onehuman/schemas';
-import { formatLiveScorecard, runLiveSuite, type LiveComplete } from './live-lib.ts';
+import { formatLiveScorecard, LiveFatalError, runLiveSuite, type LiveComplete } from './live-lib.ts';
 import { loadPackRegistry, loadSuites } from './runner.ts';
 
 /**
@@ -21,15 +21,28 @@ const models: Record<ModelTier, string> = {
 };
 const client = new Anthropic();
 
+/** Key and model errors stop the run; anything else is one failed call. */
+function fatal(err: unknown, model: string): unknown {
+  if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+    return new LiveFatalError(`The model refused the key (${err.message}). Check ANTHROPIC_API_KEY.`);
+  }
+  if (err instanceof Anthropic.NotFoundError) return new LiveFatalError(`No model called ${model} (${err.message}). Check LLM_MODEL_* in your environment.`);
+  return err;
+}
+
 const complete: LiveComplete = async (req) => {
   const model = models[req.tier];
-  const message = await client.beta.messages.create({
-    model,
-    max_tokens: 4000,
-    system: [{ type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: req.user }],
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: req.schema } },
-  });
+  const message = await client.beta.messages
+    .create({
+      model,
+      max_tokens: 4000,
+      system: [{ type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: req.user }],
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: req.schema } },
+    })
+    .catch((err: unknown) => {
+      throw fatal(err, model);
+    });
   const text = message.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
   let json: unknown = null;
   try {
@@ -48,12 +61,18 @@ const complete: LiveComplete = async (req) => {
 
 const registry = loadPackRegistry(fileURLToPath(new URL('../../packs/', import.meta.url)));
 let total = 0;
-for (const suite of loadSuites(fileURLToPath(new URL('../suites/', import.meta.url)))) {
-  if (only && suite.pack !== only) continue;
-  const base = registry.get(suite.pack);
-  if (!base) continue;
-  const card = await runLiveSuite(resolvePack(base, (id) => registry.get(id)), suite, complete);
-  total += card.costUsd;
-  console.log(formatLiveScorecard(card));
+try {
+  for (const suite of loadSuites(fileURLToPath(new URL('../suites/', import.meta.url)))) {
+    if (only && suite.pack !== only) continue;
+    const base = registry.get(suite.pack);
+    if (!base) continue;
+    const card = await runLiveSuite(resolvePack(base, (id) => registry.get(id)), suite, complete);
+    total += card.costUsd;
+    console.log(formatLiveScorecard(card));
+  }
+} catch (err) {
+  if (!(err instanceof LiveFatalError)) throw err;
+  console.error(err.message);
+  process.exit(1);
 }
 console.log(`\nTotal cost: $${total.toFixed(4)}`);

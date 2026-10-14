@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePack } from '@onehuman/agent-kit';
-import { runLiveSuite, type LiveComplete } from './live-lib.ts';
+import { LiveFatalError, runLiveSuite, type LiveComplete } from './live-lib.ts';
 import { loadPackRegistry, loadSuites, runSuite } from './runner.ts';
 
 const registry = loadPackRegistry(new URL('../../packs', import.meta.url).pathname);
@@ -32,5 +32,29 @@ describe('live evals', () => {
     expect(card.fallbacks).toBe(suite.cases.length * 2);
     expect(card.stages.category).toEqual(offline.stages.category);
     expect(card.stages.approval).toEqual(offline.stages.approval);
+  });
+
+  it('counts a failed call as the rules answering, and keeps going', async () => {
+    let calls = 0;
+    const flaky: LiveComplete = async () => {
+      calls++;
+      throw new Error('529 overloaded');
+    };
+    const card = await runLiveSuite(pack, suite, flaky);
+    const offline = runSuite(pack, suite);
+    expect(calls).toBe(suite.cases.length * 2);
+    expect(card.errors).toBe(suite.cases.length * 2);
+    expect(card.fallbacks).toBe(suite.cases.length * 2);
+    expect(card.stages.category).toEqual(offline.stages.category);
+  });
+
+  it('stops at the first call when the key is refused', async () => {
+    let calls = 0;
+    const refused: LiveComplete = async () => {
+      calls++;
+      throw new LiveFatalError('The model refused the key (401 invalid x-api-key).');
+    };
+    await expect(runLiveSuite(pack, suite, refused)).rejects.toThrow('refused the key');
+    expect(calls).toBe(1);
   });
 });

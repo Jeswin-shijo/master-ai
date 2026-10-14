@@ -27,12 +27,17 @@ export interface LiveRequest {
 
 export type LiveComplete = (req: LiveRequest) => Promise<{ json: unknown; costUsd: number }>;
 
+/** A model error no retry fixes (a refused key, an unknown model): the run stops at once. */
+export class LiveFatalError extends Error {}
+
 export interface LiveScorecard extends Scorecard {
   costUsd: number;
   /** Answers that matched the stage schema. */
   modelAnswers: number;
   /** Answers that did not, where the rules answered instead. */
   fallbacks: number;
+  /** Calls that failed (overloaded, timed out), where the rules answered instead. */
+  errors: number;
 }
 
 type Stage = keyof typeof THRESHOLDS;
@@ -54,6 +59,7 @@ export async function runLiveSuite(pack: ResolvedPack, suite: EvalSuite, complet
     costUsd: 0,
     modelAnswers: 0,
     fallbacks: 0,
+    errors: 0,
   };
   const score = (caseId: string, stage: Stage, expected: string, got: string) => {
     card.stages[stage].total++;
@@ -62,7 +68,15 @@ export async function runLiveSuite(pack: ResolvedPack, suite: EvalSuite, complet
   };
   const system = (stage: ModelStage) => stageSystemPrompt(stage, { orgName: `A ${pack.name.toLowerCase()} organization`, packName: pack.name, lc });
   const ask = async <S extends ModelStage>(stage: S, user: string): Promise<ModelStageOutput<S> | null> => {
-    const answer = await complete({ stage, tier: MODEL_STAGE_TIERS[stage], system: system(stage), user, schema: modelStageJsonSchema(stage) });
+    let answer: Awaited<ReturnType<LiveComplete>>;
+    try {
+      answer = await complete({ stage, tier: MODEL_STAGE_TIERS[stage], system: system(stage), user, schema: modelStageJsonSchema(stage) });
+    } catch (err) {
+      if (err instanceof LiveFatalError) throw err;
+      card.errors++;
+      card.fallbacks++;
+      return null;
+    }
     card.costUsd += answer.costUsd;
     const parsed = MODEL_STAGE_SCHEMAS[stage].safeParse(answer.json);
     if (parsed.success) {
@@ -95,5 +109,6 @@ export async function runLiveSuite(pack: ResolvedPack, suite: EvalSuite, complet
 }
 
 export function formatLiveScorecard(card: LiveScorecard): string {
-  return `${formatScorecard(card)}\n  model answers ${card.modelAnswers}, fell back to rules ${card.fallbacks}, cost $${card.costUsd.toFixed(4)}`;
+  const failed = card.errors > 0 ? ` (${card.errors} calls failed)` : '';
+  return `${formatScorecard(card)}\n  model answers ${card.modelAnswers}, fell back to rules ${card.fallbacks}${failed}, cost ${card.costUsd.toFixed(4)}`;
 }
