@@ -21,7 +21,7 @@ export default defineConfig({
     {
       name: 'phone',
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
-      testMatch: /layout\.spec/,
+      testMatch: /(layout|lists)\.spec/,
     },
     // The main path and the can't-start note in Firefox and WebKit (Safari) too; everything else runs in Chromium.
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /(browsers|fallback)\.spec/ },

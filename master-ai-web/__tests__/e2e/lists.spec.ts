@@ -17,8 +17,11 @@ test('the head finds a bill that does not add up, accepts it with a note, correc
   await page.goto('/lists');
   await page.getByRole('link', { name: /^Bills/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Bills' })).toBeVisible();
-  await page.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Has problems' }).click();
   await page.getByLabel('Search this list').fill('E2E-1');
+  await page.getByRole('group', { name: 'Payment' }).getByRole('button', { name: 'Unpaid' }).click();
+  await expect(page.getByText('1 bill', { exact: true })).toBeVisible();
+  await expect(page.getByText('Total ₹48,260')).toBeVisible();
+  await page.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Has problems' }).click();
   await page.getByRole('row', { name: /E2E-1/ }).click();
 
   const panel = page.getByRole('dialog');
@@ -37,7 +40,7 @@ test('the head finds a bill that does not add up, accepts it with a note, correc
   await panel.getByRole('button', { name: 'Close' }).click();
 
   await page.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'All', exact: true }).click();
-  await expect(page.getByText(/^Total ₹/)).toBeVisible();
+  await expect(page.getByText('Total ₹48,260')).toBeVisible();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download' }).click();
   const csv = readFileSync((await (await download).path())!, 'utf8');

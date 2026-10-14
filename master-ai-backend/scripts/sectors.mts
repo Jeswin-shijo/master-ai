@@ -88,7 +88,10 @@ async function runOne(run: SectorRun): Promise<RunResult> {
     const wantMain = registersOf(org.ws.pack).filter((r) => r.main).map((r) => r.id);
     const gotMain = lists.lists.filter((l) => l.main).map((l) => l.id);
     if (gotMain.join() !== wantMain.join()) throw new Error(`main lists ${gotMain.join(', ') || 'none'}, expected ${wantMain.join(', ') || 'none'}`);
-    for (const l of lists.lists) await owner.lists.page(l.id, { range: 'all' });
+    for (const l of lists.lists) {
+      const page = await owner.lists.page(l.id, { range: 'all' });
+      if (l.main && page.total === 0) throw new Error(`${l.id} has no sample items`);
+    }
     log(`${run.id}: lists`, `${gotMain.join(', ') || 'default lists only'} (${lists.lists.length} open)`);
 
     await owner.tenant.updateSettings({ calls: { simulatorMode: 'auto', fastSchedule: true } });
