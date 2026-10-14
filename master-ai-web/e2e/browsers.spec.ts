@@ -62,5 +62,7 @@ test('sign up, raise a request, watch it live, and read, copy and print its repo
     await expect(page.getByRole('link', { name: /^Back to JOB-/ })).toHaveAttribute('href', caseUrl);
   });
 
+  // Moving between screens never set off the "couldn't start" note.
+  await expect(page.getByRole('heading', { name: "This page couldn't start in this browser" })).toBeHidden();
   expect(problems).toEqual([]);
 });

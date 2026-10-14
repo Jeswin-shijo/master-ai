@@ -23,8 +23,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
       testMatch: /layout\.spec/,
     },
-    // The main path in Firefox and WebKit (Safari) too; everything else runs in Chromium.
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /browsers\.spec/ },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /browsers\.spec/ },
+    // The main path and the can't-start note in Firefox and WebKit (Safari) too; everything else runs in Chromium.
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /(browsers|fallback)\.spec/ },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /(browsers|fallback)\.spec/ },
   ],
 });
