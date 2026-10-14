@@ -4,6 +4,7 @@ build/
 .turbo/
 coverage/
 *.log
+.ci-logs/
 .env
 .env.*
 !.env.example
