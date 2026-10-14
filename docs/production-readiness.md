@@ -67,6 +67,7 @@ Supported: Chrome and Edge 111+, Firefox 128+, Safari 16.4+ on iPhone and Mac (2
 - **Sessions live in browser storage for 7 days, and signing out doesn't end them on the server.** The content security policy limits what an injected script could do, but before real customer data, move to httpOnly cookies and sessions the server can revoke.
 - **Rate limits are kept in the API's memory.** With more than one API process they need a shared store (Redis) or the host's own rate limiting.
 - **Anyone can create an organization**, and emails aren't verified. Add email verification, and a CAPTCHA if bots show up.
+- **Sign-up says when an email is already registered.** That helps people who forgot they have a login, but it tells anyone which emails do; the sign-up limit slows that down. Email verification would let sign-up answer the same way either way.
 - **There is no password reset**, and the app doesn't send email (invite links are copied by hand).
 - Approval signing keys are kept in browser storage, and saved approvals aren't encrypted on the phone ([known gaps](known-gaps.md)).
 

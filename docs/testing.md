@@ -68,7 +68,7 @@ GitHub Actions ([ci.yml](../.github/workflows/ci.yml)) runs two jobs on every pu
 1. **checks**: `pnpm turbo run build typecheck test`.
 2. **e2e**: starts Postgres, Temporal and NATS, then runs [infra/ci/e2e.sh](../infra/ci/e2e.sh). The script builds, starts the API, worker and production web build (always offline), and runs the smoke test, the sector run and the browser tests. The production build is served with the same security headers it is hosted with (`master-ai-web/src/hosting.ts`), so a script or connection the content security policy blocks fails the browser tests.
 
-To rehearse the e2e job locally, run `pnpm infra:up`, stop `pnpm dev`, then `bash infra/ci/e2e.sh`.
+To rehearse the e2e job locally, run `pnpm infra:up`, stop `pnpm dev`, then `bash infra/ci/e2e.sh`. Where Playwright's Firefox can't start, run `E2E_ARGS='--project=desktop --project=phone --project=webkit' bash infra/ci/e2e.sh`.
 
 ## Offline vs live
 

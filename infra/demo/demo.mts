@@ -76,6 +76,25 @@ function run(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.Pro
   return `${r.stdout ?? ''}${r.stderr ?? ''}`;
 }
 
+/** Connect as the app role and look at what it can see, setting its password once if it is refused. */
+async function appCheck(url: string, resetPassword: () => Promise<unknown>) {
+  for (let attempt = 0; ; attempt++) {
+    const app = new pg.Client({ connectionString: url });
+    try {
+      await app.connect();
+      const r = await app.query<{ user: string; tenants: string }>('select current_user as user, (select count(*) from tenants)::text as tenants');
+      return r.rows[0]!;
+    } catch (err) {
+      // 28P01: wrong password. After a reset the pooler can take a few seconds to accept the new one.
+      if ((err as { code?: string }).code !== '28P01' || attempt >= 5) throw err;
+      if (attempt === 0) await resetPassword();
+      await new Promise((r) => setTimeout(r, 3_000));
+    } finally {
+      await app.end().catch(() => {});
+    }
+  }
+}
+
 async function setup() {
   const env = readDemoEnv();
   const urls = databaseUrls(env);
@@ -86,14 +105,22 @@ async function setup() {
   await db.query('create extension if not exists vector with schema public');
   await db.query('create extension if not exists citext with schema public');
   // The app's role: not the owner and no BYPASSRLS, so row-level security applies to every query.
+  // Its password is set when the role is created, and again only if the app can't sign in with it:
+  // every reset makes a new hash, and Supabase's pooler keeps the old one for a moment, so
+  // resetting it on each run turned away the first connection after setup (the running demo's too).
   const password = env.APP_DB_PASSWORD!.replace(/[^0-9a-f]/g, '');
-  await db.query(`do $$ begin
-    if not exists (select from pg_roles where rolname = 'onehuman_app') then
-      create role onehuman_app login nosuperuser nocreatedb nocreaterole nobypassrls;
-    end if; end $$`);
-  await db.query(`alter role onehuman_app with login password '${password}'`);
+  const setPassword = async () => {
+    const owner = new pg.Client({ connectionString: urls.owner });
+    await owner.connect();
+    await owner.query(`alter role onehuman_app with login password '${password}'`).finally(() => owner.end());
+  };
+  const created = await db.query(`select 1 from pg_roles where rolname = 'onehuman_app'`).then((r) => r.rowCount === 0);
+  if (created) {
+    await db.query('create role onehuman_app login nosuperuser nocreatedb nocreaterole nobypassrls');
+    await setPassword();
+  }
   await db.query('grant connect on database postgres to onehuman_app');
-  console.log('✓ Extensions and the app role ready');
+  console.log(`✓ Extensions and the app role ready${created ? ' (role created)' : ''}`);
   await db.end();
 
   run('pnpm', ['--filter', '@onehuman/backend', 'db:migrate'], { env: { ...process.env, DATABASE_URL: urls.owner } });
@@ -116,11 +143,11 @@ async function setup() {
   await lock.end();
   console.log("✓ Supabase's own API roles locked out of the app's tables");
 
-  const app = new pg.Client({ connectionString: urls.app });
-  await app.connect();
-  const who = await app.query<{ user: string; tenants: string }>('select current_user as user, (select count(*) from tenants)::text as tenants');
-  await app.end();
-  console.log(`✓ The app connects as ${who.rows[0]!.user}; row-level security hides tenants without a tenant set (${who.rows[0]!.tenants} visible)`);
+  const who = await appCheck(urls.app, async () => {
+    console.log('… The app role refused its password; setting it from APP_DB_PASSWORD');
+    await setPassword();
+  });
+  console.log(`✓ The app connects as ${who.user}; row-level security hides tenants without a tenant set (${who.tenants} visible)`);
   console.log('\nSetup done. Start the demo with: pnpm demo');
 }
 

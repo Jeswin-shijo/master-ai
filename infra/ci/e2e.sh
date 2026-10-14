@@ -46,4 +46,6 @@ curl -sf localhost:5173 >/dev/null || { echo "The web app did not start:"; tail 
 
 pnpm smoke
 pnpm e2e:sectors
-pnpm e2e
+# E2E_ARGS narrows the browser tests, e.g. --project=desktop --project=phone --project=webkit
+# where Playwright's Firefox can't start (macOS 27.0.1).
+pnpm e2e ${E2E_ARGS:-}
