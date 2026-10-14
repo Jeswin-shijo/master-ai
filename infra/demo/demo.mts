@@ -16,6 +16,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createConnection } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
@@ -24,7 +25,11 @@ import pg from 'pg';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const BACKEND = join(ROOT, 'master-ai-backend');
 const ENV_FILE = join(BACKEND, '.env.demo');
-const STAGE = join(ROOT, '.superpowers/demo/onehuman-demo'); // the folder Vercel deploys; its name is the project's
+// The folder Vercel deploys. Its name is the project's, and it sits outside the git repository: inside it, Vercel
+// reads the latest commit and blocks the deploy when the commit's author isn't the Vercel account's email.
+const STAGE = join(tmpdir(), 'onehuman-demo');
+// The Vercel project link (.vercel/project.json), kept between runs.
+const LINK = join(ROOT, '.superpowers/demo/onehuman-demo/.vercel');
 const PORT = 3100;
 const QUEUE = 'onehuman-demo';
 const VERCEL = 'vercel@61.1.0';
@@ -63,8 +68,9 @@ function databaseUrls(env: Record<string, string>) {
   return { owner: owner.toString(), app: app.toString() };
 }
 
-function run(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv; quiet?: boolean } = {}) {
-  const r = spawnSync(cmd, args, { cwd: opts.cwd ?? ROOT, env: opts.env ?? process.env, encoding: 'utf8', stdio: opts.quiet ? 'pipe' : 'inherit' });
+function run(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv; quiet?: boolean; timeoutMs?: number } = {}) {
+  const r = spawnSync(cmd, args, { cwd: opts.cwd ?? ROOT, env: opts.env ?? process.env, encoding: 'utf8', stdio: opts.quiet ? 'pipe' : 'inherit', timeout: opts.timeoutMs });
+  if (r.error && (r.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') fail(`${cmd} ${args.join(' ')} took longer than ${Math.round(opts.timeoutMs! / 60_000)} min`);
   if (r.status !== 0) fail(`${cmd} ${args.join(' ')} failed${opts.quiet ? `:\n${r.stdout}\n${r.stderr}` : ''}`);
   return `${r.stdout ?? ''}${r.stderr ?? ''}`;
 }
@@ -164,12 +170,15 @@ async function start() {
 
   console.log('Building and deploying the web app…');
   run('pnpm', ['--filter', '@onehuman/web', 'build'], { env: { ...process.env, VITE_API_URL: apiUrl }, quiet: true });
-  mkdirSync(STAGE, { recursive: true });
-  for (const entry of ['assets', 'index.html']) rmSync(join(STAGE, entry), { recursive: true, force: true });
+  rmSync(STAGE, { recursive: true, force: true });
   cpSync(join(ROOT, 'master-ai-web/dist'), STAGE, { recursive: true });
+  if (existsSync(LINK)) cpSync(LINK, join(STAGE, '.vercel'), { recursive: true });
   // One page app: every path (/cases/…, /r/<tenant>/<form>, /invite/…) serves index.html.
   writeFileSync(join(STAGE, 'vercel.json'), JSON.stringify({ rewrites: [{ source: '/(.*)', destination: '/index.html' }] }, null, 2));
-  const out = run('npx', ['--yes', VERCEL, 'deploy', STAGE, '--prod', '--yes'], { quiet: true });
+  const out = run('npx', ['--yes', VERCEL, 'deploy', STAGE, '--prod', '--yes'], { quiet: true, timeoutMs: 8 * 60_000 });
+  mkdirSync(LINK, { recursive: true });
+  cpSync(join(STAGE, '.vercel'), LINK, { recursive: true });
+  if (/Blocked|doesn.t have permission/i.test(out)) fail(`Vercel blocked the deploy:\n${out.slice(-600)}`);
   const urlsSeen = [...new Set(out.match(/https:\/\/[a-z0-9-]+\.vercel\.app/g) ?? [])];
   if (!urlsSeen.length) fail(`Vercel gave no address:\n${out.slice(-800)}`);
   const webUrl = urlsSeen.sort((a, b) => a.length - b.length)[0]!; // the project's alias is the shortest

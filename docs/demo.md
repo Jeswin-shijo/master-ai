@@ -94,6 +94,7 @@ The demo always turns on `LLM_RULES_WHEN_UNAVAILABLE`. When the key runs out of 
 | `No master-ai-backend/.env.demo` | Do step 1 of the one-time setup |
 | `Temporal or NATS is not running` | `pnpm infra:up` |
 | `Not logged in to Vercel` | `npx vercel@61.1.0 login` |
+| `Vercel blocked the deploy` ("the commit author doesn't have permission") | The deploy runs from a folder outside the repository so Vercel sees no commit; if it still appears, check `npx vercel@61.1.0 whoami` is the account that owns the `onehuman-demo` project |
 | `Port 3100 is busy` | A demo is already running; stop it with Ctrl-C first |
 | The web app loads but can't sign in | The tunnel address changed (`pnpm demo` was restarted elsewhere). Restart `pnpm demo`; it redeploys |
 | Cases run but the AI answers sound generic | The key is out of quota, so the built-in rules are answering. The API log says "the built-in rules answer until …" |
