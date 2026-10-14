@@ -10,6 +10,7 @@ import { DbService } from '../db/db.service';
 import { llmCalls } from '../db/schema';
 import { costUsd, supportsServerFallback, type Usage } from './pricing';
 import { Redactor } from './redaction';
+import { rateLimiter } from './rate-limit';
 
 export type LlmPurpose = 'agent_step' | 'plan' | 'pack_generate' | 'quality' | 'summary' | 'call' | 'case_stage';
 
@@ -81,6 +82,7 @@ export class LlmService {
   private readonly logger = new Logger(LlmService.name);
   private readonly anthropic = config.llmProvider === 'anthropic' ? new Anthropic() : null;
   private googleClient: Promise<GoogleGenAI> | null = null;
+  private readonly nextSlot = rateLimiter(config.LLM_MAX_RPM);
 
   get mode(): 'online' | 'offline' {
     return config.llmOffline ? 'offline' : 'online';
@@ -121,6 +123,7 @@ export class LlmService {
   }
 
   private async call(req: LlmRequest, model: string, user: string): Promise<LlmResult> {
+    await this.nextSlot();
     if (config.llmProvider !== 'google') return this.callAnthropic(this.anthropic!, req, model, user);
     this.googleClient ??= import('@google/genai').then(({ GoogleGenAI }) => new GoogleGenAI({ apiKey: config.GEMINI_API_KEY }));
     return this.callGoogle(await this.googleClient, req, model, user);

@@ -26,6 +26,8 @@ const EnvSchema = z.object({
   /** Google Gemini, an optional second provider (ADR 0011): used when no Anthropic key is set, or when LLM_PROVIDER=google. */
   GEMINI_API_KEY: z.string().optional(),
   LLM_PROVIDER: z.enum(['auto', 'anthropic', 'google']).default('auto'),
+  /** Most model calls a process makes per minute; 0 is no limit. For keys with low limits, like a free Gemini key (15 a minute). */
+  LLM_MAX_RPM: z.coerce.number().int().min(0).default(0),
   GEMINI_MODEL_FRONTIER: z.string().default(GEMINI_DEFAULT_MODELS.frontier),
   GEMINI_MODEL_STANDARD: z.string().default(GEMINI_DEFAULT_MODELS.standard),
   GEMINI_MODEL_SMALL: z.string().default(GEMINI_DEFAULT_MODELS.small),
