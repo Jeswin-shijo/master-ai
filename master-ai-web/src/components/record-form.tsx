@@ -6,7 +6,7 @@ import { ErrorNote } from '@/components/ui/feedback';
 import { Field, Input, Select, Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { referenceText } from '@/lib/lists';
-import { dataValue, formValue } from '@/lib/record-values';
+import { changedData, dataValue, formValue } from '@/lib/record-values';
 import { cn } from '@/lib/utils';
 
 /** Pick an item of the record type a reference field points at, by its title. */
@@ -100,9 +100,12 @@ export function RecordForm({
       onSubmit={(e) => {
         e.preventDefault();
         const data: Record<string, unknown> = {};
-        for (const f of entity.fields) {
-          const v = dataValue(f, values[f.name]);
-          if (initial || v !== null) data[f.name] = v;
+        if (initial) Object.assign(data, changedData(entity.fields, values, initial));
+        else {
+          for (const f of entity.fields) {
+            const v = dataValue(f, values[f.name]);
+            if (v !== null) data[f.name] = v;
+          }
         }
         onSubmit(data, note.trim());
       }}
