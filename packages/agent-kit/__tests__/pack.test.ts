@@ -141,7 +141,8 @@ describe('pack updates', () => {
     const empty = { ...installed, entities: [], agents: [], tools: [], workflows: [], policies: [], kpis: [] };
     const updates = packUpdates(empty, latest);
     expect(updates.agents.map((a) => a.role)).toContain('work-coordinator');
-    expect(updates.tools.every((t) => typeof t.with?.entity !== 'string')).toBe(true);
+    // The record types come back with the update, so tools pinned to them can come too.
+    expect(updates.entities.map((e) => e.name).sort()).toEqual(latest.entities.map((e) => e.name).sort());
     expect(validatePackRefs(applyPackUpdates(empty, updates))).toEqual([]);
   });
 });

@@ -395,6 +395,12 @@ export interface PackUpdates {
   kpis: Pack['kpis'];
   /** Playbooks the workspace doesn't have yet; they go into Knowledge. */
   playbooks: Playbook[];
+  /** Record types the workspace doesn't have yet. */
+  entities: EntityDef[];
+  /** New optional fields on record types it has. A required field is never added: items saved before would stop validating. */
+  fields: { entity: string; fields: EntityField[] }[];
+  /** Lists it doesn't have yet, each valid against the updated record types. */
+  registers: Register[];
   /** The whole lifecycle for workspaces installed before lifecycles, otherwise new categories and roles. */
   lifecycle: { whole: ResolvedLifecycle | null; categories: CaseCategory[]; roles: LifecycleRole[] };
 }

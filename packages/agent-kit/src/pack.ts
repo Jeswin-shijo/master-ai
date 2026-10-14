@@ -115,8 +115,7 @@ const policyKey = (r: Pack['policies'][number]) => r.id ?? `${r.action}:${r.agen
 /**
  * What `latest` (the current base packs, labelled for the workspace) has that an
  * installed pack lacks. Additions only: nothing the workspace already has, or the
- * owner changed, is replaced. Entities are left out because they shape stored
- * records, and anything that would point at a missing entity, tool or agent is
+ * owner changed, is replaced. New record types and new optional fields are added, never changed ones, and anything that would point at a missing entity, tool or agent is
  * dropped so the result always passes `validatePackRefs`.
  */
 export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): PackUpdates {
@@ -124,7 +123,18 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     const keys = new Set(have.map(key));
     return items.filter((x) => !keys.has(key(x)));
   };
-  const entities = new Set(installed.entities.map((e) => e.name));
+  // New record types, and new optional fields on the ones the workspace has.
+  const newEntities = missing(latest.entities, installed.entities, (e) => e.name);
+  const fields = installed.entities.flatMap((mine) => {
+    const have = new Set(mine.fields.map((f) => f.name));
+    const extra = (latest.entities.find((e) => e.name === mine.name)?.fields ?? []).filter((f) => !have.has(f.name) && !f.required);
+    return extra.length ? [{ entity: mine.name, fields: extra }] : [];
+  });
+  const nextEntities = withAdditions(installed.entities, newEntities, fields);
+  const entities = new Set(nextEntities.map((e) => e.name));
+  const registers = missing(latest.registers ?? [], installed.registers ?? [], (r) => r.id).filter(
+    (r) => validateRegisters({ entities: nextEntities, registers: [r] }).length === 0,
+  );
 
   const tools = missing(latest.tools, installed.tools, (t) => t.name).filter((t) => {
     const entity = t.with?.entity;
@@ -171,8 +181,22 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     ),
     kpis: missing(latest.kpis, installed.kpis, (k) => k.id).filter((k) => k.source?.type !== 'records_count' || entities.has(k.source.entity)),
     playbooks: missing(latest.playbooks ?? [], installed.playbooks ?? [], (p) => p.id),
+    entities: newEntities,
+    fields,
+    registers,
     lifecycle,
   };
+}
+
+/** Record types with new fields appended, then the new record types. */
+function withAdditions(entities: EntityDef[], added: EntityDef[], fields: PackUpdates['fields']): EntityDef[] {
+  return [
+    ...entities.map((e) => {
+      const extra = fields.find((x) => x.entity === e.name)?.fields;
+      return extra ? { ...e, fields: [...e.fields, ...extra] } : e;
+    }),
+    ...added,
+  ];
 }
 
 /**
@@ -196,12 +220,13 @@ export function workAgents(pack: Pick<ResolvedPack, 'agents'>): ResolvedPack['ag
 }
 
 export function emptyPackUpdates(): PackUpdates {
-  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], lifecycle: { whole: null, categories: [], roles: [] } };
+  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], entities: [], fields: [], registers: [], lifecycle: { whole: null, categories: [], roles: [] } };
 }
 
 export function countPackUpdates(u: PackUpdates): number {
   return (
     u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length + u.playbooks.length +
+    (u.entities ?? []).length + (u.fields ?? []).reduce((n, x) => n + x.fields.length, 0) + (u.registers ?? []).length +
     (u.lifecycle.whole ? 1 : 0) + u.lifecycle.categories.length + u.lifecycle.roles.length
   );
 }
@@ -223,6 +248,8 @@ export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): Resol
     policies: [...installed.policies, ...u.policies],
     kpis: [...installed.kpis, ...u.kpis],
     playbooks: [...(installed.playbooks ?? []), ...u.playbooks],
+    entities: withAdditions(installed.entities, u.entities ?? [], u.fields ?? []),
+    registers: [...(installed.registers ?? []), ...(u.registers ?? [])],
     ...(lifecycle && { lifecycle }),
   };
 }
