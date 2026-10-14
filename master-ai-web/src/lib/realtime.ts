@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { connectRealtime, type RealtimeStatus } from '@onehuman/sdk';
 import type { RealtimeEvent } from '@onehuman/schemas';
-import { API_URL } from './api';
+import { api, API_URL } from './api';
 import { useSession } from './session';
 
 type Listener = (e: RealtimeEvent) => void;
@@ -31,7 +31,7 @@ export function useRealtimeConnection(): RealtimeStatus {
     if (!token) return;
     const conn = connectRealtime({
       baseUrl: API_URL,
-      token,
+      ticket: () => api.auth.streamTicket().then((r) => r.ticket),
       onStatus: (s) => {
         setStatus(s);
         if (s === 'open') void queryClient.invalidateQueries();

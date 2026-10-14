@@ -256,11 +256,19 @@ async function main() {
   let liveOpen = false;
   const live = connectRealtime({
     baseUrl: API_URL,
-    token: travel.auth.token,
+    ticket: () => api.auth.streamTicket().then((r) => r.ticket),
     onEvent: (e) => liveEvents.push(e.type),
     onStatus: (s) => (liveOpen ||= s === 'open'),
   });
   await waitFor('realtime connection', async () => liveOpen, 10_000);
+  // Only a one-minute stream ticket opens the stream; the session token never goes in a URL.
+  const sessionTokenOpened = await new Promise<boolean>((resolve) => {
+    const ws = new WebSocket(`${API_URL.replace(/^http/, 'ws')}/realtime?token=${encodeURIComponent(travel.auth.token)}`);
+    ws.onopen = () => (ws.close(), resolve(true));
+    ws.onerror = () => resolve(false);
+  });
+  if (sessionTokenOpened) throw new Error('The session token opened the live stream; only a stream ticket should');
+  log('Live stream needs a stream ticket', 'the session token is refused');
   const key = createDeviceKey(new Uint8Array(randomBytes(32)));
   const device = await api.auth.registerDeviceKey({ publicKey: key.publicKey, label: 'smoke-test', platform: 'web' });
   log('Device key registered', device.id);

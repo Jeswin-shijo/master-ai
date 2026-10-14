@@ -25,15 +25,37 @@ export interface Session {
 }
 
 const SESSION_TTL_SECONDS = 7 * 24 * 3600;
+const STREAM_TICKET_SECONDS = 60;
+
+type Claims = { sub: string; uid: string; tid: string; role: HumanRole; use?: 'stream' };
+
+const claims = (session: Session) => ({ sub: session.principalId, uid: session.userId, tid: session.tenantId, role: session.role });
+
+function read(token: string, use: Claims['use']): Session | null {
+  const p = verifyJwt<Claims>(token, config.JWT_SECRET);
+  if (!p?.sub || !p.tid || !p.uid || p.use !== use) return null;
+  return { principalId: p.sub, userId: p.uid, tenantId: p.tid, role: p.role };
+}
 
 export function issueToken(session: Session): string {
-  return signJwt({ sub: session.principalId, uid: session.userId, tid: session.tenantId, role: session.role }, config.JWT_SECRET, SESSION_TTL_SECONDS);
+  return signJwt(claims(session), config.JWT_SECRET, SESSION_TTL_SECONDS);
 }
 
 export function readToken(token: string): Session | null {
-  const p = verifyJwt<{ sub: string; uid: string; tid: string; role: HumanRole }>(token, config.JWT_SECRET);
-  if (!p?.sub || !p.tid || !p.uid) return null;
-  return { principalId: p.sub, userId: p.uid, tenantId: p.tid, role: p.role };
+  return read(token, undefined);
+}
+
+/**
+ * A one-minute ticket for opening a live stream. WebSockets and EventSource
+ * can't send headers, so the credential goes in the URL, where proxies and
+ * tunnels log it: a ticket there expires at once and can't call the API.
+ */
+export function issueStreamTicket(session: Session): string {
+  return signJwt({ ...claims(session), use: 'stream' }, config.JWT_SECRET, STREAM_TICKET_SECONDS);
+}
+
+export function readStreamTicket(ticket: string): Session | null {
+  return read(ticket, 'stream');
 }
 
 const IS_PUBLIC = 'onehuman:public';
@@ -61,13 +83,12 @@ export class AuthGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) return true;
     const req = ctx.switchToHttp().getRequest<Request & { session?: Session }>();
     const header = req.headers.authorization;
-    // EventSource cannot send headers, so SSE streams pass the token as a query param.
-    const token = header?.startsWith('Bearer ')
-      ? header.slice(7)
-      : req.method === 'GET' && typeof req.query.token === 'string'
-        ? req.query.token
-        : undefined;
-    const session = token ? readToken(token) : null;
+    // EventSource cannot send headers, so SSE streams pass a stream ticket as a query param.
+    const session = header?.startsWith('Bearer ')
+      ? readToken(header.slice(7))
+      : req.method === 'GET' && typeof req.query.ticket === 'string'
+        ? readStreamTicket(req.query.ticket)
+        : null;
     if (!session) throw new UnauthorizedException('Sign in required');
     const [principal] = await this.db.tenant(session.tenantId, (tx) =>
       tx.select({ role: principals.role, status: principals.status }).from(principals).where(eq(principals.id, session.principalId)),

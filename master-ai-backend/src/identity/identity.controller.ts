@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   LoginInputSchema,
   RegisterDeviceKeyInputSchema,
@@ -9,7 +10,7 @@ import {
   type RegisterPushTokenInput,
 } from '@onehuman/schemas';
 import type { z } from 'zod';
-import { CurrentSession, Public, type Session } from '../common/auth';
+import { CurrentSession, issueStreamTicket, Public, type Session } from '../common/auth';
 import { ZodPipe } from '../common/zod';
 import { IdentityService } from './identity.service';
 
@@ -19,19 +20,25 @@ export class IdentityController {
 
   @Public()
   @Post('signup')
-  signup(@Body(new ZodPipe(SignupInputSchema)) body: z.output<typeof SignupInputSchema>) {
-    return this.identity.signup(body);
+  signup(@Body(new ZodPipe(SignupInputSchema)) body: z.output<typeof SignupInputSchema>, @Req() req: Request) {
+    return this.identity.signup(body, req.ip ?? 'unknown');
   }
 
   @Public()
   @Post('login')
-  login(@Body(new ZodPipe(LoginInputSchema)) body: z.output<typeof LoginInputSchema>) {
-    return this.identity.login(body);
+  login(@Body(new ZodPipe(LoginInputSchema)) body: z.output<typeof LoginInputSchema>, @Req() req: Request) {
+    return this.identity.login(body, req.ip ?? 'unknown');
   }
 
   @Post('switch')
   switchCompany(@CurrentSession() s: Session, @Body(new ZodPipe(SwitchCompanyInputSchema)) body: z.output<typeof SwitchCompanyInputSchema>) {
     return this.identity.switchCompany(s, body.tenantId);
+  }
+
+  /** A one-minute ticket for opening the live stream or a task's text stream. */
+  @Post('stream-ticket')
+  streamTicket(@CurrentSession() s: Session) {
+    return { ticket: issueStreamTicket(s) };
   }
 
   @Get('me')

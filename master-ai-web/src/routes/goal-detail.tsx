@@ -22,12 +22,33 @@ function useAgentText(taskId: string, active: boolean): string {
   const [text, setText] = useState('');
   useEffect(() => {
     if (!active || !token) return;
-    const source = new EventSource(api.taskStreamUrl(taskId, token));
-    source.onmessage = (msg) => {
-      const chunk = JSON.parse(msg.data as string) as AgentTextChunk;
-      setText((t) => (chunk.done ? `${t}\n` : t + chunk.delta).slice(-1200));
+    let source: EventSource | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    // A stream ticket lasts a minute, so a dropped stream reopens with a new one.
+    const again = () => {
+      if (!stopped) timer = setTimeout(open, 3_000);
     };
-    return () => source.close();
+    const open = () => {
+      api.auth.streamTicket().then(({ ticket }) => {
+        if (stopped) return;
+        source = new EventSource(api.taskStreamUrl(taskId, ticket));
+        source.onmessage = (msg) => {
+          const chunk = JSON.parse(msg.data as string) as AgentTextChunk;
+          setText((t) => (chunk.done ? `${t}\n` : t + chunk.delta).slice(-1200));
+        };
+        source.onerror = () => {
+          source?.close();
+          again();
+        };
+      }, again);
+    };
+    open();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      source?.close();
+    };
   }, [taskId, active, token]);
   return text;
 }

@@ -4,13 +4,14 @@ import { BeforeApplicationShutdown, Injectable, Logger, OnModuleDestroy } from '
 import { eq } from 'drizzle-orm';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { RealtimeEvent } from '@onehuman/schemas';
-import { readToken } from '../common/auth';
+import { readStreamTicket } from '../common/auth';
 import { DbService } from '../db/db.service';
 import { principals } from '../db/schema';
 import { BusService, subjects } from '../events/bus.service';
 
 /**
- * One live stream per signed-in client at ws(s)://host/realtime?token=...
+ * One live stream per signed-in client at ws(s)://host/realtime?ticket=… (a one-minute
+ * ticket from POST /auth/stream-ticket; the session token never goes in a URL).
  * Every committed audit event for the client's tenant is pushed as it happens,
  * so the web command center and the mobile app stay in sync.
  */
@@ -32,7 +33,7 @@ export class RealtimeGateway implements OnModuleDestroy, BeforeApplicationShutdo
     server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
       if (url.pathname !== '/realtime') return;
-      const session = readToken(url.searchParams.get('token') ?? '');
+      const session = readStreamTicket(url.searchParams.get('ticket') ?? '');
       if (!session) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();

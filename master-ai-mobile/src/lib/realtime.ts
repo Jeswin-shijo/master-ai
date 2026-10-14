@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { connectRealtime } from '@onehuman/sdk';
+import { api } from './api';
 import { API_URL } from './config';
 import { useSession } from './session';
 
@@ -12,7 +13,7 @@ export function useRealtime() {
     if (!token) return;
     const conn = connectRealtime({
       baseUrl: API_URL,
-      token,
+      ticket: () => api.auth.streamTicket().then((r) => r.ticket),
       onStatus: (s) => s === 'open' && void queryClient.invalidateQueries(),
       onEvent: (e) => {
         const area = e.type.split('.')[0];

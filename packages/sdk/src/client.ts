@@ -162,6 +162,8 @@ export function createClient(options: ClientOptions) {
       registerDeviceKey: (input: RegisterDeviceKeyInput) => post<DeviceKey>('/auth/device-keys', input),
       deviceKeys: () => get<DeviceKey[]>('/auth/device-keys'),
       registerPushToken: (input: RegisterPushTokenInput) => post<{ ok: true }>('/auth/push-tokens', input),
+      /** A one-minute ticket for opening a live stream; the session token never goes in a URL. */
+      streamTicket: () => post<{ ticket: string }>('/auth/stream-ticket', {}),
     },
     onboarding: {
       preview: (input: PackPreviewInput = {}) => post<PackDraft>('/onboarding/preview', input),
@@ -306,8 +308,8 @@ export function createClient(options: ClientOptions) {
     delegations: {
       list: (goalId?: string) => get<Delegation[]>(`/delegations${qs({ goalId })}`),
     },
-    /** URL for the agent-text SSE stream of one task. */
-    taskStreamUrl: (taskId: string, token: string) => `${baseUrl}/tasks/${taskId}/stream${qs({ token })}`,
+    /** URL for the agent-text SSE stream of one task, opened with a ticket from `auth.streamTicket()`. */
+    taskStreamUrl: (taskId: string, ticket: string) => `${baseUrl}/tasks/${taskId}/stream${qs({ ticket })}`,
   };
 }
 
