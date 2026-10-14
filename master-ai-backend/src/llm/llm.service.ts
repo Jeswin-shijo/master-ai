@@ -11,6 +11,7 @@ import { llmCalls } from '../db/schema';
 import { costUsd, supportsServerFallback, type Usage } from './pricing';
 import { Redactor } from './redaction';
 import { rateLimiter } from './rate-limit';
+import { RulesFallback } from './rules-fallback';
 
 export type LlmPurpose = 'agent_step' | 'plan' | 'pack_generate' | 'quality' | 'summary' | 'call' | 'case_stage';
 
@@ -83,6 +84,8 @@ export class LlmService {
   private readonly anthropic = config.llmProvider === 'anthropic' ? new Anthropic() : null;
   private googleClient: Promise<GoogleGenAI> | null = null;
   private readonly nextSlot = rateLimiter(config.LLM_MAX_RPM);
+  private readonly fallback = new RulesFallback(config.LLM_RULES_WHEN_UNAVAILABLE === 'true');
+  private warnedUntil: number | null = null;
 
   get mode(): 'online' | 'offline' {
     return config.llmOffline ? 'offline' : 'online';
@@ -103,13 +106,25 @@ export class LlmService {
     if (config.llmOffline) {
       result = await this.runOffline(req);
     } else {
-      try {
-        result = await this.call(req, config.models[req.tier], user);
-      } catch (err) {
-        if (err instanceof LlmRefusalError || !req.fallbackTier || !isRetryable(err)) throw err;
-        this.logger.warn(`${config.models[req.tier]} failed (${(err as Error).message}); falling back to ${req.fallbackTier}`);
-        result = await this.call(req, config.models[req.fallbackTier], user);
+      const answered = await this.fallback.run(
+        async () => {
+          try {
+            return await this.call(req, config.models[req.tier], user);
+          } catch (err) {
+            if (err instanceof LlmRefusalError || !req.fallbackTier || !isRetryable(err)) throw err;
+            this.logger.warn(`${config.models[req.tier]} failed (${(err as Error).message}); falling back to ${req.fallbackTier}`);
+            return await this.call(req, config.models[req.fallbackTier], user);
+          }
+        },
+        async () => ({ ...(await this.runOffline(req)), model: 'offline-fallback' }),
+        (err) => !(err instanceof LlmRefusalError) && isRetryable(err),
+      );
+      const pausedUntil = this.fallback.pausedUntil;
+      if (answered.fellBack && pausedUntil !== this.warnedUntil) {
+        this.warnedUntil = pausedUntil;
+        this.logger.warn(`${config.llmProvider} unavailable; the built-in rules answer until ${new Date(pausedUntil ?? Date.now()).toISOString()}`);
       }
+      result = answered.value;
       result = {
         ...result,
         text: redactor.restore(result.text),

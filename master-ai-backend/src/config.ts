@@ -28,6 +28,8 @@ const EnvSchema = z.object({
   LLM_PROVIDER: z.enum(['auto', 'anthropic', 'google']).default('auto'),
   /** Most model calls a process makes per minute; 0 is no limit. For keys with low limits, like a free Gemini key (15 a minute). */
   LLM_MAX_RPM: z.coerce.number().int().min(0).default(0),
+  /** true: when the AI provider is out of quota or unreachable, the built-in rules answer until it is back. */
+  LLM_RULES_WHEN_UNAVAILABLE: z.enum(['true', 'false']).default('false'),
   GEMINI_MODEL_FRONTIER: z.string().default(GEMINI_DEFAULT_MODELS.frontier),
   GEMINI_MODEL_STANDARD: z.string().default(GEMINI_DEFAULT_MODELS.standard),
   GEMINI_MODEL_SMALL: z.string().default(GEMINI_DEFAULT_MODELS.small),
