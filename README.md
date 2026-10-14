@@ -1,5 +1,7 @@
 # ONEHUMAN OS
 
+> **New here?** Start with [docs/README.md](docs/README.md), which points each reader to the right place: [How it works](docs/how-it-works.md) in plain words, the [Glossary](docs/glossary.md), [Contributing](CONTRIBUTING.md) for developers, [Testing](docs/testing.md), and the [Demo guide](docs/demo.md). Every folder has its own README.
+
 One agent-native platform for any organization. At signup the owner picks the organization type, and the platform sets itself up for it: the 8 stages every request runs through, named in that organization's own words, its case types, who approves and signs off, its agents, records and KPIs. Agents do the work, a policy engine (not the AI) decides what they may do, and the people holding the right roles approve from web or phone with a signed decision.
 
 This repository implements the [architecture plan](docs/architecture-plan.md) and the [organization types and case lifecycle design](docs/superpowers/specs/2026-10-12-org-types-and-case-lifecycle-design.md). Every layer is real and connected end to end, and all of it runs with no AI key.

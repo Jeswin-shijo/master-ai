@@ -7,8 +7,28 @@ import { ORG_TYPES } from '@onehuman/schemas';
 /** The docs people read first must match the repository: links resolve, every decision and command is listed. */
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8');
-const ADRS = readdirSync(join(ROOT, 'docs/adr')).filter((f) => f.endsWith('.md')).sort();
-const DOCS = ['README.md', 'CLAUDE.md', 'evals/README.md', 'docs/architecture-plan.md', 'docs/packs.md', 'docs/known-gaps.md', ...ADRS.map((f) => `docs/adr/${f}`)];
+const ADRS = readdirSync(join(ROOT, 'docs/adr')).filter((f) => /^\d{4}-.+\.md$/.test(f)).sort();
+const SKIP = new Set(['node_modules', 'dist', '.git', '.turbo', '.expo', '.superpowers', 'superpowers', 'test-results', 'playwright-report']);
+
+/** Every README.md in the repository, outside dependencies, build output and the plan archive. */
+function readmes(dir = ''): string[] {
+  return readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+    if (e.isDirectory()) return SKIP.has(e.name) ? [] : readmes(join(dir, e.name));
+    return e.name === 'README.md' ? [join(dir, e.name)] : [];
+  });
+}
+
+const DOCS = [
+  ...new Set([
+    'CLAUDE.md',
+    'CONTRIBUTING.md',
+    ...readmes(),
+    ...readdirSync(join(ROOT, 'docs'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => `docs/${f}`),
+    ...ADRS.map((f) => `docs/adr/${f}`),
+  ]),
+].sort();
 
 /** Relative markdown links, without their #anchor; web links and same-page anchors are skipped. */
 function relativeLinks(md: string): string[] {
