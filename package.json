@@ -22,7 +22,8 @@
     "pack:check": "node evals/src/check.ts",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "e2e": "pnpm --filter @onehuman/web e2e",
-    "e2e:mobile": "node master-ai-mobile/e2e/run.mts"
+    "e2e:mobile": "node master-ai-mobile/e2e/run.mts",
+    "e2e:sectors": "pnpm --filter @onehuman/backend e2e:sectors"
   },
   "devDependencies": {
     "turbo": "^2.11.7",

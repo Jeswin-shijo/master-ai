@@ -10,95 +10,9 @@
  * eligible, kill switch and RLS on cases. Run: pnpm smoke  (API_URL defaults to localhost:3000)
  */
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { parse } from 'yaml';
-import { ORG_TYPES, type CaseDetail, type SectorId } from '@onehuman/schemas';
-import { ApiError, connectRealtime, createClient, createDeviceKey, signApproval, type ApiClient } from '@onehuman/sdk';
-
-const API_URL = process.env.API_URL ?? 'http://localhost:3000';
-
-function log(step: string, detail = '') {
-  console.log(`✓ ${step}${detail ? `  ${detail}` : ''}`);
-}
-
-async function waitFor<T>(what: string, fn: () => Promise<T | null | undefined | false>, timeoutMs = 60_000): Promise<T> {
-  const until = Date.now() + timeoutMs;
-  for (;;) {
-    const v = await fn();
-    if (v) return v;
-    if (Date.now() > until) throw new Error(`Timed out waiting for ${what}`);
-    await new Promise((r) => setTimeout(r, 500));
-  }
-}
-
-async function onboard(sector: SectorId, orgType: string, industry: string, companyName: string) {
-  let token: string | null = null;
-  const api = createClient({ baseUrl: API_URL, getToken: () => token });
-  const email = `owner+${randomBytes(4).toString('hex')}@example.com`;
-  const auth = await api.auth.signup({ companyName, ownerName: 'Asha Owner', email, password: 'correct horse battery', sector, orgType, industry });
-  token = auth.token;
-  const draft = await api.onboarding.preview();
-  const ws = await api.onboarding.install({ draftId: draft.id, sampleData: true });
-  return { api, auth, draft, ws, email };
-}
-
-async function signedDecision(api: ApiClient, seed: string, keyId: string, approvalId: string, decision: 'approved' | 'rejected', notes?: string) {
-  const signedAt = new Date().toISOString();
-  const signature = signApproval(seed, { approvalId, decision, editedArgs: null, notes: notes ?? null, signedAt });
-  return api.approvals.decide(approvalId, { decision, notes, signature, keyId, signedAt });
-}
-
-interface SuiteCase {
-  id: string;
-  request: string;
-  amount_inr?: number;
-  expect: { category: string; priority: string; review: string; approval?: { required: boolean; role?: string }; signoff?: { required: boolean; role?: string } };
-}
-
-/** A real request from an organization type's test set. */
-function suiteCase(orgType: string, id: string): SuiteCase {
-  const suite = parse(readFileSync(join(__dirname, '../../evals/suites', `${orgType}.yaml`), 'utf8')) as { cases: SuiteCase[] };
-  const found = suite.cases.find((c) => c.id === id);
-  if (!found) throw new Error(`No case ${id} in the ${orgType} test set`);
-  return found;
-}
-
-const FINAL = ['closed', 'rejected', 'cancelled', 'escalated'];
-
-/** Wait for a case to reach a state, approving gates and actions on the way when asked. */
-async function driveCase(
-  api: ApiClient,
-  seed: string,
-  keyId: string,
-  caseId: string,
-  until: (d: CaseDetail) => boolean,
-  opts: { approve?: boolean; timeoutMs?: number } = {},
-): Promise<CaseDetail> {
-  return waitFor(
-    `case ${caseId}`,
-    async () => {
-      const d = await api.cases.get(caseId);
-      if (until(d)) return d;
-      if (opts.approve) {
-        const pending = (await api.approvals.list()).filter((a) => a.caseId === caseId || (d.case.goalId && a.goalId === d.case.goalId));
-        for (const a of pending) await signedDecision(api, seed, keyId, a.id, 'approved', 'Checked by the smoke test');
-      }
-      return null;
-    },
-    opts.timeoutMs ?? 240_000,
-  );
-}
-
-async function expectStatus(promise: Promise<unknown>, status: number, what: string) {
-  try {
-    await promise;
-  } catch (err) {
-    if (err instanceof ApiError && err.status === status) return log(what, `${err.status} ${err.message}`);
-    throw err;
-  }
-  throw new Error(`${what}: expected ${status}, got success`);
-}
+import { ORG_TYPES, type SectorId } from '@onehuman/schemas';
+import { ApiError, connectRealtime, createClient, createDeviceKey, type ApiClient } from '@onehuman/sdk';
+import { API_URL, driveCase, expectStatus, FINAL, invite, log, onboard, signedDecision, suiteCase, waitFor } from './lib';
 
 const SECTOR_RUNS: { sector: SectorId; orgType: string; caseId: string; entry: 'app' | 'form' | 'api' }[] = [
   { sector: 'energy-heavy-industry', orgType: 'power-plant', caseId: 'fan-bearings', entry: 'app' },
@@ -244,22 +158,8 @@ async function roleChecks(otherCompanyOwner: { email: string }) {
 
   await expectStatus(owner.invites.create({ name: 'Wizard', email: `wizard+${randomBytes(3).toString('hex')}@example.com`, approverRoles: ['chief-wizard'] }), 400, 'An unknown approval role is refused');
 
-  const join = async (
-    name: string,
-    approverRoles: string[],
-    email = `${name.toLowerCase()}+${randomBytes(3).toString('hex')}@example.com`,
-    password = 'correct horse battery',
-    role: 'admin' | 'member' = 'member',
-  ) => {
-    const inv = await owner.invites.create({ name, email, approverRoles, role });
-    const view = await owner.invites.view(tenantId, inv.path.split('/').pop()!);
-    const auth = await owner.invites.accept(tenantId, inv.path.split('/').pop()!, { password });
-    let token: string | null = auth.token;
-    const api = createClient({ baseUrl: API_URL, getToken: () => token });
-    const key = createDeviceKey(new Uint8Array(randomBytes(32)));
-    const device = await api.auth.registerDeviceKey({ publicKey: key.publicKey, label: `smoke-${name}`, platform: 'web' });
-    return { api, auth, key, device, inv, view, signOut: () => (token = null) };
-  };
+  const join = (name: string, approverRoles: string[], email?: string, password?: string, role: 'admin' | 'member' = 'member') =>
+    invite(owner, tenantId, { name, approverRoles, email, password, role });
   const sunita = await join('Sunita', ['safety-officer']);
   const manoj = await join('Manoj', []);
   log('Invites accepted', `${sunita.view.companyName}: Sunita (${sunita.view.approverRoles.map((r) => r.name).join(', ')}), Manoj (member)`);
