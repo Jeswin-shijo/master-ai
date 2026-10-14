@@ -1,4 +1,4 @@
-import { Global, Injectable, Module, OnModuleDestroy } from '@nestjs/common';
+import { Global, Injectable, Logger, Module, OnModuleDestroy } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -22,7 +22,13 @@ export function afterCommit(tx: Tx | Database, cb: () => void): void {
 
 @Injectable()
 export class DbService implements OnModuleDestroy {
-  readonly pool = new Pool({ connectionString: config.APP_DATABASE_URL, max: 20 });
+  private readonly logger = new Logger(DbService.name);
+  // A hosted database (Supabase's pooler, a cloud NAT) drops idle connections: keep them alive,
+  // let idle ones go after 30 s, and treat a dropped idle connection as routine. pg emits it on the
+  // pool, and with no listener Node would crash the process.
+  readonly pool = new Pool({ connectionString: config.APP_DATABASE_URL, max: 20, keepAlive: true, idleTimeoutMillis: 30_000 }).on('error', (err) =>
+    this.logger.warn(`An idle database connection closed (${err.message}); the pool opens a new one when needed`),
+  );
   readonly db: Database = drizzle(this.pool, { schema });
 
   /**
