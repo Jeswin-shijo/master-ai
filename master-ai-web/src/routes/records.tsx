@@ -7,16 +7,13 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
 import { Field, Input, Select, Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
-import { cn, formatInr, formatValue, timeAgo } from '@/lib/utils';
+import { recordCell } from '@/lib/record-cell';
+import { cn, timeAgo } from '@/lib/utils';
 
 /**
  * Schema-driven records: tables and forms are rendered from the pack's entity
  * definitions, so a new industry needs no app release.
  */
-function cell(field: EntityField | undefined, value: unknown): string {
-  if (field?.type === 'money' && typeof value === 'number') return formatInr(value);
-  return formatValue(value);
-}
 
 function RecordForm({ entity, onDone }: { entity: EntityDef; onDone: () => void }) {
   const queryClient = useQueryClient();
@@ -160,7 +157,7 @@ export function RecordsPage() {
                   <tbody className="divide-y divide-line-10">
                     {records.data?.map((r) => (
                       <tr key={r.id} className="hover:bg-muted/50">
-                        {columns.map((c) => <td key={c.name} className="max-w-xs truncate px-5 py-2.5 text-fg">{cell(c, r.data[c.name])}</td>)}
+                        {columns.map((c) => <td key={c.name} className="max-w-xs truncate px-5 py-2.5 text-fg">{recordCell(c, r.data[c.name])}</td>)}
                         <td className="px-5 py-2.5 text-fg-muted">{timeAgo(r.updatedAt)}</td>
                       </tr>
                     ))}
