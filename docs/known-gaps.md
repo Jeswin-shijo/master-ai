@@ -1,0 +1,87 @@
+# Known gaps
+
+Things the build doesn't handle yet. Reviews found them while Plans 2–6 were built, and each was left for later because it is small, rare or needs a decision. Each line says what a person would notice. None of them lets someone decide what they shouldn't, or loses a decision.
+
+## Cases and the 8 stages
+- Cancelling a case at the moment a stage starts can leave that stage running for a while; the cancel isn't passed on to it.
+- The reason given when cancelling a case isn't kept.
+- Details added while the review is already running are read on the next round, not the current one.
+- If the signal carrying a decision is lost, the gate waits until it expires and the case is escalated.
+- A step that is retried can write its audit line twice.
+- Pausing at the exact moment a stage resumes can miss the pause.
+- If Temporal is down when a case is created, the case is saved but doesn't start.
+- Cancelling a case that has just finished answers with its old state.
+- The public form's page and its sending share one rate limit.
+- A note the owner writes on a case can reach the customer who sent it through the public form.
+- When the main model fails and a smaller one answers, the audit log doesn't say so.
+- Cancelled cases count as finished within their deadline in reports.
+- One report sentence reads "The work ended running."
+- Case titles keep a final full stop and can be cut after "St.".
+- Approval summaries put the case type in lower case, so short forms read oddly ("Approve ca certificates for ASG-0001").
+- Amounts are read from the request, not worked out from records (order lines × price list).
+- The stage service has no unit tests of its own; the smoke test and `pnpm e2e:sectors` cover it end to end.
+
+## Roles and invites
+- Nothing tests that an invite link from one company can't be used in another (the database refuses it).
+- The approvals list is cut at 200 before it is filtered to *Mine*, so in a very busy company some of yours can be missing.
+- Two people accepting invites with the same email at the same moment can get an error instead of one joining.
+- The owner can't link their own team-directory record to their login, and linking a record that is already linked moves it without a warning.
+- Opening an invite needs the company's setup to be installed.
+- Nobody gets a push when someone joins as an admin or approver.
+- "Needs details" pushes go to the owner and admins, not to the person who filed the case.
+- Some errors show ids; a few phrases read oddly ("The owner rejected", "1 decision need you").
+- `WEB_URL` isn't checked when the API starts.
+- Two-tier approval (a role, then the owner for very large amounts) isn't supported.
+
+## Web app
+- Dialogs and the side drawer don't keep keyboard focus inside them, or return it when closed.
+- Text inputs are 36px tall at phone width, under the 44px target.
+- Some errors show raw field names ("amountInr: …"), and the public form's error text is technical.
+- The company's brand colour barely shows.
+- Owner-only pages open by URL for members; the server refuses everything on them.
+- With the system theme on a light phone or computer, the dark glows stay.
+- Gate cards repeat their reason, and say "track record".
+- The case page checks for changes every 5 seconds as well as listening live.
+- Nothing tests the live stage's spin with reduced motion.
+- Red Hat Display bold is synthesized in one place.
+- Canvas labels are under 13px near 1024px wide.
+- Stage-dot links have long names for screen readers.
+- Stopped cases show different dots in the list and on the canvas.
+- The names of nodes that need details show outside the requester's view.
+- The Agents page header repeats.
+- An empty "Needs: ." line can show.
+- Case search isn't on the server: outside the open tabs, the list shows the newest 200.
+- The web app keeps the last person's data in memory across sign-in.
+
+## Mobile app
+- In reject mode, Approve stays visible and there's no Cancel.
+- Agent jobs has no back button.
+- A few screens read names from the first workspace instead of the case's own.
+- The Approvals badge also counts decisions already queued offline.
+- `pnpm e2e:mobile` doesn't restore Android's animations if interrupted with Ctrl-C.
+- On iPhone the keyboard may cover the rejection note (not checked on iOS).
+- The Cases list isn't virtualised, and the case screen checks every 5 seconds.
+- Some wording is stale; the colour guard misses rgba and named colours; sending queued decisions isn't tested across two people.
+- One approval reason line can name a tool (the policy engine's earned-autonomy line).
+- A decision queued offline is dropped if the session expired meanwhile.
+- Saved approvals aren't encrypted on the phone.
+
+## Sector content
+- Some approval reasons show role names in lower case.
+- Everyday words can make a request P1 ("fire extinguisher refill", "smoke detector testing").
+- `pnpm pack:check` skips the quality bar when a draft has no `sector:`, and fails on paths with spaces.
+- Nothing enforces that every category has test-set requests, or pins worked examples to the pack's rules.
+- The travel-agency upgrade test uses the new pack as the old snapshot.
+- Some case labels differ from the design's Appendix A, and composed packs can pick odd labels.
+
+## Questions for an expert
+The sector content was researched from public sources, not reviewed by people who work in these sectors. These calls need one:
+- Energy: should near misses be P1 or P3?
+- Manufacturing: should planned shutdowns be approved by the shift in-charge rather than the plant head?
+- Construction snags and GST time-bars depend on dates; rules that read dates need code.
+- IT services and digital agencies have no case type for police or court orders.
+- NGOs and CA firms can name only one approving role per category.
+- A proprietor CA firm's payment approver is called "finance manager".
+- Software & SaaS: privacy officer or founder sign-off?
+- Legal facts were taken from news summaries and need a lawyer's check: DPDP dates, the 2026 IT Rules, the TCS rate, DGCA, FCRA 2026, Income-tax Act 2025 sections.
+- Municipal time limits use one state's list (Haryana).
