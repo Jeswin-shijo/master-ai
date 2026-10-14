@@ -8,6 +8,8 @@ import { outbox, records } from '../db/schema';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { RecordsService, toRecord, type RecordFilter } from '../records/records.service';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface ExecuteContext {
   tx: Tx;
   tenantId: string;
@@ -52,11 +54,18 @@ export class ConnectorsService {
         return toRecord(row);
       }
       case 'records.create': {
-        const row = await this.records.create(tx, tenantId, workspace, String(args.entity), args.data as Record<string, unknown>, ctx.actor);
+        const row = await this.records.create(tx, tenantId, workspace, String(args.entity), args.data as Record<string, unknown>, ctx.actor, {
+          kind: 'agent',
+          ref: UUID.test(ctx.toolCallId) ? ctx.toolCallId : null,
+        });
         return { created: true, id: row.id, entity: row.entity, data: row.data };
       }
       case 'records.update': {
-        const row = await this.records.update(tx, workspace, String(args.entity), String(args.id), (args.patch ?? {}) as Record<string, unknown>);
+        const row = await this.records.update(tx, tenantId, workspace, String(args.entity), String(args.id), (args.patch ?? {}) as Record<string, unknown>, {
+          actor: ctx.actor,
+          via: 'agent',
+          ref: UUID.test(ctx.toolCallId) ? ctx.toolCallId : null,
+        });
         return { updated: true, id: row.id, entity: row.entity, data: row.data };
       }
       case 'knowledge.search':

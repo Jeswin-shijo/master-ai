@@ -1,6 +1,13 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { resolveTool } from '@onehuman/agent-kit';
+import { ConnectorsService } from '../../src/connectors/connectors.service';
+import { DbService } from '../../src/db/db.service';
+import { auditEvents, records } from '../../src/db/schema';
+import { RecordsService } from '../../src/records/records.service';
 import { boot, newOrg, type Harness, type Org } from './harness';
 
 let h: Harness;
@@ -48,5 +55,57 @@ describe('the backfill for items saved before this', () => {
       [a.tenantId],
     );
     expect(rows[0].n).toBe(0);
+  });
+});
+
+describe('how each item came in', () => {
+  const rows = (tenantId: string) => h.get(DbService).tenant(tenantId, (tx) => tx.select().from(records));
+
+  it('marks seeded items as samples, not checked, with references pointing at sample items', async () => {
+    const all = await rows(a.tenantId);
+    expect(new Set(all.map((r) => r.source))).toEqual(new Set(['sample']));
+    expect(all.every((r) => r.checkedAt === null)).toBe(true);
+    const bill = all.find((r) => r.entity === 'Bill')!;
+    expect(all.some((r) => r.entity === 'Party' && r.id === bill.data.party)).toBe(true);
+  });
+
+  it("checks the owner's own items, not a member's", async () => {
+    const svc = h.get(RecordsService);
+    const mine = await svc.createFromApi(a.tenantId, a.session.principalId, 'owner', 'Party', { name: 'Owner Traders', partyType: 'retailer' });
+    const theirs = await svc.createFromApi(a.tenantId, a.session.principalId, 'member', 'Party', { name: 'Member Traders', partyType: 'retailer' });
+    const all = await rows(a.tenantId);
+    expect(all.find((r) => r.id === mine.id)).toMatchObject({ source: 'manual', createdBy: a.session.principalId, checkedBy: a.session.principalId });
+    expect(all.find((r) => r.id === theirs.id)).toMatchObject({ source: 'manual', checkedBy: null, checkedAt: null });
+  });
+
+  it("says an AI agent added or changed an item; an agent's change clears the check and is audited with the old and new values", async () => {
+    const db = h.get(DbService);
+    const connectors = h.get(ConnectorsService);
+    const toolCallId = randomUUID();
+    const owner = await h.get(RecordsService).createFromApi(a.tenantId, a.session.principalId, 'owner', 'Party', { name: 'Checked Traders', partyType: 'retailer', city: 'Kochi' });
+    const result = await db.tenant(a.tenantId, async (tx) => {
+      const ws = await h.get(RecordsService).activeWorkspace(tx);
+      const ctx = { tx, tenantId: a.tenantId, workspace: ws, toolCallId, actor: { id: null, kind: 'agent' as const } };
+      const created = (await connectors.execute(ctx, resolveTool(ws.pack, 'records.create')!, { entity: 'Party', data: { name: 'Agent Traders', partyType: 'retailer' } })) as { id: string };
+      await connectors.execute(ctx, resolveTool(ws.pack, 'records.update')!, { entity: 'Party', id: owner.id, patch: { city: 'Pune' } });
+      return created;
+    });
+    const all = await rows(a.tenantId);
+    expect(all.find((r) => r.id === result.id)).toMatchObject({ source: 'agent', sourceRef: toolCallId, checkedAt: null });
+    expect(all.find((r) => r.id === owner.id)).toMatchObject({ updatedVia: 'agent', updatedRef: toolCallId, checkedBy: null, checkedAt: null });
+    const [event] = await db.tenant(a.tenantId, (tx) => tx.select().from(auditEvents).where(eq(auditEvents.refId, owner.id)).then((e) => e.filter((x) => x.type === 'record.updated')));
+    expect(event!.payload).toMatchObject({ entity: 'Party', title: 'Checked Traders', via: 'agent', changes: [{ field: 'city', from: 'Kochi', to: 'Pune' }] });
+  });
+
+  it('records nothing when an update changes nothing', async () => {
+    const db = h.get(DbService);
+    const owner = await h.get(RecordsService).createFromApi(a.tenantId, a.session.principalId, 'owner', 'Party', { name: 'Same Traders', partyType: 'retailer' });
+    await db.tenant(a.tenantId, async (tx) => {
+      const ws = await h.get(RecordsService).activeWorkspace(tx);
+      await h.get(RecordsService).update(tx, a.tenantId, ws, 'Party', owner.id, { name: 'Same Traders' }, { actor: { id: null, kind: 'agent' }, via: 'agent' });
+    });
+    const events = await db.tenant(a.tenantId, (tx) => tx.select().from(auditEvents).where(eq(auditEvents.refId, owner.id)));
+    expect(events.map((e) => e.type)).toEqual(['record.created']);
+    expect((await rows(a.tenantId)).find((r) => r.id === owner.id)!.checkedBy).toBe(a.session.principalId);
   });
 });

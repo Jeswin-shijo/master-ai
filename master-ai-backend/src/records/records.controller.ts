@@ -20,7 +20,7 @@ export class RecordsController {
     @Param('entity') entity: string,
     @Body(new ZodPipe(CreateRecordInputSchema)) body: z.output<typeof CreateRecordInputSchema>,
   ) {
-    return this.records.createFromApi(s.tenantId, s.principalId, entity, body.data);
+    return this.records.createFromApi(s.tenantId, s.principalId, s.role, entity, body.data);
   }
 
   @Get('outbox')

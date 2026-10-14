@@ -1,12 +1,31 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import type { EntityDef, OutboxItem, PackRecord, ResolvedPack } from '@onehuman/schemas';
-import { entityValidator } from '@onehuman/agent-kit';
+import type { EntityDef, HumanRole, OutboxItem, PackRecord, ResolvedPack } from '@onehuman/schemas';
+import { entityValidator, titleOf } from '@onehuman/agent-kit';
 import { AuditService, type Actor } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
 import { outbox, records, workspaces } from '../db/schema';
 
 export type RecordFilter = Record<string, string | number | boolean>;
+
+export type RecordSourceKind = 'manual' | 'call' | 'agent' | 'sample';
+
+/** How an item comes in. An owner or admin who adds it has checked it. */
+export interface RecordSource {
+  kind: RecordSourceKind;
+  /** The call or tool call that added it. */
+  ref?: string | null;
+  checkedBy?: string | null;
+}
+
+/** Who changes an item and how. An owner or admin who changes it has checked it; anyone else's change clears the check. */
+export interface RecordChange {
+  actor: Actor;
+  via: 'manual' | 'call' | 'agent' | 'system';
+  ref?: string | null;
+  note?: string | null;
+  checkedBy?: string | null;
+}
 
 /** Pack records: sector entities stored as JSONB, validated by the pack's schema. */
 @Injectable()
@@ -58,31 +77,79 @@ export class RecordsService {
       .limit(Math.min(opts.limit ?? 25, 100));
   }
 
-  async create(tx: Tx, tenantId: string, ws: { id: string; pack: ResolvedPack }, entityName: string, data: Record<string, unknown>, actor: Actor) {
+  async create(
+    tx: Tx,
+    tenantId: string,
+    ws: { id: string; pack: ResolvedPack },
+    entityName: string,
+    data: Record<string, unknown>,
+    actor: Actor,
+    source: RecordSource = { kind: 'manual' },
+  ) {
     const entity = this.entityOf(ws.pack, entityName);
     const clean = this.validate(entity, data);
     const [row] = await tx
       .insert(records)
-      .values({ tenantId, workspaceId: ws.id, entity: entity.name, data: clean, createdBy: actor.id })
+      .values({
+        tenantId,
+        workspaceId: ws.id,
+        entity: entity.name,
+        data: clean,
+        createdBy: actor.id,
+        source: source.kind,
+        sourceRef: source.ref ?? null,
+        ...(source.checkedBy && { checkedBy: source.checkedBy, checkedAt: new Date() }),
+      })
       .returning();
     await this.audit.append(tx, tenantId, {
       type: 'record.created',
       actor,
       refId: row!.id,
-      payload: { entity: entity.name, title: entity.title_field ? clean[entity.title_field] : undefined },
+      payload: { entity: entity.name, label: entity.label, title: titleOf(entity, clean), source: source.kind },
     });
     return row!;
   }
 
-  async update(tx: Tx, ws: { id: string; pack: ResolvedPack }, entityName: string, id: string, patch: Record<string, unknown>) {
+  async update(
+    tx: Tx,
+    tenantId: string,
+    ws: { id: string; pack: ResolvedPack },
+    entityName: string,
+    id: string,
+    patch: Record<string, unknown>,
+    change: RecordChange,
+  ) {
     const entity = this.entityOf(ws.pack, entityName);
     const [current] = await tx
       .select()
       .from(records)
-      .where(and(eq(records.id, id), eq(records.workspaceId, ws.id), eq(records.entity, entity.name)));
-    if (!current) throw new NotFoundException(`${entity.name} ${id} not found`);
+      .where(and(eq(records.id, id), eq(records.workspaceId, ws.id), eq(records.entity, entity.name)))
+      .for('update');
+    if (!current) throw new NotFoundException(`${entity.label} not found`);
     const merged = this.validate(entity, { ...current.data, ...patch });
-    const [row] = await tx.update(records).set({ data: merged, updatedAt: new Date() }).where(eq(records.id, id)).returning();
+    const changes = changedFields(entity, current.data, merged);
+    if (changes.length === 0) return current;
+    const [row] = await tx
+      .update(records)
+      .set({
+        data: merged,
+        updatedAt: new Date(),
+        updatedBy: change.actor.kind === 'human' ? change.actor.id : null,
+        updatedVia: change.via,
+        updatedRef: change.ref ?? null,
+        checkedBy: change.checkedBy ?? null,
+        checkedAt: change.checkedBy ? new Date() : null,
+        checkNote: null,
+        checkedProblems: [],
+      })
+      .where(eq(records.id, id))
+      .returning();
+    await this.audit.append(tx, tenantId, {
+      type: 'record.updated',
+      actor: change.actor,
+      refId: id,
+      payload: { entity: entity.name, label: entity.label, title: titleOf(entity, merged), changes, via: change.via, ...(change.note && { note: change.note }) },
+    });
     return row!;
   }
 
@@ -97,10 +164,12 @@ export class RecordsService {
     });
   }
 
-  async createFromApi(tenantId: string, principalId: string, entityName: string, data: Record<string, unknown>): Promise<PackRecord> {
+  async createFromApi(tenantId: string, principalId: string, role: HumanRole, entityName: string, data: Record<string, unknown>): Promise<PackRecord> {
     return this.db.tenant(tenantId, async (tx) => {
       const ws = await this.activeWorkspace(tx);
-      return toRecord(await this.create(tx, tenantId, ws, entityName, data, { id: principalId, kind: 'human' }));
+      const manager = role === 'owner' || role === 'admin';
+      const row = await this.create(tx, tenantId, ws, entityName, data, { id: principalId, kind: 'human' }, { kind: 'manual', checkedBy: manager ? principalId : null });
+      return toRecord(row);
     });
   }
 
@@ -111,12 +180,17 @@ export class RecordsService {
     });
   }
 
-  /** A few realistic records per entity so a new tenant can try the agents straight away. */
+  /** A few realistic items per record type so a new company can try things straight away. References point at sample items. */
   async seedSamples(tx: Tx, tenantId: string, ws: { id: string; pack: ResolvedPack }, actor: Actor) {
-    for (const entity of ws.pack.entities) {
+    const made = new Map<string, string[]>();
+    for (const entity of seedOrder(ws.pack.entities)) {
+      const ids: string[] = [];
       for (let i = 0; i < 3; i++) {
-        await this.create(tx, tenantId, ws, entity.name, sampleRecord(entity, i), actor);
+        const ref = (name: string) => made.get(name)?.[i % 3];
+        const row = await this.create(tx, tenantId, ws, entity.name, sampleRecord(entity, i, ref), actor, { kind: 'sample' });
+        ids.push(row.id);
       }
+      made.set(entity.name, ids);
     }
   }
 }
@@ -125,11 +199,38 @@ export function toRecord(r: typeof records.$inferSelect): PackRecord {
   return { id: r.id, entity: r.entity, data: r.data, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() };
 }
 
+/** Fields whose value differs, with the old and new values (null for none). Blank and missing count as the same. */
+export function changedFields(entity: EntityDef, before: Record<string, unknown>, after: Record<string, unknown>) {
+  const norm = (v: unknown) => JSON.stringify(v === undefined || v === '' ? null : v);
+  return entity.fields
+    .filter((f) => norm(before[f.name]) !== norm(after[f.name]))
+    .map((f) => ({ field: f.name, from: before[f.name] ?? null, to: after[f.name] ?? null }));
+}
+
+/** Record types in an order where each comes after the ones its references point at (a cycle is broken anywhere). */
+export function seedOrder(entities: EntityDef[]): EntityDef[] {
+  const names = new Set(entities.map((e) => e.name));
+  const done = new Set<string>();
+  const out: EntityDef[] = [];
+  let left = [...entities];
+  while (left.length) {
+    const ready = left.filter((e) =>
+      e.fields.every((f) => f.type !== 'reference' || !f.ref || f.ref === e.name || !names.has(f.ref) || done.has(f.ref)),
+    );
+    for (const e of ready.length ? ready : [left[0]!]) {
+      out.push(e);
+      done.add(e.name);
+    }
+    left = left.filter((e) => !done.has(e.name));
+  }
+  return out;
+}
+
 const NAMES = ['Asha Menon', 'Rahul Nair', 'Priya Sharma', 'Arjun Iyer', 'Fatima Khan', 'Vikram Rao'];
 const CITIES = ['Kochi', 'Bengaluru', 'Mumbai', 'Chennai', 'Pune', 'Jaipur'];
 const PLACES = ['Munnar', 'Goa', 'Jaipur', 'Coorg', 'Rishikesh', 'Andaman'];
 
-function sampleRecord(entity: EntityDef, i: number): Record<string, unknown> {
+export function sampleRecord(entity: EntityDef, i: number, ref: (entityName: string) => string | undefined = () => undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const name = NAMES[(i + entity.name.length) % NAMES.length]!;
@@ -165,6 +266,9 @@ function sampleRecord(entity: EntityDef, i: number): Record<string, unknown> {
         break;
       case 'text':
         out[f.name] = `Sample ${entity.label.toLowerCase()} note ${i + 1}.`;
+        break;
+      case 'reference':
+        out[f.name] = (f.ref && ref(f.ref)) ?? null;
         break;
       default:
         if (key.includes('name') && !key.includes('product')) out[f.name] = name;
