@@ -1,4 +1,22 @@
+import { z } from 'zod';
 import type { EntityDef } from './pack';
+
+const note = z
+  .string()
+  .trim()
+  .max(500)
+  .optional()
+  .transform((v) => v || undefined);
+
+export const UpdateListItemInputSchema = z.object({ data: z.record(z.string(), z.unknown()), note });
+export type UpdateListItemInput = z.input<typeof UpdateListItemInputSchema>;
+
+export const CheckListItemInputSchema = z.object({ note });
+export type CheckListItemInput = z.input<typeof CheckListItemInputSchema>;
+
+export const BulkCheckInputSchema = z.object({ ids: z.array(z.uuid()).min(1).max(500) });
+
+export const RemoveListItemInputSchema = z.object({ reason: z.string().trim().min(3, 'Say why it is being removed').max(500) });
 
 export type ItemSourceKind = 'manual' | 'call' | 'agent' | 'sample';
 export type ListRange = 'today' | 'this_week' | 'this_month' | 'last_month' | 'all';

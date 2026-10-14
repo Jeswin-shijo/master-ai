@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import type {
   ItemSource,
@@ -13,6 +13,7 @@ import type {
   ResolvedPack,
 } from '@onehuman/schemas';
 import { normalizeSnapshot, registersOf, titleOf, type ResolvedRegister } from '@onehuman/agent-kit';
+import type { Session } from '../common/auth';
 import { AuditService } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
 import { auditEvents, cases, principals, records, toolCalls } from '../db/schema';
@@ -29,6 +30,8 @@ type CardRow = { count: number; sum: string | null; problems: number; not_checke
 type Workspace = { id: string; pack: ResolvedPack };
 type Change = { field: string; from: unknown; to: unknown };
 const EXPORT_LIMIT = 10_000;
+
+const human = (s: Session) => ({ id: s.principalId, kind: 'human' as const });
 
 const unique = <T>(xs: (T | null | undefined)[]): T[] => [...new Set(xs.filter((x): x is T => x !== null && x !== undefined))];
 
@@ -117,6 +120,124 @@ export class ListsService {
           it.problems.map((p) => (p.acknowledged ? `${p.message} (seen)` : p.message)).join('; '),
         ]),
       ]);
+    });
+  }
+
+  /** An item an owner or admin types in; they have checked it. */
+  async create(session: Session, listId: string, data: Record<string, unknown>): Promise<ListItem> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const ws = await this.workspace(tx);
+      const reg = this.register(ws.pack, listId);
+      const row = await this.records.create(tx, session.tenantId, ws, reg.entity.name, data, human(session), { kind: 'manual', checkedBy: session.principalId });
+      return this.one(tx, ws, reg, row.id);
+    });
+  }
+
+  /** A correction by an owner or admin: audited with the old and new values, and checked by them. */
+  async update(session: Session, listId: string, itemId: string, input: { data: Record<string, unknown>; note?: string }): Promise<ListItem> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const ws = await this.workspace(tx);
+      const reg = this.register(ws.pack, listId);
+      await this.one(tx, ws, reg, itemId);
+      await this.records.update(tx, session.tenantId, ws, reg.entity.name, itemId, input.data, {
+        actor: human(session),
+        via: 'manual',
+        note: input.note ?? null,
+        checkedBy: session.principalId,
+      });
+      return this.one(tx, ws, reg, itemId);
+    });
+  }
+
+  /** Marks an item checked. With open problems it needs a note saying why it's right; those problems are then accepted. */
+  async check(session: Session, listId: string, itemId: string, input: { note?: string }): Promise<ListItem> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const ws = await this.workspace(tx);
+      const reg = this.register(ws.pack, listId);
+      const item = await this.one(tx, ws, reg, itemId);
+      const note = input.note?.trim() || null;
+      if (item.problems.some((p) => !p.acknowledged) && !note) {
+        throw new BadRequestException('This item has problems. Add a note saying why it is right as it is.');
+      }
+      await this.markChecked(tx, session, reg, item, note);
+      return this.one(tx, ws, reg, itemId);
+    });
+  }
+
+  /** Checks the given items that have no open problem; the rest are skipped. Ids from elsewhere are ignored. */
+  async checkMany(session: Session, listId: string, ids: string[]): Promise<{ checked: number; skipped: number }> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const ws = await this.workspace(tx);
+      const reg = this.register(ws.pack, listId);
+      const clock = this.clock();
+      const wanted = ids.filter(isUuid);
+      if (!wanted.length) return { checked: 0, skipped: 0 };
+      const flags = (
+        await tx.execute<FlagRow>(
+          sql`${flaggedCte(reg, ws.id, clock)} select ${flagSelect(reg)} from flagged r where r.id in (${sql.join(wanted.map((id) => sql`${id}::uuid`), sql`, `)})`,
+        )
+      ).rows;
+      let checked = 0;
+      let skipped = 0;
+      for (const item of await this.decorate(tx, ws, reg, flags, clock)) {
+        if (item.problems.some((p) => !p.acknowledged)) {
+          skipped++;
+          continue;
+        }
+        checked++;
+        if (!item.checked) await this.markChecked(tx, session, reg, item, null);
+      }
+      return { checked, skipped };
+    });
+  }
+
+  /** Removes a wrong or duplicate item. The audit trail keeps a full copy and the reason. */
+  async remove(session: Session, listId: string, itemId: string, input: { reason: string }): Promise<{ removed: true }> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const ws = await this.workspace(tx);
+      const reg = this.register(ws.pack, listId);
+      if (!isUuid(itemId)) throw new NotFoundException('Item not found');
+      const [row] = await tx
+        .delete(records)
+        .where(and(eq(records.id, itemId), eq(records.workspaceId, ws.id), eq(records.entity, reg.entity.name)))
+        .returning();
+      if (!row) throw new NotFoundException('Item not found');
+      await this.audit.append(tx, session.tenantId, {
+        type: 'record.removed',
+        actor: human(session),
+        refId: itemId,
+        payload: { entity: reg.entity.name, label: reg.entity.label, title: titleOf(reg.entity, row.data), reason: input.reason, data: row.data },
+      });
+      return { removed: true };
+    });
+  }
+
+  /** Deletes every sample item, once the company is using real data. */
+  async removeSamples(session: Session): Promise<{ removed: number }> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      const ws = await this.workspace(tx);
+      const gone = await tx
+        .delete(records)
+        .where(and(eq(records.workspaceId, ws.id), eq(records.source, 'sample')))
+        .returning({ id: records.id });
+      if (gone.length) {
+        await this.audit.append(tx, session.tenantId, { type: 'record.samples_removed', actor: human(session), refId: ws.id, payload: { count: gone.length } });
+      }
+      return { removed: gone.length };
+    });
+  }
+
+  private async markChecked(tx: Tx, session: Session, reg: ResolvedRegister, item: ListItem, note: string | null) {
+    const accepted = item.problems.map((p) => p.key);
+    await tx
+      .update(records)
+      .set({ checkedBy: session.principalId, checkedAt: new Date(), checkNote: note, checkedProblems: accepted })
+      .where(eq(records.id, item.id));
+    await this.audit.append(tx, session.tenantId, {
+      type: 'record.checked',
+      actor: human(session),
+      refId: item.id,
+      payload: { entity: reg.entity.name, label: reg.entity.label, title: item.title, accepted, ...(note && { note }) },
     });
   }
 
