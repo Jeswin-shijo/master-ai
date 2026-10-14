@@ -268,7 +268,7 @@ export function sampleRecord(entity: EntityDef, i: number, ref: (entityName: str
         out[f.name] = `Sample ${entity.label.toLowerCase()} note ${i + 1}.`;
         break;
       case 'reference':
-        out[f.name] = (f.ref && ref(f.ref)) ?? null;
+        out[f.name] = (f.ref && ref(f.ref)) ?? (f.required ? `${entity.label} ${f.label.toLowerCase()} ${i + 1}` : null);
         break;
       default:
         if (key.includes('name') && !key.includes('product')) out[f.name] = name;

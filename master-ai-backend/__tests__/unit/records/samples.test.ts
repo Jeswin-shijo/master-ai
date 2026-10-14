@@ -30,6 +30,21 @@ describe('sample data', () => {
     expect(data.contractor).toBe('contractor-1');
     expect(entityValidator(ContractorBill).safeParse(data).success).toBe(true);
   });
+
+  it('gives a required reference with nothing to point at a placeholder, so it validates', () => {
+    const noRef: EntityDef = { name: 'T', label: 'Ticket', fields: [{ name: 'owner', label: 'Owner', type: 'reference', required: true }] };
+    const noSamples: EntityDef = { name: 'U', label: 'Job', fields: [{ name: 'owner', label: 'Owner', type: 'reference', ref: 'Contractor', required: true }] };
+    for (const e of [noRef, noSamples]) {
+      const data = sampleRecord(e, 0, () => undefined);
+      expect(typeof data.owner === 'string' && data.owner.length > 0).toBe(true);
+      expect(entityValidator(e).safeParse(data).success).toBe(true);
+    }
+  });
+
+  it('leaves an optional reference with nothing to point at empty', () => {
+    const e: EntityDef = { name: 'T', label: 'Ticket', fields: [{ name: 'owner', label: 'Owner', type: 'reference', ref: 'Contractor', required: false }] };
+    expect(sampleRecord(e, 0, () => undefined).owner).toBeNull();
+  });
 });
 
 describe('changedFields', () => {
