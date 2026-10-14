@@ -10,6 +10,7 @@ import { AgentsPage } from '@/routes/agents';
 import { ApprovalsPage } from '@/routes/approvals';
 import { AuditPage } from '@/routes/audit';
 import { CasePage } from '@/routes/case';
+import { CaseReportPage } from '@/routes/case-report';
 import { CasesPage } from '@/routes/cases';
 import { LoginPage, SignupPage } from '@/routes/auth';
 import { InvitePage } from '@/routes/invite';
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: 'cases', element: <CasesPage /> },
       { path: 'cases/:id', element: <CasePage /> },
+      { path: 'cases/:id/report', element: <CaseReportPage /> },
       { path: 'goals/:id', element: <GoalDetailPage /> },
       { path: 'workflows', element: <WorkflowsPage /> },
       { path: 'approvals', element: <ApprovalsPage /> },

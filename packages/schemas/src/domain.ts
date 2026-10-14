@@ -151,6 +151,8 @@ export interface PlannedTask {
 export interface Goal {
   id: string;
   workspaceId: string;
+  /** The case whose work this is (stage 6), if any. Its `text` is then written for the agents, so people see the case instead. */
+  caseId: string | null;
   text: string;
   status: GoalStatus;
   plan: { tasks: PlannedTask[]; rationale: string; workflowId?: string } | null;

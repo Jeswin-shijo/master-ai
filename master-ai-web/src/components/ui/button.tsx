@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Loader2 } from 'lucide-react';
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { Link } from 'react-router';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
@@ -39,5 +40,14 @@ export function Button({ className, variant, size, loading, children, disabled, 
       {loading && <Loader2 className="animate-spin" aria-hidden />}
       {children}
     </button>
+  );
+}
+
+/** A link that looks like a button (opening a page, not doing something). */
+export function ButtonLink({ to, variant = 'secondary', size = 'sm', className, children }: { to: string; className?: string; children: ReactNode } & VariantProps<typeof buttonVariants>) {
+  return (
+    <Link to={to} className={cn(buttonVariants({ variant, size }), className)}>
+      {children}
+    </Link>
   );
 }

@@ -401,3 +401,20 @@
     animation: none !important;
   }
 }
+
+/* Reports print as dark text on white paper, even with "Background graphics" on. */
+@media print {
+  html,
+  body,
+  #root {
+    background: white !important;
+    color: black;
+    height: auto;
+  }
+  .page-glow,
+  .glass {
+    background: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+}

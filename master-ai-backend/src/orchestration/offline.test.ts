@@ -200,6 +200,18 @@ describe('offline agent: delegation', () => {
     expect(out.toolCalls![0]!.input.due).toBeTruthy();
   });
 
+  it("hands a case's work over by its code and title, never the instructions written for the agents", () => {
+    const caseGoal = [
+      'JOB-0001 · Lineman shock on Kamalpur feeder',
+      'Job: Accident or near miss (P1, high risk) for Safety.',
+      'Request from Asha Owner:',
+      'Sir, contract lineman Ramesh got shock on 11 kV Kamalpur feeder pole at 3:40 pm.',
+      'Do what this job needs. Look up the company’s playbooks for this kind of work and follow them.',
+    ].join('\n');
+    const out = offlineAgentStep({ ...base, goalText: caseGoal, history: [] });
+    expect(out.toolCalls![0]!.input.task).toBe('JOB-0001 · Lineman shock on Kamalpur feeder');
+  });
+
   it('finishes with what the person confirmed', () => {
     const out = offlineAgentStep({
       ...base,

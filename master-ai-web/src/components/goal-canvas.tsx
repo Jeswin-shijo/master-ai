@@ -207,11 +207,14 @@ export function GoalCanvas({
   delegations,
   selected,
   onSelect,
+  title,
 }: {
   detail: GoalDetail;
   delegations: Delegation[];
   selected: CanvasSelection | null;
   onSelect: (s: CanvasSelection) => void;
+  /** What the first node says. A case's goal text is written for the agents, so its page passes the case's code and title. */
+  title?: string;
 }) {
   const { nodes, edges } = useMemo(() => {
     const { goal, tasks, toolCalls } = detail;
@@ -228,7 +231,7 @@ export function GoalCanvas({
     });
 
     const goalTone: Tone = goal.status === 'completed' ? 'done' : goal.status === 'failed' ? 'failed' : goal.status === 'cancelled' ? 'blocked' : 'running';
-    nodes.push({ id: 'goal', type: 'step', position: { x: 0, y: 0 }, data: { icon: Flag, label: 'Goal', sub: goal.text, tone: goalTone, trigger: true, selected: isSel({ kind: 'goal' }) } });
+    nodes.push({ id: 'goal', type: 'step', position: { x: 0, y: 0 }, data: { icon: Flag, label: 'Goal', sub: title ?? goal.text, tone: goalTone, trigger: true, selected: isSel({ kind: 'goal' }) } });
     const planTone: Tone = goal.status === 'planning' ? 'running' : goal.status === 'awaiting_plan_approval' ? 'waiting' : goal.status === 'cancelled' ? 'blocked' : 'done';
     nodes.push({ id: 'plan', type: 'step', position: { x: COL, y: 0 }, data: { icon: Sparkles, label: 'Orchestrator', sub: goal.plan ? `${goal.plan.tasks.length} task(s)` : 'planning…', tone: planTone, selected: isSel({ kind: 'plan' }) } });
     edges.push(edge('goal', 'plan', { animated: planTone === 'running' }));
@@ -291,7 +294,7 @@ export function GoalCanvas({
       });
     }
     return { nodes, edges };
-  }, [detail, delegations, selected]);
+  }, [detail, delegations, selected, title]);
 
   return (
     <div className="h-[460px] overflow-hidden glass rounded-lg">

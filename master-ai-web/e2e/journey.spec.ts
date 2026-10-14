@@ -104,9 +104,29 @@ test('a power plant signs up, and a hot-work job runs all 8 stages with the safe
     await expect(page.getByText('Signed off by Sunita Safety.')).toBeVisible();
   });
 
-  await test.step('Reports lists the job', async () => {
+  await test.step('Reports lists the job and opens its full report: every stage, who decided, Print / PDF', async () => {
     await page.goto('/reports');
-    await expect(page.getByRole('region', { name: 'Requests' })).toContainText('JOB-');
+    const requests = page.getByRole('region', { name: 'Requests' });
+    await expect(requests).toContainText('JOB-');
+    await requests.getByRole('link', { name: 'Open report' }).first().click();
+    const report = page.getByRole('article', { name: 'Job report' });
+    await expect(report.getByRole('heading', { level: 1 })).toContainText('JOB-');
+    for (const stage of ['Job raised', "Engineer's first check", 'Permit & clearance', 'Work under permit', 'Permit return & sign-off', 'Monthly review & lessons']) {
+      await expect(report).toContainText(stage);
+    }
+    await expect(report).toContainText('Approval: approved by Sunita Safety');
+    await expect(report).toContainText('Sign-off: approved by Sunita Safety');
+    await expect(page.getByRole('button', { name: 'Print / PDF' })).toBeVisible();
+    // The stage-6 goal text is written for the agents; people never see it.
+    await expect(page.getByRole('main')).not.toContainText(/Do what this \w+ needs|playbooks for this kind of work/);
+  });
+
+  await test.step("the work's step-by-step page names the job, not the agents' instructions", async () => {
+    await page.goto(caseUrl);
+    await page.getByRole('link', { name: 'See the work step by step' }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('JOB-');
+    await expect(page.getByRole('link', { name: /^Back to JOB-/ })).toBeVisible();
+    await expect(page.getByRole('main')).not.toContainText(/Do what this \w+ needs|playbooks for this kind of work/);
   });
 
   await officerContext.close();

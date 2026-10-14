@@ -75,6 +75,7 @@ export function toGoal(g: typeof goals.$inferSelect): Goal {
   return {
     id: g.id,
     workspaceId: g.workspaceId,
+    caseId: g.caseId ?? null,
     text: g.text,
     status: g.status as GoalStatus,
     plan: g.plan ?? null,

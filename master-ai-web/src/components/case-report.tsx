@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
 import type { CaseReport } from '@onehuman/schemas';
+import { FileText } from 'lucide-react';
 import { CopyReportButton } from '@/components/goal-report';
+import { ButtonLink } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { statusWords } from '@/lib/cases';
 import { formatDateTime } from '@/lib/utils';
@@ -30,6 +32,11 @@ export function CaseReportCard({ report, linked }: { report: CaseReport; linked?
         <div className="flex items-center gap-2 print:hidden">
           {report.slaMet !== null && <Chip tone={report.slaMet ? 'success' : 'danger'}>{report.slaMet ? 'On time' : 'Late'}</Chip>}
           <CopyReportButton text={text} />
+          {linked && (
+            <ButtonLink to={`/cases/${report.caseId}/report`}>
+              <FileText /> Open report
+            </ButtonLink>
+          )}
         </div>
       </header>
       <div className="space-y-3 px-5 py-4 text-sm">

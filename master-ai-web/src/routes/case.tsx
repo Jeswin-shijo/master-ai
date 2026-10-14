@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, Send, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FileText, Send, X } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { STAGE_KEYS, type ApprovalRequest, type Case, type CaseSource, type StageKey } from '@onehuman/schemas';
 import { caseFileLines } from '@onehuman/sdk';
@@ -9,7 +9,7 @@ import { CaseTimeline } from '@/components/case-file';
 import { CaseReportCard } from '@/components/case-report';
 import { GoalReportCard } from '@/components/goal-report';
 import { StageDots } from '@/components/stage-dots';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonLink } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Dialog } from '@/components/ui/dialog';
 import { ErrorNote, Spinner } from '@/components/ui/feedback';
@@ -216,7 +216,12 @@ export function CasePage() {
           </div>
           {c.outcome && <p className="mt-3 text-sm text-fg-body">{c.outcome}</p>}
         </div>
-        {manager && !ended && <CancelCase caseId={c.id} noun={noun} />}
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink to={`/cases/${c.id}/report`}>
+            <FileText /> {ended ? 'Report' : 'Report so far'}
+          </ButtonLink>
+          {manager && !ended && <CancelCase caseId={c.id} noun={noun} />}
+        </div>
       </header>
 
       {c.status === 'needs_info' && <AddDetails caseId={c.id} missing={file.review?.missing ?? []} />}

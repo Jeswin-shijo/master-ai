@@ -1,6 +1,6 @@
 import type { CaseFile, CaseSource, PriorityId, StageKey } from '@onehuman/schemas';
 
-const FROM: Record<CaseSource, string> = {
+export const SOURCE_WORDS: Record<CaseSource, string> = {
   owner: 'raised by the owner',
   staff: 'raised by the team',
   customer: 'from a customer',
@@ -33,7 +33,7 @@ export function caseFileLines(file: CaseFile, words: CaseFileWords = {}): Partia
 
   if (request) {
     out.request = [
-      `${request.requester.name}, ${FROM[request.source]}, on ${when(request.receivedAt)}.`,
+      `${request.requester.name}, ${SOURCE_WORDS[request.source]}, on ${when(request.receivedAt)}.`,
       request.summary,
       ...(request.amountInr !== undefined ? [`Amount given: ${inr.format(request.amountInr)}.`] : []),
     ];

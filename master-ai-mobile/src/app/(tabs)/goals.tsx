@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pressable, RefreshControl, View } from 'react-native';
 import type { Goal } from '@onehuman/schemas';
-import { goalStatusWord } from '@onehuman/sdk';
+import { goalStatusWord, goalTitle } from '@onehuman/sdk';
 import { ReportView } from '@/components/report-view';
 import { Badge, Button, Card, Empty, H, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -29,7 +29,7 @@ function GoalRow({ goal }: { goal: Goal }) {
   return (
     <Card tone={reviewing ? 'warm' : 'glass'}>
       <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityHint="Shows the report" style={{ gap: space.xs }}>
-        <T weight="semibold">{goal.text}</T>
+        <T weight="semibold">{goalTitle(goal)}</T>
         <Badge tone={TONE[goal.status] ?? 'muted'} label={reviewing ? 'Plan to check' : goalStatusWord(goal.status)} />
       </Pressable>
       {reviewing && goal.plan && (

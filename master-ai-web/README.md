@@ -24,6 +24,7 @@ The API address comes from `VITE_API_URL` at build time (default `http://localho
 | `/onboarding` | `onboarding.tsx` | Preview the pack (stages, kinds of request, roles, agents, records) and install it |
 | `/` | `home.tsx` | Home: what needs you, today's cases, routines and New request |
 | `/cases`, `/cases/:id` | `cases.tsx`, `case.tsx` | The case list with each case's 8 stage dots; one case on an animated canvas, with its case file in sentences and its report |
+| `/cases/:id/report` | `case-report.tsx` | A case's full report: summary, details, all 8 stages with how long each took and what it found, who approved and signed off, and what was done. Copy as text, or Print / PDF (it prints as a clean white page) |
 | `/approvals` | `approvals.tsx` | The inbox (*Mine*, or *All* for owners and admins); signed approve or reject |
 | `/team` | `team.tsx` | Members, invites, access and approver roles, and the team directory (staff the AI can phone) |
 | `/reports` | `reports.tsx` | Case and goal reports by period: copy, print, share |

@@ -125,6 +125,9 @@ export function GoalDetailPage() {
   const { id = '' } = useParams();
   const detail = useQuery({ queryKey: ['goal', id], queryFn: () => api.goals.get(id), refetchInterval: (q) => (q.state.data?.goal.status === 'planning' ? 1500 : false) });
   const delegations = useQuery({ queryKey: ['delegations', id], queryFn: () => api.delegations.list(id) });
+  const caseId = detail.data?.goal.caseId ?? null;
+  // Work done for a case: people see the case, not the instructions written for the agents.
+  const parent = useQuery({ queryKey: ['case', caseId], queryFn: () => api.cases.get(caseId!), enabled: !!caseId });
   const [picked, setPicked] = useState<CanvasSelection | null>(null);
 
   if (detail.isLoading) return <Spinner />;
@@ -205,12 +208,19 @@ export function GoalDetailPage() {
 
   return (
     <div className="space-y-5">
-      <Link to="/" className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg">
-        <ArrowLeft className="size-4" /> Command center
+      <Link to={caseId ? `/cases/${caseId}` : '/'} className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg">
+        <ArrowLeft className="size-4" /> {caseId ? `Back to ${parent.data?.case.code ?? 'the request'}` : 'Home'}
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-fg">{goal.text}</h1>
+          {caseId ? (
+            <>
+              <p className="text-sm text-fg-muted">The work, step by step</p>
+              <h1 className="text-xl font-semibold tracking-tight text-fg">{parent.data ? `${parent.data.case.code} · ${parent.data.case.title}` : '\u00a0'}</h1>
+            </>
+          ) : (
+            <h1 className="text-xl font-semibold tracking-tight text-fg">{goal.text}</h1>
+          )}
           <p className="mt-1 text-sm text-fg-muted">
             Created {formatDateTime(goal.createdAt)}
             {goal.costInr > 0 && <> · {formatInr(goal.costInr)} AI cost</>}
@@ -232,7 +242,7 @@ export function GoalDetailPage() {
       {goal.status === 'awaiting_plan_approval' && goal.plan && selected.kind !== 'plan' && <PlanReview goalId={goal.id} rationale={goal.plan.rationale} />}
 
       <div className="print:hidden">
-        <GoalCanvas detail={detail.data} delegations={delegs} selected={selected} onSelect={setPicked} />
+        <GoalCanvas detail={detail.data} delegations={delegs} selected={selected} onSelect={setPicked} title={caseId ? (parent.data ? `${parent.data.case.code} · ${parent.data.case.title}` : 'This request') : undefined} />
       </div>
 
       {/* The report: what was done, in plain words. It is what prints. */}

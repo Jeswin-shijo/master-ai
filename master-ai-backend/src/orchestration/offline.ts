@@ -201,7 +201,9 @@ function delegateArgs(input: OfflineStepInput): Record<string, unknown> {
   const due = parseDue(input.goalText);
   return {
     assignee: best?.name ?? input.team?.[0]?.name ?? 'operations manager',
-    task: input.goalText,
+    // A case's goal text is instructions for the agents; its first line is the case's code and title, which is what
+    // the person in charge hears. A goal someone typed is one line, so it goes over whole.
+    task: input.goalText.split('\n')[0]!.trim(),
     ...(due && { due: due.toISOString() }),
   };
 }
