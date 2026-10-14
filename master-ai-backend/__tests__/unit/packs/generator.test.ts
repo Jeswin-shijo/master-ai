@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import type { Pack } from '@onehuman/schemas';
-import { parsePack } from '@onehuman/agent-kit';
+import { fittingRegisters, parsePack, resolvePack, validatePackRefs } from '@onehuman/agent-kit';
 import { pickSetup } from '../../../src/packs/generator.service';
 
 const PACKS = join(__dirname, '../../../../packs');
@@ -38,5 +38,20 @@ describe('signup setup', () => {
 
   it('leaves companies without a sector to the old matching', () => {
     expect(pickSetup({ industry: 'Travel agency', sector: null, orgType: null }, packs)).toBeNull();
+  });
+});
+
+describe('a designed type that redefines a record type it inherits', () => {
+  it('drops inherited lists that no longer fit and then passes the checks', () => {
+    const own = parsePack({
+      id: 'own', version: '1.0.0', name: 'Own', description: 'Own', extends: ['it-services'],
+      entities: [{ name: 'Ticket', label: 'Ticket', title_field: 'summary', fields: [{ name: 'summary', label: 'Summary', type: 'string', required: true }] }],
+    });
+    const lookup = (id: string) => packs.find((p) => p.id === id);
+    const resolved = resolvePack(own, lookup);
+    expect(validatePackRefs(resolved).some((i) => i.startsWith('register tickets'))).toBe(true);
+    const fitted = { ...resolved, registers: fittingRegisters(resolved) };
+    expect(fitted.registers.some((r) => r.id === 'tickets')).toBe(false);
+    expect(validatePackRefs(fitted)).toEqual([]);
   });
 });

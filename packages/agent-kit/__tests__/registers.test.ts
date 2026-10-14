@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EntityDef, Register } from '@onehuman/schemas';
-import { checkKeys, defaultRegisterId, normalizeSnapshot, parsePack, registersOf, resolvePack, titleOf, validatePackRefs, validateRegisters } from '../src/index';
+import { checkKeys, defaultRegisterId, fittingRegisters, normalizeSnapshot, parsePack, registersOf, resolvePack, titleOf, validatePackRefs, validateRegisters } from '../src/index';
 
 const Party: EntityDef = {
   name: 'Party', label: 'Party', title_field: 'name',
@@ -155,5 +155,13 @@ describe('packs and lists', () => {
   it('reads an old snapshot with no lists as having none', () => {
     const { registers: _gone, ...old } = resolvePack(parsePack({ id: 'p', version: '1.0.0', name: 'P', description: 'P', entities: [Party] }), () => undefined);
     expect(normalizeSnapshot(old as never).registers).toEqual([]);
+  });
+});
+
+describe('fittingRegisters', () => {
+  it('keeps a list that fits its record type and drops one naming a field the type lacks', () => {
+    const good = { id: 'bills', entity: 'Bill', label: 'Bills', checks: [] } as Register;
+    const bad = { id: 'old', entity: 'Bill', label: 'Old', columns: ['nope'], checks: [] } as Register;
+    expect(fittingRegisters({ entities: [Party, Bill], registers: [good, bad] }).map((r) => r.id)).toEqual(['bills']);
   });
 });

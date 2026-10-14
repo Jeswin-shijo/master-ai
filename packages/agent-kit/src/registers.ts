@@ -240,3 +240,8 @@ function conditionIssues(entity: EntityDef, when: Conditions | undefined, where:
     }
   }
 }
+
+/** The lists that fit the pack's record types. For a pack a model designed, which inherits lists it cannot see: a type it redefines may no longer fit them. */
+export function fittingRegisters(pack: Pick<ResolvedPack, 'entities'> & { registers?: Register[] }): Register[] {
+  return (pack.registers ?? []).filter((r) => validateRegisters({ entities: pack.entities, registers: [r] }).length === 0);
+}
