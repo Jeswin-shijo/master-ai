@@ -26,6 +26,7 @@ const pack = {
   ],
   workflows: [],
   routines: [],
+  registers: [],
   policies: [],
   kpis: [],
   connectors: [], playbooks: [], other_org_types: [],

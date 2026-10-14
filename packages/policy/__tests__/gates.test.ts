@@ -5,7 +5,7 @@ import { PolicyEngine, type PolicyAgent, type PolicyRequest } from '../src/engin
 
 const pack = {
   id: 'gates', version: '1.0.0', name: 'Gates', description: 'Gate tests', kind: 'industry', extends: [], labels: {},
-  entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], playbooks: [], other_org_types: [],
+  entities: [], agents: [], tools: [], workflows: [], routines: [], registers: [], policies: [], kpis: [], connectors: [], playbooks: [], other_org_types: [],
   lineage: ['gates'], source: 'registry',
 } satisfies ResolvedPack;
 

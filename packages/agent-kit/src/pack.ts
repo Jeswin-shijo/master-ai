@@ -7,8 +7,10 @@ import {
   type PackInput,
   type PackSource,
   type PackUpdates,
+  type Register,
   type ResolvedPack,
 } from '@onehuman/schemas';
+import { validateRegisters } from './registers';
 import { CASE_COORDINATOR_ROLE, GATE_TOOLS, getCatalogTool } from './catalog';
 import { lifecyclePolicies, mergeLifecycles, validateLifecycle } from './lifecycle/resolve';
 
@@ -61,12 +63,13 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   visit(pack);
 
   const { lifecycle: _ownLifecycle, ...ownPack } = pack;
-  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], connectors: [], labels: {}, playbooks: [] };
+  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], registers: [], policies: [], kpis: [], connectors: [], labels: {}, playbooks: [] };
   const entities = new Map<string, EntityDef>();
   const agents = new Map<string, Pack['agents'][number]>();
   const tools = new Map<string, Pack['tools'][number]>();
   const workflows = new Map<string, Pack['workflows'][number]>();
   const routines = new Map<string, Pack['routines'][number]>();
+  const registers = new Map<string, Register>();
   const policies = new Map<string, Pack['policies'][number]>();
   const kpis = new Map<string, Pack['kpis'][number]>();
   const playbooks = new Map<string, Pack['playbooks'][number]>();
@@ -78,6 +81,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
     p.tools.forEach((t) => tools.set(t.name, t));
     p.workflows.forEach((w) => workflows.set(w.id, { ...w, category: w.category ?? p.name }));
     (p.routines ?? []).forEach((r) => routines.set(r.id, r));
+    (p.registers ?? []).forEach((r) => registers.set(r.id, r));
     p.policies.forEach((r) => policies.set(policyKey(r), r));
     p.kpis.forEach((k) => kpis.set(k.id, k));
     (p.playbooks ?? []).forEach((b) => playbooks.set(b.id, b));
@@ -97,6 +101,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   merged.tools = [...tools.values()];
   merged.workflows = [...workflows.values()];
   merged.routines = [...routines.values()];
+  merged.registers = [...registers.values()];
   merged.policies = [...policies.values()];
   merged.kpis = [...kpis.values()];
   merged.playbooks = [...playbooks.values()];
@@ -179,6 +184,7 @@ export function normalizeSnapshot(pack: ResolvedPack): ResolvedPack {
   return {
     ...pack,
     routines: pack.routines ?? [],
+    registers: pack.registers ?? [],
     playbooks: pack.playbooks ?? [],
     other_org_types: pack.other_org_types ?? [],
   };
@@ -356,6 +362,7 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
       issues.push(`kpi ${kpi.id}: unknown entity ${kpi.source.entity}`);
     }
   }
+  issues.push(...validateRegisters(pack));
   return issues;
 }
 

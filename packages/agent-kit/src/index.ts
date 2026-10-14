@@ -6,3 +6,4 @@ export * from './narrate';
 export * from './lifecycle';
 export * from './pricing';
 export * from './gemini';
+export * from './registers';
