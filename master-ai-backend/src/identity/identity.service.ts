@@ -18,29 +18,34 @@ import type { z } from 'zod';
 import type { LoginInputSchema, SignupInputSchema } from '@onehuman/schemas';
 import { AuditService } from '../audit/audit.service';
 import { issueToken, type Session } from '../common/auth';
-import { hashPassword, verifyPassword } from '../common/crypto';
+import { hashPassword, passwordMatches } from '../common/crypto';
 import { DEFAULT_TENANT_SETTINGS, toTenant } from '../common/mappers';
 import { DbService } from '../db/db.service';
 import { deviceKeys, principals, pushTokens, tenants, users } from '../db/schema';
 import { pickMembership, toCompanies, type MembershipRow } from './memberships';
+import { SignInLimits } from './sign-in-limits';
 
 @Injectable()
 export class IdentityService {
+  private readonly limits = new SignInLimits();
+
   constructor(
     private readonly db: DbService,
     private readonly audit: AuditService,
   ) {}
 
   /** Create a company, its owner and the owner's login in one transaction. */
-  async signup(input: z.output<typeof SignupInputSchema>): Promise<AuthResponse> {
+  async signup(input: z.output<typeof SignupInputSchema>, ip: string): Promise<AuthResponse> {
+    this.limits.beforeSignup(ip);
     const [existing] = await this.db.global.select({ id: users.id }).from(users).where(eq(users.email, input.email));
     if (existing) throw new ConflictException('That email is already registered. Sign in instead.');
 
     const tenantId = randomUUID();
+    const passwordHash = await hashPassword(input.password);
     return this.db.tenant(tenantId, async (tx) => {
       const [user] = await tx
         .insert(users)
-        .values({ email: input.email, name: input.ownerName, passwordHash: hashPassword(input.password) })
+        .values({ email: input.email, name: input.ownerName, passwordHash })
         .returning();
       const ready = ORG_TYPES.find((t) => t.id === input.orgType && t.sector === input.sector);
       const industry = input.industry ?? (ready ? ready.name : input.orgType);
@@ -67,9 +72,12 @@ export class IdentityService {
     });
   }
 
-  async login(input: z.output<typeof LoginInputSchema>): Promise<AuthResponse> {
+  async login(input: z.output<typeof LoginInputSchema>, ip: string): Promise<AuthResponse> {
+    this.limits.beforeLogin(ip, input.email);
     const [user] = await this.db.global.select().from(users).where(eq(users.email, input.email));
-    if (!user || !verifyPassword(input.password, user.passwordHash)) {
+    const ok = await passwordMatches(input.password, user?.passwordHash);
+    if (!user || !ok) {
+      this.limits.loginFailed(input.email);
       throw new UnauthorizedException('Email or password is incorrect');
     }
     const rows = await this.memberships(user.id);

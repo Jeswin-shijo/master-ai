@@ -21,6 +21,12 @@ export class RateLimiter {
     return true;
   }
 
+  /** True when `key` has used its `limit` in the current window. Doesn't count as a call. */
+  exhausted(key: string, limit: number): boolean {
+    const w = this.windows.get(key);
+    return !!w && w.resetAt > this.now() && w.count >= limit;
+  }
+
   private sweep(t: number) {
     for (const [key, w] of this.windows) if (w.resetAt <= t) this.windows.delete(key);
   }

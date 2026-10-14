@@ -1,14 +1,34 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { Redactor } from '../llm/redaction';
-import { hashPassword, signJwt, verifyEd25519, verifyJwt, verifyPassword } from './crypto';
+import { hashPassword, passwordMatches, signJwt, verifyEd25519, verifyJwt, verifyPassword } from './crypto';
 
 describe('passwords', () => {
-  it('hashes with a salt and verifies', () => {
-    const a = hashPassword('correct horse battery');
-    expect(a).not.toBe(hashPassword('correct horse battery'));
-    expect(verifyPassword('correct horse battery', a)).toBe(true);
-    expect(verifyPassword('wrong', a)).toBe(false);
+  it('hashes with a salt and verifies', async () => {
+    const a = await hashPassword('correct horse battery');
+    expect(a).not.toBe(await hashPassword('correct horse battery'));
+    expect(await verifyPassword('correct horse battery', a)).toBe(true);
+    expect(await verifyPassword('wrong', a)).toBe(false);
+  });
+
+  it('hashes off the main thread, so other requests keep moving while it runs', async () => {
+    let ticks = 0;
+    const timer = setInterval(() => ticks++, 1);
+    await hashPassword('correct horse battery');
+    clearInterval(timer);
+    expect(ticks).toBeGreaterThan(0);
+  });
+
+  it("takes as long for an email nobody has as for a wrong password, so timing doesn't reveal who has a login", async () => {
+    const stored = await hashPassword('correct horse battery');
+    const time = async (f: () => Promise<boolean>) => {
+      const start = performance.now();
+      expect(await f()).toBe(false);
+      return performance.now() - start;
+    };
+    const known = await time(() => passwordMatches('wrong', stored));
+    const unknown = await time(() => passwordMatches('wrong', undefined));
+    expect(unknown).toBeGreaterThan(known / 4);
   });
 });
 

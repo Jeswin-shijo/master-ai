@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { securityHeaders } from './common/security-headers';
 import { config } from './config';
 import { RealtimeGateway } from './realtime/realtime.gateway';
 
@@ -10,6 +11,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: false });
   // Public rate limits key on the client address; behind a proxy it comes from X-Forwarded-For.
   if (config.trustProxy !== false) app.set('trust proxy', config.trustProxy);
+  app.disable('x-powered-by');
+  app.use(securityHeaders);
   app.enableCors({ origin: config.corsOrigins, credentials: true });
   app.enableShutdownHooks();
   app.get(RealtimeGateway).attach(app.getHttpServer());

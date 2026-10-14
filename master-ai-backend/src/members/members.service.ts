@@ -232,9 +232,9 @@ export class MembersService {
       const [existing] = await tx.select().from(users).where(eq(users.email, inv.email));
       let user = existing;
       if (user) {
-        if (!verifyPassword(input.password, user.passwordHash)) throw new UnauthorizedException('That is not the password for this email.');
+        if (!(await verifyPassword(input.password, user.passwordHash))) throw new UnauthorizedException('That is not the password for this email.');
       } else {
-        [user] = await tx.insert(users).values({ email: inv.email, name: input.name ?? inv.name, passwordHash: hashPassword(input.password) }).returning();
+        [user] = await tx.insert(users).values({ email: inv.email, name: input.name ?? inv.name, passwordHash: await hashPassword(input.password) }).returning();
       }
       const [already] = await tx
         .select()
