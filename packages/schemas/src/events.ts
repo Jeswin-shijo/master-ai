@@ -42,6 +42,10 @@ export const AUDIT_EVENT_TYPES = [
   'approval.expired',
   'quality.checked',
   'record.created',
+  'record.updated',
+  'record.checked',
+  'record.removed',
+  'record.samples_removed',
   'knowledge.added',
   'staff.added',
   'staff.updated',
@@ -139,6 +143,14 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `${p.staffName ?? 'Someone'} reported for ${p.name ?? 'the routine'}${p.source === 'call' ? ' (by phone)' : ''}`;
     case 'checkin.missed':
       return `No ${p.name ?? 'update'} from ${p.staffName ?? 'someone'}`;
+    case 'record.updated':
+      return `${p.label ?? 'Item'} ${p.title ?? ''} changed`.replace(/\s+/g, ' ');
+    case 'record.checked':
+      return `${p.label ?? 'Item'} ${p.title ?? ''} checked`.replace(/\s+/g, ' ');
+    case 'record.removed':
+      return `${p.label ?? 'Item'} ${p.title ?? ''} removed${p.reason ? `: ${p.reason}` : ''}`.replace(/\s+/g, ' ');
+    case 'record.samples_removed':
+      return `Removed ${p.count ?? 0} sample items`;
     case 'pack.updated':
       return `Workspace updated: added ${p.summary ?? 'platform additions'}`;
     case 'staff.added':

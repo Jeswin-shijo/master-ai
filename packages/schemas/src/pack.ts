@@ -260,6 +260,79 @@ export const OtherOrgTypeSchema = z.strictObject({
 });
 export type OtherOrgType = z.infer<typeof OtherOrgTypeSchema>;
 
+/** A field condition: one of these values, a number above or below, or filled / blank. */
+export const ConditionSchema = z.union([
+  z.array(z.union([z.string(), z.number(), z.boolean()])).min(1),
+  z.strictObject({ above: z.number() }),
+  z.strictObject({ below: z.number() }),
+  z.enum(['filled', 'blank']),
+]);
+export type Condition = z.infer<typeof ConditionSchema>;
+export const ConditionsSchema = z.record(z.string(), ConditionSchema);
+export type Conditions = z.infer<typeof ConditionsSchema>;
+
+const checkExtras = {
+  /** Only check items that meet these conditions. */
+  when: ConditionsSchema.optional(),
+  /** The rule behind the check, added to its message: "e-way bill needed above ₹50,000". */
+  why: z.string().min(1).optional(),
+};
+
+/**
+ * One of the fixed kinds of check a list runs on every item. The app works
+ * them out (in SQL, when a list is read), never a model.
+ */
+export const CheckSchema = z.union([
+  z.strictObject({ missing: z.array(z.string()).min(1), ...checkExtras }),
+  z.strictObject({
+    adds_up: z.strictObject({
+      field: z.string(),
+      plus: z.array(z.string()).default([]),
+      minus: z.array(z.string()).default([]),
+      tolerance: z.number().nonnegative().default(1),
+    }),
+    ...checkExtras,
+  }),
+  z.strictObject({
+    limit: z
+      .strictObject({
+        fields: z.array(z.string()).min(1),
+        max: z.union([z.string(), z.number()]).optional(),
+        min: z.union([z.string(), z.number()]).optional(),
+        factor: z.number().positive().default(1),
+      })
+      .refine((l) => (l.max === undefined) !== (l.min === undefined), 'a limit needs exactly one of max or min'),
+    ...checkExtras,
+  }),
+  z.strictObject({ duplicate: z.array(z.string()).min(1), ...checkExtras }),
+  z.strictObject({ overdue: z.strictObject({ date: z.string(), grace_days: z.number().int().nonnegative().default(0) }), ...checkExtras }),
+  z.strictObject({ expiring: z.strictObject({ date: z.string(), days: z.number().int().positive() }), ...checkExtras }),
+]);
+export type Check = z.infer<typeof CheckSchema>;
+
+/** A list the head of the organization sees: one record type, with its columns, filters, totals and checks. */
+export const RegisterSchema = z.strictObject({
+  id: SlugSchema,
+  entity: z.string(),
+  label: z.string().min(1).optional(),
+  /** A card on the Lists page; false lists it under "Other lists". */
+  main: z.boolean().default(true),
+  columns: z.array(z.string()).min(1).optional(),
+  filters: z.array(z.string()).optional(),
+  /** The date the list's date range filters on. */
+  date_field: z.string().optional(),
+  sort: z.strictObject({ field: z.string(), dir: z.enum(['asc', 'desc']).default('desc') }).optional(),
+  totals: z.array(z.string()).optional(),
+  card: z
+    .strictObject({
+      count: z.strictObject({ when: ConditionsSchema.optional(), label: z.string().min(1) }).optional(),
+      sum: z.strictObject({ field: z.string(), when: ConditionsSchema.optional(), label: z.string().min(1) }).optional(),
+    })
+    .optional(),
+  checks: z.array(CheckSchema).default([]),
+});
+export type Register = z.infer<typeof RegisterSchema>;
+
 export const PackSchema = z.object({
   id: SlugSchema,
   version: SemverSchema,
@@ -287,6 +360,8 @@ export const PackSchema = z.object({
   workflows: z.array(WorkflowDefSchema).default([]),
   /** Repeating check-ins the business can switch on, e.g. a daily site report by phone. */
   routines: z.array(RoutineTemplateSchema).default([]),
+  /** The lists the head sees, over the pack's entities. Every entity without one gets a default list. */
+  registers: z.array(RegisterSchema).default([]),
   policies: z.array(PolicyRuleSchema).default([]),
   kpis: z.array(KpiDefSchema).default([]),
   /** Integrations the sector needs (booking engines, ERP, EHR...). */
