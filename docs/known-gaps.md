@@ -74,6 +74,16 @@ Things the build doesn't handle yet. Reviews found them while Plans 2–6 were b
 - The travel-agency upgrade test uses the new pack as the old snapshot.
 - Some case labels differ from the design's Appendix A, and composed packs can pick odd labels.
 
+## With Gemini (a free key)
+Found in live runs on 14 October 2026 with a free Gemini key, every tier on Flash-Lite (`gemini-3.5-flash-lite`). They describe Gemini's judgement, not Claude's, which the prompts were written for. Rerun with `pnpm e2e:sectors` while `pnpm dev` has a key.
+- A free key allows 15 requests a minute per model, 20 Flash requests a day and a few hundred Flash-Lite requests a day, and no Pro. One full live run of the five organizations uses most of a day's Flash-Lite allowance. When it runs out, the work stops and the cases escalate with "Stopped before it finished".
+- Scoring five organization types, the categories matched the test sets except one travel request, filed as a group tour instead of a customer order. Most review answers fell back to the rules once the Flash allowance ran out.
+- A lender's truck repossession was judged not eligible because no notice had gone to the borrower first. The test set expects it to go ahead.
+- A software release was refused because the sample records hold an open P1 incident. This is arguably right; the test set expects the release to go ahead.
+- A travel cancellation ran out of agent steps: Flash-Lite kept calling tools without finishing.
+- A power-plant job took over ten minutes at 12 model calls a minute and ended escalated with its work only partly done.
+- Passed end to end: the hospital discharge in both full runs, and the power-plant job in one.
+
 ## Questions for an expert
 The sector content was researched from public sources, not reviewed by people who work in these sectors. These calls need one:
 - Energy: should near misses be P1 or P3?
