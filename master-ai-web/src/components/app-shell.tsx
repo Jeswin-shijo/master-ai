@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LogOut, Menu, Plus, Power, Search } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router';
 import { brandPalette, darkPalette, lightPalette } from '@onehuman/ui';
 import { NewRequestDialog } from '@/components/new-request';
@@ -204,17 +204,16 @@ export function AppShell() {
         )}
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8 print:overflow-visible print:p-0">
           <div className="mx-auto max-w-6xl">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 25 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {outlet}
-              </motion.div>
-            </AnimatePresence>
+            {/* Each page fades in as it opens. Nothing waits for the last page to leave: with
+                AnimatePresence mode="wait", an exit that never reported done left the content blank. */}
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 25 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {outlet}
+            </motion.div>
           </div>
         </main>
       </div>
