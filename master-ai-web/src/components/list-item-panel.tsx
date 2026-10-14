@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Pencil, Trash2, X } from 'lucide-react';
 import type { EntityDef, ListMeta } from '@onehuman/schemas';
@@ -35,9 +35,38 @@ export function ListItemPanel({
     setMode('view');
     setText('');
   }, [itemId]);
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panel.current?.querySelector<HTMLElement>('[aria-label="Close"]')?.focus();
+    return () => {
+      if (before && document.contains(before)) before.focus();
+    };
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !panel.current) return;
+      const all = [...panel.current.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
+        (el) => !el.hasAttribute('disabled') && el.getAttribute('tabindex') !== '-1',
+      );
+      const first = all[0];
+      const last = all[all.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (!panel.current.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -72,7 +101,7 @@ export function ListItemPanel({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <aside role="dialog" aria-modal="true" aria-labelledby="item-title" className="glass h-full w-full overflow-y-auto p-6 sm:max-w-xl">
+      <aside ref={panel} role="dialog" aria-modal="true" aria-labelledby="item-title" className="glass h-full w-full overflow-y-auto p-6 sm:max-w-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-fg-muted">{list.entity.label}</p>

@@ -292,11 +292,27 @@ export function ListPage() {
                         className="size-4 accent-[var(--oh-primary)]"
                       />
                     </td>
-                    {columns.map((c) => (
-                      <td key={c.name} className="max-w-xs truncate px-3 py-2.5 text-fg">
-                        {c.type === 'reference' ? (item.titles[c.name] ?? referenceText(item.data[c.name])) : recordCell(c, item.data[c.name])}
-                      </td>
-                    ))}
+                    {columns.map((c, ci) => {
+                      const text = c.type === 'reference' ? (item.titles[c.name] ?? referenceText(item.data[c.name])) : recordCell(c, item.data[c.name]);
+                      return (
+                        <td key={c.name} className="max-w-xs truncate px-3 py-2.5 text-fg">
+                          {ci === 0 ? (
+                            <button
+                              type="button"
+                              className="max-w-full truncate text-left hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openOne(item.id);
+                              }}
+                            >
+                              {text}
+                            </button>
+                          ) : (
+                            text
+                          )}
+                        </td>
+                      );
+                    })}
                     <td className="whitespace-nowrap px-3 py-2.5 text-fg-muted">{item.source.label}</td>
                     <td className="px-3 py-2.5">
                       <Status item={item} />
