@@ -4,6 +4,7 @@ import { FieldTypeSchema, ORG_TYPES, SECTORS, type Pack, type ResolvedPack, type
 import {
   composeForSector,
   composeOfflinePack,
+  defaultRegisterId,
   matchIndustry,
   normalizeIndustry,
   PackError,
@@ -50,6 +51,8 @@ const GenPackSchema = z.strictObject({
       ),
     }),
   ),
+  /** Up to four of this pack's own entity names the head most needs to see as lists (bills, tickets, site issues…). */
+  main_lists: z.array(z.string()),
   tools: z.array(
     z.strictObject({
       name: z.string(),
@@ -131,6 +134,7 @@ How to design a good pack:
 - Build on the base packs listed below through "extends" and only add what this industry needs on top. Do not repeat entities, agents or tools the base packs already provide; you may override a base agent by reusing its role id.
 - Use "labels" to rename shared entities into the industry's words (for example Customer -> Patient, Booking -> Appointment).
 - Entities: PascalCase names, camelCase field names, 4-10 fields each. Field types: string, text, number, integer, boolean, date, datetime, email, phone, money, enum (with options), reference.
+- Main lists: in "main_lists", name up to 4 of your own entities (by name) that the head of the organization most needs to see as lists to check, for example bills, tickets or site issues.
 - Tools: agents may only use catalog primitives or tool aliases you define. An alias wraps one primitive and can pin an entity and a status value (for example "lab.order_test" uses records.create on entity LabOrder). Mark external_reach and reversible honestly.
 - Agents: 2-4 industry agents with clear, narrow roles. autonomy is the highest level the agent may act at without approval: 1 observe, 2 draft and recommend, 3 act within limits, 4 may propose actions that need approval. Give money-moving agents autonomy 4.
 - Policies: require approval for anything irreversible, anything that commits the business to a customer or supplier, and money above sensible thresholds in INR for a small Indian business. Use forbid_above for hard limits. Regulated work (medical, legal, financial advice) must always require approval by a professional.
@@ -317,6 +321,7 @@ export class PackGenerator {
         title_field: e.title_field,
         fields: e.fields.map((f) => ({ ...f, options: f.options ?? undefined })),
       })),
+      registers: mainListRegisters(g.entities.map((e) => e.name), g.main_lists),
       tools: g.tools.map((t) => ({
         name: t.name,
         description: t.description,
@@ -369,6 +374,15 @@ export class PackGenerator {
       connectors: g.connectors,
     });
   }
+}
+
+/** The model's main lists → lists with default settings, for its own record types only, at most four. */
+export function mainListRegisters(ownEntities: string[], mainLists: string[]): { id: string; entity: string; main: true }[] {
+  const own = new Set(ownEntities);
+  return [...new Set(mainLists)]
+    .filter((name) => own.has(name))
+    .slice(0, 4)
+    .map((name) => ({ id: defaultRegisterId(name), entity: name, main: true as const }));
 }
 
 /** "clients, enquiries, projects and milestones" */
