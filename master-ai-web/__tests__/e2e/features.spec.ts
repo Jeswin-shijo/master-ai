@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { newOrganization, signInAs, WELDING } from './helpers';
 
-/** The features no other browser test touches: the kill switch, Knowledge, Team with routines, and Records. */
+/** The features no other browser test touches: the kill switch, Knowledge, Team with routines. */
 
 test('the kill switch pauses every agent and the owner’s new requests, until it is resumed', async ({ page }) => {
   const org = await newOrganization('power-plant');
@@ -64,20 +64,4 @@ test('a person added on Team is phoned by an automatic check-in, and their answe
   // Every person in charge (the sample team and Ramesh) answers the AI's call.
   await expect(page.getByText('Everyone', { exact: true })).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText('Not reported yet')).toHaveCount(0);
-});
-
-test('Records search narrows the sample records to the ones that match', async ({ page }) => {
-  const org = await newOrganization('wholesale-retail');
-  await signInAs(page, org);
-  await page.goto('/records');
-  const rows = page.locator('tbody tr');
-  await expect(rows.first()).toBeVisible();
-  const before = await rows.count();
-  const first = (await rows.first().locator('td').first().innerText()).trim();
-  await page.getByLabel('Search records').fill(first);
-  await expect(rows.filter({ hasText: first }).first()).toBeVisible();
-  await page.getByLabel('Search records').fill('zzz no record has this zzz');
-  await expect(rows).toHaveCount(0);
-  await page.getByLabel('Search records').fill('');
-  await expect(rows).toHaveCount(before);
 });

@@ -18,6 +18,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { registersOf } from '@onehuman/agent-kit';
 import { createDeviceKey, type ApiClient } from '@onehuman/sdk';
 import { loadPackRegistry, loadSuites } from '../../evals/src/runner.ts';
 import {
@@ -81,6 +82,14 @@ async function runOne(run: SectorRun): Promise<RunResult> {
     if (installed.join(' | ') !== want.stageNames.join(' | ')) throw new Error(`installed with the stages ${installed.join(', ')}`);
     if (!org.ws.pack.lineage.includes(run.basedOn)) throw new Error(`built on ${org.ws.pack.lineage.join(' → ')}, expected ${run.basedOn}`);
     log(`${run.id}: installed`, `${org.ws.pack.lineage.join(' → ')} · ${installed.join(' → ')}`);
+
+    // Every list opens, and the type has exactly its pack's main lists.
+    const lists = await owner.lists.overview();
+    const wantMain = registersOf(org.ws.pack).filter((r) => r.main).map((r) => r.id);
+    const gotMain = lists.lists.filter((l) => l.main).map((l) => l.id);
+    if (gotMain.join() !== wantMain.join()) throw new Error(`main lists ${gotMain.join(', ') || 'none'}, expected ${wantMain.join(', ') || 'none'}`);
+    for (const l of lists.lists) await owner.lists.page(l.id, { range: 'all' });
+    log(`${run.id}: lists`, `${gotMain.join(', ') || 'default lists only'} (${lists.lists.length} open)`);
 
     await owner.tenant.updateSettings({ calls: { simulatorMode: 'auto', fastSchedule: true } });
     const ownerKey = createDeviceKey(new Uint8Array(randomBytes(32)));
