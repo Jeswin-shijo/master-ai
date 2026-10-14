@@ -3,7 +3,7 @@ import type { CaseFile, ResolvedPack } from '@onehuman/schemas';
 import { GENERIC_LIFECYCLE } from '@onehuman/agent-kit';
 import { isUniqueViolation } from '../db/errors';
 import { stageWorkflowId } from '../orchestration/shared';
-import { appendInfo, caseReadiness, pauseRefusal } from './case-context';
+import { appendInfo, caseReadiness, executeSummary, pauseRefusal } from './case-context';
 
 describe('opening cases', () => {
   it('explains that an old workspace needs the update', () => {
@@ -50,5 +50,24 @@ describe('kill switch and new requests', () => {
 
   it('refuses nobody while nothing is paused', () => {
     expect(pauseRefusal('owner', { tenant: false, workspace: false })).toBeNull();
+  });
+});
+
+describe('what stage 6 says about its work', () => {
+  const report = (done: string[] = [], attention: string[] = []) => ({ done, attention });
+
+  it('says the work is done, with the first thing done', () => {
+    expect(executeSummary('completed', report(['Recorded the accident']))).toBe('The work is done: Recorded the accident');
+    expect(executeSummary('completed', report())).toBe('The work is done.');
+  });
+
+  it('says work that failed, or was still going when it stopped, stopped before it finished', () => {
+    expect(executeSummary('failed', report())).toBe('The work stopped before it finished.');
+    expect(executeSummary('running', report([], ['Call Meera about LN-07731']))).toBe('The work stopped before it finished: Call Meera about LN-07731');
+  });
+
+  it('words the other endings for people, never with underscores', () => {
+    expect(executeSummary('partially_completed', report([], ['Ask the bank for the statement']))).toBe('Part of the work is done: Ask the bank for the statement');
+    expect(executeSummary('cancelled', report())).toBe('The work was cancelled.');
   });
 });

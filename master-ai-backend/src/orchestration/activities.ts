@@ -88,7 +88,7 @@ export function createActivities(app: INestApplicationContext) {
     closeGate: (i: StageWorkflowInput & { gate: GateName; approvalId: string; decision: 'approved' | 'rejected' | 'expired'; notes?: string }) =>
       stages.closeGate(i),
     startExecution: (i: StageWorkflowInput) => stages.startExecution(i),
-    finishExecution: (i: StageWorkflowInput & { goalId: string }) => stages.finishExecution(i),
+    finishExecution: (i: StageWorkflowInput & { goalId: string; failed?: boolean }) => stages.finishExecution(i),
     cancelExecution: (i: StageWorkflowInput & { goalId: string }) => stages.cancelExecution(i),
     verifyClose: (i: StageWorkflowInput) => stages.verifyClose(i),
     finishCase: (i: { tenantId: string; caseId: string; ending: CaseEnding; reason: string | null }) => stages.finishCase(i),

@@ -158,6 +158,7 @@ export async function stageWorkflow(input: StageWorkflowInput): Promise<StageRes
     const started = await db.startExecution(input);
     const scope = new CancellationScope();
     let finished = false;
+    let failed = false;
     const work = scope.run(() =>
       executeChild('goalWorkflow', {
         workflowId: started.workflowId,
@@ -168,7 +169,10 @@ export async function stageWorkflow(input: StageWorkflowInput): Promise<StageRes
     );
     work.then(
       () => (finished = true),
-      () => (finished = true),
+      () => {
+        finished = true;
+        failed = true;
+      },
     );
     await condition(() => finished || cancelled);
     if (cancelled && !finished) {
@@ -177,7 +181,7 @@ export async function stageWorkflow(input: StageWorkflowInput): Promise<StageRes
       await db.cancelExecution({ ...input, goalId: started.goalId });
       return stop();
     }
-    await db.finishExecution({ ...input, goalId: started.goalId });
+    await db.finishExecution({ ...input, goalId: started.goalId, failed });
     return { outcome: 'done' };
   };
 

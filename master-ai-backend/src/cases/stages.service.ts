@@ -30,7 +30,7 @@ import { stageWorkflowId, type CaseEnding, type GateName, type GateOpened, type 
 import { PolicyService } from '../policy/policy.service';
 import { ReportsService } from '../reports/reports.service';
 import { TeamService } from '../voice/team.service';
-import { loadCaseContext, type CaseContext } from './case-context';
+import { executeSummary, loadCaseContext, type CaseContext } from './case-context';
 import { gateStep } from './gate-step';
 import { StageModel } from './stage-model';
 
@@ -528,16 +528,15 @@ export class CaseStagesService {
     });
   }
 
-  async finishExecution(i: StageWorkflowInput & { goalId: string }) {
+  /** Stage 6 is over. `failed`: the goal's workflow failed (a model or tool kept erroring), so its work stops here. */
+  async finishExecution(i: StageWorkflowInput & { goalId: string; failed?: boolean }) {
     await this.db.tenant(i.tenantId, async (tx) => {
       const ctx = await loadCaseContext(tx, i.caseId);
+      if (i.failed) await this.stopFailedGoal(tx, i.tenantId, i.goalId);
       const [goal] = await tx.select().from(goals).where(eq(goals.id, i.goalId));
       if (!goal) throw new Error(`Goal ${i.goalId} not found`);
       const [report] = await this.reports.reportsFor(tx, [goal]);
-      const summary =
-        goal.status === 'completed'
-          ? `The work is done${report?.done[0] ? `: ${report.done[0]}` : '.'}`
-          : `The work ended ${goal.status.replace(/_/g, ' ')}${report?.attention[0] ? `: ${report.attention[0]}` : '.'}`;
+      const summary = executeSummary(goal.status, report);
       const execute = {
         goalId: goal.id,
         ...(goal.plan?.workflowId && { workflow: goal.plan.workflowId }),
@@ -548,6 +547,25 @@ export class CaseStagesService {
       };
       await this.save(tx, ctx, i, { part: { execute }, status: 'done', summary, actor: 'Work agents' });
     });
+  }
+
+  /** A goal whose workflow failed is not running any more: say so, and close what it left open. */
+  private async stopFailedGoal(tx: Tx, tenantId: string, goalId: string) {
+    const [goal] = await tx
+      .update(goals)
+      .set({ status: 'failed', summary: 'Stopped before it finished: an error kept the work from going on.', completedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(goals.id, goalId), inArray(goals.status, ['planning', 'awaiting_plan_approval', 'running'])))
+      .returning();
+    if (!goal) return;
+    await tx
+      .update(tasks)
+      .set({ status: 'failed', waitingOn: null })
+      .where(and(eq(tasks.goalId, goalId), inArray(tasks.status, ['pending', 'running', 'waiting_approval', 'waiting_on_team', 'paused'])));
+    await tx
+      .update(approvalRequests)
+      .set({ status: 'expired' })
+      .where(and(eq(approvalRequests.goalId, goalId), eq(approvalRequests.status, 'pending')));
+    await this.audit.append(tx, tenantId, { type: 'goal.completed', actor: SYSTEM, goalId, payload: { status: 'failed', reason: 'The work stopped after an error' } });
   }
 
   /** The case was cancelled while its work ran: stop the goal cleanly. */

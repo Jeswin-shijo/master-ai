@@ -51,3 +51,21 @@ export async function loadCaseContext(tx: Tx, caseId: string) {
 }
 
 export type CaseContext = Awaited<ReturnType<typeof loadCaseContext>>;
+
+/**
+ * What stage 6 says about its work, for people. Work still marked running when
+ * the stage ends stopped early (its workflow failed), so it says that.
+ */
+export function executeSummary(status: string, report?: { done: string[]; attention: string[] }): string {
+  const first = (lines?: string[]) => (lines?.[0] ? `: ${lines[0]}` : '.');
+  switch (status) {
+    case 'completed':
+      return `The work is done${first(report?.done)}`;
+    case 'partially_completed':
+      return `Part of the work is done${first(report?.attention)}`;
+    case 'cancelled':
+      return `The work was cancelled${first(report?.attention)}`;
+    default:
+      return `The work stopped before it finished${first(report?.attention)}`;
+  }
+}
