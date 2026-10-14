@@ -105,6 +105,7 @@ P-0310   Purchase bill  Kerala Agencies    11 Oct  ₹96,000    Part-paid AI age
 42 bills · Taxable ₹2,71,000 · GST ₹48,780 · Total ₹3,19,780
 ```
 
+- **Items with no date:** while a date range is on, the list says how many matching items have no date ("3 bills have no bill date") with a link to All time, so nothing is hidden by the range.
 - **Filters:** the register's filter fields (choice chips for enums with up to 6 options, a dropdown otherwise; Yes/No for booleans; a searchable picker for references), "Came in", the "Show" states, a text search over the item's fields, and the date range (Today, This week, This month, Last month, Custom, All time; India time; weeks start Monday). A list with no `date_field` opens on All time.
 - **Sort:** any column, both directions.
 - **Totals** are summed in SQL over every matching item, not only the page on screen. Pages hold 50 items.
@@ -145,11 +146,11 @@ How each kind behaves:
 | Kind | Problem when | Skips when | Example message |
 |---|---|---|---|
 | `missing` | a listed field is blank (yes/no: not yes) | — | "Party is missing" |
-| `adds_up` | \|field − (Σplus − Σminus)\| > tolerance (default 1) | any part is blank | "Total ₹48,260 doesn't equal taxable + GST (₹48,200)" |
+| `adds_up` | \|field − (Σplus − Σminus)\| > tolerance (default 1) | the field or any `plus` part is blank (a blank `minus` part, such as no deduction, counts as 0) | "Total ₹48,260 doesn't equal taxable + GST (₹48,200)" |
 | `limit` | Σfields > max × factor, or Σfields < min | any side is blank | "Paid ₹5,000 is more than due ₹4,500" |
-| `duplicate` | another item of the same entity has the same values in every listed field | any listed field is blank | "Same bill number as another bill for this party" (links to it) |
+| `duplicate` | another item of the same entity has the same values in every listed field (and meets `when`) | any listed field is blank | "Same type, bill no. and party as another bill" (links to it) |
 | `overdue` | date + grace_days is before today (datetimes: before now) | the date is blank | "Due on 20 Oct, 3 days ago" |
-| `expiring` | the date is within `days` from today and not yet past | the date is blank | "Insurance ends in 12 days" |
+| `expiring` | the date is within `days` from today, or already past | the date is blank | "Insurance valid until is in 12 days (26 Oct 2026)" / "… passed on 2 Oct 2026, 12 days ago" |
 
 There is also one built-in check with no configuration: a **reference field** whose value is not the id of an existing item of the referenced type is a problem ("Party 'Ganesh traders' isn't in your Parties"). Collection calls rely on it (section 4).
 
@@ -376,10 +377,10 @@ Every new table is tenant-scoped with row-level security, like the rest; `tenant
 
 | Part | Events |
 |---|---|
-| 1 | `record.created` (now with `source`), `record.updated`, `record.checked` (with acknowledged keys and note), `record.removed`, `records.samples_removed` |
+| 1 | `record.created` (now with `source`), `record.updated`, `record.checked` (with acknowledged keys and note), `record.removed`, `record.samples_removed` |
 | 2 | `followup.switched`, `note.created`, `note.applied`, `note.dismissed`, `do_not_call.added`, and the existing `call.*` events for follow-up and collection calls |
 
-Realtime publishes `records.changed { entity }` after commit, so an open list refreshes.
+Every one of these audit events already reaches open browsers after commit (`RealtimeEvent`); the web refreshes lists on any `record.*` event, so no separate realtime event is needed. The samples event is named `record.samples_removed` so it falls in the same `record` area.
 
 ---
 
@@ -390,13 +391,13 @@ Realtime publishes `records.changed { entity }` after commit, so an open list re
 | Method and path | What it does |
 |---|---|
 | `GET /lists` | Registers and other lists, with a card summary for each `{ count, countLabel, sum, sumLabel, problems, notChecked, newNotes }` (section 1) |
-| `GET /lists/:id` | Query: `from`, `to`, `q`, `f.<field>=<value>` (repeatable), `source`, `show=problems \| not_checked \| checked \| new_notes`, `sort=<field>:<dir>`, `page`. Returns `{ items, total, totals, page, pageSize }`. Each item: `{ id, data, titles, source, updated, problems: [{ key, message, acknowledged }], checked, newNotes }` |
+| `GET /lists/:id` | Query: `from`, `to`, `q`, `f.<field>=<value>` (repeatable), `source`, `show=problems \| not_checked \| checked \| new_notes`, `sort=<field>:<dir>`, `page`. Returns `{ list, items, total, totals, undated, page, pageSize }`. Each item: `{ id, data, titles, source, updated, problems: [{ key, message, acknowledged }], checked, newNotes }` |
 | `GET /lists/:id/items/:itemId` | The item with its history (its audit events) and notes |
 | `POST /lists/:id/items` | Create |
 | `PATCH /lists/:id/items/:itemId` | `{ data, note? }` |
 | `POST /lists/:id/items/:itemId/check` | `{ note? }`; returns 400 without a note when there are unacknowledged problems |
 | `POST /lists/:id/check` | `{ ids }`; returns `{ checked, skipped }` |
-| `DELETE /lists/:id/items/:itemId` | `{ reason }` |
+| `POST /lists/:id/items/:itemId/remove` | `{ reason }` (a POST, because a DELETE body is not reliably passed on) |
 | `GET /lists/:id/export.csv` | The same filters as the list |
 | `DELETE /lists/samples` | Removes sample items from every list |
 
@@ -662,7 +663,7 @@ How to read the rules in this appendix:
 |---|---|---|---|
 | **Service applications** (ServiceApplication) | receivedOn | count ? status open (received, papers-pending, inspection, sanctioned) | overdue(dueBy) ? open, why "Right to Services deadline" · missing(designatedOfficer) · duplicate(applicationNo) |
 | **Properties** (Property) | — | Σ arrears · "arrears" | overdue(lastPaidOn +365) ? arrears above 0 |
-| **Trade licences** (TradeLicence) | validTill | count ? status = active | expiring(validTill, 30) · overdue(validTill) ? status = active |
+| **Trade licences** (TradeLicence) | validTill | count ? status = active | expiring(validTill, 30) ? status = active |
 
 - **Follow-up:** **S "Overdue applications → the officer"**: overdue dueBy ? open. Staff `designatedOfficer`. About applicationNo, service, applicant, dueBy. Finds out status.
 - **Collection:** "Applications received today". Mon–Sat 17:30, the counter clerk. Asks service, applicant, phone, ward, designatedOfficer [receivedOn = today].
@@ -685,7 +686,7 @@ How to read the rules in this appendix:
 | List | Date | Card | Checks |
 |---|---|---|---|
 | **Filings** (Filing) | dueDate | count ? status open (not-started, waiting-for-client, prepared, in-review, client-approval) | overdue(dueDate) ? open · overdue(internalDeadline) ? open · missing(reviewedBy, acknowledgementNo) ? status ∈ filed, verified, closed |
-| **Tax notices** (TaxNotice) | noticeDate | count ? status ∈ received, drafting, partner-review | overdue(replyDueDate) ? status ∈ received, drafting, partner-review · expiring(replyDueDate, 7) ? the same · missing(verified), why "check the notice is genuine" · duplicate(referenceNo) |
+| **Tax notices** (TaxNotice) | noticeDate | count ? status ∈ received, drafting, partner-review | expiring(replyDueDate, 7) ? status ∈ received, drafting, partner-review (it also flags a reply date that has passed) · missing(verified), why "check the notice is genuine" · duplicate(referenceNo) |
 | **Signed reports** (SignedReport) | signedOn | count | missing(udin) ? signedOn filled, why "UDIN within 60 days of signing" |
 
 - **Follow-up:** **P "Papers the client hasn't sent → the client"**: expiring dueDate 10 days ? status = waiting-for-client. Phone via lookup Customer where name = client → phone. Contact `client`. About filingType, period, dueDate. Finds out a promise date only.
@@ -695,9 +696,9 @@ How to read the rules in this appendix:
 
 | List | Date | Card | Checks |
 |---|---|---|---|
-| **Vouchers** (Voucher) | paidOn | Σ amount · "paid out" | missing(approvedBy) ? status ∈ approved, paid · limit(quotations ≥ 3) ? amount above 25000, why "three quotations above ₹25,000" · duplicate(voucherNumber) |
+| **Vouchers** (Voucher) | — (unpaid vouchers have no date) | Σ amount ? status = paid · "paid out" | missing(approvedBy) ? status ∈ approved, paid · limit(quotations ≥ 3) ? amount above 25000, why "three quotations above ₹25,000" · duplicate(voucherNumber) |
 | **Donations** (Donation) | receivedOn | Σ amount · "received" | missing(panOrId, certificateSentOn) · limit(amount ≤ 2000) ? mode = cash, why "cash donations above ₹2,000 get no 80G deduction" · duplicate(receiptNumber) |
-| **Grants** (Grant) | startDate | Σ amountAgreed ? status = active · "active" | limit(spentToDate ≤ receivedToDate) · limit(adminSpent ≤ 0.2 × receivedToDate) ? isForeign = true, why "FCRA: admin costs up to 20%" · overdue(nextReportDue) ? status ∈ signed, active, closing · expiring(nextReportDue, 15) ? the same |
+| **Grants** (Grant) | startDate | Σ amountAgreed ? status = active · "active" | limit(spentToDate ≤ receivedToDate) · limit(adminSpent ≤ 0.2 × receivedToDate) ? isForeign = true, why "FCRA: admin costs up to 20%" · expiring(nextReportDue, 15) ? status ∈ signed, active, closing |
 | **Beneficiaries** (Beneficiary) | — | count ? status = served | missing(consentOn) |
 
 - **Follow-up:** **S "Grant reports due → the programme lead"**: expiring nextReportDue 15 days ? status ∈ signed, active, closing. Staff `programmeLead`. About grantCode, donorName, nextReportDue. Finds out nextReportDue.
