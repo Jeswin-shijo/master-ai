@@ -84,3 +84,16 @@ describe('values in words and in CSV', () => {
     expect(csvValue({ type: 'string' }, null)).toBe('');
   });
 });
+
+describe('date-times with no zone are India time', () => {
+  it('keeps the day and the clock as written', () => {
+    expect(dayOf('2026-10-14T23:30')).toBe('2026-10-14');
+    expect(istStamp('2026-10-14T23:30')).toBe('2026-10-14 23:30');
+    expect(dayOf('2026-10-14T23:30:00Z')).toBe('2026-10-15');
+    expect(istStamp('2026-10-14T23:30:00+05:30')).toBe('2026-10-14 23:30');
+  });
+  it('reads a date field as its written day', () => {
+    expect(csvValue({ type: 'date' }, '2026-10-14T23:30:00Z')).toBe('2026-10-14');
+    expect(csvValue({ type: 'datetime' }, '2026-10-14T23:30:00Z')).toBe('2026-10-15 05:00');
+  });
+});

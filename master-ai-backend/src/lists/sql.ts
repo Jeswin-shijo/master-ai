@@ -122,11 +122,28 @@ export function openProblems(reg: ResolvedRegister): SQL {
   )})`;
 }
 
+/** Search: the values people see (not field names, not reference ids) or the title of a referenced item. */
+function searchSql(reg: ResolvedRegister, q: string): SQL {
+  const needle = sql`lower(${q}::text)`;
+  const refs = reg.entity.fields.filter((f) => f.type === 'reference').map((f) => f.name);
+  const skip = refs.length ? sql` and e.key not in (${sql.join(refs.map((n) => sql`${n}::text`), sql`, `)})` : sql``;
+  const parts: SQL[] = [sql`exists (select 1 from jsonb_each_text(r.data) e where position(${needle} in lower(e.value)) > 0${skip})`];
+  for (const c of reg.checks) {
+    if (c.kind !== 'ref') continue;
+    const title = c.target.title_field ?? c.target.fields.find((f) => f.type === 'string')?.name;
+    if (!title) continue;
+    parts.push(
+      sql`exists (select 1 from records t where t.workspace_id = r.workspace_id and t.entity = ${c.target.name} and t.id::text = r.data->>${c.field.name} and position(${needle} in lower(coalesce(t.data->>${title}, ''))) > 0)`,
+    );
+  }
+  return sql`(${sql.join(parts, sql` or `)})`;
+}
+
 export function whereSql(reg: ResolvedRegister, q: ParsedListQuery): SQL {
   const parts: SQL[] = [];
   if (q.dates && reg.dateField) parts.push(sql`${dayExpr(reg.dateField)} between ${q.dates.from}::date and ${q.dates.to}::date`);
   // position(), not ILIKE: % and _ in what someone types are searched for, not wildcards.
-  if (q.q) parts.push(sql`position(lower(${q.q}::text) in lower(r.data::text)) > 0`);
+  if (q.q) parts.push(searchSql(reg, q.q));
   for (const f of q.filters) parts.push(sql`r.data->>${f.field.name} = ${f.value}`);
   if (q.source) parts.push(sql`r.source = ${q.source}`);
   if (q.show === 'problems') parts.push(openProblems(reg));

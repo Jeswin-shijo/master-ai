@@ -155,6 +155,32 @@ describe('a list page', () => {
     expect((await lists.page(a.tenantId, 'bills', { range: 'all', q: '50%_' })).items.map((i) => i.data.billNo)).toEqual(['50%_OFF']);
   });
 
+  it('searches the values people see, not field names, ids or JSON quoting', async () => {
+    const quoted = await add('Party', { name: 'Sri "Ganesh" Traders', partyType: 'retailer', phone: '+91 98470 00002' });
+    const found = await lists.page(a.tenantId, 'parties', { range: 'all', q: '"Ganesh"' });
+    expect(found.items.map((i) => i.id)).toEqual([quoted]);
+    const noTax = await add('Bill', bill('TX-1'));
+    const tax = (await lists.page(a.tenantId, 'bills', { range: 'all', q: 'tax' })).items.map((i) => i.id);
+    expect(tax).not.toContain(noTax);
+    const byParty = await add('Bill', bill('BP-1', { party: quoted }));
+    const viaParty = await lists.page(a.tenantId, 'bills', { range: 'all', q: 'ganesh' });
+    expect(viaParty.items.map((i) => i.id)).toEqual([byParty]);
+    expect((await lists.page(a.tenantId, 'bills', { range: 'all', q: quoted.slice(0, 8) })).total).toBe(0);
+  });
+
+  it('reads an offset-less date-time as India time in SQL, and one with an offset as given', async () => {
+    const { rows } = await h.owner.query(
+      `select (try_timestamptz('2026-10-14T23:30') at time zone 'Asia/Kolkata')::date::text as a, (try_timestamptz('2026-10-14T23:30:00Z') at time zone 'Asia/Kolkata')::date::text as b`,
+    );
+    expect(rows[0]).toEqual({ a: '2026-10-14', b: '2026-10-15' });
+  });
+
+  it('puts a date-time with no offset on its India day', async () => {
+    await add('Order', { customerName: 'Late Co', items: '1 box', amount: 100, status: 'new', orderedAt: `${today}T23:30` });
+    const page = await lists.page(a.tenantId, 'orders', { range: 'today' });
+    expect(page.items.some((i) => i.data.orderedAt === `${today}T23:30`)).toBe(true);
+  });
+
   it('says how each item came in, and shows references by their title', async () => {
     const sample = (await lists.page(a.tenantId, 'parties', { range: 'all', source: 'sample' })).items[0]!;
     expect(sample.source).toEqual({ kind: 'sample', label: 'Sample data' });

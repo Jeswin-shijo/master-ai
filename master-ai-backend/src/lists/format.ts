@@ -20,10 +20,21 @@ export function isDay(d: string): boolean {
   return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
 }
 
+/** A date-time with a time part but no zone (no Z, no ±hh:mm): written in India time. */
+const noZone = (v: string) => /[T ]\d{2}:\d{2}/.test(v) && !/(Z|[+-]\d{2}(:?\d{2})?)$/i.test(v.slice(10));
+
+/** A date field's day: the YYYY-MM-DD it is written with, as the SQL reads it. */
+function writtenDay(v: unknown): string | null {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) && isDay(v.slice(0, 10)) ? v.slice(0, 10) : null;
+}
+
+/** The day of a field's value: as written for a date, the India day for a date-time. */
+const dayFor = (field: Pick<EntityField, 'type'>, v: unknown) => (field.type === 'date' ? writtenDay(v) : dayOf(v));
+
 /** The India-time calendar day of a date or date-time, or null when the value isn't one. */
 export function dayOf(v: unknown): string | null {
   if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(v) || !isDay(v.slice(0, 10))) return null;
-  if (v.length === 10) return v;
+  if (v.length === 10 || noZone(v)) return v.slice(0, 10);
   const at = Date.parse(v);
   return Number.isNaN(at) ? null : new Date(at + IST_MS).toISOString().slice(0, 10);
 }
@@ -36,6 +47,7 @@ export function dayText(day: string): string {
 /** "2026-10-14 15:30", India time, or null when the value isn't a date-time. */
 export function istStamp(v: unknown): string | null {
   if (typeof v !== 'string') return null;
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v) && noZone(v)) return isDay(v.slice(0, 10)) ? v.slice(0, 16).replace('T', ' ') : null;
   const at = Date.parse(v);
   return Number.isNaN(at) ? null : new Date(at + IST_MS).toISOString().slice(0, 16).replace('T', ' ');
 }
@@ -59,7 +71,7 @@ export function shown(field: EntityField, v: unknown, titles?: Map<string, strin
     }
     case 'date':
     case 'datetime': {
-      const d = dayOf(v);
+      const d = dayFor(field, v);
       return d ? dayText(d) : String(v);
     }
     case 'boolean':
@@ -99,12 +111,12 @@ export function problemMessage(check: ListCheck, data: Record<string, unknown>, 
     case 'duplicate':
       return `Same ${check.fields.map((f) => f.label).join(', ')} as another ${entity.label.toLowerCase()}${why}`;
     case 'overdue': {
-      const day = dayOf(data[check.field.name]) ?? today;
+      const day = dayFor(check.field, data[check.field.name]) ?? today;
       const n = daysBetween(day, today);
       return `${check.field.label} was ${dayText(day)}, ${n === 0 ? 'today' : `${days(n)} ago`}${why}`;
     }
     case 'expiring': {
-      const day = dayOf(data[check.field.name]) ?? today;
+      const day = dayFor(check.field, data[check.field.name]) ?? today;
       const n = daysBetween(today, day);
       if (n > 0) return `${check.field.label} is in ${days(n)} (${dayText(day)})${why}`;
       if (n === 0) return `${check.field.label} is today${why}`;
@@ -130,7 +142,7 @@ export function csvValue(field: Pick<EntityField, 'type'>, v: unknown, title?: s
     case 'integer':
       return asNumber(v)?.toString() ?? String(v);
     case 'date':
-      return dayOf(v) ?? String(v);
+      return writtenDay(v) ?? String(v);
     case 'datetime':
       return istStamp(v) ?? String(v);
     case 'boolean':
