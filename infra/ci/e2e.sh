@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# CI's end-to-end job, runnable locally the same way. Builds, migrates, starts
-# the API, the worker and the production web build, then runs the smoke test,
-# every organization type, and the browser tests. Always in offline LLM mode,
+# CI's end-to-end job, runnable locally the same way. Builds, migrates, runs the
+# backend's integration specs, starts the API, the worker and the production web
+# build, then runs the smoke test, every organization type, and the browser tests. Always in offline LLM mode,
 # even when the .env has a key, so results are deterministic. Needs Postgres,
 # Temporal and NATS (`pnpm infra:up`) and nothing else on :3000 or :5173, so
 # stop `pnpm dev` first.
@@ -22,6 +22,8 @@ done
 pnpm turbo run build --filter=@onehuman/backend... --filter=@onehuman/web...
 [ -f master-ai-backend/.env ] || cp master-ai-backend/.env.example master-ai-backend/.env
 pnpm db:migrate
+# The backend's integration specs make their own database (onehuman_test) on the same Postgres.
+pnpm test:integration
 
 stop() {
   for port in 3000 5173; do

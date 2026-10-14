@@ -8,6 +8,7 @@ There are six kinds of test, from fast checks on code to full runs through the r
 |---|---|---|---|
 | `pnpm turbo run build typecheck test` | Everything builds and type-checks, and every package's unit tests pass. That includes the scored test sets and the docs check | Nothing running | ~1–2 min |
 | `pnpm evals` | The 16 test sets, with a scorecard per organization type | Nothing running | seconds |
+| `pnpm test:integration` | The backend's services on a real database with row-level security: tenant isolation, invites, sign-in, the audit chain, the public form and intake API, and the stage service | `pnpm infra:up` | ~10 s |
 | `pnpm smoke` | The whole platform end to end through the API. One organization per sector runs a case through all 8 stages, then the edge cases | `pnpm dev` | ~4 min |
 | `pnpm e2e:sectors` | Every organization type end to end: the 15 ready-made types and one typed in the owner's own words per sector | `pnpm dev` | ~3 min |
 | `pnpm e2e` | The web app in a real browser (Playwright): Chromium at desktop and phone widths, and the main path in Firefox and WebKit | `pnpm dev` | ~2 min |
@@ -34,6 +35,21 @@ Every package has its own (`pnpm --filter <package> test`):
   - the test sets themselves, and the checks the sector run applies;
   - the live scorer's error handling;
   - `docs.test.ts`, which keeps the docs honest: links resolve, every decision record and root command is listed, and every organization type is named.
+
+## Integration specs (backend)
+
+`pnpm test:integration` runs `master-ai-backend/test/integration/*.spec.ts`. They boot the API's real modules the way the worker does, on a fresh `onehuman_test` database that the run creates beside the dev database and migrates. The services connect as `onehuman_app`, so row-level security applies as in production. Temporal is replaced by a recorder, so a spec calls the workflow's activities itself, in the workflow's order, and checks what the services asked Temporal to do. The AI is offline.
+
+| Spec | What it proves |
+|---|---|
+| `tenant-isolation` | Every table with a `tenant_id` has row-level security and the tenant policy (read from the catalog, so a new table without it fails); the app role can't bypass it; a company can't read or write another's rows |
+| `invites` | A link opens and joins only its own company, is stored as a hash, works once, and stops when withdrawn, expired or its admin is removed |
+| `identity` | Sign-up, sign-in (same answer for a wrong password and an unknown email, the lock after 10 wrong tries), picking and switching companies |
+| `audit-chain` | Concurrent changes get one gap-free chain; a rolled-back change leaves no line; edits are refused, and one made around the guards is found |
+| `intake` | The public form and intake API: own company only, withdrawn keys, the kill switch, repeated `externalRef` (even two at once), keys kept as hashes |
+| `stages` | The stage service: a job through all 8 stages with signed decisions by the role holder, a refused permit, an expired decision, failed work, the kill switch |
+
+Write a new one with `boot()` and `newOrg()` from `test/integration/harness.ts`. Each file gets its own organizations, so files don't depend on each other. CI runs them in the e2e job, where Postgres is up.
 
 ## Test sets (evals)
 
