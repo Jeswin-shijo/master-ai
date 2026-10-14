@@ -6,6 +6,13 @@ import type {
   CreatedInvite,
   Invite,
   InviteView,
+  CheckListItemInput,
+  ListItem,
+  ListItemDetail,
+  ListPage,
+  ListQueryParams,
+  ListsOverview,
+  UpdateListItemInput,
   Member,
   UpdateMemberInput,
   CancelCaseInput,
@@ -112,6 +119,18 @@ export interface WorkspacePolicy {
   cedar: string;
 }
 
+/** The query string for a list page: only what is set, filters as `f.<field>`. */
+export function listQuery(p: ListQueryParams = {}): string {
+  const entries: [string, string][] = [];
+  for (const key of ['range', 'from', 'to', 'q', 'source', 'show', 'sort'] as const) {
+    const v = p[key];
+    if (v) entries.push([key, v]);
+  }
+  if (p.page && p.page > 1) entries.push(['page', String(p.page)]);
+  for (const [field, v] of Object.entries(p.filters ?? {})) if (v) entries.push([`f.${field}`, v]);
+  return entries.length ? `?${entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')}` : '';
+}
+
 export type ApiClient = ReturnType<typeof createClient>;
 
 /** Typed client for the ONEHUMAN OS API, shared by web, mobile and partners. */
@@ -140,6 +159,19 @@ export function createClient(options: ClientOptions) {
       throw new ApiError(res.status, message, data);
     }
     return data as T;
+  }
+
+  /** A text answer (CSV). Same session header and errors as `request`. */
+  async function requestText(path: string): Promise<string> {
+    const token = await options.getToken?.();
+    const res = await doFetch(`${baseUrl}${path}`, { method: 'GET', headers: { Accept: 'text/csv', ...(token && { Authorization: `Bearer ${token}` }) } });
+    const text = await res.text();
+    if (!res.ok) {
+      const data: unknown = text ? safeJson(text) : null;
+      const bodyMessage = data && typeof data === 'object' && 'message' in data ? formatMessage((data as { message: unknown }).message) : '';
+      throw new ApiError(res.status, bodyMessage || res.statusText || `Request failed (${res.status})`, data);
+    }
+    return text;
   }
 
   const get = <T>(path: string) => request<T>('GET', path);
@@ -284,6 +316,19 @@ export function createClient(options: ClientOptions) {
       /** Simulator: speak as the staff member; returns the call with the AI's reply. */
       reply: (id: string, text: string) => post<CallRecord>(`/calls/${id}/reply`, { text }),
       decline: (id: string) => post<CallRecord>(`/calls/${id}/decline`),
+    },
+    lists: {
+      overview: () => get<ListsOverview>('/lists'),
+      page: (id: string, query: ListQueryParams = {}) => get<ListPage>(`/lists/${encodeURIComponent(id)}${listQuery(query)}`),
+      /** The filtered list as CSV text. fetch drops the byte order mark; add it back before saving (Excel needs it). */
+      exportCsv: (id: string, query: ListQueryParams = {}) => requestText(`/lists/${encodeURIComponent(id)}/export${listQuery({ ...query, page: undefined })}`),
+      item: (id: string, itemId: string) => get<ListItemDetail>(`/lists/${encodeURIComponent(id)}/items/${itemId}`),
+      create: (id: string, data: Record<string, unknown>) => post<ListItem>(`/lists/${encodeURIComponent(id)}/items`, { data }),
+      update: (id: string, itemId: string, input: UpdateListItemInput) => patch<ListItem>(`/lists/${encodeURIComponent(id)}/items/${itemId}`, input),
+      check: (id: string, itemId: string, input: CheckListItemInput = {}) => post<ListItem>(`/lists/${encodeURIComponent(id)}/items/${itemId}/check`, input),
+      checkMany: (id: string, ids: string[]) => post<{ checked: number; skipped: number }>(`/lists/${encodeURIComponent(id)}/check`, { ids }),
+      remove: (id: string, itemId: string, reason: string) => post<{ removed: true }>(`/lists/${encodeURIComponent(id)}/items/${itemId}/remove`, { reason }),
+      removeSamples: () => del<{ removed: number }>('/lists/samples'),
     },
     routines: {
       list: () => get<Routine[]>('/routines'),
