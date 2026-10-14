@@ -343,7 +343,7 @@ export const tasks = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
-  (t) => [index('tasks_goal_idx').on(t.goalId), index('tasks_status_idx').on(t.tenantId, t.status)],
+  (t) => [index('tasks_goal_idx').on(t.goalId), index('tasks_status_idx').on(t.tenantId, t.status), index('tasks_agent_idx').on(t.agentId)],
 );
 
 export const toolCalls = pgTable(
@@ -364,7 +364,7 @@ export const toolCalls = pgTable(
     createdAt: createdAt(),
     executedAt: timestamp('executed_at', { withTimezone: true }),
   },
-  (t) => [index('tool_calls_task_idx').on(t.taskId, t.createdAt)],
+  (t) => [index('tool_calls_task_idx').on(t.taskId, t.createdAt), index('tool_calls_goal_idx').on(t.goalId, t.createdAt)],
 );
 
 export const approvalRequests = pgTable(
@@ -404,6 +404,8 @@ export const approvalRequests = pgTable(
   (t) => [
     index('approvals_status_idx').on(t.tenantId, t.status, t.createdAt),
     index('approvals_case_idx').on(t.caseId),
+    index('approvals_goal_idx').on(t.goalId),
+    index('approvals_task_idx').on(t.taskId),
     check(
       'approval_kind_refs',
       sql`(${t.kind} = 'action' and ${t.goalId} is not null and ${t.taskId} is not null and ${t.toolCallId} is not null) or (${t.kind} = 'case_gate' and ${t.caseId} is not null and ${t.stage} is not null)`,
@@ -411,16 +413,20 @@ export const approvalRequests = pgTable(
   ],
 );
 
-export const deviceKeys = pgTable('device_keys', {
-  id: id(),
-  tenantId: tenantId(),
-  principalId: uuid('principal_id').notNull().references(() => principals.id, { onDelete: 'cascade' }),
-  publicKey: text('public_key').notNull(),
-  label: text('label').notNull(),
-  platform: text('platform', { enum: ['web', 'ios', 'android'] }).notNull(),
-  createdAt: createdAt(),
-  revokedAt: timestamp('revoked_at', { withTimezone: true }),
-});
+export const deviceKeys = pgTable(
+  'device_keys',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    principalId: uuid('principal_id').notNull().references(() => principals.id, { onDelete: 'cascade' }),
+    publicKey: text('public_key').notNull(),
+    label: text('label').notNull(),
+    platform: text('platform', { enum: ['web', 'ios', 'android'] }).notNull(),
+    createdAt: createdAt(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [index('device_keys_principal_idx').on(t.principalId)],
+);
 
 export const pushTokens = pgTable(
   'push_tokens',
@@ -433,7 +439,7 @@ export const pushTokens = pgTable(
     createdAt: createdAt(),
   },
   // One phone can be signed into several companies.
-  (t) => [uniqueIndex('push_tokens_tenant_token_idx').on(t.tenantId, t.token)],
+  (t) => [uniqueIndex('push_tokens_tenant_token_idx').on(t.tenantId, t.token), index('push_tokens_principal_idx').on(t.principalId)],
 );
 
 /** Sector entities from the pack, validated by the pack's schema before insert. */
@@ -491,7 +497,7 @@ export const knowledgeChunks = pgTable(
     /** Filled once an embedding provider is configured; search falls back to full text. */
     embedding: vector('embedding', { dimensions: 1024 }),
   },
-  (t) => [index('knowledge_chunks_tsv_idx').using('gin', t.tsv)],
+  (t) => [index('knowledge_chunks_tsv_idx').using('gin', t.tsv), index('knowledge_chunks_doc_idx').on(t.docId)],
 );
 
 /** Metering for every model call: tokens and cost per tenant, goal and task. */
@@ -566,7 +572,7 @@ export const staff = pgTable(
     principalId: uuid('principal_id').references(() => principals.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
-  (t) => [index('staff_tenant_idx').on(t.tenantId)],
+  (t) => [index('staff_tenant_idx').on(t.tenantId), index('staff_principal_idx').on(t.principalId)],
 );
 
 /** A repeating check-in (e.g. the daily work report), collected by phone or filled in by hand. */
@@ -632,7 +638,7 @@ export const delegations = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
-  (t) => [index('delegations_staff_idx').on(t.tenantId, t.staffId), index('delegations_task_idx').on(t.taskId)],
+  (t) => [index('delegations_staff_idx').on(t.tenantId, t.staffId), index('delegations_task_idx').on(t.taskId), index('delegations_goal_idx').on(t.goalId)],
 );
 
 /** Every phone call: who, which stage, attempt, transcript and what it established. */

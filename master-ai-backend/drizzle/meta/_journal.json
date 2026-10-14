@@ -78,6 +78,13 @@
       "when": 1791887506173,
       "tag": "0010_push_tokens_per_company",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791970467815,
+      "tag": "0011_lookup_indexes",
+      "breakpoints": true
     }
   ]
 }
