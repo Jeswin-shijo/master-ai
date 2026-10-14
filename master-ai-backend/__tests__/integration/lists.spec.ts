@@ -206,3 +206,132 @@ describe('a list page', () => {
     expect(csv).not.toMatch(UUID);
   });
 });
+
+/** Adds an item to another organization's list the way an AI agent would. */
+async function addTo(org: Org, entity: string, data: Record<string, unknown>): Promise<string> {
+  return h.get(DbService).tenant(org.tenantId, async (tx) => {
+    const svc = h.get(RecordsService);
+    const ws = await svc.activeWorkspace(tx);
+    return (await svc.create(tx, org.tenantId, ws, entity, data, { id: null, kind: 'agent' }, { kind: 'agent' })).id;
+  });
+}
+const keysIn = async (org: Org, list: string, id: string) => (await lists.item(org.tenantId, list, id)).item.problems.map((p) => p.key);
+const hours = (n: number) => new Date(Date.now() + n * 3_600_000).toISOString();
+
+// Spec §9: the SQL that decides what is a problem runs on Postgres, one positive and one negative item per variant.
+describe('every kind of check, in SQL', () => {
+  it('limit with a factor: admin costs up to 20% of what was received, for foreign money only', async () => {
+    const ngo = await newOrg(h, 'ngo');
+    const grant = (code: string, extra: Record<string, unknown>) =>
+      addTo(ngo, 'Grant', { grantCode: code, donorName: 'Donor', donorType: 'foreign', status: 'active', receivedToDate: 1_000_000, ...extra });
+    const over = await grant('G-1', { isForeign: true, adminSpent: 300_000 });
+    const within = await grant('G-2', { isForeign: true, adminSpent: 100_000 });
+    const notForeign = await grant('G-3', { isForeign: false, adminSpent: 300_000 });
+    const key = 'limit:adminSpent<=receivedToDate';
+    expect(await keysIn(ngo, 'grants', over)).toContain(key);
+    expect(await keysIn(ngo, 'grants', within)).not.toContain(key);
+    expect(await keysIn(ngo, 'grants', notForeign)).not.toContain(key);
+  });
+
+  it('when a number is above a value: the e-way bill is needed above ₹50,000', async () => {
+    const lg = await newOrg(h, 'logistics');
+    const ship = (lr: string, extra: Record<string, unknown>) =>
+      addTo(lg, 'Shipment', { lrNumber: lr, consignorName: 'Sender', fromCity: 'Kochi', toCity: 'Pune', status: 'booked', ...extra });
+    const big = await ship('LR-1', { declaredValue: 60_000 });
+    const small = await ship('LR-2', { declaredValue: 40_000 });
+    expect(await keysIn(lg, 'shipments', big)).toContain('missing:ewayBillNumber');
+    expect(await keysIn(lg, 'shipments', small)).not.toContain('missing:ewayBillNumber');
+  });
+
+  it('when a field is filled: a signed report needs its UDIN once signed', async () => {
+    const ca = await newOrg(h, 'accounting-firm');
+    const report = (extra: Record<string, unknown>) =>
+      addTo(ca, 'SignedReport', { client: 'Client Ltd', documentType: 'tax-audit-report', signingPartner: 'Partner', signedOn: day(-2), ...extra });
+    const signed = await report({});
+    const unsigned = await report({});
+    await h.owner.query(`update records set data = data - 'signedOn' where id = $1`, [unsigned]);
+    expect(await keysIn(ca, 'signed-reports', signed)).toContain('missing:udin');
+    expect(await keysIn(ca, 'signed-reports', unsigned)).not.toContain('missing:udin');
+  });
+
+  it('a yes/no field counts as missing when it is not true', async () => {
+    const pp = await newOrg(h, 'power-plant');
+    const permit = (no: string, extra: Record<string, unknown>) =>
+      addTo(pp, 'WorkPermit', { permitNo: no, permitType: 'confined-space', equipment: 'Boiler', status: 'requested', ...extra });
+    const unset = await permit('WP-1', {});
+    const no = await permit('WP-2', { gasTestOk: false });
+    const yes = await permit('WP-3', { gasTestOk: true });
+    expect(await keysIn(pp, 'work-permits', unset)).toContain('missing:gasTestOk');
+    expect(await keysIn(pp, 'work-permits', no)).toContain('missing:gasTestOk');
+    expect(await keysIn(pp, 'work-permits', yes)).not.toContain('missing:gasTestOk');
+  });
+
+  it('a date against another date: the trip cannot end before it starts', async () => {
+    const tr = await newOrg(h, 'travel-agency');
+    const trip = (extra: Record<string, unknown>) => addTo(tr, 'Trip', { travellerName: 'Asha', destination: 'Goa', status: 'planning', ...extra });
+    const backwards = await trip({ startDate: day(10), endDate: day(5) });
+    const forwards = await trip({ startDate: day(5), endDate: day(10) });
+    expect(await keysIn(tr, 'trips', backwards)).toContain('limit:endDate>=startDate');
+    expect(await keysIn(tr, 'trips', forwards)).not.toContain('limit:endDate>=startDate');
+  });
+
+  it('a date-time is overdue once past, and only while its when holds', async () => {
+    const pp = await newOrg(h, 'power-plant');
+    const permit = (no: string, extra: Record<string, unknown>) =>
+      addTo(pp, 'WorkPermit', { permitNo: no, permitType: 'mechanical', equipment: 'Pump', ...extra });
+    const late = await permit('WP-10', { status: 'issued', validTill: hours(-48) });
+    const live = await permit('WP-11', { status: 'issued', validTill: hours(48) });
+    const returned = await permit('WP-12', { status: 'returned', validTill: hours(-48) });
+    expect(await keysIn(pp, 'work-permits', late)).toContain('overdue:validTill');
+    expect(await keysIn(pp, 'work-permits', live)).not.toContain('overdue:validTill');
+    expect(await keysIn(pp, 'work-permits', returned)).not.toContain('overdue:validTill');
+  });
+
+  it('a date-time is expiring within its days, and not when further out', async () => {
+    const lg = await newOrg(h, 'logistics');
+    const ship = (lr: string, extra: Record<string, unknown>) =>
+      addTo(lg, 'Shipment', { lrNumber: lr, consignorName: 'Sender', fromCity: 'Kochi', toCity: 'Pune', status: 'in-transit', ...extra });
+    const soon = await ship('LR-10', { ewayBillValidUntil: hours(12) });
+    const later = await ship('LR-11', { ewayBillValidUntil: hours(5 * 24) });
+    expect(await keysIn(lg, 'shipments', soon)).toContain('expiring:ewayBillValidUntil');
+    expect(await keysIn(lg, 'shipments', later)).not.toContain('expiring:ewayBillValidUntil');
+  });
+
+  describe('kinds no ready-made type uses, on a list added to the snapshot', () => {
+    let org: Org;
+    const mine = (billNo: string, extra: Record<string, unknown>) => addTo(org, 'Bill', bill(billNo, extra));
+    beforeAll(async () => {
+      org = await newOrg(h, 'wholesale-retail');
+      const extra = {
+        id: 'bill-kinds', entity: 'Bill', label: 'Bill kinds', main: false,
+        checks: [
+          { adds_up: { field: 'total', plus: ['taxableValue', 'gstAmount'], minus: [], tolerance: 100 } },
+          { missing: ['dueDate'], when: { total: { below: 50 } } },
+          { missing: ['paymentStatus'], when: { dueDate: 'blank' } },
+        ],
+      };
+      await h.owner.query(`update workspaces set pack = jsonb_set(pack, '{registers}', coalesce(pack->'registers', '[]'::jsonb) || $2::jsonb) where id = $1`, [org.workspaceId, JSON.stringify([extra])]);
+    });
+
+    it('adds_up with a tolerance above 1: a difference inside it is fine', async () => {
+      const inside = await mine('T-1', { taxableValue: 1000, gstAmount: 180, total: 1130 });
+      const outside = await mine('T-2', { taxableValue: 1000, gstAmount: 180, total: 1030 });
+      expect(await keysIn(org, 'bill-kinds', inside)).not.toContain('adds_up:total');
+      expect(await keysIn(org, 'bill-kinds', outside)).toContain('adds_up:total');
+    });
+
+    it('when a number is below a value', async () => {
+      const small = await mine('B-1', { total: 40, paymentStatus: 'unpaid' });
+      const big = await mine('B-2', { total: 60, paymentStatus: 'unpaid' });
+      expect(await keysIn(org, 'bill-kinds', small)).toContain('missing:dueDate');
+      expect(await keysIn(org, 'bill-kinds', big)).not.toContain('missing:dueDate');
+    });
+
+    it('when a field is blank', async () => {
+      const noDue = await mine('K-1', { total: 100 });
+      const due = await mine('K-2', { total: 100, dueDate: day(5) });
+      expect(await keysIn(org, 'bill-kinds', noDue)).toContain('missing:paymentStatus');
+      expect(await keysIn(org, 'bill-kinds', due)).not.toContain('missing:paymentStatus');
+    });
+  });
+});
