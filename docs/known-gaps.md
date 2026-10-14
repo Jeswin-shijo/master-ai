@@ -21,10 +21,8 @@ What's left before going live (hosting, backups, sessions, monitoring) is in [Pr
 - Case titles keep a final full stop and can be cut after "St.".
 - Approval summaries put the case type in lower case, so short forms read oddly ("Approve ca certificates for ASG-0001").
 - Amounts are read from the request, not worked out from records (order lines × price list).
-- The stage service has no unit tests of its own; the smoke test and `pnpm e2e:sectors` cover it end to end.
 
 ## Roles and invites
-- Nothing tests that an invite link from one company can't be used in another (the database refuses it).
 - The approvals list is cut at 200 before it is filtered to *Mine*, so in a very busy company some of yours can be missing.
 - Two people accepting invites with the same email at the same moment can get an error instead of one joining.
 - The owner can't link their own team-directory record to their login, and linking a record that is already linked moves it without a warning.

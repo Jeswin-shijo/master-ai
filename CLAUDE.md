@@ -7,6 +7,7 @@ Read `README.md` first. The spec is `docs/architecture-plan.md`; decisions are i
 ## Commands
 - `pnpm infra:up` · `pnpm db:migrate` · `pnpm dev` (packages + API :3000 + worker + web :5173)
 - `pnpm turbo run build typecheck test` — must stay green
+- `pnpm coverage` — every package's unit tests in one run (root `vitest.config.mts`, vitest projects) with one coverage report in `coverage/index.html`
 - `pnpm smoke` — end-to-end against a running API + worker (offline LLM mode); it switches the tenant's calls to auto mode
 - `pnpm test:integration` — the backend's integration specs (`master-ai-backend/test/integration/*.spec.ts`): the real services on a fresh `onehuman_test` database beside the dev one, as `onehuman_app` with row-level security, Temporal replaced by a recorder. Needs only `pnpm infra:up` (not `pnpm dev`); ~10 s. A new table without row-level security fails `tenant-isolation.spec.ts`
 - `pnpm e2e` — browser tests (Playwright, Chromium) against a running `pnpm dev`: the signup-to-report journey at desktop width, plus a 390px phone project

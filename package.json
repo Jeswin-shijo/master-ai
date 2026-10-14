@@ -26,11 +26,13 @@
     "e2e": "pnpm --filter @onehuman/web e2e",
     "e2e:mobile": "node master-ai-mobile/e2e/run.mts",
     "e2e:sectors": "pnpm --filter @onehuman/backend e2e:sectors",
-    "test:integration": "pnpm --filter @onehuman/backend test:integration"
+    "test:integration": "pnpm --filter @onehuman/backend test:integration",
+    "coverage": "pnpm build:packages && vitest run --coverage"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "5.0.3",
+    "prettier": "^3.6.2",
     "turbo": "^2.11.7",
-    "typescript": "~5.9.3",
-    "prettier": "^3.6.2"
+    "typescript": "~5.9.3"
   }
 }

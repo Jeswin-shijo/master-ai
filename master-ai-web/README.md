@@ -72,6 +72,8 @@ Playwright. Chromium runs every spec; Firefox and WebKit run `browsers.spec.ts`:
 - `journey.spec.ts`: signup to report, including the role holder approving in a second browser context;
 - `cases.spec.ts`, `roles.spec.ts`, `theme.spec.ts`: cases, roles and themes;
 - `layout.spec.ts`: the main pages at 390 px phone width;
+- `pages.spec.ts`: every menu page as the owner and as a member (heading, tab title, no errors, no ids or tool names);
+- `features.spec.ts`: the kill switch, Knowledge, Team with an automatic check-in, Records search;
 - `browsers.spec.ts`: the main path in Chromium, Firefox and WebKit.
 
 Run them against a running `pnpm dev` with `pnpm e2e`. Install the browser once with `pnpm --filter @onehuman/web exec playwright install chromium`. More in [docs/testing.md](../docs/testing.md).

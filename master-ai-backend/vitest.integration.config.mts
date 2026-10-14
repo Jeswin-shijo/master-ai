@@ -27,6 +27,8 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 60_000,
     hookTimeout: 120_000,
+    // `pnpm test:integration --coverage`: what the specs reach in src/, in coverage/integration/.
+    coverage: { provider: 'v8', include: ['src/**'], exclude: ['src/**/*.test.ts'], reporter: ['text-summary', 'html'], reportsDirectory: '../coverage/integration' },
     env: {
       DATABASE_URL: testDatabase(admin),
       APP_DATABASE_URL: testDatabase(process.env.APP_DATABASE_URL ?? 'postgres://onehuman_app:onehuman_app@localhost:5432/onehuman'),
