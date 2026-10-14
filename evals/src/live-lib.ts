@@ -110,7 +110,7 @@ export async function runLiveSuite(pack: ResolvedPack, suite: EvalSuite, complet
 
 export function formatLiveScorecard(card: LiveScorecard): string {
   const failed = card.errors > 0 ? ` (${card.errors} calls failed)` : '';
-  return `${formatScorecard(card)}\n  model answers ${card.modelAnswers}, fell back to rules ${card.fallbacks}${failed}, cost ${card.costUsd.toFixed(4)}`;
+  return `${formatScorecard(card)}\n  model answers ${card.modelAnswers}, fell back to rules ${card.fallbacks}${failed}, cost $${card.costUsd.toFixed(4)}`;
 }
 
 /** Spaces calls out to stay under a rate limit (a free Gemini key allows only a few requests a minute). 0 means no limit. */

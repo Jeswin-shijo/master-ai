@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 // with resolution-mode, and the module itself loads with import() the first time Gemini is used.
 import type { GoogleGenAI } from '@google/genai' with { 'resolution-mode': 'import' };
 import type { DataClass, ModelTier } from '@onehuman/schemas';
-import { geminiParams, mergeGeminiChunks, readGemini, type GeminiResponseLike, type LlmToolDefinition } from '@onehuman/agent-kit';
+import { geminiClientOptions, geminiParams, mergeGeminiChunks, readGemini, type GeminiResponseLike, type LlmToolDefinition } from '@onehuman/agent-kit';
 import { config } from '../config';
 import { DbService } from '../db/db.service';
 import { llmCalls } from '../db/schema';
@@ -125,7 +125,7 @@ export class LlmService {
   private async call(req: LlmRequest, model: string, user: string): Promise<LlmResult> {
     await this.nextSlot();
     if (config.llmProvider !== 'google') return this.callAnthropic(this.anthropic!, req, model, user);
-    this.googleClient ??= import('@google/genai').then(({ GoogleGenAI }) => new GoogleGenAI({ apiKey: config.GEMINI_API_KEY }));
+    this.googleClient ??= import('@google/genai').then(({ GoogleGenAI }) => new GoogleGenAI(geminiClientOptions(config.GEMINI_API_KEY!)));
     return this.callGoogle(await this.googleClient, req, model, user);
   }
 

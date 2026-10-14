@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { ApiError, GoogleGenAI } from '@google/genai';
-import { costUsd, GEMINI_DEFAULT_MODELS, geminiParams, readGemini, resolvePack } from '@onehuman/agent-kit';
+import { costUsd, GEMINI_DEFAULT_MODELS, geminiClientOptions, geminiParams, readGemini, resolvePack } from '@onehuman/agent-kit';
 import type { ModelTier } from '@onehuman/schemas';
 import { formatLiveScorecard, LiveFatalError, paced, runLiveSuite, type LiveComplete } from './live-lib.ts';
 import { loadPackRegistry, loadSuites } from './runner.ts';
@@ -82,7 +82,7 @@ function geminiFatal(err: unknown, model: string): unknown {
 }
 
 function geminiComplete(apiKey: string): LiveComplete {
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI(geminiClientOptions(apiKey));
   return async (req) => {
     const model = geminiModels[req.tier];
     const res = await ai.models.generateContent(geminiParams(model, { system: req.system, user: req.user, jsonSchema: req.schema, maxTokens: 4000 })).catch((err: unknown) => {

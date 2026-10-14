@@ -104,3 +104,11 @@ describe('merging model answers with the rules', () => {
     expect(withPreset(lc, unknown)).toBe(lc);
   });
 });
+
+describe('the close-out findings a model writes', () => {
+  it('reach people without record ids', () => {
+    const offline = { verified: true, findings: ['Done.'], outcome: 'resolved' as const };
+    const merged = mergeVerify({ verified: false, findings: ['Incident cd70c34a-12c5-48ef-97c9-31fbce2dccca is still open.'] }, offline);
+    expect(merged.findings).toEqual(['Incident is still open.']);
+  });
+});

@@ -5,6 +5,7 @@ import type { ResolvedPack } from '@onehuman/schemas';
 import {
   FINISH_TOOL,
   finishToolDefinition,
+  forPeople,
   fromWireName,
   prepareArgs,
   resolveTool,
@@ -119,7 +120,9 @@ export class AgentRuntimeService {
         return { kind: 'invalid', reason: 'no tool call' } as const;
       }
       const name = fromWireName(call.name);
-      const rationale = result.text.trim();
+      // The agent's own words show on approvals and steps: no record ids there. The audit log keeps them whole.
+      const said = result.text.trim();
+      const rationale = forPeople(said);
 
       if (name === FINISH_TOOL.name) {
         const parsed = FINISH_TOOL.input.safeParse(call.input);
@@ -170,7 +173,7 @@ export class AgentRuntimeService {
         goalId: ctx.goal.id,
         taskId,
         refId: row!.id,
-        payload: { tool: name, args: prepared.args, rationale: truncate(rationale, 500), provider: result.provider, model: result.model },
+        payload: { tool: name, args: prepared.args, rationale: truncate(said, 500), provider: result.provider, model: result.model },
       });
       return { kind: 'tool', toolCallId: row!.id } as const;
     });

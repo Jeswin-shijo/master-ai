@@ -15,6 +15,14 @@ export const GEMINI_DEFAULT_MODELS: Record<ModelTier, string> = {
   small: 'gemini-flash-lite-latest',
 };
 
+/**
+ * Options for `new GoogleGenAI(…)`. The SDK retries only when given retryOptions, so ask for a
+ * few short retries on 408, 429 and 5xx (its defaults); Temporal's activity retries come after.
+ */
+export function geminiClientOptions(apiKey: string) {
+  return { apiKey, httpOptions: { retryOptions: { attempts: 3, initialDelay: 2, maxDelay: 20 } } };
+}
+
 export interface GeminiRequest {
   system: string;
   user: string;

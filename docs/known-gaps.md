@@ -15,7 +15,7 @@ Things the build doesn't handle yet. Reviews found them while Plans 2–6 were b
 - A note the owner writes on a case can reach the customer who sent it through the public form.
 - When the main model fails and a smaller one answers, the audit log doesn't say so.
 - Cancelled cases count as finished within their deadline in reports.
-- One report sentence reads "The work ended running."
+- When a case's work fails (for example the AI service keeps refusing requests), its stage-6 dot still shows as finished next to "The work stopped before it finished", and phone calls already handed to staff for that work carry on.
 - Case titles keep a final full stop and can be cut after "St.".
 - Approval summaries put the case type in lower case, so short forms read oddly ("Approve ca certificates for ASG-0001").
 - Amounts are read from the request, not worked out from records (order lines × price list).

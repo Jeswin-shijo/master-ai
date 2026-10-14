@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePack } from '@onehuman/agent-kit';
-import { LiveFatalError, paced, runLiveSuite, type LiveComplete } from './live-lib.ts';
+import { formatLiveScorecard, LiveFatalError, paced, runLiveSuite, type LiveComplete } from './live-lib.ts';
 import { loadPackRegistry, loadSuites, runSuite } from './runner.ts';
 
 const registry = loadPackRegistry(new URL('../../packs', import.meta.url).pathname);
@@ -81,5 +81,12 @@ describe('live evals', () => {
     await fast({ stage: 'review', tier: 'standard', system: '', user: '', schema: {} });
     await fast({ stage: 'review', tier: 'standard', system: '', user: '', schema: {} });
     expect(waits).toEqual([]);
+  });
+
+  it('prints the cost in dollars, with the failed calls', async () => {
+    const card = await runLiveSuite(pack, suite, async () => {
+      throw new Error('503');
+    });
+    expect(formatLiveScorecard({ ...card, costUsd: 0.0312 })).toContain(`fell back to rules ${card.fallbacks} (${card.errors} calls failed), cost $0.0312`);
   });
 });

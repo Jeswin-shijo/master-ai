@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costUsd, GEMINI_DEFAULT_MODELS, geminiParams, mergeGeminiChunks, readGemini, type GeminiResponseLike } from './index';
+import { costUsd, GEMINI_DEFAULT_MODELS, geminiClientOptions, geminiParams, mergeGeminiChunks, readGemini, type GeminiResponseLike } from './index';
 
 const TOOL = { name: 'records__update', description: 'Update a record', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } };
 const USAGE = { promptTokenCount: 1200, cachedContentTokenCount: 200, candidatesTokenCount: 80, thoughtsTokenCount: 40 };
@@ -87,5 +87,15 @@ describe('Gemini prices', () => {
     expect(costUsd('gemini-flash-lite-latest', million)).toBeCloseTo(0.1);
     expect(costUsd('gemini-flash-latest', million)).toBeCloseTo(0.3);
     expect(costUsd('gemini-3-pro-preview', million)).toBeCloseTo(2);
+  });
+});
+
+describe('the Gemini client', () => {
+  it('retries rate limits and server errors itself (the SDK does not unless asked), a few times and briefly', () => {
+    const options = geminiClientOptions('key');
+    expect(options.apiKey).toBe('key');
+    expect(options.httpOptions.retryOptions.attempts).toBe(3);
+    // Inside a Temporal activity, waits stay short; Temporal's own retries come after.
+    expect(options.httpOptions.retryOptions.maxDelay).toBeLessThanOrEqual(20);
   });
 });

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { composeForSector } from '@onehuman/agent-kit';
 import { ORG_TYPES, SECTORS, type CaseDetail } from '@onehuman/schemas';
 import { loadPackRegistry, loadSuites, runSuite } from './runner.ts';
-import { asSent, caseProblems, expectationFor, findCase, formatSummary, LIVE_RUN_IDS, packFor, SECTOR_RUNS, type RunExpectation } from './sector-runs.ts';
+import { asSent, caseProblems, expectationFor, findCase, formatSummary, LIVE_RUN_IDS, packFor, SECTOR_RUNS, toolNamesOf, type RunExpectation } from './sector-runs.ts';
 
 const registry = loadPackRegistry(fileURLToPath(new URL('../../packs/', import.meta.url)));
 const suites = loadSuites(fileURLToPath(new URL('../suites/', import.meta.url)));
@@ -73,12 +73,13 @@ const GATES = [
   { kind: 'case_gate', stage: 'close', approver: 'owner', status: 'approved', summary: 'Sign off WO-0001', reasons: [] },
 ];
 
-function detail(over: { status?: string; outcome?: string; category?: string; priority?: string; names?: string[]; stageStatus?: string; approvals?: object[]; text?: string; summaries?: string[] } = {}): CaseDetail {
+function detail(over: { reportOutcome?: string; status?: string; outcome?: string; category?: string; priority?: string; names?: string[]; stageStatus?: string; approvals?: object[]; text?: string; summaries?: string[] } = {}): CaseDetail {
   const names = over.names ?? WANT.stageNames;
   return {
     case: { code: 'WO-0001', status: over.status ?? 'closed', outcome: over.outcome ?? 'Resolved.', category: over.category ?? 'breakdown', priority: over.priority ?? 'P1' },
     approvals: over.approvals ?? GATES,
     report: {
+      outcome: over.reportOutcome ?? null,
       text: over.text ?? 'WO-0001 was resolved within its deadline.',
       stages: names.map((name, i) => ({ name, status: over.stageStatus ?? 'done', summary: over.summaries?.[i] ?? `${name} done.` })),
     },
@@ -132,6 +133,20 @@ describe('caseProblems', () => {
     expect(caseProblems(detail({ approvals }), WANT, [...TOOLS, 'message.send'], 'strict').problems).toEqual([
       '“Earned autonomy: message.send was approved 5 times.” names the tool message.send',
     ]);
+  });
+
+  it("reads the agent's own words on an approval, and the outcome, too", () => {
+    const approvals = [{ ...GATES[0], rationale: 'Checked record 3f2b9c1e-8a4d-4c2e-9b7a-1d2e3f4a5b6c first.' }, GATES[1]!];
+    const { problems } = caseProblems(detail({ approvals, outcome: 'Closed after records.update.', reportOutcome: '{"done":true}' }), WANT, TOOLS, 'strict');
+    expect(problems.filter((p) => p.includes('shows an id'))).toHaveLength(1);
+    expect(problems.filter((p) => p.includes('names the tool records.update'))).toHaveLength(1);
+    expect(problems.filter((p) => p.includes('shows raw data'))).toHaveLength(1);
+  });
+
+  it('knows a tool by the name the model sees too', () => {
+    const run = SECTOR_RUNS.find((r) => r.id === 'travel-agency')!;
+    expect(toolNamesOf(packFor(run, registry))).toEqual(expect.arrayContaining(['records.update', 'records__update', 'booking.confirm', 'booking__confirm']));
+    expect(caseProblems(detail({ text: 'Ran records__update on it.' }), WANT, ['records.update', 'records__update'], 'strict').problems).toHaveLength(1);
   });
 });
 

@@ -3,6 +3,7 @@ import { extractAmountInr, phraseIn } from './extract';
 import type { TeamMember } from './offline';
 import type { ModelStageOutput } from './prompts';
 import { isUntrusted } from './text';
+import { forPeople } from '../narrate';
 
 /**
  * The model suggests; the rules keep the floors. Each function takes the
@@ -106,6 +107,7 @@ export function mergeVerify(
   if (!model) return offline;
   // The model may refuse a result the rules accept, never the other way round.
   const verified = offline.verified && model.verified;
-  const findings = model.findings.filter((f) => f.trim().length > 0);
+  // People read the findings (the close-out and the case outcome): no record ids.
+  const findings = model.findings.map(forPeople).filter((f) => f.length > 0);
   return { verified, findings: findings.length ? findings : offline.findings, outcome: verified ? 'resolved' : 'not_resolved' };
 }

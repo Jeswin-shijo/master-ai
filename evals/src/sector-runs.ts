@@ -1,4 +1,4 @@
-import { composeForSector, lifecycleOf, resolvePack, TOOL_CATALOG } from '@onehuman/agent-kit';
+import { composeForSector, lifecycleOf, resolvePack, TOOL_CATALOG, toWireName } from '@onehuman/agent-kit';
 import type { CaseDetail, CaseSource, Pack, ResolvedPack, SectorId } from '@onehuman/schemas';
 import type { EvalSuite } from './runner.ts';
 
@@ -103,9 +103,10 @@ export function expectationFor(run: SectorRun, pack: ResolvedPack, suites: EvalS
   return { stageNames, category: c.expect.category, priority: c.expect.priority, approval: role(c.expect.approval), signoff: role(c.expect.signoff) };
 }
 
-/** Every tool name the organization's agents could use: the catalog's and the pack's own names for them. */
+/** Every tool name the organization's agents could use: the catalog's and the pack's own, as written and as the model sees them (records__update). */
 export function toolNamesOf(pack: ResolvedPack): string[] {
-  return [...new Set([...TOOL_CATALOG.map((t) => t.name), ...pack.tools.map((t) => t.name)])];
+  const names = [...TOOL_CATALOG.map((t) => t.name), ...pack.tools.map((t) => t.name)];
+  return [...new Set([...names, ...names.map(toWireName)])];
 }
 
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
@@ -119,9 +120,16 @@ function leak(text: string, toolNames: string[]): string | null {
   return null;
 }
 
-/** Every sentence people read about the case: the report, each stage's summary, and each approval's summary and reasons. */
+/** Every sentence people read about the case: the report and its outcome, each stage's summary, and each approval's summary, the agent's own words on it, and its reasons. */
 function wordsPeopleRead(d: CaseDetail): string[] {
-  return [d.report.text, ...d.report.stages.map((s) => s.summary ?? ''), ...d.approvals.flatMap((a) => [a.summary, ...a.reasons])].filter((t) => t.length > 0);
+  const words = [
+    d.report.text,
+    d.report.outcome ?? '',
+    d.case.outcome ?? '',
+    ...d.report.stages.map((s) => s.summary ?? ''),
+    ...d.approvals.flatMap((a) => [a.summary, a.rationale ?? '', ...a.reasons]),
+  ];
+  return [...new Set(words)].filter((t) => t.length > 0);
 }
 
 /**
