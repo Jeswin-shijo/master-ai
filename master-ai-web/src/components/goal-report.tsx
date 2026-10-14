@@ -4,26 +4,27 @@ import { Link } from 'react-router';
 import type { GoalReport } from '@onehuman/schemas';
 import { goalStatusWord as statusWord, reportText } from '@onehuman/sdk';
 import { StatusBadge } from '@/components/status';
+import { copyText } from '@/lib/clipboard';
 import { Button } from '@/components/ui/button';
 import { formatDateTime, formatInr } from '@/lib/utils';
 
 export { reportText };
 
-/** Copy one or more reports as text; shows "Copied" briefly. */
+/** Copy one or more reports as text; shows "Copied" (or that it couldn't) briefly. */
 export function CopyReportButton({ text, label = 'Copy' }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
+  const [result, setResult] = useState<'copied' | 'failed' | null>(null);
   return (
     <Button
       variant="secondary"
       size="sm"
       onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
+        void copyText(text).then((ok) => {
+          setResult(ok ? 'copied' : 'failed');
+          setTimeout(() => setResult(null), 2000);
         });
       }}
     >
-      {copied ? <Check /> : <Copy />} {copied ? 'Copied' : label}
+      {result === 'copied' ? <Check /> : <Copy />} {result === 'copied' ? 'Copied' : result === 'failed' ? "Couldn't copy" : label}
     </Button>
   );
 }

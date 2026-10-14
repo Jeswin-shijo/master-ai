@@ -18,6 +18,11 @@ export const queryClient = new QueryClient({
   },
 });
 
+/** Signing out forgets every cached answer, so the next person on this computer never sees the last one's data. */
+useSession.subscribe((s, prev) => {
+  if (prev.token && !s.token) queryClient.clear();
+});
+
 /** Sign out on an expired session instead of showing broken pages. */
 queryClient.getQueryCache().subscribe((event) => {
   const err = event.query.state.error;
