@@ -11,6 +11,6 @@ export default defineConfig({
   server: { port: 5173 },
   // The production build is previewed (CI's browser tests) under the same headers it is hosted with.
   preview: { headers: pageHeaders(process.env.VITE_API_URL ?? 'http://localhost:3000') },
-  // Browser tests (e2e/) run in Playwright, not here.
-  test: { include: ['src/**/*.test.ts'], environment: 'node' },
+  // Browser tests (__tests__/e2e/) run in Playwright, not here.
+  test: { include: ['__tests__/unit/**/*.test.ts'], environment: 'node' },
 });

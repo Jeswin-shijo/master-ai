@@ -7,4 +7,4 @@ The "Glow" design tokens, shared by web and mobile: a violet-tinted navy base, w
 - `cssVariables()`: the palette as CSS variables for the web app's Tailwind theme.
 - `contrastRatio`: used by the tests to check that text meets WCAG AA, including white labels on the action gradient.
 
-Tests: `contrast.test.ts` and `native.test.ts`. Each app also has a guard test that fails on raw colours (`master-ai-web/src/tokens.test.ts`, `master-ai-mobile/tests/tokens.test.ts`).
+Tests (in `__tests__/`): `contrast.test.ts` and `native.test.ts`. Each app also has a guard test that fails on raw colours (`master-ai-web/__tests__/unit/tokens.test.ts`, `master-ai-mobile/__tests__/unit/tokens.test.ts`).

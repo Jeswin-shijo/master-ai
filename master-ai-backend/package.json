@@ -8,7 +8,7 @@
     "dev": "concurrently -k -n build,api,worker -c gray,cyan,magenta \"nest build --watch --preserveWatchOutput\" \"wait-on dist/main.js && node --enable-source-maps --watch dist/main.js\" \"wait-on dist/worker.js && node --enable-source-maps --watch dist/worker.js\"",
     "start": "node --enable-source-maps dist/main.js",
     "start:worker": "node --enable-source-maps dist/worker.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p scripts/tsconfig.json && tsc -p test/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p scripts/tsconfig.json && tsc -p __tests__/tsconfig.json",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",

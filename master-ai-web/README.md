@@ -66,14 +66,17 @@ Owner- and admin-only pages are hidden from members (`src/lib/nav.ts`), and the 
 - Take plain values (stage keys, sectors, event summaries) from `@onehuman/schemas/plain`, never the package root, so zod stays out of the browser. Types can come from the root with `import type`.
 - `src/hosting.ts` is how the build is served: its content security policy allows only this app's scripts and its API. A new external service the page calls must be added to `connect-src` there.
 
-## Browser tests (`e2e/`)
+## Tests (`__tests__/`)
 
-Playwright. Chromium runs every spec; Firefox and WebKit run `browsers.spec.ts`:
+**Unit tests** (`__tests__/unit/`, vitest, mirroring `src/`): the `lib/` helpers, the design-token guard (`tokens.test.ts`), the bundle shape (`bundle.test.ts`), the page shell (`page.test.ts`) and the hosting headers (`hosting.test.ts`).
+
+**Browser tests** (`__tests__/e2e/`, Playwright). Chromium runs every spec; Firefox and WebKit run `browsers.spec.ts` and `fallback.spec.ts`:
 - `journey.spec.ts`: signup to report, including the role holder approving in a second browser context;
 - `cases.spec.ts`, `roles.spec.ts`, `theme.spec.ts`: cases, roles and themes;
 - `layout.spec.ts`: the main pages at 390 px phone width;
 - `pages.spec.ts`: every menu page as the owner and as a member (heading, tab title, no errors, no ids or tool names);
 - `features.spec.ts`: the kill switch, Knowledge, Team with an automatic check-in, Records search;
-- `browsers.spec.ts`: the main path in Chromium, Firefox and WebKit.
+- `browsers.spec.ts`: the main path in Chromium, Firefox and WebKit;
+- `fallback.spec.ts`: the "couldn't start" note shows when the app can't run, and never over a working app.
 
-Run them against a running `pnpm dev` with `pnpm e2e`. Install the browser once with `pnpm --filter @onehuman/web exec playwright install chromium`. More in [docs/testing.md](../docs/testing.md).
+Run them against a running `pnpm dev` with `pnpm e2e`. Install the browsers once with `pnpm --filter @onehuman/web exec playwright install chromium firefox webkit`. More in [docs/testing.md](../docs/testing.md).

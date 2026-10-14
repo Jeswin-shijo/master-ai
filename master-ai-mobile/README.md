@@ -37,19 +37,19 @@ Remote push notifications need a development build (`eas build --profile develop
 ## Rules for this app
 
 - **Always dark** (`src/lib/theme.ts`). Expo Go ignores the setting in `app.json`, so don't switch back to `useColorScheme()`.
-- **Colours only from `@onehuman/ui` tokens. Font weights are font families** (`font.semibold`), never `fontWeight`: Android drops a custom font when `fontWeight` is set. `tests/tokens.test.ts` checks both.
+- **Colours only from `@onehuman/ui` tokens. Font weights are font families** (`font.semibold`), never `fontWeight`: Android drops a custom font when `fontWeight` is set. `__tests__/unit/tokens.test.ts` checks both.
 - **New routes:** keep Metro running until `.expo/types/router.d.ts` regenerates, then run the typecheck.
 - **One React version** for the whole repository (Expo's).
 
 ## Testing
 
-- **Unit tests** (`pnpm --filter @onehuman/mobile test`, vitest):
-  - `tests/tokens.test.ts`: the colour and font rules;
-  - `tests/offline.test.ts`: saved approvals per person, against a real SQLite;
-  - `tests/session.test.ts`: signing in or out clears the cache;
-  - `tests/badge.test.ts`: badge contrast.
+- **Unit tests** (`pnpm --filter @onehuman/mobile test`, vitest, in `__tests__/unit/`):
+  - `tokens.test.ts`: the colour and font rules;
+  - `offline.test.ts`: saved approvals per person, against a real SQLite;
+  - `session.test.ts`: signing in or out clears the cache;
+  - `badge.test.ts`: badge contrast.
 - **End-to-end** (`pnpm e2e:mobile` from the root): Maestro 2.10.0 flows in Expo Go on the Android emulator.
-  - **Flows** (`e2e/flows/`):
+  - **Flows** (`__tests__/e2e/flows/`):
     - `role-holder.yaml`: sees only their approval and approves it;
     - `member.yaml`: sees no approvals;
     - `new-request.yaml`: sends a request and watches its stages.
@@ -57,4 +57,4 @@ Remote push notifications need a development build (`eas build --profile develop
     ```bash
     export MAESTRO_VERSION=2.10.0; curl -Ls "https://get.maestro.mobile.dev" | bash
     ```
-  - **The runner** (`e2e/run.mts`) checks those prerequisites, sets `adb reverse`, and seeds a company with its people (`e2e/seed.mts`). It also turns Android's animations off while the flows run and back on afterwards: a screen that never stops animating, like the live stage, can't be read by UI Automator.
+  - **The runner** (`__tests__/e2e/run.mts`) checks those prerequisites, sets `adb reverse`, and seeds a company with its people (`__tests__/e2e/seed.mts`). It also turns Android's animations off while the flows run and back on afterwards: a screen that never stops animating, like the live stage, can't be read by UI Automator.

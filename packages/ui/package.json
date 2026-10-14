@@ -25,7 +25,7 @@
   "scripts": {
     "build": "tsup && node scripts/build-css.mjs",
     "dev": "tsup --watch --onSuccess \"node scripts/build-css.mjs\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p __tests__/tsconfig.json",
     "test": "vitest run"
   },
   "devDependencies": {

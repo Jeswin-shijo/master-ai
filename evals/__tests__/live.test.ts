@@ -1,0 +1,92 @@
+import { describe, expect, it } from 'vitest';
+import { resolvePack } from '@onehuman/agent-kit';
+import { formatLiveScorecard, LiveFatalError, paced, runLiveSuite, type LiveComplete } from '../src/live-lib.ts';
+import { loadPackRegistry, loadSuites, runSuite } from '../src/runner.ts';
+
+const registry = loadPackRegistry(new URL('../../packs', import.meta.url).pathname);
+const suite = loadSuites(new URL('../suites', import.meta.url).pathname).find((s) => s.pack === 'power-plant')!;
+const pack = resolvePack(registry.get('power-plant')!, (id) => registry.get(id));
+
+describe('live evals', () => {
+  it('asks the model for review and classification, and counts the cost', async () => {
+    // A perfect model: answers with what each case expects.
+    const perfect: LiveComplete = async (req) => {
+      const c = suite.cases.find((x) => req.user.includes(x.request))!;
+      const json =
+        req.stage === 'review'
+          ? { outcome: c.expect.review, category: c.expect.category, checks: [], missing: c.expect.review === 'needs_info' ? [{ key: 'detail', label: 'A missing detail' }] : [], reason: c.expect.review === 'complete' ? '' : 'Rule' }
+          : { category: c.expect.category, priority: c.expect.priority, risk: c.expect.priority === 'P1' ? 'high' : 'medium', amount_inr: c.amount_inr ?? null, reasons: ['Fits.'] };
+      return { json, costUsd: 0.001 };
+    };
+    const card = await runLiveSuite(pack, suite, perfect);
+    expect(card.stages.category.correct).toBe(card.stages.category.total);
+    expect(card.stages.review.correct).toBe(card.stages.review.total);
+    expect(card.modelAnswers).toBe(suite.cases.length * 2);
+    expect(card.costUsd).toBeCloseTo(suite.cases.length * 2 * 0.001, 6);
+  });
+
+  it('falls back to the rules when the model answers nonsense', async () => {
+    const nonsense: LiveComplete = async () => ({ json: { nope: true }, costUsd: 0 });
+    const card = await runLiveSuite(pack, suite, nonsense);
+    const offline = runSuite(pack, suite);
+    expect(card.fallbacks).toBe(suite.cases.length * 2);
+    expect(card.stages.category).toEqual(offline.stages.category);
+    expect(card.stages.approval).toEqual(offline.stages.approval);
+  });
+
+  it('counts a failed call as the rules answering, and keeps going', async () => {
+    let calls = 0;
+    const flaky: LiveComplete = async () => {
+      calls++;
+      throw new Error('529 overloaded');
+    };
+    const card = await runLiveSuite(pack, suite, flaky);
+    const offline = runSuite(pack, suite);
+    expect(calls).toBe(suite.cases.length * 2);
+    expect(card.errors).toBe(suite.cases.length * 2);
+    expect(card.fallbacks).toBe(suite.cases.length * 2);
+    expect(card.stages.category).toEqual(offline.stages.category);
+  });
+
+  it('stops at the first call when the key is refused', async () => {
+    let calls = 0;
+    const refused: LiveComplete = async () => {
+      calls++;
+      throw new LiveFatalError('The model refused the key (401 invalid x-api-key).');
+    };
+    await expect(runLiveSuite(pack, suite, refused)).rejects.toThrow('refused the key');
+    expect(calls).toBe(1);
+  });
+
+  it('spaces calls out to stay under a rate limit', async () => {
+    let clock = 0;
+    const waits: number[] = [];
+    const sleep = async (ms: number) => {
+      waits.push(ms);
+      clock += ms;
+    };
+    const instant: LiveComplete = async () => ({ json: null, costUsd: 0 });
+    const slow = paced(instant, 30, sleep, () => clock);
+    const req = { stage: 'review', tier: 'standard', system: '', user: '', schema: {} } as const;
+    await slow(req);
+    await slow(req);
+    clock += 500;
+    await slow(req);
+    expect(waits).toEqual([2000, 1500]);
+  });
+
+  it('does not wait when no rate is given', async () => {
+    const waits: number[] = [];
+    const fast = paced(async () => ({ json: null, costUsd: 0 }), 0, async (ms) => void waits.push(ms));
+    await fast({ stage: 'review', tier: 'standard', system: '', user: '', schema: {} });
+    await fast({ stage: 'review', tier: 'standard', system: '', user: '', schema: {} });
+    expect(waits).toEqual([]);
+  });
+
+  it('prints the cost in dollars, with the failed calls', async () => {
+    const card = await runLiveSuite(pack, suite, async () => {
+      throw new Error('503');
+    });
+    expect(formatLiveScorecard({ ...card, costUsd: 0.0312 })).toContain(`fell back to rules ${card.fallbacks} (${card.errors} calls failed), cost $0.0312`);
+  });
+});

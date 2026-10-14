@@ -42,7 +42,7 @@ export function memberChangeRefusal(
 }
 
 /** The principal fields an update sets, or null when it only touches the staff link. */
-export function principalChanges(input: { role?: 'admin' | 'member'; approverRoles?: string[] }): { role?: 'admin' | 'member'; approverRoles?: string[] } | null {
+export function principalChanges(input: { role?: 'admin' | 'member'; approverRoles?: string[]; staffId?: string | null }): { role?: 'admin' | 'member'; approverRoles?: string[] } | null {
   const set = { ...(input.role !== undefined && { role: input.role }), ...(input.approverRoles !== undefined && { approverRoles: input.approverRoles }) };
   return Object.keys(set).length ? set : null;
 }

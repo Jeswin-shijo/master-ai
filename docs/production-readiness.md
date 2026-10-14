@@ -15,7 +15,7 @@ A review on 14 October 2026 of five areas: performance, browsers and devices, se
 ## Performance
 
 **Fixed**
-- **The first visit downloaded 1 MB of JavaScript** (323 KB gzipped) for every page, including sign-in and the public request form. Each page now loads when first opened, and the canvas library only with pages that draw one. The browser no longer downloads zod and every schema: it takes plain values from `@onehuman/schemas/plain`. The first visit is now 190 KB gzipped. `master-ai-web/src/bundle.test.ts` keeps it that way.
+- **The first visit downloaded 1 MB of JavaScript** (323 KB gzipped) for every page, including sign-in and the public request form. Each page now loads when first opened, and the canvas library only with pages that draw one. The browser no longer downloads zod and every schema: it takes plain values from `@onehuman/schemas/plain`. The first visit is now 190 KB gzipped. `master-ai-web/__tests__/unit/bundle.test.ts` keeps it that way.
 - **A font stylesheet from Google blocked the first paint**, for a font (Inter) the app never used. Removed; code text uses the system's monospace font.
 - **Nine lookups had no index** (Supabase's performance advisor): approvals and tool calls by goal, approvals by task, delegations by goal, device keys, push tokens and staff by person, tasks by agent, knowledge chunks by document. Migration `0011_lookup_indexes`.
 - **Checking a password stalled the API for every other request** (`scryptSync` on the main thread). It now runs on the thread pool.
@@ -34,7 +34,7 @@ Supported: Chrome and Edge 111+, Firefox 128+, Safari 16.4+ on iPhone and Mac (2
 - **Copy did nothing** on a plain-http address (a laptop on the office network) or when the browser refused clipboard access. It now falls back to the older copy command, and the button says when nothing could copy.
 - **An old browser showed a blank page.** If the app hasn't drawn anything a few seconds after loading, the page says which browsers work. Without JavaScript it says to turn it on.
 - **Adding the app to a phone's home screen** showed a blank icon. There is now a manifest and proper icons.
-- **Only Chromium was tested.** `e2e/browsers.spec.ts` runs sign-up, a live request, the report, Copy and the print view in Chromium, Firefox and WebKit (Safari's engine), and fails on any page error or blocked script. CI runs all three. On macOS 27.0.1, Playwright's Firefox build doesn't start ("Could not find profile folder"), so locally it was checked in Chromium and WebKit.
+- **Only Chromium was tested.** `master-ai-web/__tests__/e2e/browsers.spec.ts` runs sign-up, a live request, the report, Copy and the print view in Chromium, Firefox and WebKit (Safari's engine), and fails on any page error or blocked script. CI runs all three. On macOS 27.0.1, Playwright's Firefox build doesn't start ("Could not find profile folder"), so locally it was checked in Chromium and WebKit.
 
 **Left**
 - The web app needs a connection; offline approvals are the phone app's job.

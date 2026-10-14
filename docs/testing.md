@@ -17,6 +17,19 @@ There are six kinds of test, from fast checks on code to full runs through the r
 
 Run the first line before every commit. Run the others when you touch what they cover.
 
+## Where tests live
+
+Each app and package keeps its tests in one `__tests__/` folder, never next to the code:
+
+| Section | Folder |
+|---|---|
+| `master-ai-backend` | `__tests__/unit/` (mirrors `src/`), `__tests__/integration/` |
+| `master-ai-web` | `__tests__/unit/` (mirrors `src/`), `__tests__/e2e/` |
+| `master-ai-mobile` | `__tests__/unit/`, `__tests__/e2e/` (Maestro flows and their runner) |
+| `packages/*`, `evals` | `__tests__/` (mirrors `src/`) |
+
+Each `__tests__/` has its own `tsconfig.json`, and the section's `typecheck` runs it, so tests are type-checked like the code.
+
 ## Unit tests
 
 Every package has its own (`pnpm --filter <package> test`):
@@ -40,7 +53,7 @@ Every package has its own (`pnpm --filter <package> test`):
 
 ## Integration specs (backend)
 
-`pnpm test:integration` runs `master-ai-backend/test/integration/*.spec.ts`. They boot the API's real modules the way the worker does, on a fresh `onehuman_test` database that the run creates beside the dev database and migrates. The services connect as `onehuman_app`, so row-level security applies as in production. Temporal is replaced by a recorder, so a spec calls the workflow's activities itself, in the workflow's order, and checks what the services asked Temporal to do. The AI is offline.
+`pnpm test:integration` runs `master-ai-backend/__tests__/integration/*.spec.ts`. They boot the API's real modules the way the worker does, on a fresh `onehuman_test` database that the run creates beside the dev database and migrates. The services connect as `onehuman_app`, so row-level security applies as in production. Temporal is replaced by a recorder, so a spec calls the workflow's activities itself, in the workflow's order, and checks what the services asked Temporal to do. The AI is offline.
 
 | Spec | What it proves |
 |---|---|
@@ -51,7 +64,7 @@ Every package has its own (`pnpm --filter <package> test`):
 | `intake` | The public form and intake API: own company only, withdrawn keys, the kill switch, repeated `externalRef` (even two at once), keys kept as hashes |
 | `stages` | The stage service: a job through all 8 stages with signed decisions by the role holder, a refused permit, an expired decision, failed work, the kill switch |
 
-Write a new one with `boot()` and `newOrg()` from `test/integration/harness.ts`. Each file gets its own organizations, so files don't depend on each other. CI runs them in the e2e job, where Postgres is up.
+Write a new one with `boot()` and `newOrg()` from `__tests__/integration/harness.ts`. Each file gets its own organizations, so files don't depend on each other. CI runs them in the e2e job, where Postgres is up.
 
 ## Coverage
 
@@ -80,8 +93,8 @@ These scripts live in `master-ai-backend/scripts/` and talk to a running API exa
   - that nothing people read shows a tool name, an id or raw data.
 
   Use `--only <id>` to run a single organization. With a model configured (`GET /health` says `online`), it runs one organization per sector, one at a time, and reports where the model's judgement differs from the test set instead of failing.
-- **`pnpm e2e`** runs the Playwright tests in `master-ai-web/e2e/`. They cover signup to report in the browser at 1440 px (sector, type, preview, install, a new request, stages advancing live, approval by the role holder in a second browser, sign-off, the report), plus the main pages at 390 px phone width. `e2e/pages.spec.ts` opens every menu page as the owner and as a member: a heading, its tab title, no page errors, and no ids or tool names in what people read. `e2e/features.spec.ts` covers the kill switch, Knowledge, Team with an automatic check-in, and Records search. `e2e/browsers.spec.ts` runs the main path (sign-up, a live request, the report, Copy, the print view) in Chromium, Firefox and WebKit, and fails on any page error or blocked script. Install the browsers once with `pnpm --filter @onehuman/web exec playwright install chromium firefox webkit`. On macOS 27.0.1 Playwright's Firefox doesn't start ("Could not find profile folder"); run `pnpm e2e --project=desktop --project=webkit` there, and CI covers Firefox.
-- **`pnpm e2e:mobile`** runs the Maestro flows in `master-ai-mobile/e2e/`: a role holder approves with the fingerprint-signed key, a member sees no approvals, and a new request from the phone runs its stages. Setup is in [master-ai-mobile/README.md](../master-ai-mobile/README.md#testing).
+- **`pnpm e2e`** runs the Playwright tests in `master-ai-web/__tests__/e2e/`. They cover signup to report in the browser at 1440 px (sector, type, preview, install, a new request, stages advancing live, approval by the role holder in a second browser, sign-off, the report), plus the main pages at 390 px phone width. `pages.spec.ts` opens every menu page as the owner and as a member: a heading, its tab title, no page errors, and no ids or tool names in what people read. `features.spec.ts` covers the kill switch, Knowledge, Team with an automatic check-in, and Records search. `browsers.spec.ts` runs the main path (sign-up, a live request, the report, Copy, the print view) in Chromium, Firefox and WebKit, and fails on any page error or blocked script. Install the browsers once with `pnpm --filter @onehuman/web exec playwright install chromium firefox webkit`. On macOS 27.0.1 Playwright's Firefox doesn't start ("Could not find profile folder"); run `pnpm e2e --project=desktop --project=webkit` there, and CI covers Firefox.
+- **`pnpm e2e:mobile`** runs the Maestro flows in `master-ai-mobile/__tests__/e2e/`: a role holder approves with the fingerprint-signed key, a member sees no approvals, and a new request from the phone runs its stages. Setup is in [master-ai-mobile/README.md](../master-ai-mobile/README.md#testing).
 
 ## CI
 

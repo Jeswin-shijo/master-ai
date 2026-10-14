@@ -24,7 +24,7 @@
     "demo:setup": "node infra/demo/demo.mts setup",
     "demo": "node infra/demo/demo.mts start",
     "e2e": "pnpm --filter @onehuman/web e2e",
-    "e2e:mobile": "node master-ai-mobile/e2e/run.mts",
+    "e2e:mobile": "node master-ai-mobile/__tests__/e2e/run.mts",
     "e2e:sectors": "pnpm --filter @onehuman/backend e2e:sectors",
     "test:integration": "pnpm --filter @onehuman/backend test:integration",
     "coverage": "pnpm build:packages && vitest run --coverage"

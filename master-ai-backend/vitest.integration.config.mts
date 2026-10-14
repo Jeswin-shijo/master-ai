@@ -13,7 +13,7 @@ const env = resolve(import.meta.dirname, '.env');
 if (existsSync(env)) process.loadEnvFile(env);
 const testDatabase = (url: string) => Object.assign(new URL(url), { pathname: '/onehuman_test' }).toString();
 const admin = process.env.DATABASE_URL ?? 'postgres://onehuman:onehuman@localhost:5432/onehuman';
-// For test/integration/global-setup.ts, which runs in this process.
+// For __tests__/integration/global-setup.ts, which runs in this process.
 process.env.INTEGRATION_ADMIN_URL = admin;
 process.env.INTEGRATION_OWNER_URL = testDatabase(admin);
 
@@ -21,14 +21,14 @@ export default defineConfig({
   // Nest's dependency injection reads constructor types: legacy decorators with metadata, as `nest build` emits.
   oxc: { decorator: { legacy: true, emitDecoratorMetadata: true } },
   test: {
-    include: ['test/integration/**/*.spec.ts'],
-    globalSetup: ['test/integration/global-setup.ts'],
+    include: ['__tests__/integration/**/*.spec.ts'],
+    globalSetup: ['__tests__/integration/global-setup.ts'],
     // One database: files run one at a time.
     fileParallelism: false,
     testTimeout: 60_000,
     hookTimeout: 120_000,
     // `pnpm test:integration --coverage`: what the specs reach in src/, in coverage/integration/.
-    coverage: { provider: 'v8', include: ['src/**'], exclude: ['src/**/*.test.ts'], reporter: ['text-summary', 'html'], reportsDirectory: '../coverage/integration' },
+    coverage: { provider: 'v8', include: ['src/**'], reporter: ['text-summary', 'html'], reportsDirectory: '../coverage/integration' },
     env: {
       DATABASE_URL: testDatabase(admin),
       APP_DATABASE_URL: testDatabase(process.env.APP_DATABASE_URL ?? 'postgres://onehuman_app:onehuman_app@localhost:5432/onehuman'),

@@ -1,6 +1,6 @@
 # Decision records
 
-Each record explains one decision: the situation, what was decided, and what follows from it. Add a new one as `00NN-short-title.md`, in the same shape (Context, Decision, Consequences), and list it here and in the root README's **Decisions** section (`evals/src/docs.test.ts` checks that).
+Each record explains one decision: the situation, what was decided, and what follows from it. Add a new one as `00NN-short-title.md`, in the same shape (Context, Decision, Consequences), and list it here and in the root README's **Decisions** section (`evals/__tests__/docs.test.ts` checks that).
 
 | # | Decision | In one line |
 |---|---|---|

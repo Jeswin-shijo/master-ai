@@ -5,8 +5,8 @@ import { defineConfig, devices } from '@playwright/test';
  * (API :3000, worker, web :5173, offline LLM mode), then run `pnpm e2e`.
  */
 export default defineConfig({
-  testDir: './e2e',
-  globalSetup: './e2e/global-setup.ts',
+  testDir: './__tests__/e2e',
+  globalSetup: './__tests__/e2e/global-setup.ts',
   timeout: 300_000,
   expect: { timeout: 30_000 },
   workers: 1,

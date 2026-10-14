@@ -17,8 +17,8 @@ From the repository root, `pnpm dev` builds the shared packages, then runs this 
 |---|---|
 | `pnpm --filter @onehuman/backend build` | Compile to `dist/` |
 | `… start` / `… start:worker` | Run the built API / worker |
-| `… test` | Unit tests (vitest, `src/**/*.test.ts`) |
-| `… test:integration` | Integration specs on a real database (`test/integration/*.spec.ts`; needs `pnpm infra:up`). See [Testing](../docs/testing.md#integration-specs-backend) |
+| `… test` | Unit tests (vitest, `__tests__/unit/`, mirroring `src/`) |
+| `… test:integration` | Integration specs on a real database (`__tests__/integration/*.spec.ts`; needs `pnpm infra:up`). See [Testing](../docs/testing.md#integration-specs-backend) |
 | `… typecheck` | Type-check `src/` and `scripts/` |
 | `… db:generate` | Write a new migration from `src/db/schema.ts` into `drizzle/` |
 | `… db:migrate` | Apply migrations as the owner role (`pnpm db:migrate` from the root) |

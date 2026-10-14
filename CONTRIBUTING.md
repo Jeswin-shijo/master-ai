@@ -23,7 +23,7 @@ Open http://localhost:5173. No AI key is needed: without one, the platform runs 
 - **Before every commit:** `pnpm turbo run build typecheck test`. It must stay green.
 - **When you touch what they cover:** `pnpm smoke`, `pnpm e2e:sectors`, `pnpm e2e`, `pnpm e2e:mobile` (see [Testing](docs/testing.md)).
 - **Pack YAML:** after editing `packs/`, run `pnpm --filter @onehuman/agent-kit test`.
-- **Write tests first.** A bug fix starts with a test that fails because of the bug.
+- **Write tests first.** A bug fix starts with a test that fails because of the bug. Tests go in the section's `__tests__/` folder, never next to the code ([where tests live](docs/testing.md#where-tests-live)).
 
 ## Rules that are easy to break
 
@@ -66,6 +66,7 @@ The full list, with the reasons, is in [CLAUDE.md](CLAUDE.md).
 | An agent tool | A pack alias in YAML, or a primitive in `packages/agent-kit/src/catalog.ts` | It needs risk metadata, and the policy tests must cover it |
 | A web page | `master-ai-web/src/routes/` plus a route in `main.tsx` | Add it to `src/lib/nav.ts` if it belongs in the menu |
 | A phone screen | `master-ai-mobile/src/app/` (Expo Router) | Keep Metro running until the typed routes regenerate |
+| A test | The section's `__tests__/`: `unit/` mirroring `src/` (apps), `integration/` (backend), `e2e/`; packages mirror `src/` directly | See [Testing](docs/testing.md#where-tests-live) |
 | A decision others should know | `docs/adr/00NN-….md` | Link it from the README's **Decisions** list (the docs test checks this) |
 | Something left for later | [docs/known-gaps.md](docs/known-gaps.md) | One line saying what a person would notice |
 
