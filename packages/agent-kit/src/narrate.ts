@@ -257,3 +257,18 @@ function cap(s: string): string {
 function lowerFirst(s: string): string {
   return /^[A-Z][a-z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 }
+
+const RECORD_ID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+
+/**
+ * A sentence a model wrote (a hand-back reason, a question), made fit for
+ * people: record ids are dropped, since owners never see ids. The full text
+ * stays in the audit log.
+ */
+export function forPeople(text: string): string {
+  return text
+    .replace(new RegExp(`\\s*\\(\\s*${RECORD_ID}\\s*\\)`, 'gi'), '')
+    .replace(new RegExp(`\\s*${RECORD_ID}`, 'gi'), '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}

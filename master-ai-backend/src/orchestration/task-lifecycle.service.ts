@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { amountOf, narrateStep, prepareArgs, resolveTool } from '@onehuman/agent-kit';
+import { amountOf, forPeople, narrateStep, prepareArgs, resolveTool } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import { describeAction, truncate, type ActionTarget } from '../common/mappers';
 import { ConnectorsService } from '../connectors/connectors.service';
@@ -284,9 +284,11 @@ export class TaskLifecycleService {
   }
 
   async escalateTask(tenantId: string, taskId: string, reason: string) {
+    // The agent wrote the reason; people see it without record ids, the audit log keeps it whole.
+    const plain = forPeople(reason);
     const title = await this.db.tenant(tenantId, async (tx) => {
       const ctx = await loadTaskContext(tx, taskId);
-      await tx.update(tasks).set({ status: 'escalated', waitingOn: reason, completedAt: new Date() }).where(eq(tasks.id, taskId));
+      await tx.update(tasks).set({ status: 'escalated', waitingOn: plain, completedAt: new Date() }).where(eq(tasks.id, taskId));
       await this.audit.append(tx, tenantId, {
         type: 'task.escalated',
         actor: { id: ctx.agent.id, kind: 'agent' },
@@ -296,7 +298,7 @@ export class TaskLifecycleService {
       });
       return ctx.task.title;
     });
-    void this.notifications.pushToManagers(tenantId, { title: 'A task needs you', body: `${title}: ${reason}`, data: { taskId } });
+    void this.notifications.pushToManagers(tenantId, { title: 'A task needs you', body: `${title}: ${plain}`, data: { taskId } });
   }
 
   async skipTask(tenantId: string, taskId: string, reason: string) {

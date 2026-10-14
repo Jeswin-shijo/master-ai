@@ -13,5 +13,5 @@ Every model call goes through one gateway, `LlmService` ([ADR 0005](0005-llm-gat
 
 ## Consequences
 - A Google key makes the live path testable end to end. Its scores measure Gemini, not the Claude models the prompts were written for, so they are not a quality bar for what ships.
-- On Google's free tier, prompts may be used to improve Google's products and requests per minute are low. Use it with test data only; `pnpm evals:live --rpm` paces calls, and the live sector run goes one organization at a time.
+- On Google's free tier, prompts may be used to improve Google's products and requests per minute are low. Use it with test data only. On the free tier Pro has no quota and Flash allows 20 requests a day, so all tiers can point at Flash-Lite; `LLM_MAX_RPM` spaces the gateway's calls out (per process, off by default), `pnpm evals:live --rpm` paces the scoring, and the live sector run goes one organization at a time.
 - Prompt caching is implicit on Gemini, and the server-side refusal fallback is Claude-only. Choosing a provider per data class (for example, keeping restricted data on one provider) is still open.

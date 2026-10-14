@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import type { Pack } from '@onehuman/schemas';
-import { composeOfflinePack, humanError, narrateStep, parsePack, resolvePack } from './index';
+import { composeOfflinePack, forPeople, humanError, narrateStep, parsePack, resolvePack } from './index';
 
 const PACKS_DIR = join(__dirname, '../../../packs');
 const registry = new Map<string, Pack>();
@@ -71,5 +71,17 @@ describe('humanError', () => {
     ['Amount is above the limit.', 'amount is above the limit'],
   ])('%s → %s', (input, expected) => {
     expect(humanError(input)).toBe(expected);
+  });
+});
+
+describe('forPeople', () => {
+  it('drops record ids from sentences a model wrote', () => {
+    expect(forPeople('There is an open P1 incident (cd70c34a-12c5-48ef-97c9-31fbce2dccca) which blocks releases.')).toBe('There is an open P1 incident which blocks releases.');
+    expect(forPeople('Update record 3f2b9c1e-8a4d-4c2e-9b7a-1d2e3f4a5b6c before Friday.')).toBe('Update record before Friday.');
+    expect(forPeople('Waiting on 3f2b9c1e-8a4d-4c2e-9b7a-1d2e3f4a5b6c.')).toBe('Waiting on.');
+  });
+
+  it('leaves ordinary sentences alone', () => {
+    expect(forPeople('Ramesh got a shock at 3:40 pm (pole 12, Kamalpur feeder).')).toBe('Ramesh got a shock at 3:40 pm (pole 12, Kamalpur feeder).');
   });
 });

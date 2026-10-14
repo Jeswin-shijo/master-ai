@@ -42,7 +42,8 @@ const registry = loadPackRegistry(fileURLToPath(new URL('../../packs/', import.m
 const suites = loadSuites(fileURLToPath(new URL('../../evals/suites/', import.meta.url)));
 const runs = SECTOR_RUNS.filter((r) => (only ? r.id === only : !LIVE || LIVE_RUN_IDS.includes(r.id)));
 if (runs.length === 0) throw new Error(`No run called ${only}. The runs are: ${SECTOR_RUNS.map((r) => r.id).join(', ')}`);
-const TIMEOUT_MS = LIVE ? 600_000 : 300_000;
+// A real model is slow, and LLM_MAX_RPM may space its calls out, so live cases get longer.
+const TIMEOUT_MS = LIVE ? 1_200_000 : 300_000;
 const roleName = (role: string) => role.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -123,7 +124,8 @@ async function runOne(run: SectorRun): Promise<RunResult> {
     const checked = caseProblems(d, want, toolNamesOf(pack), LIVE ? 'live' : 'strict');
     result.problems.push(...checked.problems);
     result.differences.push(...checked.differences);
-    if ((want.approval || want.signoff) && !memberRefused) result.problems.push('no approval was offered to someone without the role');
+    // Every approval must first be refused to the member; a case that never reached a gate (a live model judged it not eligible) has none.
+    if (d.approvals.some((a) => a.kind === 'case_gate') && !memberRefused) result.problems.push('an approval went ahead without first being refused to someone without the role');
     log(`${run.id}: ${d.case.code} ${d.case.status}`, d.report.text);
   } catch (err) {
     result.error = (err as Error).message;
