@@ -169,6 +169,33 @@ entities:
         required: true
         options: [open, contained, restored, rca-sent, closed]
 
+  - name: Ticket
+    label: Ticket
+    description: A task, fault, bug, service or access request from a client.
+    title_field: summary
+    list_columns: [ticketNo, clientName, summary, priority, assignedTo, status]
+    fields:
+      - { name: ticketNo, label: Ticket no., type: string }
+      - { name: clientName, label: Client, type: string, required: true }
+      - { name: raisedBy, label: Raised by, type: string }
+      - name: kind
+        label: Kind
+        type: enum
+        options: [fault, service-request, access-request, bug, change, task]
+      - { name: summary, label: Summary, type: string, required: true }
+      - { name: details, label: Details, type: text }
+      - { name: priority, label: Priority, type: enum, options: [P1, P2, P3, P4] }
+      - { name: assetTag, label: Asset tag, type: string }
+      - { name: assignedTo, label: Assigned to, type: string }
+      - { name: raisedAt, label: Raised at, type: datetime }
+      - { name: dueBy, label: Due by, type: datetime }
+      - { name: resolvedAt, label: Resolved at, type: datetime }
+      - { name: resolution, label: Resolution, type: text }
+      - name: status
+        label: Status
+        type: enum
+        options: [new, assigned, in-progress, waiting-for-client, resolved, closed, reopened]
+
 tools:
   - name: contracts.search
     description: Search client contracts by client, contract number, type or status, to see what is covered and the SLA times.
@@ -1433,3 +1460,54 @@ kpis:
     source: { type: records_count, entity: Contract, where: { status: renewal-due } }
 
 connectors: [gmail, whatsapp-business]
+
+registers:
+  - id: tickets
+    entity: Ticket
+    label: Tickets
+    columns: [ticketNo, clientName, summary, kind, priority, assignedTo, dueBy, status]
+    filters: [kind, priority, status]
+    date_field: raisedAt
+    card: { count: { when: { status: [new, assigned, in-progress, waiting-for-client, reopened] }, label: open } }
+    checks:
+      - missing: [clientName, assignedTo]
+      - overdue: { date: dueBy }
+        when: { status: [new, assigned, in-progress, waiting-for-client, reopened] }
+      - duplicate: [ticketNo]
+  - id: incidents
+    entity: Incident
+    label: Incidents
+    columns: [title, clientName, kind, noticedAt, usersAffected, status]
+    filters: [kind, status, personalDataInvolved]
+    date_field: noticedAt
+    card: { count: { when: { status: [open, contained] }, label: open } }
+    checks:
+      - missing: [certInReportedAt]
+        when: { kind: [security, data-breach] }
+        why: CERT-In must be told within 6 hours
+      - missing: [clientToldAt]
+      - missing: [rootCause]
+        when: { status: [rca-sent, closed] }
+  - id: assets
+    entity: Asset
+    label: Assets
+    columns: [assetTag, clientName, deviceType, usedBy, coveredBy, warrantyEndsOn, status]
+    filters: [deviceType, coveredBy, status]
+    checks:
+      - expiring: { date: warrantyEndsOn, days: 30 }
+        when: { status: [in-use, in-repair, standby] }
+      - missing: [wipeCertificate]
+        when: { status: [retired, recycled] }
+  - id: contracts
+    entity: Contract
+    label: Contracts
+    columns: [clientName, contractNumber, contractType, endsOn, monthlyFee, status]
+    filters: [contractType, status]
+    date_field: startsOn
+    totals: [monthlyFee]
+    card:
+      count: { when: { status: [active] }, label: active }
+      sum: { field: monthlyFee, when: { status: [active] }, label: a month }
+    checks:
+      - expiring: { date: endsOn, days: 45 }
+        when: { status: [active, renewal-due] }

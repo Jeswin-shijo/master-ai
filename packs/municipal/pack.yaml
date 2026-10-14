@@ -1044,3 +1044,41 @@ kpis:
     unit: count
     direction: down
     target: 0
+
+registers:
+  - id: service-applications
+    entity: ServiceApplication
+    label: Service applications
+    columns: [applicationNo, service, applicant, ward, dueBy, designatedOfficer, status]
+    filters: [status]
+    date_field: receivedOn
+    totals: [fee]
+    card: { count: { when: { status: [received, papers-pending, inspection, sanctioned] }, label: open } }
+    checks:
+      - overdue: { date: dueBy }
+        when: { status: [received, papers-pending, inspection, sanctioned] }
+        why: Right to Services deadline
+      - missing: [designatedOfficer]
+      - duplicate: [applicationNo]
+  - id: properties
+    entity: Property
+    label: Properties
+    columns: [propertyId, ownerName, ward, usage, annualTax, arrears, lastPaidOn]
+    filters: [usage]
+    totals: [annualTax, arrears]
+    card: { sum: { field: arrears, label: arrears } }
+    checks:
+      - overdue: { date: lastPaidOn, grace_days: 365 }
+        when: { arrears: { above: 0 } }
+        why: not paid for over a year
+  - id: trade-licences
+    entity: TradeLicence
+    label: Trade licences
+    columns: [licenceNo, tradeName, holder, ward, validTill, status]
+    filters: [status]
+    date_field: validTill
+    totals: [fee]
+    card: { count: { when: { status: [active] }, label: active } }
+    checks:
+      - expiring: { date: validTill, days: 30 }
+        when: { status: [active] }

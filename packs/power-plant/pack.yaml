@@ -586,3 +586,56 @@ kpis:
     unit: percent
     direction: down
     target: 15
+
+registers:
+  - id: work-permits
+    entity: WorkPermit
+    label: Work permits
+    columns: [permitNo, permitType, equipment, receivedBy, crewCount, validTill, status]
+    filters: [permitType, status]
+    date_field: validTill
+    card: { count: { when: { status: [issued] }, label: open } }
+    checks:
+      - overdue: { date: validTill }
+        when: { status: [issued] }
+        why: time over but not returned
+      - missing: [gasTestOk]
+        when: { permitType: [confined-space] }
+      - missing: [earthsFixed]
+        when: { permitType: [electrical, line-clear] }
+      - duplicate: [permitNo]
+  - id: outages
+    entity: Outage
+    label: Outages
+    columns: [element, outageType, plannedStart, plannedEnd, consumersAffected, status]
+    filters: [outageType, status]
+    date_field: plannedStart
+    totals: [consumersAffected]
+    card: { count: { when: { status: [in-progress] }, label: in progress } }
+    checks:
+      - overdue: { date: plannedEnd }
+        when: { status: [in-progress] }
+      - missing: [noticeSent]
+        when: { consumersAffected: { above: 0 } }
+      - missing: [ldcCode]
+        when: { status: [approved, in-progress] }
+  - id: equipment
+    entity: Equipment
+    label: Equipment
+    columns: [tag, name, kind, criticality, nextMaintenance, status]
+    filters: [kind, criticality, status]
+    card: { count: { when: { status: [forced-outage] }, label: forced out } }
+    checks:
+      - overdue: { date: nextMaintenance }
+        when: { status: [in-service, standby] }
+  - id: incidents
+    entity: Incident
+    label: Incidents
+    columns: [occurredAt, place, kind, personName, formASentAt, status]
+    filters: [kind, personType, status]
+    date_field: occurredAt
+    card: { count: { when: { status: [open, reported, investigating] }, label: open } }
+    checks:
+      - missing: [formASentAt]
+        when: { kind: [fatal, non-fatal, dangerous-occurrence] }
+        why: accident report to the Electrical Inspector

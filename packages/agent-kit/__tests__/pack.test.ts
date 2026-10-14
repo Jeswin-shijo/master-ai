@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import type { Pack } from '@onehuman/schemas';
+import { ORG_TYPES } from '@onehuman/schemas';
 import {
   composeOfflinePack,
   detectFamily,
@@ -13,6 +14,7 @@ import {
   packUpdates,
   parsePack,
   prepareArgs,
+  registersOf,
   resolvePack,
   resolveTool,
   toolDefinition,
@@ -179,5 +181,55 @@ describe('tools', () => {
     const validator = entityValidator(trip);
     expect(validator.safeParse({ travellerName: 'Asha', destination: 'Munnar', status: 'enquiry' }).success).toBe(true);
     expect(validator.safeParse({ travellerName: 'Asha', status: 'flying' }).success).toBe(false);
+  });
+});
+
+describe('lists of each organization type', () => {
+  const MAIN_LISTS: Record<string, string[]> = {
+    'wholesale-retail': ['bills', 'orders', 'parties', 'products'],
+    logistics: ['shipments', 'claims', 'trucks', 'drivers'],
+    'travel-agency': ['bookings', 'trips', 'suppliers'],
+    'it-services': ['tickets', 'incidents', 'assets', 'contracts'],
+    'software-saas': ['tickets', 'incidents', 'releases', 'payments'],
+    'digital-agency': ['deliverables', 'invoices', 'scopes'],
+    construction: ['site-issues', 'contractor-bills', 'units', 'workers', 'contractors'],
+    'power-plant': ['work-permits', 'outages', 'equipment', 'incidents'],
+    'manufacturing-plant': ['production-orders', 'quality-issues', 'machines', 'safety-incidents'],
+    hospital: ['visits', 'cashless-requests', 'appointments', 'incidents'],
+    education: ['fee-accounts', 'enrolments', 'students', 'assets'],
+    municipal: ['service-applications', 'properties', 'trade-licences'],
+    lender: ['repayments', 'loans', 'collateral'],
+    'accounting-firm': ['filings', 'tax-notices', 'signed-reports'],
+    ngo: ['vouchers', 'donations', 'grants', 'beneficiaries'],
+  };
+
+  it('covers every ready-made organization type', () => {
+    expect(Object.keys(MAIN_LISTS).sort()).toEqual(ORG_TYPES.map((t) => t.id).sort());
+  });
+
+  it.each(Object.entries(MAIN_LISTS))('%s has its main lists', (id, lists) => {
+    const resolved = resolvePack(registry.get(id)!, lookup);
+    expect(registersOf(resolved).filter((r) => r.main).map((r) => r.id)).toEqual(lists);
+  });
+
+  it('adds the record types and fields the lists need, all optional on types companies already have', () => {
+    const entity = (pack: string, name: string) => resolvePack(registry.get(pack)!, lookup).entities.find((e) => e.name === name);
+    const names = (pack: string, name: string) => entity(pack, name)?.fields.map((f) => f.name) ?? [];
+    expect(names('it-services', 'Ticket')).toEqual(expect.arrayContaining(['ticketNo', 'clientName', 'summary', 'priority', 'assignedTo', 'dueBy', 'status']));
+    expect(names('software-saas', 'Ticket')).toEqual(expect.arrayContaining(['account', 'severity', 'fixVersion', 'reportedAt']));
+    expect(names('construction', 'SiteIssue')).toEqual(expect.arrayContaining(['project', 'contractor', 'engineer', 'dueBy', 'raisedOn']));
+    expect(names('construction', 'ContractorBill')).toEqual(expect.arrayContaining(['thisBill', 'retention', 'tds', 'otherDeductions', 'netPayable', 'receivedOn']));
+    const added: [string, string, string[]][] = [
+      ['travel-agency', 'Booking', ['supplier', 'supplierPhone']],
+      ['hospital', 'CashlessRequest', ['tpaPhone']],
+      ['lender', 'Repayment', ['borrowerName', 'borrowerPhone']],
+      ['manufacturing-plant', 'QualityIssue', ['foundOn', 'owner']],
+      ['ngo', 'Grant', ['programmeLead']],
+    ];
+    for (const [pack, name, fields] of added) {
+      for (const field of fields) expect(entity(pack, name)!.fields.find((f) => f.name === field), `${pack} ${name}.${field}`).toMatchObject({ required: false });
+    }
+    // Other types that book things keep the plain Booking.
+    expect(names('hospital', 'Booking')).not.toContain('supplier');
   });
 });

@@ -122,6 +122,8 @@ entities:
       - { name: rootCause, label: Root cause, type: text }
       - { name: capaDue, label: CAPA due, type: date }
       - { name: cost, label: "Cost (scrap, rework, sorting)", type: money }
+      - { name: foundOn, label: Found on, type: date }
+      - { name: owner, label: Who is handling it, type: string }
       - name: status
         label: Status
         type: enum
@@ -1168,3 +1170,57 @@ kpis:
     unit: count
     direction: down
     source: { type: records_count, entity: QualityIssue, where: { status: open } }
+
+registers:
+  - id: production-orders
+    entity: ProductionOrder
+    label: Production orders
+    columns: [orderNo, customer, partNo, quantity, producedQty, dueDate, status]
+    filters: [status]
+    date_field: dueDate
+    totals: [quantity, producedQty, rejectedQty, orderValue]
+    card: { count: { when: { status: [released, running] }, label: running } }
+    checks:
+      - overdue: { date: dueDate }
+        when: { status: [planned, released, running, on-hold] }
+      - limit: { fields: [rejectedQty], max: producedQty }
+      - duplicate: [orderNo]
+  - id: quality-issues
+    entity: QualityIssue
+    label: Quality issues
+    columns: [partNo, lotNo, defect, foundAt, disposition, owner, status]
+    filters: [foundAt, disposition, status]
+    date_field: foundOn
+    totals: [qtyAffected, cost]
+    card: { count: { when: { status: [open, contained, capa-open] }, label: open } }
+    checks:
+      - overdue: { date: capaDue }
+        when: { status: [open, contained, capa-open] }
+      - missing: [decidedBy]
+        when: { disposition: [use-as-is-concession] }
+      - missing: [rootCause]
+        when: { status: [closed] }
+  - id: machines
+    entity: Machine
+    label: Machines
+    columns: [code, name, line, criticality, nextPmDue, status]
+    filters: [criticality, status]
+    card: { count: { when: { status: [stopped] }, label: stopped } }
+    checks:
+      - overdue: { date: nextPmDue }
+        when: { status: [running, standby] }
+      - overdue: { date: statutoryTestDue }
+  - id: safety-incidents
+    entity: SafetyIncident
+    label: Safety incidents
+    columns: [occurredAt, location, type, personName, daysLost, status]
+    filters: [type, status, reportable]
+    date_field: occurredAt
+    totals: [daysLost]
+    card: { count: { when: { status: [open, investigating, actions-open] }, label: open } }
+    checks:
+      - missing: [noticeSentAt]
+        when: { reportable: [true] }
+        why: Factories Act notice
+      - missing: [esiReportSentAt]
+        when: { daysLost: { above: 0 } }

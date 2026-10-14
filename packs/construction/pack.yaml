@@ -144,6 +144,63 @@ entities:
         required: true
         options: [unsold, booked, agreement-signed, ready-for-possession, possession-given]
 
+  - name: SiteIssue
+    label: Site issue
+    description: A snag, material shortage, delay, safety or quality problem on site.
+    title_field: description
+    list_columns: [issueNo, project, location, kind, contractor, dueBy, status]
+    fields:
+      - { name: issueNo, label: Issue no., type: string }
+      - { name: project, label: Project, type: string, required: true }
+      - { name: location, label: "Where (tower, floor, unit)", type: string }
+      - name: kind
+        label: Kind
+        type: enum
+        options: [snag, material-shortage, delay, safety, quality, labour, design-query, other]
+      - { name: description, label: What is wrong, type: text, required: true }
+      - { name: raisedBy, label: Raised by, type: string }
+      - { name: raisedOn, label: Raised on, type: date }
+      - { name: contractor, label: Contractor fixing it, type: reference, ref: Contractor }
+      - { name: engineer, label: Our engineer, type: string }
+      - { name: dueBy, label: Fix by, type: date }
+      - { name: costImpact, label: Cost impact, type: money }
+      - { name: delayDays, label: Days of delay, type: integer }
+      - { name: closedOn, label: Closed on, type: date }
+      - name: status
+        label: Status
+        type: enum
+        options: [open, in-progress, fixed, verified, closed]
+  - name: ContractorBill
+    label: Contractor bill
+    description: "A contractor's running-account (RA) bill, from measurement to payment."
+    title_field: billNo
+    list_columns: [billNo, contractor, project, raBillNumber, thisBill, netPayable, status]
+    fields:
+      - { name: billNo, label: Bill no., type: string }
+      - { name: contractor, label: Contractor, type: reference, ref: Contractor, required: true }
+      - { name: project, label: Project, type: string, required: true }
+      - { name: workOrderNo, label: Work order no., type: string }
+      - { name: period, label: Period, type: string }
+      - { name: raBillNumber, label: RA bill no., type: integer }
+      - { name: receivedOn, label: Received on, type: date }
+      - { name: workOrderValue, label: Work order value, type: money }
+      - { name: previouslyBilled, label: Billed before, type: money }
+      - { name: thisBill, label: This bill, type: money, required: true }
+      - { name: retention, label: Retention, type: money }
+      - { name: tds, label: TDS, type: money }
+      - { name: otherDeductions, label: Other deductions, type: money }
+      - { name: netPayable, label: Net payable, type: money }
+      - { name: measuredBy, label: Measured by, type: string }
+      - { name: certifiedBy, label: Certified by, type: string }
+      - { name: certifiedOn, label: Certified on, type: date }
+      - { name: dueDate, label: Due date, type: date }
+      - { name: paidOn, label: Paid on, type: date }
+      - { name: paymentRef, label: UTR / cheque no., type: string }
+      - name: status
+        label: Status
+        type: enum
+        options: [received, measuring, certified, approved, part-paid, paid, disputed, rejected]
+
 tools:
   - name: projects.search
     description: Search projects and sites by name, code, client or status.
@@ -737,3 +794,67 @@ kpis:
     unit: percent
     direction: up
     target: 100
+
+registers:
+  - id: site-issues
+    entity: SiteIssue
+    label: Site issues
+    columns: [issueNo, project, location, kind, contractor, dueBy, status]
+    filters: [kind, status, contractor]
+    date_field: raisedOn
+    totals: [costImpact]
+    card: { count: { when: { status: [open, in-progress] }, label: open } }
+    checks:
+      - missing: [engineer]
+      - overdue: { date: dueBy }
+        when: { status: [open, in-progress] }
+  - id: contractor-bills
+    entity: ContractorBill
+    label: Contractor bills
+    columns: [billNo, contractor, project, raBillNumber, thisBill, netPayable, status]
+    filters: [status, contractor]
+    date_field: receivedOn
+    totals: [thisBill, retention, tds, netPayable]
+    card: { sum: { field: netPayable, when: { status: [received, measuring, certified, approved, part-paid, disputed] }, label: to pay } }
+    checks:
+      - adds_up: { field: netPayable, plus: [thisBill], minus: [retention, tds, otherDeductions] }
+      - limit: { fields: [previouslyBilled, thisBill], max: workOrderValue }
+      - duplicate: [contractor, project, raBillNumber]
+      - overdue: { date: dueDate }
+        when: { status: [certified, approved, part-paid] }
+  - id: units
+    entity: Unit
+    label: Units
+    columns: [unitNumber, tower, project, buyerName, possessionDate, openSnags, status]
+    filters: [status, duesCleared]
+    date_field: agreementDate
+    card: { count: { when: { status: [booked, agreement-signed] }, label: booked } }
+    checks:
+      - overdue: { date: possessionDate }
+        when: { status: [booked, agreement-signed, ready-for-possession] }
+        why: possession date passed
+      - missing: [buyerMobile]
+        when: { status: [booked, agreement-signed] }
+  - id: workers
+    entity: Worker
+    label: Workers
+    columns: [fullName, trade, contractor, mobile, bocwNumber, status]
+    filters: [trade, status]
+    card: { count: { when: { status: [working] }, label: working } }
+    checks:
+      - missing: [bocwNumber]
+        when: { status: [working] }
+        why: BOCW registration
+      - expiring: { date: healthCheckDueOn, days: 15 }
+        when: { status: [working] }
+  - id: contractors
+    entity: Contractor
+    label: Contractors
+    columns: [name, kind, work, phone, licenceValidTill, retentionHeld]
+    filters: [kind, rating]
+    totals: [retentionHeld, securityDeposit]
+    card: { sum: { field: retentionHeld, label: retention held } }
+    checks:
+      - expiring: { date: licenceValidTill, days: 30 }
+      - missing: [labourLicenceNo]
+        when: { kind: [labour-contractor] }

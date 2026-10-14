@@ -694,3 +694,49 @@ kpis:
     unit: percent
     direction: up
     target: 100
+
+registers:
+  - id: bills
+    entity: Bill
+    label: Bills
+    columns: [billNo, billType, party, billDate, total, paymentStatus, dueDate]
+    filters: [billType, paymentStatus, party]
+    date_field: billDate
+    totals: [taxableValue, gstAmount, total]
+    card: { sum: { field: total, when: { paymentStatus: [unpaid, part-paid] }, label: unpaid } }
+    checks:
+      - missing: [party, billDate, total]
+      - adds_up: { field: total, plus: [taxableValue, gstAmount] }
+      - duplicate: [billType, billNo, party]
+      - overdue: { date: dueDate }
+        when: { paymentStatus: [unpaid, part-paid] }
+  - id: orders
+    entity: Order
+    label: Orders
+    columns: [orderNo, orderType, customerName, amount, status, paymentStatus, neededBy]
+    filters: [orderType, status, paymentStatus]
+    date_field: orderedAt
+    totals: [amount]
+    card: { count: { when: { status: [new, confirmed, on-hold, packed, shipped] }, label: open } }
+    checks:
+      - missing: [customerName, items]
+      - overdue: { date: neededBy }
+        when: { status: [new, confirmed, on-hold, packed, shipped] }
+  - id: parties
+    entity: Party
+    label: Parties
+    columns: [name, partyType, city, phone, outstanding, creditLimit]
+    filters: [partyType, onHold]
+    totals: [outstanding]
+    card: { sum: { field: outstanding, label: outstanding } }
+    checks:
+      - missing: [phone]
+      - limit: { fields: [outstanding], max: creditLimit }
+  - id: products
+    entity: Product
+    label: Items
+    columns: [name, sku, stock, reorderLevel, price, nearestExpiry]
+    filters: [active]
+    checks:
+      - limit: { fields: [stock], min: reorderLevel }
+      - expiring: { date: nearestExpiry, days: 30 }

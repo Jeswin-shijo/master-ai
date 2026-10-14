@@ -729,3 +729,53 @@ kpis:
     unit: count
     direction: down
     source: { type: records_count, entity: Claim, where: { status: received } }
+
+registers:
+  - id: shipments
+    entity: Shipment
+    label: Shipments
+    columns: [lrNumber, consigneeName, fromCity, toCity, freight, promisedDelivery, status]
+    filters: [status, loadType, paymentTerms]
+    date_field: bookingDate
+    totals: [freight, declaredValue]
+    card: { count: { when: { status: [loaded, in-transit] }, label: on the road } }
+    checks:
+      - missing: [consigneePhone, truckNumber]
+      - missing: [ewayBillNumber]
+        when: { declaredValue: { above: 50000 } }
+        why: "e-way bill needed above ₹50,000"
+      - duplicate: [lrNumber]
+      - overdue: { date: promisedDelivery }
+        when: { status: [booked, loaded, in-transit] }
+      - expiring: { date: ewayBillValidUntil, days: 1 }
+        when: { status: [loaded, in-transit] }
+  - id: claims
+    entity: Claim
+    label: Claims
+    columns: [claimNumber, lrNumber, claimType, claimAmount, settledAmount, status]
+    filters: [claimType, status]
+    date_field: noticeDate
+    totals: [claimAmount, settledAmount]
+    card: { sum: { field: claimAmount, when: { status: [received, survey, offer-made] }, label: open } }
+    checks:
+      - limit: { fields: [settledAmount], max: claimAmount }
+      - limit: { fields: [claimAmount], max: declaredValue }
+      - duplicate: [claimNumber]
+  - id: trucks
+    entity: Truck
+    label: Trucks
+    columns: [truckNumber, ownership, ownerName, permitValidUntil, insuranceValidUntil, status]
+    filters: [ownership, status]
+    checks:
+      - expiring: { date: permitValidUntil, days: 30 }
+      - expiring: { date: fitnessValidUntil, days: 30 }
+      - expiring: { date: insuranceValidUntil, days: 30 }
+      - expiring: { date: pucValidUntil, days: 30 }
+  - id: drivers
+    entity: Driver
+    label: Drivers
+    columns: [name, phone, licenceValidUntil, currentTruck, status]
+    filters: [status, hazardousEndorsement]
+    checks:
+      - expiring: { date: licenceValidUntil, days: 30 }
+      - missing: [idChecked]

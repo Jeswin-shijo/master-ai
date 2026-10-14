@@ -706,3 +706,63 @@ playbooks:
       6. Keep a counsellor, watch for students under stress, and share help lines such as Tele-MANAS 14416.
       7. Give receipts for every payment, do not raise fees during a course, and refund the unused part of the fees, hostel and mess included, within 10 days of a student leaving.
       8. Keep the fire NOC, building safety, first aid and CCTV in order. Under the guidelines the fine is ₹25,000 the first time, ₹1 lakh the second, and registration can be cancelled after that.
+
+registers:
+  - id: fee-accounts
+    entity: FeeAccount
+    label: Fee accounts
+    columns: [studentName, admissionNumber, academicYear, totalFee, paid, due, nextDueDate]
+    filters: []
+    date_field: nextDueDate
+    totals: [totalFee, concession, paid, due]
+    card: { sum: { field: due, label: due } }
+    checks:
+      - adds_up: { field: due, plus: [totalFee], minus: [concession, paid] }
+      - overdue: { date: nextDueDate }
+        when: { due: { above: 0 } }
+      - limit: { fields: [concession], max: totalFee }
+      - missing: [concessionReason]
+        when: { concession: { above: 0 } }
+  - id: enrolments
+    entity: Booking
+    label: Enrolments
+    columns: [customerName, service, date, amount, status, paymentStatus]
+    filters: [status, paymentStatus]
+    date_field: date
+    totals: [amount]
+    checks:
+      - missing: [phone]
+  - id: students
+    entity: Customer
+    label: Students
+    columns: [name, admissionNumber, classSection, parentName, phone, attendancePercent, status]
+    filters: [seatType, status]
+    date_field: admittedOn
+    card: { count: { when: { status: [studying] }, label: studying } }
+    checks:
+      - missing: [parentName, phone]
+      - limit: { fields: [attendancePercent], min: 75 }
+        when: { status: [studying] }
+        why: attendance below 75%
+  - id: assets
+    entity: Asset
+    label: Assets
+    columns: [assetName, assetType, location, fitnessUntil, insuranceUntil, status]
+    filters: [assetType, status]
+    card: { count: { when: { status: [under-repair, off-road] }, label: out of use } }
+    checks:
+      - expiring: { date: fitnessUntil, days: 30 }
+      - expiring: { date: insuranceUntil, days: 30 }
+      - expiring: { date: permitUntil, days: 30 }
+      - expiring: { date: amcUntil, days: 30 }
+      - missing: [gpsWorking, cctvWorking, attendantOnBoard]
+        when: { assetType: [bus, van] }
+        why: school transport safety rules
+  - id: staff-members
+    entity: StaffMember
+    label: Staff members
+    main: false
+    columns: [fullName, employeeId, role, mobile, policeVerified, safetyTrained]
+    filters: [role]
+    checks:
+      - missing: [policeVerified, safetyTrained]

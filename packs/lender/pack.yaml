@@ -107,6 +107,8 @@ entities:
     list_columns: [loanNumber, dueDate, amountDue, amountPaid, status]
     fields:
       - { name: loanNumber, label: Loan number, type: string, required: true }
+      - { name: borrowerName, label: Borrower name, type: string }
+      - { name: borrowerPhone, label: Borrower phone, type: phone }
       - { name: dueDate, label: Due date, type: date, required: true }
       - { name: amountDue, label: Amount due, type: money }
       - { name: amountPaid, label: Amount paid, type: money }
@@ -726,3 +728,48 @@ kpis:
     unit: percent
     direction: up
     target: 100
+
+registers:
+  - id: repayments
+    entity: Repayment
+    label: Repayments
+    columns: [loanNumber, borrowerName, dueDate, amountDue, amountPaid, status, promiseToPayOn]
+    filters: [status, mode]
+    date_field: dueDate
+    totals: [amountDue, amountPaid, penalCharge]
+    card: { sum: { field: amountDue, when: { status: [due, bounced, part-paid, promised] }, label: outstanding } }
+    checks:
+      - limit: { fields: [amountPaid], max: amountDue }
+      - overdue: { date: dueDate }
+        when: { status: [due, bounced, part-paid] }
+      - overdue: { date: promiseToPayOn }
+        when: { status: [promised] }
+        why: promise date passed
+      - missing: [receiptNumber]
+        when: { mode: [cash], status: [paid, part-paid] }
+  - id: loans
+    entity: Loan
+    label: Loans
+    columns: [loanNumber, borrowerName, product, amountSanctioned, principalOutstanding, bucket, status]
+    filters: [product, bucket, status]
+    date_field: disbursedOn
+    totals: [amountSanctioned, principalOutstanding]
+    card: { sum: { field: principalOutstanding, label: outstanding } }
+    checks:
+      - limit: { fields: [amountSanctioned], max: amountAsked }
+      - missing: [sanctionedBy]
+        when: { status: [sanctioned, disbursed] }
+      - duplicate: [loanNumber]
+  - id: collateral
+    entity: Collateral
+    label: Collateral
+    columns: [loanNumber, securityType, value, valuedOn, packetNumber, status]
+    filters: [securityType, status]
+    date_field: valuedOn
+    totals: [value]
+    card: { sum: { field: value, when: { status: [held] }, label: held } }
+    checks:
+      - missing: [chargeRegistered, originalsKeptAt]
+        when: { securityType: [property] }
+      - missing: [packetNumber]
+        when: { securityType: [gold] }

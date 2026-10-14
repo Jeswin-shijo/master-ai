@@ -173,6 +173,7 @@ entities:
         required: true
         options: [insurance-tpa, pm-jay, cghs, echs, esi, state-scheme, employer]
       - { name: insurerOrTpa, label: Insurer or TPA, type: string }
+      - { name: tpaPhone, label: TPA phone, type: phone }
       - { name: policyOrCardNumber, label: "Policy, e-card or beneficiary ID", type: string }
       - { name: packageCode, label: Package or procedure code, type: string }
       - name: requestType
@@ -1231,3 +1232,59 @@ kpis:
     unit: count
     direction: down
     source: { type: records_count, entity: Incident, where: { status: reported } }
+
+registers:
+  - id: visits
+    entity: Visit
+    label: Visits
+    columns: [visitNumber, patientName, visitType, department, payer, finalBill, status]
+    filters: [visitType, payer, status]
+    date_field: arrivedAt
+    totals: [estimate, advancePaid, finalBill]
+    card: { sum: { field: finalBill, label: billed } }
+    checks:
+      - missing: [finalBill]
+        when: { status: [discharge-ordered, left] }
+      - limit: { fields: [advancePaid], max: finalBill }
+        why: refund due
+      - missing: [consentSigned]
+        when: { visitType: [day-care, admission] }
+      - missing: [summaryGiven]
+        when: { status: [left] }
+      - duplicate: [visitNumber]
+  - id: cashless-requests
+    entity: CashlessRequest
+    label: Cashless requests
+    columns: [patientName, visitNumber, insurerOrTpa, requestType, amountAsked, amountApproved, status]
+    filters: [payer, requestType, status]
+    date_field: sentAt
+    totals: [amountAsked, amountApproved]
+    card: { sum: { field: amountAsked, when: { status: [sent, query] }, label: waiting } }
+    checks:
+      - limit: { fields: [amountApproved], max: amountAsked }
+      - overdue: { date: sentAt, grace_days: 1 }
+        when: { status: [query] }
+        why: query open for over a day
+  - id: appointments
+    entity: Booking
+    label: Appointments
+    columns: [customerName, service, date, time, status, paymentStatus]
+    filters: [status, paymentStatus]
+    date_field: date
+    totals: [amount]
+    card: { count: { when: { status: [requested, held, confirmed] }, label: coming up } }
+    checks:
+      - overdue: { date: date }
+        when: { status: [requested, held] }
+  - id: incidents
+    entity: Incident
+    label: Incidents
+    columns: [summary, occurredAt, incidentType, harm, familyTold, status]
+    filters: [incidentType, harm, status]
+    date_field: occurredAt
+    card: { count: { when: { status: [reported, under-review, actions-agreed] }, label: open } }
+    checks:
+      - missing: [familyTold]
+        when: { harm: [moderate, severe, death] }
+      - missing: [rootCause]
+        when: { status: [actions-agreed, closed] }

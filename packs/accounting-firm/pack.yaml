@@ -887,3 +887,44 @@ kpis:
     unit: percent
     direction: up
     target: 90
+
+registers:
+  - id: filings
+    entity: Filing
+    label: Filings
+    columns: [client, filingType, period, dueDate, preparedBy, status]
+    filters: [filingType, status]
+    date_field: dueDate
+    totals: [taxPayable, lateFeeInterest]
+    card: { count: { when: { status: [not-started, waiting-for-client, prepared, in-review, client-approval] }, label: open } }
+    checks:
+      - overdue: { date: dueDate }
+        when: { status: [not-started, waiting-for-client, prepared, in-review, client-approval] }
+      - overdue: { date: internalDeadline }
+        when: { status: [not-started, waiting-for-client, prepared, in-review, client-approval] }
+      - missing: [reviewedBy, acknowledgementNo]
+        when: { status: [filed, verified, closed] }
+  - id: tax-notices
+    entity: TaxNotice
+    label: Tax notices
+    columns: [client, authority, noticeType, noticeDate, replyDueDate, amountInDispute, status]
+    filters: [authority, status]
+    date_field: noticeDate
+    totals: [amountInDispute]
+    card: { count: { when: { status: [received, drafting, partner-review] }, label: to reply } }
+    checks:
+      - expiring: { date: replyDueDate, days: 7 }
+        when: { status: [received, drafting, partner-review] }
+      - missing: [verified]
+        why: check the notice is genuine
+      - duplicate: [referenceNo]
+  - id: signed-reports
+    entity: SignedReport
+    label: Signed reports
+    columns: [client, documentType, signingPartner, signedOn, udin, acceptedOnPortal]
+    filters: [documentType]
+    date_field: signedOn
+    checks:
+      - missing: [udin]
+        when: { signedOn: filled }
+        why: UDIN within 60 days of signing

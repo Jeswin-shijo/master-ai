@@ -87,6 +87,7 @@ entities:
     fields:
       - { name: grantCode, label: Grant code, type: string, required: true }
       - { name: donorName, label: Donor or funder, type: string, required: true }
+      - { name: programmeLead, label: Programme lead, type: string }
       - name: donorType
         label: Donor type
         type: enum
@@ -1151,3 +1152,56 @@ kpis:
     unit: percent
     direction: up
     target: 100
+
+registers:
+  - id: vouchers
+    entity: Voucher
+    label: Vouchers
+    columns: [voucherNumber, grantCode, payee, amount, mode, status, paidOn]
+    filters: [mode, paidFrom, status]
+    totals: [amount, tdsDeducted]
+    card: { sum: { field: amount, when: { status: [paid] }, label: paid out } }
+    checks:
+      - missing: [approvedBy]
+        when: { status: [approved, paid] }
+      - limit: { fields: [quotations], min: 3 }
+        when: { amount: { above: 25000 } }
+        why: "three quotations above ₹25,000"
+      - duplicate: [voucherNumber]
+  - id: donations
+    entity: Donation
+    label: Donations
+    columns: [receiptNumber, donorName, amount, mode, receivedOn, certificateSentOn]
+    filters: [mode, isForeignSource]
+    date_field: receivedOn
+    totals: [amount]
+    card: { sum: { field: amount, label: received } }
+    checks:
+      - missing: [panOrId, certificateSentOn]
+      - limit: { fields: [amount], max: 2000 }
+        when: { mode: [cash] }
+        why: "cash donations above ₹2,000 get no 80G deduction"
+      - duplicate: [receiptNumber]
+  - id: grants
+    entity: Grant
+    label: Grants
+    columns: [grantCode, donorName, amountAgreed, receivedToDate, spentToDate, nextReportDue, status]
+    filters: [donorType, status]
+    date_field: startDate
+    totals: [amountAgreed, receivedToDate, spentToDate]
+    card: { sum: { field: amountAgreed, when: { status: [active] }, label: active } }
+    checks:
+      - limit: { fields: [spentToDate], max: receivedToDate }
+      - limit: { fields: [adminSpent], max: receivedToDate, factor: 0.2 }
+        when: { isForeign: [true] }
+        why: "FCRA: admin costs up to 20%"
+      - expiring: { date: nextReportDue, days: 15 }
+        when: { status: [signed, active, closing] }
+  - id: beneficiaries
+    entity: Beneficiary
+    label: Beneficiaries
+    columns: [fullName, village, programme, status, lastVisitOn]
+    filters: [gender, status]
+    card: { count: { when: { status: [served] }, label: served } }
+    checks:
+      - missing: [consentOn]

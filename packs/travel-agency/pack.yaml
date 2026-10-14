@@ -70,6 +70,33 @@ entities:
       - { name: rating, label: Rating, type: number }
       - { name: commissionPercent, label: Commission %, type: number }
 
+  - name: Booking
+    label: Booking
+    description: A traveller's booking of a package or service, and the supplier who confirms it.
+    title_field: customerName
+    list_columns: [customerName, service, date, supplier, status, paymentStatus, amount]
+    fields:
+      - { name: customerName, label: Customer name, type: string, required: true }
+      - { name: phone, label: Phone, type: phone }
+      - { name: email, label: Email, type: email }
+      - { name: service, label: Service, type: string, required: true }
+      - { name: date, label: Date, type: date, required: true }
+      - { name: time, label: Time, type: string }
+      - { name: partySize, label: People, type: integer }
+      - { name: amount, label: Amount, type: money }
+      - name: status
+        label: Status
+        type: enum
+        required: true
+        options: [requested, held, confirmed, cancelled, completed]
+      - name: paymentStatus
+        label: Payment
+        type: enum
+        options: [unpaid, requested, paid, refunded]
+      - { name: notes, label: Notes, type: text }
+      - { name: supplier, label: Supplier, type: string }
+      - { name: supplierPhone, label: Supplier phone, type: phone }
+
 tools:
   - name: suppliers.search
     description: Search hotels, transport, guides and activity suppliers.
@@ -508,3 +535,35 @@ playbooks:
       5. Coaches and cabs must have a valid tourist permit (All India Tourist Permit on Vahan, or a state permit), fitness certificate, insurance and a licensed driver.
       6. Send an escort with big groups, carry the rooming list and emergency plan (nearest hospitals, 112, the insurer's number, our 24x7 duty phone), and meet airline and hotel name-list deadlines.
       7. The operations manager signs off once everyone is home and every supplier bill is settled.
+
+registers:
+  - id: bookings
+    entity: Booking
+    label: Bookings
+    columns: [customerName, service, date, supplier, amount, status, paymentStatus]
+    filters: [status, paymentStatus]
+    date_field: date
+    totals: [amount]
+    card: { sum: { field: amount, when: { paymentStatus: [unpaid, requested] }, label: unpaid } }
+    checks:
+      - missing: [phone]
+      - overdue: { date: date }
+        when: { status: [requested, held] }
+        why: travel date passed and still not confirmed
+  - id: trips
+    entity: Trip
+    label: Trips
+    columns: [travellerName, destination, startDate, endDate, travellers, budget, status]
+    filters: [status]
+    date_field: startDate
+    totals: [budget]
+    card: { count: { when: { status: [booked, travelling] }, label: booked or travelling } }
+    checks:
+      - limit: { fields: [endDate], min: startDate }
+  - id: suppliers
+    entity: Supplier
+    label: Suppliers
+    columns: [name, type, city, phone, rating]
+    filters: [type]
+    checks:
+      - missing: [phone]

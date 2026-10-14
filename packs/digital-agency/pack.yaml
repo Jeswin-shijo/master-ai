@@ -1600,3 +1600,43 @@ kpis:
     target: 85
 
 connectors: [gmail, whatsapp-business, razorpay]
+
+registers:
+  - id: deliverables
+    entity: Deliverable
+    label: Deliverables
+    columns: [jobNumber, client, title, kind, dueDate, roundsUsed, status]
+    filters: [kind, status]
+    date_field: dueDate
+    totals: [hoursEstimated, hoursSpent]
+    card: { count: { when: { status: [in-progress, internal-review, with-client, changes-asked, on-hold] }, label: open } }
+    checks:
+      - overdue: { date: dueDate }
+        when: { status: [in-progress, internal-review, with-client, changes-asked, on-hold] }
+      - limit: { fields: [roundsUsed], max: roundsIncluded }
+      - limit: { fields: [hoursSpent], max: hoursEstimated }
+      - missing: [clientApprovedBy]
+        when: { status: [cleared-to-publish, live] }
+  - id: invoices
+    entity: Invoice
+    label: Invoices
+    columns: [invoiceNumber, client, invoiceDate, amount, dueDate, status]
+    filters: [status]
+    date_field: invoiceDate
+    totals: [amount, gst, tdsDeducted]
+    card: { sum: { field: amount, when: { status: [sent, part-paid, overdue] }, label: unpaid } }
+    checks:
+      - duplicate: [invoiceNumber]
+      - overdue: { date: dueDate }
+        when: { status: [sent, part-paid, overdue] }
+  - id: scopes
+    entity: Scope
+    label: Scopes
+    columns: [scopeNumber, client, kind, fee, startDate, endDate, status]
+    filters: [kind, status]
+    date_field: startDate
+    totals: [fee]
+    card: { count: { when: { status: [active] }, label: active } }
+    checks:
+      - missing: [clientApprovedOn]
+        when: { status: [approved, active] }

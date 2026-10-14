@@ -151,6 +151,32 @@ entities:
       - { name: refundOrCredit, label: Refund or credit given, type: money }
       - { name: creditNoteNumber, label: Credit note number, type: string }
 
+  - name: Ticket
+    label: Ticket
+    description: A bug, a support question or a feature request from a customer.
+    title_field: summary
+    list_columns: [ticketNo, account, summary, severity, assignedTo, status]
+    fields:
+      - { name: ticketNo, label: Ticket no., type: string }
+      - { name: account, label: Customer account, type: string, required: true }
+      - { name: reportedBy, label: Reported by, type: string }
+      - name: kind
+        label: Kind
+        type: enum
+        options: [bug, support-question, feature-request, billing, data-request]
+      - { name: summary, label: Summary, type: string, required: true }
+      - { name: details, label: Details, type: text }
+      - { name: severity, label: Severity, type: enum, options: [P1, P2, P3, P4] }
+      - { name: assignedTo, label: Assigned to, type: string }
+      - { name: reportedAt, label: Reported at, type: datetime }
+      - { name: dueBy, label: Due by, type: datetime }
+      - { name: fixVersion, label: Fixed in version, type: string }
+      - { name: resolvedAt, label: Resolved at, type: datetime }
+      - name: status
+        label: Status
+        type: enum
+        options: [new, triaged, in-progress, waiting-for-customer, fixed, released, closed, wont-fix]
+
 tools:
   - name: accounts.search
     description: Search customer accounts by company, account ID, admin, plan or status.
@@ -1256,3 +1282,55 @@ kpis:
     source: { type: records_count, entity: CustomerAccount, where: { status: past-due } }
 
 connectors: [gmail, whatsapp-business, razorpay]
+
+registers:
+  - id: tickets
+    entity: Ticket
+    label: Tickets
+    columns: [ticketNo, account, summary, kind, severity, assignedTo, dueBy, status]
+    filters: [kind, severity, status]
+    date_field: reportedAt
+    card: { count: { when: { status: [new, triaged, in-progress, waiting-for-customer] }, label: open } }
+    checks:
+      - missing: [account, assignedTo]
+      - overdue: { date: dueBy }
+        when: { status: [new, triaged, in-progress, waiting-for-customer] }
+      - duplicate: [ticketNo]
+  - id: incidents
+    entity: Incident
+    label: Incidents
+    columns: [title, kind, severity, startedAt, customersAffected, status]
+    filters: [kind, severity, status]
+    date_field: startedAt
+    card: { count: { when: { status: [open, contained] }, label: open } }
+    checks:
+      - missing: [certInReportedAt]
+        when: { kind: [security, data-leak] }
+        why: CERT-In must be told within 6 hours
+      - missing: [rootCause]
+        when: { status: [resolved, review-done] }
+  - id: releases
+    entity: Release
+    label: Releases
+    columns: [version, changeType, plannedAt, approvedBy, status, outcome]
+    filters: [changeType, status, outcome]
+    date_field: plannedAt
+    card: { count: { when: { status: [planned, approved] }, label: coming up } }
+    checks:
+      - missing: [rollbackPlan, approvedBy]
+        when: { status: [approved, released] }
+      - missing: [customersToldOn]
+        when: { downtimeExpectedMinutes: { above: 0 } }
+  - id: payments
+    entity: Payment
+    label: Payments
+    columns: [invoiceNumber, account, invoiceDate, amount, status, paidOn]
+    filters: [status, mode]
+    date_field: invoiceDate
+    totals: [amount, gstAmount]
+    card: { sum: { field: amount, when: { status: [due, failed] }, label: due } }
+    checks:
+      - duplicate: [invoiceNumber]
+      - overdue: { date: invoiceDate, grace_days: 15 }
+        when: { status: [due, failed] }
+        why: unpaid 15 days after the invoice
