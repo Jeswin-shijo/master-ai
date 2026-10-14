@@ -13,6 +13,6 @@ export class HealthController {
   @Public()
   @Get()
   health() {
-    return { ok: true, llm: this.llm.mode, packs: this.packs.list().length };
+    return { ok: true, llm: this.llm.mode, provider: this.llm.provider, packs: this.packs.list().length };
   }
 }

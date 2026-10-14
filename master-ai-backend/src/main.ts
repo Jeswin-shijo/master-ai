@@ -14,7 +14,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.get(RealtimeGateway).attach(app.getHttpServer());
   await app.listen(config.PORT, '0.0.0.0');
-  Logger.log(`API on http://localhost:${config.PORT} (LLM ${config.llmOffline ? 'offline mode' : 'online'})`, 'Bootstrap');
+  Logger.log(`API on http://localhost:${config.PORT} (LLM ${config.llmOffline ? 'offline mode' : config.llmProvider})`, 'Bootstrap');
 }
 
 void bootstrap();

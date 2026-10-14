@@ -18,7 +18,7 @@
     "db:migrate": "pnpm --filter @onehuman/backend db:migrate",
     "smoke": "pnpm --filter @onehuman/backend smoke",
     "evals": "pnpm --filter @onehuman/evals test",
-    "evals:live": "node evals/src/live.ts",
+    "evals:live": "node --env-file-if-exists=master-ai-backend/.env evals/src/live.ts",
     "pack:check": "node evals/src/check.ts",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "e2e": "pnpm --filter @onehuman/web e2e",

@@ -112,3 +112,21 @@ export function formatLiveScorecard(card: LiveScorecard): string {
   const failed = card.errors > 0 ? ` (${card.errors} calls failed)` : '';
   return `${formatScorecard(card)}\n  model answers ${card.modelAnswers}, fell back to rules ${card.fallbacks}${failed}, cost ${card.costUsd.toFixed(4)}`;
 }
+
+/** Spaces calls out to stay under a rate limit (a free Gemini key allows only a few requests a minute). 0 means no limit. */
+export function paced(
+  complete: LiveComplete,
+  rpm: number,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  now: () => number = Date.now,
+): LiveComplete {
+  if (rpm <= 0) return complete;
+  const gap = 60_000 / rpm;
+  let next = -Infinity;
+  return async (req) => {
+    const wait = next - now();
+    if (wait > 0) await sleep(wait);
+    next = now() + gap;
+    return complete(req);
+  };
+}

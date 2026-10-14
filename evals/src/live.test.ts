@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePack } from '@onehuman/agent-kit';
-import { LiveFatalError, runLiveSuite, type LiveComplete } from './live-lib.ts';
+import { LiveFatalError, paced, runLiveSuite, type LiveComplete } from './live-lib.ts';
 import { loadPackRegistry, loadSuites, runSuite } from './runner.ts';
 
 const registry = loadPackRegistry(new URL('../../packs', import.meta.url).pathname);
@@ -56,5 +56,30 @@ describe('live evals', () => {
     };
     await expect(runLiveSuite(pack, suite, refused)).rejects.toThrow('refused the key');
     expect(calls).toBe(1);
+  });
+
+  it('spaces calls out to stay under a rate limit', async () => {
+    let clock = 0;
+    const waits: number[] = [];
+    const sleep = async (ms: number) => {
+      waits.push(ms);
+      clock += ms;
+    };
+    const instant: LiveComplete = async () => ({ json: null, costUsd: 0 });
+    const slow = paced(instant, 30, sleep, () => clock);
+    const req = { stage: 'review', tier: 'standard', system: '', user: '', schema: {} } as const;
+    await slow(req);
+    await slow(req);
+    clock += 500;
+    await slow(req);
+    expect(waits).toEqual([2000, 1500]);
+  });
+
+  it('does not wait when no rate is given', async () => {
+    const waits: number[] = [];
+    const fast = paced(async () => ({ json: null, costUsd: 0 }), 0, async (ms) => void waits.push(ms));
+    await fast({ stage: 'review', tier: 'standard', system: '', user: '', schema: {} });
+    await fast({ stage: 'review', tier: 'standard', system: '', user: '', schema: {} });
+    expect(waits).toEqual([]);
   });
 });

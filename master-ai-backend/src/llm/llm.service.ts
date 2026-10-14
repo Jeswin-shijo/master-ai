@@ -1,7 +1,10 @@
 import { Global, Injectable, Logger, Module } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
+// @google/genai is an ES module to TypeScript's node16 resolution and this backend is CommonJS: its types come in
+// with resolution-mode, and the module itself loads with import() the first time Gemini is used.
+import type { GoogleGenAI } from '@google/genai' with { 'resolution-mode': 'import' };
 import type { DataClass, ModelTier } from '@onehuman/schemas';
-import type { LlmToolDefinition } from '@onehuman/agent-kit';
+import { geminiParams, mergeGeminiChunks, readGemini, type GeminiResponseLike, type LlmToolDefinition } from '@onehuman/agent-kit';
 import { config } from '../config';
 import { DbService } from '../db/db.service';
 import { llmCalls } from '../db/schema';
@@ -53,7 +56,7 @@ export interface LlmResult {
   text: string;
   toolCalls: LlmToolCall[];
   json: unknown;
-  provider: 'anthropic' | 'offline';
+  provider: 'anthropic' | 'google' | 'offline';
   model: string;
   stopReason: string | null;
   usage: Usage;
@@ -76,10 +79,16 @@ export class LlmRefusalError extends Error {
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
-  private readonly client = config.llmOffline ? null : new Anthropic();
+  private readonly anthropic = config.llmProvider === 'anthropic' ? new Anthropic() : null;
+  private googleClient: Promise<GoogleGenAI> | null = null;
 
   get mode(): 'online' | 'offline' {
-    return this.client ? 'online' : 'offline';
+    return config.llmOffline ? 'offline' : 'online';
+  }
+
+  /** Which provider answers: anthropic (the default), google, or offline. */
+  get provider(): 'anthropic' | 'google' | 'offline' {
+    return config.llmProvider;
   }
 
   async complete(req: LlmRequest): Promise<LlmResult> {
@@ -89,15 +98,15 @@ export class LlmService {
     const user = shouldRedact ? redactor.redact(req.user) : req.user;
 
     let result: LlmResult;
-    if (!this.client) {
+    if (config.llmOffline) {
       result = await this.runOffline(req);
     } else {
       try {
-        result = await this.callAnthropic(this.client, req, config.models[req.tier], user);
+        result = await this.call(req, config.models[req.tier], user);
       } catch (err) {
         if (err instanceof LlmRefusalError || !req.fallbackTier || !isRetryable(err)) throw err;
         this.logger.warn(`${config.models[req.tier]} failed (${(err as Error).message}); falling back to ${req.fallbackTier}`);
-        result = await this.callAnthropic(this.client, req, config.models[req.fallbackTier], user);
+        result = await this.call(req, config.models[req.fallbackTier], user);
       }
       result = {
         ...result,
@@ -109,6 +118,37 @@ export class LlmService {
 
     await this.meter(req, result, Date.now() - started, redactor.size);
     return result;
+  }
+
+  private async call(req: LlmRequest, model: string, user: string): Promise<LlmResult> {
+    if (config.llmProvider !== 'google') return this.callAnthropic(this.anthropic!, req, model, user);
+    this.googleClient ??= import('@google/genai').then(({ GoogleGenAI }) => new GoogleGenAI({ apiKey: config.GEMINI_API_KEY }));
+    return this.callGoogle(await this.googleClient, req, model, user);
+  }
+
+  /** Gemini, mapped so it behaves like the Claude path: one step at a time, thinking hidden, blocks as refusals. */
+  private async callGoogle(ai: GoogleGenAI, req: LlmRequest, model: string, user: string): Promise<LlmResult> {
+    const chunks: GeminiResponseLike[] = [];
+    const stream = await ai.models.generateContentStream(
+      geminiParams(model, { system: req.system, user, tools: req.tools, jsonSchema: req.jsonSchema, maxTokens: req.maxTokens ?? 16000 }),
+    );
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+      if (req.onText) for (const part of chunk.candidates?.[0]?.content?.parts ?? []) if (part.text && !part.thought) req.onText(part.text);
+    }
+    const read = readGemini(mergeGeminiChunks(chunks), { model, jsonSchema: !!req.jsonSchema });
+    if (read.refused) throw new LlmRefusalError(read.refused);
+    return {
+      text: read.text,
+      toolCalls: read.toolCalls,
+      json: read.json,
+      provider: 'google',
+      model: read.model,
+      stopReason: read.stopReason,
+      usage: read.usage,
+      costInr: costUsd(read.model, read.usage) * config.USD_INR_RATE,
+      tokens: read.usage.inputTokens + read.usage.outputTokens + read.usage.cacheReadTokens,
+    };
   }
 
   private async callAnthropic(client: Anthropic, req: LlmRequest, model: string, user: string): Promise<LlmResult> {
@@ -224,7 +264,17 @@ function isRetryable(err: unknown): boolean {
   if (err instanceof Anthropic.RateLimitError) return true;
   if (err instanceof Anthropic.InternalServerError) return true;
   if (err instanceof Anthropic.APIError) return (err.status ?? 0) >= 500;
+  const gemini = geminiStatus(err);
+  if (gemini !== null) return gemini === 429 || gemini >= 500;
+  if (err instanceof TypeError) return true; // fetch failed: the network, not the request
   return false;
+}
+
+/** The HTTP status of a Gemini ApiError (recognised by name: its class lives in the lazily loaded ES module), or null. */
+function geminiStatus(err: unknown): number | null {
+  if (!(err instanceof Error) || err.name !== 'ApiError') return null;
+  const status = (err as { status?: unknown }).status;
+  return typeof status === 'number' ? status : null;
 }
 
 @Global()

@@ -5,3 +5,4 @@ export * from './match';
 export * from './narrate';
 export * from './lifecycle';
 export * from './pricing';
+export * from './gemini';

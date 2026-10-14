@@ -1,25 +1,32 @@
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
-import { costUsd, resolvePack } from '@onehuman/agent-kit';
+import { ApiError, GoogleGenAI } from '@google/genai';
+import { costUsd, GEMINI_DEFAULT_MODELS, geminiParams, readGemini, resolvePack } from '@onehuman/agent-kit';
 import type { ModelTier } from '@onehuman/schemas';
-import { formatLiveScorecard, LiveFatalError, runLiveSuite, type LiveComplete } from './live-lib.ts';
+import { formatLiveScorecard, LiveFatalError, paced, runLiveSuite, type LiveComplete } from './live-lib.ts';
 import { loadPackRegistry, loadSuites } from './runner.ts';
 
 /**
- * pnpm evals:live [--pack <id>]
- * Scores the test sets with the model answering review and classification.
+ * pnpm evals:live [--pack <id>] [--rpm <n>]
+ * Scores the test sets with the model answering review and classification:
+ * Claude when its key is set, else Gemini (ADR 0011). --rpm paces calls for a free key.
  */
-if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
-  console.log('pnpm evals:live needs ANTHROPIC_API_KEY. Without a key, `pnpm evals` scores the rules alone.');
+const claudeKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
+const geminiKey = process.env.GEMINI_API_KEY;
+if (!claudeKey && !geminiKey) {
+  console.log('pnpm evals:live needs ANTHROPIC_API_KEY or GEMINI_API_KEY (in your shell or master-ai-backend/.env). Without one, `pnpm evals` scores the rules alone.');
   process.exit(0);
 }
-const only = process.argv.includes('--pack') ? process.argv[process.argv.indexOf('--pack') + 1] : undefined;
+const arg = (name: string) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined);
+const only = arg('--pack');
+const rpm = Number(arg('--rpm') ?? 0);
+
 const models: Record<ModelTier, string> = {
   frontier: process.env.LLM_MODEL_FRONTIER ?? 'claude-opus-5-5',
   standard: process.env.LLM_MODEL_STANDARD ?? 'claude-sonnet-5-5',
   small: process.env.LLM_MODEL_SMALL ?? 'claude-haiku-5-5',
 };
-const client = new Anthropic();
+const client = claudeKey ? new Anthropic() : null;
 
 /** Key and model errors stop the run; anything else is one failed call. */
 function fatal(err: unknown, model: string): unknown {
@@ -30,9 +37,9 @@ function fatal(err: unknown, model: string): unknown {
   return err;
 }
 
-const complete: LiveComplete = async (req) => {
+const claudeComplete: LiveComplete = async (req) => {
   const model = models[req.tier];
-  const message = await client.beta.messages
+  const message = await client!.beta.messages
     .create({
       model,
       max_tokens: 4000,
@@ -58,6 +65,36 @@ const complete: LiveComplete = async (req) => {
   };
   return { json, costUsd: costUsd(message.model ?? model, usage) };
 };
+
+const geminiModels: Record<ModelTier, string> = {
+  frontier: process.env.GEMINI_MODEL_FRONTIER ?? GEMINI_DEFAULT_MODELS.frontier,
+  standard: process.env.GEMINI_MODEL_STANDARD ?? GEMINI_DEFAULT_MODELS.standard,
+  small: process.env.GEMINI_MODEL_SMALL ?? GEMINI_DEFAULT_MODELS.small,
+};
+
+/** A refused Google key comes back as 400 "API key not valid", 401 or 403; an unknown model as 404. */
+function geminiFatal(err: unknown, model: string): unknown {
+  if (err instanceof ApiError && (err.status === 401 || err.status === 403 || (err.status === 400 && /api key/i.test(err.message)))) {
+    return new LiveFatalError(`Google refused the key (${err.status} ${err.message.slice(0, 160)}). Check GEMINI_API_KEY.`);
+  }
+  if (err instanceof ApiError && err.status === 404) return new LiveFatalError(`No Gemini model called ${model}. Set GEMINI_MODEL_* to one your key can use.`);
+  return err;
+}
+
+function geminiComplete(apiKey: string): LiveComplete {
+  const ai = new GoogleGenAI({ apiKey });
+  return async (req) => {
+    const model = geminiModels[req.tier];
+    const res = await ai.models.generateContent(geminiParams(model, { system: req.system, user: req.user, jsonSchema: req.schema, maxTokens: 4000 })).catch((err: unknown) => {
+      throw geminiFatal(err, model);
+    });
+    const read = readGemini(res, { model, jsonSchema: true });
+    return { json: read.json, costUsd: costUsd(read.model, read.usage) };
+  };
+}
+
+const complete = paced(claudeKey ? claudeComplete : geminiComplete(geminiKey!), rpm);
+console.log(`Scoring with ${claudeKey ? 'Claude' : 'Gemini'}${rpm ? `, at most ${rpm} calls a minute` : ''}.`);
 
 const registry = loadPackRegistry(fileURLToPath(new URL('../../packs/', import.meta.url)));
 let total = 0;

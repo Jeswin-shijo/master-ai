@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { GEMINI_DEFAULT_MODELS } from '@onehuman/agent-kit';
 import { parseTrustProxy } from './common/proxy';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -22,6 +23,12 @@ const EnvSchema = z.object({
   LLM_MODEL_FRONTIER: z.string().default('claude-opus-5-5'),
   LLM_MODEL_STANDARD: z.string().default('claude-sonnet-5-5'),
   LLM_MODEL_SMALL: z.string().default('claude-haiku-5-5'),
+  /** Google Gemini, an optional second provider (ADR 0011): used when no Anthropic key is set, or when LLM_PROVIDER=google. */
+  GEMINI_API_KEY: z.string().optional(),
+  LLM_PROVIDER: z.enum(['auto', 'anthropic', 'google']).default('auto'),
+  GEMINI_MODEL_FRONTIER: z.string().default(GEMINI_DEFAULT_MODELS.frontier),
+  GEMINI_MODEL_STANDARD: z.string().default(GEMINI_DEFAULT_MODELS.standard),
+  GEMINI_MODEL_SMALL: z.string().default(GEMINI_DEFAULT_MODELS.small),
   USD_INR_RATE: z.coerce.number().positive().default(88),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   /** Where the web app lives, for links people are sent (invites). */
@@ -46,19 +53,45 @@ if (!parsed.success) {
 }
 const env = parsed.data;
 
+/** Which model provider the gateway uses: Claude when its key is set, else Gemini when its key is set, else the offline rules. */
+export function llmProviderFor(env: {
+  LLM_OFFLINE: 'auto' | 'always' | 'never';
+  LLM_PROVIDER: 'auto' | 'anthropic' | 'google';
+  ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_AUTH_TOKEN?: string;
+  GEMINI_API_KEY?: string;
+}): 'anthropic' | 'google' | 'offline' {
+  if (env.LLM_OFFLINE === 'always') return 'offline';
+  const claude = !!(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN);
+  const gemini = !!env.GEMINI_API_KEY;
+  if (env.LLM_PROVIDER === 'google') {
+    if (!gemini) throw new Error('LLM_PROVIDER=google needs GEMINI_API_KEY');
+    return 'google';
+  }
+  if (claude || env.LLM_OFFLINE === 'never') return 'anthropic';
+  if (env.LLM_PROVIDER === 'auto' && gemini) return 'google';
+  return 'offline';
+}
+
+let llmProvider: ReturnType<typeof llmProviderFor>;
+try {
+  llmProvider = llmProviderFor(env);
+} catch (err) {
+  console.error(`Invalid environment:\n  ${(err as Error).message}`);
+  process.exit(1);
+}
+
 export const config = {
   ...env,
   packsDir: resolve(process.cwd(), env.PACKS_DIR),
   corsOrigins: env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
   trustProxy: parseTrustProxy(env.TRUST_PROXY),
-  llmOffline:
-    env.LLM_OFFLINE === 'always' ||
-    (env.LLM_OFFLINE === 'auto' && !env.ANTHROPIC_API_KEY && !env.ANTHROPIC_AUTH_TOKEN),
-  models: {
-    frontier: env.LLM_MODEL_FRONTIER,
-    standard: env.LLM_MODEL_STANDARD,
-    small: env.LLM_MODEL_SMALL,
-  },
+  llmProvider,
+  llmOffline: llmProvider === 'offline',
+  models:
+    llmProvider === 'google'
+      ? { frontier: env.GEMINI_MODEL_FRONTIER, standard: env.GEMINI_MODEL_STANDARD, small: env.GEMINI_MODEL_SMALL }
+      : { frontier: env.LLM_MODEL_FRONTIER, standard: env.LLM_MODEL_STANDARD, small: env.LLM_MODEL_SMALL },
 };
 
 export type AppConfig = typeof config;

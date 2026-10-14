@@ -22,7 +22,7 @@ async function run() {
     workflowsPath: require.resolve('./orchestration/workflows'),
     activities: createActivities(app),
   });
-  Logger.log(`Worker polling "${config.TEMPORAL_TASK_QUEUE}" (LLM ${config.llmOffline ? 'offline mode' : 'online'})`, 'Worker');
+  Logger.log(`Worker polling "${config.TEMPORAL_TASK_QUEUE}" (LLM ${config.llmOffline ? 'offline mode' : config.llmProvider})`, 'Worker');
   await worker.run();
   await connection.close();
   await app.close();
