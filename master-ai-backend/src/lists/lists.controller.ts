@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import type { z } from 'zod';
 import {
   BulkCheckInputSchema,
@@ -32,8 +33,14 @@ export class ListsController {
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment')
   @Header('Cache-Control', 'no-store')
-  exportCsv(@CurrentSession() s: Session, @Param('id') id: string, @Query() query: Record<string, unknown>) {
-    return this.lists.exportCsv(s.tenantId, id, query);
+  async exportCsv(@CurrentSession() s: Session, @Param('id') id: string, @Query() query: Record<string, unknown>, @Res({ passthrough: true }) res: Pick<Response, 'setHeader'>) {
+    const { csv, truncated, limit } = await this.lists.exportList(s.tenantId, id, query);
+    // A download cut at its limit says so in a header, so the file stays a valid CSV; the web app shows it.
+    if (truncated) {
+      res.setHeader('X-Export-Truncated', 'true');
+      res.setHeader('X-Export-Limit', String(limit));
+    }
+    return csv;
   }
 
   @Get(':id/items/:itemId')

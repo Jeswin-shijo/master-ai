@@ -156,11 +156,21 @@ export function whereSql(reg: ResolvedRegister, q: ParsedListQuery): SQL {
   return parts.length ? sql.join(parts, sql` and `) : sql`true`;
 }
 
-export function orderSql(sort: ParsedListQuery['sort']): SQL {
+/** A reference column sorts by the title of the item it points at, or by the words said when it points at nothing (never by the id, and never casting a stored value to a uuid). */
+function referenceKey(reg: ResolvedRegister, f: EntityField): SQL | null {
+  const check = reg.checks.find((c): c is Extract<ListCheck, { kind: 'ref' }> => c.kind === 'ref' && c.field.name === f.name);
+  const title = check && (check.target.title_field ?? check.target.fields.find((x) => x.type === 'string')?.name);
+  if (!check || !title) return null;
+  return sql`lower(coalesce((select t.data->>${title} from records t where t.workspace_id = r.workspace_id and t.entity = ${check.target.name} and t.id::text = r.data->>${f.name}), r.data->>${f.name}))`;
+}
+
+export function orderSql(sort: ParsedListQuery['sort'], reg: ResolvedRegister): SQL {
   const dir = sql.raw(sort.dir === 'asc' ? 'asc' : 'desc');
   const f = sort.field;
   if (!f) return sql`r.updated_at ${dir}, r.id`;
-  const key = NUMERIC.has(f.type)
+  const key = f.type === 'reference' && referenceKey(reg, f)
+    ? referenceKey(reg, f)!
+    : NUMERIC.has(f.type)
     ? num(f.name)
     : f.type === 'date'
       ? sql`try_date(r.data->>${f.name})`

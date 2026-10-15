@@ -5,6 +5,7 @@ import { entityValidator, titleOf } from '@onehuman/agent-kit';
 import { AuditService, type Actor } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
 import { outbox, records, workspaces } from '../db/schema';
+import { istDate } from '../voice/time';
 
 export type RecordFilter = Record<string, string | number | boolean>;
 
@@ -232,7 +233,8 @@ const PLACES = ['Munnar', 'Goa', 'Jaipur', 'Coorg', 'Rishikesh', 'Andaman'];
 
 export function sampleRecord(entity: EntityDef, i: number, ref: (entityName: string) => string | undefined = () => undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  // Days around today in India, the day the checks count in, as of the moment the sample is made.
+  const day = (offset: number) => istDate(new Date(Date.now() + offset * 86_400_000));
   const name = NAMES[(i + entity.name.length) % NAMES.length]!;
   for (const f of entity.fields) {
     const key = f.name.toLowerCase();

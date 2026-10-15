@@ -13,7 +13,7 @@ async function bootstrap() {
   if (config.trustProxy !== false) app.set('trust proxy', config.trustProxy);
   app.disable('x-powered-by');
   app.use(securityHeaders);
-  app.enableCors({ origin: config.corsOrigins, credentials: true });
+  app.enableCors({ origin: config.corsOrigins, credentials: true, exposedHeaders: ['X-Export-Truncated', 'X-Export-Limit'] });
   app.enableShutdownHooks();
   app.get(RealtimeGateway).attach(app.getHttpServer());
   await app.listen(config.PORT, '0.0.0.0');

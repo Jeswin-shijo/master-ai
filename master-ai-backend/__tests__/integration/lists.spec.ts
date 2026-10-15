@@ -335,3 +335,42 @@ describe('every kind of check, in SQL', () => {
     });
   });
 });
+
+describe('leftover gaps in lists', () => {
+  const party = (name: string) => add('Party', { name, partyType: 'retailer', phone: '+91 98470 12345' });
+
+  it('sorts by a reference column by the title of the item it points at, with words said in place of one last', async () => {
+    const echo = await party('Echo Sort Traders');
+    const alpha = await party('Alpha Sort Traders');
+    const delta = await party('Delta Sort Traders');
+    const bravo = await party('Bravo Sort Traders');
+    const charlie = await party('Charlie Sort Traders');
+    for (const [n, p] of [['1', echo], ['2', alpha], ['3', delta], ['4', bravo], ['5', charlie], ['6', 'Zulu said in words']] as const) await add('Bill', bill(`SORT-${n}`, { party: p }));
+    const order = async (sort: string) => (await lists.page(a.tenantId, 'bills', { range: 'all', q: 'SORT-', sort })).items.map((i) => i.data.billNo);
+    expect(await order('party:asc')).toEqual(['SORT-2', 'SORT-4', 'SORT-5', 'SORT-3', 'SORT-1', 'SORT-6']);
+    expect(await order('party:desc')).toEqual(['SORT-6', 'SORT-1', 'SORT-3', 'SORT-5', 'SORT-4', 'SORT-2']);
+  });
+
+  it('keeps the earlier check note when an item is checked again without a new one', async () => {
+    const id = await add('Bill', bill('KEEP-1'));
+    await lists.check(a.session, 'bills', id, { note: 'Matches the delivery slip' });
+    const again = await lists.check(a.session, 'bills', id, {});
+    expect(again.checked?.note).toBe('Matches the delivery slip');
+    expect((await lists.check(a.session, 'bills', id, { note: 'Seen again on 5 Nov' })).checked?.note).toBe('Seen again on 5 Nov');
+  });
+
+  it('says when a download was cut at its limit, and keeps the file a valid CSV', async () => {
+    for (let i = 0; i < 3; i++) await add('Bill', bill(`CUT-${i}`));
+    const cut = await lists.exportList(a.tenantId, 'bills', { range: 'all', q: 'CUT-' }, 2);
+    expect(cut).toMatchObject({ truncated: true, limit: 2 });
+    expect(cut.csv.trim().split('\n')).toHaveLength(3); // the header and two items
+    const whole = await lists.exportList(a.tenantId, 'bills', { range: 'all', q: 'CUT-' }, 3);
+    expect(whole.truncated).toBe(false);
+    expect(whole.csv.trim().split('\n')).toHaveLength(4);
+    const headers: Record<string, string> = {};
+    const res = { setHeader: (k: string, v: string) => void (headers[k] = v) };
+    const csv = await h.get(ListsController).exportCsv(a.session, 'bills', { range: 'all', q: 'CUT-' }, res as never);
+    expect(csv).toContain('CUT-0');
+    expect(headers).not.toHaveProperty('X-Export-Truncated');
+  });
+});

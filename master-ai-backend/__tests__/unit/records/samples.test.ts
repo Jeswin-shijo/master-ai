@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EntityDef } from '@onehuman/schemas';
 import { entityValidator } from '@onehuman/agent-kit';
 import { changedFields, sampleRecord, seedOrder } from '../../../src/records/records.service';
@@ -15,6 +15,8 @@ const ContractorBill: EntityDef = {
 };
 const A: EntityDef = { name: 'A', label: 'A', fields: [{ name: 'b', label: 'B', type: 'reference', ref: 'B', required: false }] };
 const B: EntityDef = { name: 'B', label: 'B', fields: [{ name: 'a', label: 'A', type: 'reference', ref: 'A', required: false }] };
+
+afterEach(() => vi.useRealTimers());
 
 describe('sample data', () => {
   it('seeds a record type before the ones that point at it', () => {
@@ -39,6 +41,14 @@ describe('sample data', () => {
       expect(typeof data.owner === 'string' && data.owner.length > 0).toBe(true);
       expect(entityValidator(e).safeParse(data).success).toBe(true);
     }
+  });
+
+  it('dates samples around the India day they are made on, not the UTC one', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 1:30 am on 16 October in India, still 15 October in UTC.
+    vi.setSystemTime(new Date('2026-10-15T20:00:00Z'));
+    const e: EntityDef = { name: 'Bill', label: 'Bill', fields: [{ name: 'dueDate', label: 'Due date', type: 'date', required: false }] };
+    expect(sampleRecord(e, 0).dueDate).toBe('2026-10-23');
   });
 
   it('leaves an optional reference with nothing to point at empty', () => {

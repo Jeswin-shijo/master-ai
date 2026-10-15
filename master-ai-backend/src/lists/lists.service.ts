@@ -72,7 +72,7 @@ export class ListsService {
       const cte = flaggedCte(reg, ws.id, clock);
       const where = whereSql(reg, q);
       const flags = (
-        await tx.execute<FlagRow>(sql`${cte} select ${flagSelect(reg)} from flagged r where ${where} order by ${orderSql(q.sort)} limit ${PAGE_SIZE} offset ${(q.page - 1) * PAGE_SIZE}`)
+        await tx.execute<FlagRow>(sql`${cte} select ${flagSelect(reg)} from flagged r where ${where} order by ${orderSql(q.sort, reg)} limit ${PAGE_SIZE} offset ${(q.page - 1) * PAGE_SIZE}`)
       ).rows;
       const [t] = (await tx.execute<Record<string, unknown>>(sql`${cte} ${totalsSelect(reg, where)}`)).rows;
       let undated = 0;
@@ -101,17 +101,23 @@ export class ListsService {
   }
 
   async exportCsv(tenantId: string, listId: string, raw: Record<string, unknown>): Promise<string> {
+    return (await this.exportList(tenantId, listId, raw)).csv;
+  }
+
+  /** The filtered list as CSV. One item over the limit is read to know the download was cut there; the file itself stays whole rows. */
+  async exportList(tenantId: string, listId: string, raw: Record<string, unknown>, limit = EXPORT_LIMIT): Promise<{ csv: string; truncated: boolean; limit: number }> {
     return this.db.tenant(tenantId, async (tx) => {
       const ws = await this.workspace(tx);
       const reg = this.register(ws.pack, listId);
       const clock = this.clock();
       const q = parseListQuery(raw, reg, clock.today);
-      const flags = (
-        await tx.execute<FlagRow>(sql`${flaggedCte(reg, ws.id, clock)} select ${flagSelect(reg)} from flagged r where ${whereSql(reg, q)} order by ${orderSql(q.sort)} limit ${EXPORT_LIMIT}`)
+      const read = (
+        await tx.execute<FlagRow>(sql`${flaggedCte(reg, ws.id, clock)} select ${flagSelect(reg)} from flagged r where ${whereSql(reg, q)} order by ${orderSql(q.sort, reg)} limit ${limit + 1}`)
       ).rows;
+      const flags = read.slice(0, limit);
       const items = await this.decorate(tx, ws, reg, flags, clock);
       const fields = reg.entity.fields;
-      return toCsv([
+      const csv = toCsv([
         [...fields.map((f) => f.label), 'Came in', 'Checked by', 'Checked on', 'Problems'],
         ...items.map((it) => [
           ...fields.map((f) => csvValue(f, it.data[f.name], it.titles[f.name])),
@@ -121,6 +127,7 @@ export class ListsService {
           it.problems.map((p) => (p.acknowledged ? `${p.message} (seen)` : p.message)).join('; '),
         ]),
       ]);
+      return { csv, truncated: read.length > limit, limit };
     });
   }
 
@@ -232,7 +239,7 @@ export class ListsService {
     const accepted = item.problems.map((p) => p.key);
     await tx
       .update(records)
-      .set({ checkedBy: session.principalId, checkedAt: new Date(), checkNote: note, checkedProblems: accepted })
+      .set({ checkedBy: session.principalId, checkedAt: new Date(), checkNote: note ?? item.checked?.note ?? null, checkedProblems: accepted })
       .where(eq(records.id, item.id));
     await this.audit.append(tx, session.tenantId, {
       type: 'record.checked',
