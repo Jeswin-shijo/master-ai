@@ -17,7 +17,7 @@ import { normalizeSnapshot, registersOf, titleOf, type ResolvedRegister } from '
 import type { Session } from '../common/auth';
 import { AuditService } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
-import { auditEvents, calls, cases, principals, recordNotes, records, staff, toolCalls } from '../db/schema';
+import { auditEvents, calls, cases, followUpAttempts, principals, recordNotes, records, staff, toolCalls } from '../db/schema';
 import { RecordsService } from '../records/records.service';
 import { istDate } from '../voice/time';
 import { toCsv } from './csv';
@@ -92,11 +92,11 @@ export class ListsService {
     });
   }
 
-  async item(tenantId: string, listId: string, itemId: string): Promise<ListItemDetail> {
+  async item(tenantId: string, listId: string, itemId: string, viewer: Session['role'] | null = null): Promise<ListItemDetail> {
     return this.db.tenant(tenantId, async (tx) => {
       const ws = await this.workspace(tx);
       const reg = this.register(ws.pack, listId);
-      return { list: meta(reg), item: await this.one(tx, ws, reg, itemId), history: await this.history(tx, ws, reg, itemId), notes: await this.itemNotes(tx, ws, reg, itemId) };
+      return { list: meta(reg), item: await this.one(tx, ws, reg, itemId), history: await this.history(tx, ws, reg, itemId), notes: await this.itemNotes(tx, ws, reg, itemId, viewer) };
     });
   }
 
@@ -362,11 +362,18 @@ export class ListsService {
   }
 
   /** An item's notes from calls, newest first, with what they propose in words. */
-  private async itemNotes(tx: Tx, ws: Workspace, reg: ResolvedRegister, itemId: string): Promise<ListNote[]> {
+  private async itemNotes(tx: Tx, ws: Workspace, reg: ResolvedRegister, itemId: string, viewer: Session['role'] | null): Promise<ListNote[]> {
     const rows = await tx.select().from(recordNotes).where(eq(recordNotes.recordId, itemId)).orderBy(desc(recordNotes.createdAt));
     const names = await this.names(tx, rows.map((n) => n.decidedBy));
     const titles = await this.titles(tx, ws.pack, rows.flatMap((n) => Object.values(n.proposed)));
+    // Call again: only a stopped follow-up, and only for who may start it: the owner for a party, a manager for a team member.
+    const stopped = new Set((await tx.select({ key: followUpAttempts.followUp }).from(followUpAttempts).where(and(eq(followUpAttempts.recordId, itemId), eq(followUpAttempts.state, 'stopped')))).map((x) => x.key));
+    const mayRestart = (key: string | null) => {
+      const f = reg.followUps.find((x) => x.key === key);
+      return !!f && (f.who === 'party' ? viewer === 'owner' : viewer === 'owner' || viewer === 'admin');
+    };
     return rows.map((n) => ({
+      canCallAgain: (n.kind === 'unreachable' || n.kind === 'wrong_number') && !!n.followUp && stopped.has(n.followUp) && mayRestart(n.followUp),
       id: n.id,
       kind: n.kind,
       speaker: n.speaker,

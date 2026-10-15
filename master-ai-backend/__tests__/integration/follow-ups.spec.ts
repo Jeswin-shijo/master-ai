@@ -723,3 +723,123 @@ describe('follow-ups to the team', () => {
     expect(notes[0]!.said).toMatch(/^Couldn't find Nobody Here in your team/);
   });
 });
+
+describe('leftover gaps in follow-ups on the lists', () => {
+  const calling = () => h.get(FollowUpCallsService);
+  const phone = () => h.get(CallsService);
+  const ORDERS = 'orders.late-purchase-orders';
+  const attemptOf = async (id: string) => (await db().tenant(a.tenantId, (tx) => tx.select().from(followUpAttempts).where(eq(followUpAttempts.recordId, id))))[0]!;
+  const notesOf = (id: string) => db().tenant(a.tenantId, (tx) => tx.select().from(recordNotes).where(eq(recordNotes.recordId, id)));
+  const info = async (key = UNPAID) => (await followUps.forList(a.session, key.split('.')[0]!)).find((f) => f.key === key)!;
+  beforeEach(drain);
+
+  it('counts an item with a new note as waiting for you', async () => {
+    const before = (await info()).waiting;
+    const id = await bill('LG-1');
+    await db().tenant(a.tenantId, (tx) =>
+      h.get(NotesService).create(tx, a.tenantId, { recordId: id, callId: null, followUp: UNPAID, kind: 'promise', speaker: 'Kaveri Spec Traders', said: 'Friday', promiseOn: day(2) }),
+    );
+    expect((await info()).waiting).toBe(before + 1);
+  });
+
+  it('does not leave an item waiting when its note was dismissed before the call finished', async () => {
+    const id = await bill('LG-2');
+    const next = (await followUps.pick(a.tenantId))!;
+    await calling().place(a.tenantId, next.callId);
+    await phone().answer(a.tenantId, next.callId);
+    for (const text of ['Yes', "It's already paid", 'UTR 445566']) await phone().reply(a.tenantId, next.callId, text);
+    const [note] = await notesOf(id);
+    await h.get(NotesService).dismiss(a.session, note!.id);
+    await calling().finish(a.tenantId, next.callId);
+    expect(await attemptOf(id)).toMatchObject({ state: 'active', tries: 0, nextDueOn: day(1) });
+  });
+
+  it("takes turns between lists, so one busy list can't starve the others", async () => {
+    await followUps.switch(a.session, ORDERS, true);
+    const p1 = await add('Party', { name: 'Turn One Traders', partyType: 'retailer', phone: '+91 98470 61111' });
+    const p2 = await add('Party', { name: 'Turn Two Traders', partyType: 'retailer', phone: '+91 98470 62222' });
+    await bill('TURN-1', { party: p1 });
+    await bill('TURN-2', { party: p2 });
+    await add('Order', { customerName: 'Turn Supplier', phone: '+91 98470 63333', items: '10 cartons', amount: 5000, status: 'confirmed', orderType: 'purchase order', orderNo: 'PO-TURN', neededBy: day(-3) });
+    const keyOf = async (callId: string) => (await db().tenant(a.tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId))))[0]!.followUp;
+    const first = (await followUps.pick(a.tenantId))!;
+    await done(first.callId);
+    const second = (await followUps.pick(a.tenantId))!;
+    expect(await keyOf(second.callId)).not.toBe(await keyOf(first.callId));
+    await done(second.callId);
+    await followUps.switch(a.session, ORDERS, false);
+  });
+
+  describe('notes and the Call again button', () => {
+    it('says Call again is possible only for the owner, on a stopped note, until it is used', async () => {
+      const party = await add('Party', { name: 'Can Call Traders', partyType: 'retailer' });
+      const id = await bill('LG-3', { party });
+      expect(await pickAll()).toEqual([]);
+      const view = async (role: Session['role']) => (await h.get(ListsService).item(a.tenantId, 'bills', id, role)).notes[0]!;
+      expect((await view('owner')).canCallAgain).toBe(true);
+      expect((await view('admin')).canCallAgain).toBe(false);
+      expect((await view('member')).canCallAgain).toBe(false);
+      await h.get(NotesService).callAgain(a.session, (await view('owner')).id);
+      expect((await view('owner')).canCallAgain).toBe(false);
+    });
+
+    it('is false for a note that is not about a stopped follow-up', async () => {
+      const id = await bill('LG-4');
+      await db().tenant(a.tenantId, (tx) =>
+        h.get(NotesService).create(tx, a.tenantId, { recordId: id, callId: null, followUp: UNPAID, kind: 'promise', speaker: 'Kaveri Spec Traders', said: 'Friday', promiseOn: day(2) }),
+      );
+      expect((await h.get(ListsService).item(a.tenantId, 'bills', id, 'owner')).notes[0]!.canCallAgain).toBe(false);
+    });
+
+    it("doesn't repeat the title when the item names nobody to call", async () => {
+      const id = await bill('LG-5', { party: undefined });
+      expect(await pickAll()).toEqual([]);
+      expect((await notesOf(id))[0]!.said).toBe('There is no phone number to call about LG-5. Please add one or follow it up yourself.');
+    });
+  });
+
+  describe('to the team', () => {
+    let it3: Org;
+    const ticket = (summary: string, assignedTo: string) =>
+      db().tenant(it3.tenantId, async (tx) => {
+        const svc = h.get(RecordsService);
+        const data = { ticketNo: `T-${summary.length}`, clientName: 'Acme', summary, assignedTo, status: 'assigned', dueBy: new Date(Date.now() - 86_400_000).toISOString() };
+        return (await svc.create(tx, it3.tenantId, await svc.activeWorkspace(tx), 'Ticket', data, SYSTEM, { kind: 'agent' })).id;
+      });
+    beforeAll(async () => {
+      it3 = await newOrg(h, 'it-services');
+      await h.get(ListsService).removeSamples(it3.session);
+      const team = h.get(TeamService);
+      await team.create(it3.session, CreateStaffInputSchema.parse({ name: 'Anil Kumar', phone: '+91 98470 55551', title: 'Engineer' }));
+      await followUps.switch({ ...it3.session, role: 'admin' }, 'tickets.overdue-tickets', true);
+    });
+
+    it('logs a refused status update as a note left for the head', async () => {
+      const id = await ticket('Printer jammed', 'Anil');
+      const next = (await followUps.pick(it3.tenantId))!;
+      await calling().place(it3.tenantId, next.callId);
+      await phone().answer(it3.tenantId, next.callId);
+      await db().tenant(it3.tenantId, async (tx) => {
+        const [c] = await tx.select().from(calls).where(eq(calls.id, next.callId));
+        const result = { kind: 'status', said: 'It is sorted', patch: { status: 'not-a-status' } } as const;
+        await tx.update(calls).set({ extracted: { ...c!.extracted, followUp: { phase: 'done', retries: 0, result } } }).where(eq(calls.id, next.callId));
+      });
+      await calling().endUnanswered(it3.tenantId, next.callId);
+      await calling().finish(it3.tenantId, next.callId);
+      const call = await phone().get(it3.tenantId, next.callId);
+      expect(call).toMatchObject({ outcome: 'noted', summary: "Noted what Anil said; it didn't fit the item, so it's left for you." });
+      const { notes, item } = await h.get(ListsService).item(it3.tenantId, 'tickets', id);
+      expect(notes[0]).toMatchObject({ kind: 'said', said: 'It is sorted' });
+      expect(item.data.status).toBe('assigned');
+    });
+
+    it('says when a first name matches more than one person', async () => {
+      await h.get(TeamService).create(it3.session, CreateStaffInputSchema.parse({ name: 'Anil Menon', phone: '+91 98470 55552', title: 'Engineer' }));
+      const id = await ticket('Scanner dead', 'Anil');
+      await followUps.pick(it3.tenantId);
+      const { notes } = await h.get(ListsService).item(it3.tenantId, 'tickets', id);
+      expect(notes[0]).toMatchObject({ kind: 'unreachable' });
+      expect(notes[0]!.said).toBe("There's more than one Anil on your team. Put the full name on Scanner dead, or follow it up yourself.");
+    });
+  });
+});

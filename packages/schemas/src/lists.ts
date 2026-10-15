@@ -129,6 +129,8 @@ export interface ListNote {
   decidedBy: string | null;
   callId: string | null;
   at: string;
+  /** Worked out on the server for the viewer: the note says a follow-up stopped, it is still stopped, and the viewer may start it again. */
+  canCallAgain: boolean;
 }
 
 export interface ListItemDetail {

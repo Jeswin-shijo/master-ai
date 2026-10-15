@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { and, count, eq, gt, inArray, ne, sql } from 'drizzle-orm';
+import { and, count, eq, gt, inArray, max, ne, sql } from 'drizzle-orm';
 import type { FollowUpInfo, ResolvedPack } from '@onehuman/schemas';
 import { normalizeSnapshot, registersOf, titleOf, type ResolvedFollowUp, type ResolvedRegister } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
@@ -13,7 +13,7 @@ import { TemporalService } from '../orchestration/temporal.service';
 import { RecordsService } from '../records/records.service';
 import { lowerFirst } from '../voice/spoken';
 import { addDaysTo, istDate, narrowHours, withinHours } from '../voice/time';
-import { contactName, matchStaff, phoneKey, readPath } from './targets';
+import { contactName, phoneKey, readPath, staffNamed } from './targets';
 
 type StaffRow = typeof staff.$inferSelect;
 type Workspace = { id: string; status: string; pack: ResolvedPack };
@@ -66,7 +66,8 @@ export class FollowUpsService {
           await tx.execute<{ due: number; waiting: number; stopped: number }>(sql`
             select count(*) filter (where ${dueSql(f, reg.entity, clock)} and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
                      and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new'))::int as due,
-                   count(*) filter (where a.state = 'waiting_for_you')::int as waiting,
+                   count(*) filter (where a.state = 'waiting_for_you'
+                     or (a.state is distinct from 'stopped' and exists (select 1 from record_notes n where n.record_id = r.id and n.follow_up = ${f.key} and n.status = 'new')))::int as waiting,
                    count(*) filter (where a.state = 'stopped')::int as stopped
             from records r left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
             where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'`)
@@ -130,8 +131,8 @@ export class FollowUpsService {
   /**
    * The sweep's next call, or null. Nothing is called while the company is
    * paused, once today's cap is reached, or while another follow-up call is
-   * live. The first switched-on follow-up with a due item inside calling hours
-   * wins: the item gets an attempt and a scheduled call. Items with no phone or
+   * live. The switched-on follow-up chased longest ago (or never) with a due item inside
+   * calling hours wins, so lists take turns: the item gets an attempt and a scheduled call. Items with no phone or
    * no matching team member stop with a note, so they leave the queue. A number
    * or team member already called today is not called again until tomorrow, so
    * five overdue bills from one party are five calls on five days.
@@ -172,36 +173,41 @@ export class FollowUpsService {
       const phonesToday = new Set(calledToday.flatMap((c) => (c.phone ? [phoneKey(c.phone)] : [])));
       const staffToday = new Set(calledToday.flatMap((c) => (c.staffId ? [c.staffId] : [])));
 
-      for (const reg of registersOf(ws.pack)) {
-        for (const f of reg.followUps.filter((x) => on.has(x.key))) {
-          if (f.who === 'party' && !anyHours && !withinHours(now, narrowHours(s.partyHours, f.hours))) continue;
-          // A page at a time, so items of numbers already called today can't hide the rest.
-          for (let after: Candidate | null = null; ; ) {
-            const rows: Candidate[] = (
-              await tx.execute<Candidate>(sql`
-                select r.id, r.data, a.tries, r.updated_at::text as updated_at from records r
-                left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
-                where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'
-                  and ${dueSql(f, reg.entity, clock)}
-                  and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
-                  and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new')
-                  ${after ? sql`and (r.updated_at, r.id) > (${after.updated_at}::timestamptz, ${after.id}::uuid)` : sql``}
-                order by r.updated_at asc, r.id asc
-                limit ${PAGE}`)
-            ).rows;
-            for (const item of rows) {
-              const target = await this.target(tx, ws, reg, f, item, people);
-              if (target.kind === 'stop') {
-                await this.stop(tx, tenantId, f, item.id, target.why, clock.today);
-                continue;
-              }
-              if (target.kind === 'party' && (blocked.has(phoneKey(target.phone)) || phonesToday.has(phoneKey(target.phone)))) continue;
-              if (target.kind === 'staff' && (staffToday.has(target.person.id) || (!anyHours && !withinHours(now, target.person.workingHours)))) continue;
-              return { callId: await this.schedule(tx, tenantId, s.provider, reg, f, item, target, clock.today) };
+      // The follow-up that was chased longest ago (or never) goes first, so one busy list can't starve the others.
+      const lastChase = new Map(
+        (await tx.select({ key: calls.followUp, at: max(calls.createdAt) }).from(calls).where(eq(calls.stage, 'chase')).groupBy(calls.followUp)).map((r) => [r.key, r.at?.getTime() ?? 0] as const),
+      );
+      const turns = registersOf(ws.pack)
+        .flatMap((reg) => reg.followUps.filter((x) => on.has(x.key)).map((f) => ({ reg, f })))
+        .sort((x, y) => (lastChase.get(x.f.key) ?? 0) - (lastChase.get(y.f.key) ?? 0));
+      for (const { reg, f } of turns) {
+        if (f.who === 'party' && !anyHours && !withinHours(now, narrowHours(s.partyHours, f.hours))) continue;
+        // A page at a time, so items of numbers already called today can't hide the rest.
+        for (let after: Candidate | null = null; ; ) {
+          const rows: Candidate[] = (
+            await tx.execute<Candidate>(sql`
+              select r.id, r.data, a.tries, r.updated_at::text as updated_at from records r
+              left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
+              where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'
+                and ${dueSql(f, reg.entity, clock)}
+                and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
+                and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new')
+                ${after ? sql`and (r.updated_at, r.id) > (${after.updated_at}::timestamptz, ${after.id}::uuid)` : sql``}
+              order by r.updated_at asc, r.id asc
+              limit ${PAGE}`)
+          ).rows;
+          for (const item of rows) {
+            const target = await this.target(tx, ws, reg, f, item, people);
+            if (target.kind === 'stop') {
+              await this.stop(tx, tenantId, f, item.id, target.why, clock.today);
+              continue;
             }
-            if (rows.length < PAGE) break;
-            after = rows.at(-1)!;
+            if (target.kind === 'party' && (blocked.has(phoneKey(target.phone)) || phonesToday.has(phoneKey(target.phone)))) continue;
+            if (target.kind === 'staff' && (staffToday.has(target.person.id) || (!anyHours && !withinHours(now, target.person.workingHours)))) continue;
+            return { callId: await this.schedule(tx, tenantId, s.provider, reg, f, item, target, clock.today) };
           }
+          if (rows.length < PAGE) break;
+          after = rows.at(-1)!;
         }
       }
       return null;
@@ -213,13 +219,15 @@ export class FollowUpsService {
     if (f.who === 'staff') {
       const name = String(item.data[f.staffField!.name] ?? '').trim();
       if (!name) return { kind: 'stop', why: `Nobody is named in ${lowerFirst(f.staffField!.label)} for ${title}, so there is nobody to call. Please follow it up yourself.` };
-      const person = matchStaff(people, name);
-      return person ? { kind: 'staff', person } : { kind: 'stop', why: `Couldn't find ${name} in your team. Add them on the Team page, or follow ${title} up yourself.` };
+      const named = staffNamed(people, name);
+      if (named.length === 1) return { kind: 'staff', person: named[0]! };
+      if (named.length > 1) return { kind: 'stop', why: `There's more than one ${name} on your team. Put the full name on ${title}, or follow it up yourself.` };
+      return { kind: 'stop', why: `Couldn't find ${name} in your team. Add them on the Team page, or follow ${title} up yourself.` };
     }
     const phone = f.phone ? await readPath(tx, ws.id, f.phone, item.data) : null;
-    const name = (await contactName(tx, ws.id, f, item.data)) ?? title;
-    if (!phone || phoneKey(phone).length < 10) return { kind: 'stop', why: `There is no phone number to call ${name} about ${title}. Please add one or follow it up yourself.` };
-    return { kind: 'party', name, phone };
+    const contact = await contactName(tx, ws.id, f, item.data);
+    if (!phone || phoneKey(phone).length < 10) return { kind: 'stop', why: `There is no phone number to call ${contact ? `${contact} ` : ''}about ${title}. Please add one or follow it up yourself.` };
+    return { kind: 'party', name: contact ?? title, phone };
   }
 
   /** The follow-up stops for this item, and the head gets a note saying why. */

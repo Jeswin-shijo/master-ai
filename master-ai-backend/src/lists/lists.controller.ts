@@ -38,7 +38,7 @@ export class ListsController {
 
   @Get(':id/items/:itemId')
   item(@CurrentSession() s: Session, @Param('id') id: string, @Param('itemId', ParseUUIDPipe) itemId: string) {
-    return this.lists.item(s.tenantId, id, itemId);
+    return this.lists.item(s.tenantId, id, itemId, s.role);
   }
 
   @Delete('samples')

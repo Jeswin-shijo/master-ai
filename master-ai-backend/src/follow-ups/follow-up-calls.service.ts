@@ -5,7 +5,7 @@ import { normalizeSnapshot, registersOf, titleOf, type ResolvedFollowUp, type Re
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import { DEFAULT_TENANT_SETTINGS } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
-import { calls, doNotCall, followUpAttempts, records, staff, tenants } from '../db/schema';
+import { calls, doNotCall, followUpAttempts, recordNotes, records, staff, tenants } from '../db/schema';
 import { isUuid } from '../lists/format';
 import { NotesService } from '../notes/notes.service';
 import { TemporalService } from '../orchestration/temporal.service';
@@ -213,9 +213,12 @@ export class FollowUpCallsService {
             set = { tries: 0, nextDueOn: addDaysTo(result.promiseOn, 1) };
             break;
           case 'settled':
-          case 'dispute':
-            set = { tries: 0, state: 'waiting_for_you' };
+          case 'dispute': {
+            // Waits for the head only while the note is still there: one dismissed before the call finished leaves nothing to wait for.
+            const [waiting] = await tx.select({ id: recordNotes.id }).from(recordNotes).where(and(eq(recordNotes.recordId, c.recordId), eq(recordNotes.status, 'new'))).limit(1);
+            set = waiting ? { tries: 0, state: 'waiting_for_you' } : { tries: 0, state: 'active', nextDueOn: addDaysTo(today, 1) };
             break;
+          }
           case 'wrong_number':
             set = { tries: 0, state: 'stopped' };
             break;
@@ -245,15 +248,19 @@ export class FollowUpCallsService {
       const loaded = await this.load(tx, c);
       const name = loaded?.ctx.name ?? c.contactName ?? 'They';
       const result = state.result;
-      const { outcome, summary } = result && loaded ? outcomeOf(result, name, loaded) : callBack ? { outcome: 'call_back' as const, summary: `${name} asked to be called another time.` } : { outcome: 'unclear' as const, summary: dropped ? 'The call dropped before an answer.' : 'No answer about the item.' };
+      let { outcome, summary }: { outcome: CallOutcome; summary: string } = result && loaded ? outcomeOf(result, name, loaded) : callBack ? { outcome: 'call_back' as const, summary: `${name} asked to be called another time.` } : { outcome: 'unclear' as const, summary: dropped ? 'The call dropped before an answer.' : 'No answer about the item.' };
+      // What the call leaves comes first: a refused update to the item is a note, and the call log says so.
+      if (result && loaded && c.recordId && (await this.leave(tx, tenantId, c, loaded, result)) === 'refused') {
+        outcome = 'noted';
+        summary = `Noted what ${name.split(' ')[0]} said; it didn't fit the item, so it's left for you.`;
+      }
       await tx.update(calls).set({ status: 'completed', endedAt: new Date(), transcript, outcome, summary, extracted: { ...c.extracted, followUp: state } }).where(eq(calls.id, callId));
       await this.audit.append(tx, tenantId, { type: 'call.completed', actor: SYSTEM, refId: callId, payload: { staffName: name, stage: 'chase', outcome, summary } });
-      if (result && loaded && c.recordId) await this.leave(tx, tenantId, c, loaded, result);
     });
   }
 
   /** What a result leaves on the item: a note, a do-not-call entry, or (a team member's answer) the change itself. */
-  private async leave(tx: Tx, tenantId: string, c: CallRow, loaded: Loaded, result: FollowUpResult) {
+  private async leave(tx: Tx, tenantId: string, c: CallRow, loaded: Loaded, result: FollowUpResult): Promise<'refused' | void> {
     const recordId = c.recordId!;
     const note = (kind: 'said' | 'promise' | 'dispute' | 'wrong_number', extra: { proposed?: Record<string, unknown>; promiseOn?: string } = {}) =>
       this.notes.create(tx, tenantId, { recordId, callId: c.id, followUp: loaded.f.key, kind, speaker: loaded.ctx.name, said: result.said, ...extra });
@@ -288,6 +295,7 @@ export class FollowUpCallsService {
         } catch (err) {
           if (!(err instanceof BadRequestException)) throw err;
           await note('said');
+          return 'refused';
         }
         return;
       case 'said':

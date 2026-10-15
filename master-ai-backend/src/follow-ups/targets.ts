@@ -13,15 +13,19 @@ export function phoneKey(phone: string): string {
 
 /** The team member a name on an item means: an active person with that full name, or — when only a first name is given — the one active person with that first name. */
 export function matchStaff(people: StaffRow[], name: string): StaffRow | null {
+  const found = staffNamed(people, name);
+  return found.length === 1 ? found[0]! : null;
+}
+
+/** Every active person a name could mean: those with that full name, or — when only a first name is given and no full name matches one person — those with that first name. */
+export function staffNamed(people: StaffRow[], name: string): StaffRow[] {
   const want = name.trim().toLowerCase();
-  if (!want) return null;
+  if (!want) return [];
   const active = people.filter((p) => p.status === 'active');
   const full = active.filter((p) => p.name.trim().toLowerCase() === want);
-  if (full.length === 1) return full[0]!;
-  if (/\s/.test(want)) return null;
+  if (full.length === 1 || /\s/.test(want)) return full;
   const firstOf = (s: string) => s.trim().toLowerCase().split(/\s+/)[0];
-  const byFirst = active.filter((p) => firstOf(p.name) === firstOf(want));
-  return byFirst.length === 1 ? byFirst[0]! : null;
+  return active.filter((p) => firstOf(p.name) === firstOf(want));
 }
 
 const text = (v: unknown) => (v === undefined || v === null || v === '' ? null : String(v));
