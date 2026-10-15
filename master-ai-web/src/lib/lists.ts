@@ -1,4 +1,4 @@
-import type { ItemSourceKind, ListQueryParams, ListRange, ListShow } from '@onehuman/schemas';
+import type { FollowUpInfo, ItemSourceKind, NoteKind, ListQueryParams, ListRange, ListShow } from '@onehuman/schemas';
 
 export const RANGE_LABELS: Record<ListRange, string> = {
   today: 'Today',
@@ -83,4 +83,26 @@ export function saveText(name: string, text: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const NOTE_LABELS: Record<NoteKind, string> = {
+  said: 'Said on a call',
+  promise: 'Promise',
+  dispute: 'Dispute',
+  wrong_number: 'Wrong number',
+  difference: 'Different on a call',
+  unreachable: "Couldn't call",
+};
+
+/** "On · 3 to call about now · 1 waiting for you". */
+export function followUpLine(f: FollowUpInfo): string {
+  const parts = [f.enabled ? 'On' : 'Off', f.due ? `${f.due} to call about now` : 'nothing due now'];
+  if (f.waiting) parts.push(`${f.waiting} waiting for you`);
+  if (f.stopped) parts.push(`${f.stopped} stopped`);
+  return parts.join(' · ');
+}
+
+/** "Fri, 16 Oct" for a YYYY-MM-DD day. */
+export function dayLabel(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }

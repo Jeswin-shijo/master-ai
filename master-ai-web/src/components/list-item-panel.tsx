@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Pencil, Trash2, X } from 'lucide-react';
 import type { EntityDef, ListMeta } from '@onehuman/schemas';
+import { ItemNotes } from '@/components/item-notes';
 import { RecordForm } from '@/components/record-form';
 import { Button } from '@/components/ui/button';
 import { ErrorNote, Spinner } from '@/components/ui/feedback';
@@ -127,6 +128,7 @@ export function ListItemPanel({
               ) : (
                 <span className="text-fg-muted">Not checked</span>
               )}
+              {d.item.updated.via === 'call' && d.item.updated.by && <span className="text-fg-muted"> · Updated on a call with {d.item.updated.by}</span>}
             </p>
 
             {(open.length > 0 || seen.length > 0) && (
@@ -155,6 +157,8 @@ export function ListItemPanel({
                 ))}
               </section>
             )}
+
+            <ItemNotes notes={d.notes} onDone={done} />
 
             {mode === 'view' && (
               <div className="flex flex-wrap gap-2">

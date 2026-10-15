@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { AlertTriangle, CheckCircle2, Download, Plus, Search } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router';
 import type { EntityDef, EntityField, ItemSourceKind, ListItem, ListQueryParams, ListRange, ListShow } from '@onehuman/schemas';
+import { FollowUpsPanel } from '@/components/follow-ups-panel';
 import { ListItemPanel } from '@/components/list-item-panel';
 import { RecordForm, ReferenceSelect } from '@/components/record-form';
 import { Button } from '@/components/ui/button';
@@ -71,24 +72,36 @@ function FilterControl({ field, entities, value, onChange }: { field: EntityFiel
 
 function Status({ item }: { item: ListItem }) {
   const open = item.problems.filter((p) => !p.acknowledged);
+  const fromCall = item.newNotes > 0 && <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary">New from a call</span>;
   if (open.length) {
     return (
-      <span className="inline-flex items-center gap-1 text-danger" title={open.map((p) => p.message).join('\n')}>
-        <AlertTriangle className="size-4" aria-hidden />
-        {open.length}
-        <span className="sr-only"> problem{open.length === 1 ? '' : 's'}</span>
+      <span className="inline-flex items-center">
+        <span className="inline-flex items-center gap-1 text-danger" title={open.map((p) => p.message).join('\n')}>
+          <AlertTriangle className="size-4" aria-hidden />
+          {open.length}
+          <span className="sr-only"> problem{open.length === 1 ? '' : 's'}</span>
+        </span>
+        {fromCall}
       </span>
     );
   }
   if (item.checked) {
     return (
-      <span className="inline-flex text-success" title={`Checked by ${item.checked.by}`}>
-        <CheckCircle2 className="size-4" aria-hidden />
-        <span className="sr-only">Checked</span>
+      <span className="inline-flex items-center">
+        <span className="inline-flex text-success" title={`Checked by ${item.checked.by}`}>
+          <CheckCircle2 className="size-4" aria-hidden />
+          <span className="sr-only">Checked</span>
+        </span>
+        {fromCall}
       </span>
     );
   }
-  return <span className="text-xs text-fg-muted">Not checked</span>;
+  return (
+    <span className="inline-flex items-center">
+      <span className="text-xs text-fg-muted">Not checked</span>
+      {fromCall}
+    </span>
+  );
 }
 
 /** One list: filters, totals over every match, problems, bulk check, download, and the item drawer. */
@@ -118,7 +131,7 @@ export function ListPage() {
   usePageTitle(meta?.label ?? 'Lists');
 
   const refresh = () => {
-    for (const key of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [key] });
+    for (const key of ['lists', 'list', 'list-item', 'follow-ups']) void queryClient.invalidateQueries({ queryKey: [key] });
   };
   const create = useMutation({
     mutationFn: (data: Record<string, unknown>) => api.lists.create(id, data),
@@ -167,6 +180,7 @@ export function ListPage() {
           </div>
         }
       />
+      <FollowUpsPanel listId={id} />
 
       <Card className="mb-4">
         <CardBody className="space-y-3">

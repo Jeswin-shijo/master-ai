@@ -42,9 +42,10 @@ export function useRealtimeConnection(): RealtimeStatus {
         if (area === 'goal' || area === 'task') void queryClient.invalidateQueries({ queryKey: ['goals'] });
         if (area === 'approval' || area === 'action' || area === 'policy') void queryClient.invalidateQueries({ queryKey: ['approvals'] });
         if (area === 'agent' || area === 'autonomy' || area === 'approval') void queryClient.invalidateQueries({ queryKey: ['agents'] });
-        if (area === 'record' || area === 'action') {
+        if (area === 'record' || area === 'action' || area === 'note') {
           for (const key of ['records', 'lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [key] });
         }
+        if (area === 'followup' || area === 'note' || area === 'do_not_call') void queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
         if (area === 'call' || area === 'delegation') {
           void queryClient.invalidateQueries({ queryKey: ['calls'] });
           void queryClient.invalidateQueries({ queryKey: ['delegations'] });

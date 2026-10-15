@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { csvFileName, initialView, listParams, nextSort, referenceText, withBom } from '../../../src/lib/lists';
+import { csvFileName, dayLabel, followUpLine, NOTE_LABELS, initialView, listParams, nextSort, referenceText, withBom } from '../../../src/lib/lists';
 
 describe('the list page state', () => {
   it('opens a dated list on this month, and an undated one on everything', () => {
@@ -37,5 +37,29 @@ describe('referenceText', () => {
     expect(referenceText('0b9d3c55-8a1e-4f7e-9a51-2f7c3a6c1e11')).toBe('a removed item');
     expect(referenceText('Ganesh traders')).toBe('Ganesh traders');
     expect(referenceText(null)).toBe('—');
+  });
+});
+
+describe('follow-ups and call notes in words', () => {
+  const f = { key: 'bills.unpaid-bills', id: 'unpaid-bills', label: 'Unpaid bills → the party', who: 'party' as const, enabled: true, changedBy: 'Asha', changedAt: '2026-10-15T05:00:00Z', canSwitch: true, due: 3, waiting: 1, stopped: 0 };
+
+  it("says what a follow-up is doing", () => {
+    expect(followUpLine(f)).toBe('On · 3 to call about now · 1 waiting for you');
+    expect(followUpLine({ ...f, enabled: false, due: 0, waiting: 0, stopped: 2 })).toBe('Off · nothing due now · 2 stopped');
+  });
+
+  it('names every kind of note', () => {
+    expect(NOTE_LABELS).toEqual({
+      said: 'Said on a call',
+      promise: 'Promise',
+      dispute: 'Dispute',
+      wrong_number: 'Wrong number',
+      difference: 'Different on a call',
+      unreachable: "Couldn't call",
+    });
+  });
+
+  it('shows a promised day the way people say it', () => {
+    expect(dayLabel('2026-10-16')).toBe('Fri, 16 Oct');
   });
 });
