@@ -14,6 +14,7 @@ import { FollowUpEngine, followUpSuggestions, newFollowUpState, simulatedFollowU
 import { aboutText, lowerFirst, sayDay } from '../voice/spoken';
 import { addDaysTo, istDate } from '../voice/time';
 import { TwilioService } from '../voice/twilio';
+import { FollowUpsService } from './follow-ups.service';
 import { phoneKey } from './targets';
 
 type CallRow = typeof calls.$inferSelect;
@@ -41,6 +42,7 @@ export class FollowUpCallsService {
     private readonly engine: FollowUpEngine,
     private readonly temporal: TemporalService,
     private readonly twilio: TwilioService,
+    private readonly followUps: FollowUpsService,
   ) {}
 
   async plan(tenantId: string) {
@@ -53,26 +55,32 @@ export class FollowUpCallsService {
     const s = await this.settings(tenantId);
     const ready = await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
-      if (!c || c.status !== 'scheduled') return null;
+      if (!c) return 'over' as const;
+      // A retried activity: the call is already on, so the workflow waits for it to end.
+      if (c.status === 'ringing' || c.status === 'in_progress') return 'live' as const;
+      if (c.status !== 'scheduled') return 'over' as const;
       const loaded = await this.load(tx, c);
-      if (!loaded) {
-        await tx.update(calls).set({ status: 'cancelled', endedAt: new Date(), summary: 'The item or its follow-up is gone.' }).where(eq(calls.id, callId));
-        return null;
+      const why = loaded ? await this.followUps.blocker(tx, c) : 'The item or its follow-up is gone.';
+      if (why) {
+        await tx.update(calls).set({ status: 'cancelled', endedAt: new Date(), summary: why }).where(eq(calls.id, callId));
+        await this.audit.append(tx, tenantId, { type: 'call.cancelled', actor: SYSTEM, refId: callId, payload: { staffName: loaded?.ctx.name ?? c.contactName ?? 'someone', stage: 'chase', reason: why } });
+        return 'over' as const;
       }
-      await tx.update(calls).set({ status: 'ringing', extracted: { ...c.extracted, followUp: loaded.ctx.state } }).where(eq(calls.id, callId));
+      await tx.update(calls).set({ status: 'ringing', extracted: { ...c.extracted, followUp: loaded!.ctx.state } }).where(eq(calls.id, callId));
       await this.audit.append(tx, tenantId, {
         type: 'call.ringing',
         actor: SYSTEM,
         refId: callId,
-        payload: { staffName: loaded.ctx.name, stage: 'chase', attempt: c.attempt, about: c.extracted.about?.title },
+        payload: { staffName: loaded!.ctx.name, stage: 'chase', attempt: c.attempt, about: c.extracted.about?.title },
       });
-      return loaded;
+      return { loaded: loaded!, provider: c.provider };
     });
-    if (!ready) return { done: true };
+    if (ready === 'live') return { done: false };
+    if (ready === 'over') return { done: true };
 
-    if (s.provider === 'twilio') {
+    if (ready.provider === 'twilio') {
       try {
-        const sid = await this.twilio.placeCall({ to: ready.phone ?? '', tenantId, callId, ringSeconds: RING_SECONDS });
+        const sid = await this.twilio.placeCall({ to: ready.loaded.phone ?? '', tenantId, callId, ringSeconds: RING_SECONDS });
         await this.db.tenant(tenantId, (tx) => tx.update(calls).set({ providerCallId: sid }).where(eq(calls.id, callId)));
       } catch (err) {
         this.logger.warn(`Follow-up call ${callId} not placed: ${(err as Error).message}`);
@@ -84,7 +92,7 @@ export class FollowUpCallsService {
     if (s.simulatorMode === 'interactive') return { done: false };
 
     // Auto mode: a simulated party or team member answers.
-    const ctx = ready.ctx;
+    const ctx = ready.loaded.ctx;
     let transcript: TranscriptLine[] = [line('ai', this.engine.opening(ctx))];
     let state = ctx.state;
     let callBack = false;
@@ -126,7 +134,11 @@ export class FollowUpCallsService {
       await this.conclude(tenantId, call.id, transcript, res.state, res.callBack);
       await this.temporal.signalFollowUp(call.id, { callId: call.id, event: 'ended' });
     } else {
-      await this.db.tenant(tenantId, (tx) => tx.update(calls).set({ transcript, extracted: { ...c.extracted, followUp: res.state } }).where(eq(calls.id, call.id)));
+      await this.db.tenant(tenantId, async (tx) => {
+        const [now] = await tx.select().from(calls).where(eq(calls.id, call.id)).for('update');
+        if (now?.status !== 'in_progress') return;
+        await tx.update(calls).set({ transcript, extracted: { ...now.extracted, followUp: res.state } }).where(eq(calls.id, call.id));
+      });
     }
   }
 
@@ -137,25 +149,27 @@ export class FollowUpCallsService {
 
   /** Nobody answered, the call could not be placed, or it dropped mid-way (what was said so far still counts). */
   async endUnanswered(tenantId: string, callId: string, failure?: string) {
-    const [c] = await this.db.tenant(tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
-    if (!c) return;
-    if (c.status === 'in_progress') {
-      await this.conclude(tenantId, callId, c.transcript, c.extracted.followUp ?? newFollowUpState('party'), false, true);
-      return;
-    }
-    if (c.status !== 'ringing' && c.status !== 'scheduled') return;
-    await this.db.tenant(tenantId, async (tx) => {
+    const open = await this.db.tenant(tenantId, async (tx) => {
+      const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
+      if (!c) return null;
+      if (c.status !== 'ringing' && c.status !== 'scheduled') return c;
       const name = await this.nameOf(tx, c);
       await tx
         .update(calls)
         .set({ status: failure ? 'failed' : 'no_answer', endedAt: new Date(), outcome: 'no_answer', summary: failure ?? `${name} didn't answer.` })
         .where(eq(calls.id, callId));
       await this.audit.append(tx, tenantId, { type: 'call.no_answer', actor: SYSTEM, refId: callId, payload: { staffName: name, stage: 'chase', attempt: c.attempt } });
+      return null;
     });
+    if (open?.status === 'in_progress') {
+      await this.conclude(tenantId, callId, open.transcript, open.extracted.followUp ?? newFollowUpState('party'), false, true);
+    }
   }
 
   /** After the call: when the item is due again, or that it waits for the head, or that the follow-up stopped. Safe to run twice. */
   async finish(tenantId: string, callId: string) {
+    const [open] = await this.db.tenant(tenantId, (tx) => tx.select({ status: calls.status }).from(calls).where(eq(calls.id, callId)));
+    if (open && (open.status === 'scheduled' || open.status === 'ringing' || open.status === 'in_progress')) await this.endUnanswered(tenantId, callId);
     await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
       if (!c?.recordId || !c.followUp || c.extracted.attemptDone) return;
@@ -167,7 +181,8 @@ export class FollowUpCallsService {
       const today = istDate();
       const result = c.extracted.followUp?.result ?? null;
       let set: Partial<typeof followUpAttempts.$inferInsert>;
-      if (c.status === 'no_answer' || c.status === 'failed' || c.status === 'cancelled') {
+      if (c.status === 'cancelled') return; // never rung: no try, and the item stays due tomorrow as set when it was picked
+      if (c.status === 'no_answer' || c.status === 'failed') {
         const tries = a.tries + 1;
         if (tries >= f.maxTries) {
           set = { tries, state: 'stopped' };
@@ -254,6 +269,7 @@ export class FollowUpCallsService {
         if (loaded.f.who === 'party') return block('asked');
         return void (await note('said'));
       case 'status':
+        if (loaded.f.who !== 'staff') return void (await note('said'));
         try {
           await this.records.update(tx, tenantId, { id: loaded.workspaceId, pack: loaded.pack }, loaded.reg.entity.name, recordId, result.patch, {
             actor: SYSTEM,

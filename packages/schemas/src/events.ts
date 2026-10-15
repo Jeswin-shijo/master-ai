@@ -60,6 +60,7 @@ export const AUDIT_EVENT_TYPES = [
   'call.ringing',
   'call.completed',
   'call.no_answer',
+  'call.cancelled',
   'routine.created',
   'routine.updated',
   'routine.run_started',
@@ -139,6 +140,8 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `Call with ${p.staffName ?? 'staff'}: ${p.summary ?? p.outcome ?? 'completed'}`;
     case 'call.no_answer':
       return `${p.staffName ?? 'Staff'} did not answer (attempt ${p.attempt ?? '?'})`;
+    case 'call.cancelled':
+      return `Call to ${p.staffName ?? 'someone'} not made: ${p.reason ?? 'cancelled'}`;
     case 'routine.created':
       return `New routine: ${p.name ?? ''}`;
     case 'routine.updated':

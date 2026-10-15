@@ -273,7 +273,12 @@ describe('the call to an outside party', () => {
     await phone().answer(a.tenantId, callId);
     for (const text of ['Yes', "It's already paid", 'UTR 445566']) await phone().reply(a.tenantId, callId, text);
     await calling().finish(a.tenantId, callId);
-    const { notes } = await lists().item(a.tenantId, 'bills', id);
+    const before = await lists().item(a.tenantId, 'bills', id);
+    expect(before.item.data.paymentStatus).toBe('unpaid');
+    expect(before.item.data.paymentRef).toBeUndefined();
+    expect(before.item.updated?.via).not.toBe('call');
+    expect(before.history.filter((e) => e.kind === 'updated')).toEqual([]);
+    const { notes } = before;
     expect(notes[0]).toMatchObject({ kind: 'said', said: "It's already paid. UTR 445566" });
     expect(notes[0]!.proposed.map((p) => [p.field, p.value])).toEqual([['paymentStatus', 'paid'], ['paymentRef', '445566']]);
     expect(await attempt(id)).toMatchObject({ state: 'waiting_for_you' });
@@ -328,6 +333,45 @@ describe('the call to an outside party', () => {
     } finally {
       await tenancy.updateSettings(a.session, { calls: { simulatorMode: 'interactive' } });
     }
+  });
+
+  it('does not ring a planned call once the company is paused, the follow-up is off, or the number is blocked', async () => {
+    const tenancy = h.get(TenancyService);
+    await tenancy.updateSettings(a.session, { calls: { followUpsPerDay: 500 } });
+    const party = await add('Party', { name: 'Gate Traders', partyType: 'retailer', phone: '+91 98470 66666' });
+    const block = () => db().tenant(a.tenantId, (tx) => tx.insert(doNotCall).values({ tenantId: a.tenantId, phone: '9847066666', reason: 'asked' }));
+    const unblock = () => db().tenant(a.tenantId, (tx) => tx.delete(doNotCall).where(eq(doNotCall.phone, '9847066666')));
+    const cases: [string, () => Promise<unknown>, () => Promise<unknown>][] = [
+      ['The company is paused.', () => tenancy.setTenantPaused(a.session, true), () => tenancy.setTenantPaused(a.session, false)],
+      ['The follow-up was switched off.', () => followUps.switch(a.session, UNPAID, false), () => followUps.switch(a.session, UNPAID, true)],
+      ['The number is on the do-not-call list.', block, unblock],
+    ];
+    for (const [n, [why, gate, ungate]] of cases.entries()) {
+      await pickAll();
+      const id = await bill(`G-${n}`, { party });
+      const { callId } = (await followUps.pick(a.tenantId))!;
+      await gate();
+      expect(await calling().place(a.tenantId, callId)).toEqual({ done: true });
+      const [c] = await db().tenant(a.tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
+      expect(c).toMatchObject({ recordId: id, status: 'cancelled', summary: why });
+      await calling().finish(a.tenantId, callId);
+      expect(await attempt(id)).toMatchObject({ state: 'active', tries: 0 });
+      await ungate();
+    }
+    const events = await db().tenant(a.tenantId, (tx) => tx.select().from(auditEvents).where(eq(auditEvents.type, 'call.cancelled')));
+    expect(events.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('treats a second place of a ringing call as still on, and finish ends a call left open', async () => {
+    await pickAll();
+    const id = await bill('L-1');
+    const { callId } = (await followUps.pick(a.tenantId))!;
+    expect(await calling().place(a.tenantId, callId)).toEqual({ done: false });
+    expect(await calling().place(a.tenantId, callId)).toEqual({ done: false });
+    await calling().finish(a.tenantId, callId);
+    const [c] = await db().tenant(a.tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
+    expect(c).toMatchObject({ status: 'no_answer' });
+    expect(await attempt(id)).toMatchObject({ state: 'active', tries: 1 });
   });
 });
 

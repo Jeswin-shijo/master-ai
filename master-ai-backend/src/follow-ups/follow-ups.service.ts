@@ -6,7 +6,7 @@ import { AuditService, SYSTEM } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { DEFAULT_TENANT_SETTINGS } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
-import { calls, doNotCall, followUpAttempts, followUpSwitches, principals, staff, tenants } from '../db/schema';
+import { calls, doNotCall, followUpAttempts, followUpSwitches, principals, recordNotes, staff, tenants } from '../db/schema';
 import { dueSql } from '../lists/sql';
 import { NotesService } from '../notes/notes.service';
 import { TemporalService } from '../orchestration/temporal.service';
@@ -247,6 +247,38 @@ export class FollowUpsService {
       },
     });
     return call!.id;
+  }
+
+  /** Why a planned call must not ring now, or null when it may. `place` asks again just before dialling. */
+  async blocker(tx: Tx, c: typeof calls.$inferSelect): Promise<string | null> {
+    const [tenant] = await tx.select().from(tenants).where(eq(tenants.id, c.tenantId));
+    if (!tenant || tenant.status === 'paused') return 'The company is paused.';
+    const ws = await this.workspace(tx);
+    if (ws.status === 'paused') return 'The workspace is paused.';
+    const [sw] = await tx.select().from(followUpSwitches).where(and(eq(followUpSwitches.workspaceId, ws.id), eq(followUpSwitches.followUp, c.followUp ?? '')));
+    if (!sw?.enabled) return 'The follow-up was switched off.';
+    const reg = registersOf(ws.pack).find((r) => r.followUps.some((x) => x.key === c.followUp));
+    const f = reg?.followUps.find((x) => x.key === c.followUp);
+    if (!reg || !f || !c.recordId) return 'The follow-up is no longer in your setup.';
+    const now = new Date();
+    if (now.getTime() - c.createdAt.getTime() > LIVE_MS) return 'The call waited too long to ring.';
+    const s = { ...DEFAULT_TENANT_SETTINGS.calls, ...tenant.settings.calls };
+    const anyHours = s.fastSchedule && s.provider === 'simulator';
+    if (c.staffId) {
+      const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId));
+      if (!person || person.status !== 'active') return 'The team member is no longer active.';
+      if (!anyHours && !withinHours(now, person.workingHours)) return `It is outside ${person.name}'s working hours.`;
+    } else {
+      if (!anyHours && !withinHours(now, narrowHours(s.partyHours, f.hours))) return 'It is outside calling hours.';
+      const [blocked] = c.contactPhone ? await tx.select().from(doNotCall).where(eq(doNotCall.phone, phoneKey(c.contactPhone))) : [];
+      if (blocked) return 'The number is on the do-not-call list.';
+    }
+    const [waiting] = await tx.select({ id: recordNotes.id }).from(recordNotes).where(and(eq(recordNotes.recordId, c.recordId), eq(recordNotes.status, 'new'))).limit(1);
+    if (waiting) return 'A note on the item is waiting for you.';
+    const clock = { now, today: istDate(now) };
+    const due = await tx.execute(sql`select 1 from records r where r.id = ${c.recordId} and r.workspace_id = ${ws.id} and ${dueSql(f, reg.entity, clock)}`);
+    if (!due.rows.length) return 'The item no longer needs a call.';
+    return null;
   }
 
   private async workspace(tx: Tx): Promise<Workspace> {
