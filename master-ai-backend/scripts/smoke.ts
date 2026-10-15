@@ -363,6 +363,39 @@ async function main() {
   // Leave no daily schedule behind for the test company.
   await api.routines.update(checkin.id, { status: 'paused' });
 
+  // 4d. Collection by phone: the simulated sales desk reads out new bookings, which land on the Bookings list from the call.
+  const istDay = (n: number) => new Date(Date.now() + 5.5 * 3_600_000 + n * 86_400_000).toISOString().slice(0, 10);
+  const desk = (await api.team.list()).find((p) => p.status === 'active');
+  if (!desk) throw new Error('the travel company has nobody on its team to call');
+  const collect = await api.routines.create({ templateId: 'new-bookings', staffIds: [desk.id] });
+  await api.routines.run(collect.id);
+  const collected = await waitFor('collection call to finish', async () => {
+    const d = await api.routines.day(collect.id);
+    return d.entries[0]?.status === 'reported' && d;
+  }, 120_000);
+  const fromCalls = (await api.lists.page('bookings', { range: 'all', source: 'call' })).items;
+  if (!fromCalls.length) throw new Error('the collection call added no bookings');
+  log('Collection by phone', `${collect.name}: ${JSON.stringify(collected.entries[0]!.values)}, ${fromCalls.length} booking(s) came in from the call`);
+  await api.routines.update(collect.id, { status: 'paused' });
+
+  // 4e. A follow-up to a supplier: a held booking is due, the owner switches the follow-up on, the simulated supplier gives a date.
+  const held = await api.lists.create('bookings', {
+    customerName: 'Smoke Traveller',
+    service: 'Munnar 3 nights',
+    date: istDay(3),
+    status: 'held',
+    supplier: 'Hill View Resort',
+    supplierPhone: '+91 98470 81234',
+  });
+  await api.followUps.switch('bookings.held-bookings', true);
+  await api.followUps.run();
+  const noted = await waitFor('follow-up call to leave a note', async () => {
+    const d = await api.lists.item('bookings', held.id);
+    return d.notes.length > 0 && d;
+  }, 180_000);
+  log('Follow-up by phone', `${noted.notes[0]!.speaker}: "${noted.notes[0]!.said}" (${noted.notes[0]!.kind})`);
+  await api.followUps.switch('bookings.held-bookings', false);
+
   // 5. An industry with no curated pack is composed/generated and adapted.
   const clinic = await onboard('public-services', 'Dental clinic in Kochi', 'Dental clinic in Kochi', 'Smile Dental');
   const labels = clinic.ws.pack.entities.map((e) => e.label).join(', ');
