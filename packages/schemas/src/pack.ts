@@ -152,18 +152,37 @@ export const RoutineQuestionSchema = z.object({
 });
 export type RoutineQuestion = z.infer<typeof RoutineQuestionSchema>;
 
-/** A repeating check-in the pack offers, e.g. a daily site report. The owner turns it on. */
-export const RoutineTemplateSchema = z.object({
-  id: SlugSchema,
-  name: z.string().min(1),
-  description: z.string().min(1),
-  mode: z.enum(['manual', 'automatic']).default('automatic'),
-  /** 0 = Sunday … 6 = Saturday. */
-  days: z.array(z.number().int().min(0).max(6)).min(1).default([1, 2, 3, 4, 5, 6]),
-  /** Local time (India), HH:MM: when the AI calls, or when manual updates are due. */
-  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default('18:00'),
-  questions: z.array(RoutineQuestionSchema).min(1).max(8),
+/** A routine that adds items to a list instead of asking fixed questions, e.g. today's bills. */
+export const CollectSchema = z.strictObject({
+  /** The list (register id) the items go to. */
+  list: SlugSchema,
+  /** The fields the AI asks for, in this order. */
+  ask: z.array(z.string()).min(1).max(12),
+  /** Fields the AI fills itself: `today` (a date), `now` (a date-time) or a fixed value. */
+  defaults: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+  /** Items one call takes before it asks for the rest in the app. */
+  max_items: z.number().int().min(1).max(25).default(15),
+  /** Who it calls, shown when the owner switches it on: "the billing clerk". */
+  who: z.string().min(1).optional(),
 });
+export type Collect = z.infer<typeof CollectSchema>;
+
+/** A repeating check-in the pack offers, e.g. a daily site report. The owner turns it on. */
+export const RoutineTemplateSchema = z
+  .object({
+    id: SlugSchema,
+    name: z.string().min(1),
+    description: z.string().min(1),
+    mode: z.enum(['manual', 'automatic']).default('automatic'),
+    /** 0 = Sunday … 6 = Saturday. */
+    days: z.array(z.number().int().min(0).max(6)).min(1).default([1, 2, 3, 4, 5, 6]),
+    /** Local time (India), HH:MM: when the AI calls, or when manual updates are due. */
+    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default('18:00'),
+    questions: z.array(RoutineQuestionSchema).max(8).default([]),
+    /** Instead of questions: the items it adds to a list. */
+    collect: CollectSchema.optional(),
+  })
+  .refine((t) => (t.questions.length > 0) !== (t.collect !== undefined), 'a routine takes either questions or collect, not both');
 export type RoutineTemplate = z.infer<typeof RoutineTemplateSchema>;
 
 export const WorkflowDefSchema = z.object({
@@ -271,6 +290,53 @@ export type Condition = z.infer<typeof ConditionSchema>;
 export const ConditionsSchema = z.record(z.string(), ConditionSchema);
 export type Conditions = z.infer<typeof ConditionsSchema>;
 
+const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'HH:MM');
+
+/**
+ * Where a call finds a phone number or a name: a field of the item, a field of
+ * the item a reference points at, or a field of another record found by matching.
+ */
+export const ContactPathSchema = z.union([
+  z.strictObject({ field: z.string() }),
+  z.strictObject({ ref: z.string(), field: z.string() }),
+  z.strictObject({ lookup: z.string(), match: z.string(), value: z.string(), field: z.string() }),
+]);
+export type ContactPath = z.infer<typeof ContactPathSchema>;
+
+/** A follow-up call a list offers on its open items. Every follow-up starts off. */
+export const FollowUpSchema = z
+  .strictObject({
+    id: SlugSchema,
+    label: z.string().min(1),
+    /** party: a customer, supplier or other outside party. staff: someone in the team. */
+    who: z.enum(['party', 'staff']),
+    /** When an item is due for a call: the same overdue or expiring rule a check uses. */
+    due: z.union([
+      z.strictObject({ overdue: z.strictObject({ date: z.string(), grace_days: z.number().int().nonnegative().default(0) }) }),
+      z.strictObject({ expiring: z.strictObject({ date: z.string(), days: z.number().int().positive() }) }),
+    ]),
+    when: ConditionsSchema.optional(),
+    phone: ContactPathSchema.optional(),
+    /** The name the AI asks for before it says anything about the item. */
+    contact: ContactPathSchema.optional(),
+    /** Staff calls: the field holding a team member's name. */
+    staff: z.strictObject({ field: z.string() }).optional(),
+    /** Read out once the person is confirmed. */
+    about: z.array(z.string()).min(1),
+    /** What the call may propose (party) or change (staff). A promised date is always allowed. */
+    find_out: z.array(z.string()).default([]),
+    /** Days between calls about one item; 3 for parties and 1 for staff when unset. */
+    every_days: z.number().int().min(1).max(30).optional(),
+    max_tries: z.number().int().min(1).max(5).default(3),
+    /** A narrower calling window, e.g. RBI's 08:00–19:00 for recovery calls. */
+    hours: z.strictObject({ start: HHMM, end: HHMM }).optional(),
+  })
+  .refine(
+    (f) => (f.who === 'party' ? !!f.phone && !!f.contact && !f.staff : !!f.staff && !f.phone && !f.contact),
+    'a party follow-up needs phone and contact; a staff follow-up needs staff',
+  );
+export type FollowUp = z.infer<typeof FollowUpSchema>;
+
 const checkExtras = {
   /** Only check items that meet these conditions. */
   when: ConditionsSchema.optional(),
@@ -330,6 +396,8 @@ export const RegisterSchema = z.strictObject({
     })
     .optional(),
   checks: z.array(CheckSchema).default([]),
+  /** Calls the AI can make about open items, each off until switched on. */
+  follow_ups: z.array(FollowUpSchema).optional(),
 });
 export type Register = z.infer<typeof RegisterSchema>;
 
@@ -401,6 +469,8 @@ export interface PackUpdates {
   fields: { entity: string; fields: EntityField[] }[];
   /** Lists it doesn't have yet, each valid against the updated record types. */
   registers: Register[];
+  /** New follow-ups on lists the workspace already has. */
+  followUps?: { register: string; followUps: FollowUp[] }[];
   /** The whole lifecycle for workspaces installed before lifecycles, otherwise new categories and roles. */
   lifecycle: { whole: ResolvedLifecycle | null; categories: CaseCategory[]; roles: LifecycleRole[] };
 }

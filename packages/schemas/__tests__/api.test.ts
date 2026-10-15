@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CallSettingsInputSchema,
   CreateCaseInputSchema,
   CreateIntakeKeyInputSchema,
   CreateInviteInputSchema,
@@ -80,5 +81,14 @@ describe('an invite', () => {
     expect(CreateInviteInputSchema.safeParse({ name: 'X', email: 'x@example.com', role: 'owner' }).success).toBe(false);
     expect(CreateInviteInputSchema.safeParse({ name: 'X', email: 'x@example.com', approverRoles: ['Safety Officer'] }).success).toBe(false);
     expect(CreateInviteInputSchema.safeParse({ name: 'X', email: 'x@example.com', approverRoles: ['safety-officer'] }).success).toBe(true);
+  });
+});
+
+describe('call settings for outside parties', () => {
+  it('takes calling hours for customers and suppliers and a daily cap', () => {
+    const s = CallSettingsInputSchema.parse({ partyHours: { days: [1, 2, 3, 4, 5], start: '10:00', end: '17:00' }, followUpsPerDay: 20 });
+    expect(s).toEqual({ partyHours: { days: [1, 2, 3, 4, 5], start: '10:00', end: '17:00' }, followUpsPerDay: 20 });
+    expect(CallSettingsInputSchema.safeParse({ followUpsPerDay: 0 }).success).toBe(false);
+    expect(CallSettingsInputSchema.safeParse({ followUpsPerDay: 201 }).success).toBe(false);
   });
 });

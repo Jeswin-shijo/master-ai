@@ -37,7 +37,13 @@ export class TenancyService {
       const current = await this.tenantRow(tx, session.tenantId);
       const [row] = await tx
         .update(tenants)
-        .set({ settings: { ...toTenant(current).settings, ...input, calls: { ...toTenant(current).settings.calls, ...input.calls } } })
+        .set({
+          settings: {
+            ...toTenant(current).settings,
+            ...input,
+            calls: { ...toTenant(current).settings.calls, ...input.calls, partyHours: { ...toTenant(current).settings.calls.partyHours, ...input.calls?.partyHours } },
+          },
+        })
         .where(eq(tenants.id, session.tenantId))
         .returning();
       await this.audit.append(tx, session.tenantId, { type: 'tenant.settings_updated', actor: { id: session.principalId, kind: 'human' }, payload: { ...input } });

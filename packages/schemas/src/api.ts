@@ -175,6 +175,8 @@ export const CallSettingsInputSchema = z.object({
   fastSchedule: z.boolean().optional(),
   maxAttempts: z.number().int().min(1).max(5).optional(),
   retryMinutes: z.number().int().min(1).max(240).optional(),
+  partyHours: WorkingHoursSchema.optional(),
+  followUpsPerDay: z.number().int().min(1).max(200).optional(),
 });
 
 // ---------- Routines ----------

@@ -78,6 +78,10 @@ export interface CallSettings {
   maxAttempts: number;
   /** Minutes between attempts when nobody answers. */
   retryMinutes: number;
+  /** When customers and suppliers may be called (always inside 9:00–21:00 India time). */
+  partyHours: WorkingHours;
+  /** Follow-up calls a company makes in one day, at most. */
+  followUpsPerDay: number;
 }
 
 export interface PackDraft {

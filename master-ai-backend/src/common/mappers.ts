@@ -30,7 +30,15 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   riskBands: { level1Below: 15, level2Below: 35, level3Below: 75 },
   approvalTtlHours: 72,
   needsInfoDays: 7,
-  calls: { provider: 'simulator', simulatorMode: 'interactive', fastSchedule: true, maxAttempts: 3, retryMinutes: 15 },
+  calls: {
+    provider: 'simulator',
+    simulatorMode: 'interactive',
+    fastSchedule: true,
+    maxAttempts: 3,
+    retryMinutes: 15,
+    partyHours: { days: [1, 2, 3, 4, 5, 6], start: '10:00', end: '18:00' },
+    followUpsPerDay: 30,
+  },
 };
 
 export function toTenant(t: typeof tenants.$inferSelect): TenantSummary {

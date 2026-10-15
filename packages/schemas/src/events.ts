@@ -46,6 +46,11 @@ export const AUDIT_EVENT_TYPES = [
   'record.checked',
   'record.removed',
   'record.samples_removed',
+  'followup.switched',
+  'note.created',
+  'note.applied',
+  'note.dismissed',
+  'do_not_call.added',
   'knowledge.added',
   'staff.added',
   'staff.updated',
@@ -151,6 +156,16 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `${p.label ?? 'Item'} ${p.title ?? ''} removed${p.reason ? `: ${p.reason}` : ''}`.replace(/\s+/g, ' ');
     case 'record.samples_removed':
       return `Removed ${p.count ?? 0} sample items`;
+    case 'followup.switched':
+      return `Follow-up switched ${p.enabled ? 'on' : 'off'}: ${p.label ?? ''}`;
+    case 'note.created':
+      return `Note from a call with ${p.speaker ?? 'someone'} on ${p.title ?? 'an item'}`;
+    case 'note.applied':
+      return `Call note applied to ${p.title ?? 'an item'}`;
+    case 'note.dismissed':
+      return `Call note seen on ${p.title ?? 'an item'}`;
+    case 'do_not_call.added':
+      return `${p.name ?? 'A number'} will not be called again`;
     case 'pack.updated':
       return `Workspace updated: added ${p.summary ?? 'platform additions'}`;
     case 'staff.added':
