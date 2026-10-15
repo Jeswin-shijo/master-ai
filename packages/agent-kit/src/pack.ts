@@ -10,7 +10,7 @@ import {
   type Register,
   type ResolvedPack,
 } from '@onehuman/schemas';
-import { validateRegisters } from './registers';
+import { registersOf, validateCollects, validateRegisters } from './registers';
 import { CASE_COORDINATOR_ROLE, GATE_TOOLS, getCatalogTool } from './catalog';
 import { lifecyclePolicies, mergeLifecycles, validateLifecycle } from './lifecycle/resolve';
 
@@ -135,6 +135,16 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
   const registers = missing(latest.registers ?? [], installed.registers ?? [], (r) => r.id).filter(
     (r) => validateRegisters({ entities: nextEntities, registers: [r] }).length === 0,
   );
+  // New follow-ups on lists the workspace has, each valid against the updated record types.
+  const followUps = (installed.registers ?? []).flatMap((mine) => {
+    const have = new Set((mine.follow_ups ?? []).map((f) => f.id));
+    const theirs = (latest.registers ?? []).find((r) => r.id === mine.id)?.follow_ups ?? [];
+    const added = theirs.filter(
+      (f) => !have.has(f.id) && validateRegisters({ entities: nextEntities, registers: [{ ...mine, follow_ups: [...(mine.follow_ups ?? []), f] }] }).length === 0,
+    );
+    return added.length ? [{ register: mine.id, followUps: added }] : [];
+  });
+  const listIds = new Set(registersOf({ entities: nextEntities, registers: [...(installed.registers ?? []), ...registers] }).map((r) => r.id));
 
   const tools = missing(latest.tools, installed.tools, (t) => t.name).filter((t) => {
     const entity = t.with?.entity;
@@ -175,7 +185,7 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     agents,
     tools,
     workflows,
-    routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id),
+    routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id).filter((r) => !r.collect || listIds.has(r.collect.list)),
     policies: missing(latest.policies, installed.policies, policyKey).filter(
       (r) => (!r.agent || roles.has(r.agent)) && (r.when?.category ?? []).every((id) => categoryIds.has(id)),
     ),
@@ -184,6 +194,7 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     entities: newEntities,
     fields,
     registers,
+    followUps,
     lifecycle,
   };
 }
@@ -220,13 +231,14 @@ export function workAgents(pack: Pick<ResolvedPack, 'agents'>): ResolvedPack['ag
 }
 
 export function emptyPackUpdates(): PackUpdates {
-  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], entities: [], fields: [], registers: [], lifecycle: { whole: null, categories: [], roles: [] } };
+  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], entities: [], fields: [], registers: [], followUps: [], lifecycle: { whole: null, categories: [], roles: [] } };
 }
 
 export function countPackUpdates(u: PackUpdates): number {
   return (
     u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length + u.playbooks.length +
     (u.entities ?? []).length + (u.fields ?? []).reduce((n, x) => n + x.fields.length, 0) + (u.registers ?? []).length +
+    (u.followUps ?? []).reduce((n, x) => n + x.followUps.length, 0) +
     (u.lifecycle.whole ? 1 : 0) + u.lifecycle.categories.length + u.lifecycle.roles.length
   );
 }
@@ -249,7 +261,10 @@ export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): Resol
     kpis: [...installed.kpis, ...u.kpis],
     playbooks: [...(installed.playbooks ?? []), ...u.playbooks],
     entities: withAdditions(installed.entities, u.entities ?? [], u.fields ?? []),
-    registers: [...(installed.registers ?? []), ...(u.registers ?? [])],
+    registers: [...(installed.registers ?? []), ...(u.registers ?? [])].map((r) => {
+      const extra = (u.followUps ?? []).find((x) => x.register === r.id)?.followUps;
+      return extra ? { ...r, follow_ups: [...(r.follow_ups ?? []), ...extra] } : r;
+    }),
     ...(lifecycle && { lifecycle }),
   };
 }
@@ -390,6 +405,7 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
     }
   }
   issues.push(...validateRegisters(pack));
+  issues.push(...validateCollects(pack));
   return issues;
 }
 

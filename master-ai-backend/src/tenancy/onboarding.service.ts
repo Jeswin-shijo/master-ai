@@ -194,6 +194,7 @@ function describeUpdates(u: PackUpdates): string {
     ...u.agents.map((a) => `${a.name} (agent)`),
     ...u.workflows.map((w) => `${w.name} (workflow)`),
     ...u.registers.map((r) => `${r.label ?? r.entity} (list)`),
+    ...(u.followUps ?? []).flatMap((x) => x.followUps.map((f) => `${f.label} (follow-up)`)),
     u.entities.length ? `${u.entities.length} new kind${u.entities.length === 1 ? '' : 's'} of record` : '',
     u.fields.length ? `${u.fields.reduce((n, x) => n + x.fields.length, 0)} new field(s)` : '',
     u.tools.length ? `${u.tools.length} tool${u.tools.length === 1 ? '' : 's'}` : '',

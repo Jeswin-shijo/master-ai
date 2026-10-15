@@ -11,6 +11,7 @@ import {
   parsePack,
   TOOL_CATALOG,
   fittingRegisters,
+  fittingRoutines,
   validatePackRefs,
 } from '@onehuman/agent-kit';
 import { LlmService } from '../llm/llm.service';
@@ -271,7 +272,8 @@ export class PackGenerator {
         const shaped = base ? { ...draftPack, sector: base.sector, extends: [base.basedOn, ...draftPack.extends.filter((id) => id !== base.basedOn)] } : draftPack;
         const resolvedPack = this.registry.resolve(shaped, 'generated');
         // Lists inherited from the base type that no longer fit a record type the model redefined are left out.
-        const pack = { ...resolvedPack, registers: fittingRegisters(resolvedPack) };
+        const fitted = { ...resolvedPack, registers: fittingRegisters(resolvedPack) };
+        const pack = { ...fitted, routines: fittingRoutines(fitted) };
         issues = validatePackRefs(pack);
         if (issues.length === 0) {
           return {

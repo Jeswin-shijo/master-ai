@@ -1,4 +1,4 @@
-import type { Check, Conditions, EntityDef, EntityField, FieldType, Register, ResolvedPack } from '@onehuman/schemas';
+import type { Check, Collect, Conditions, ContactPath, EntityDef, EntityField, FieldType, FollowUp, Register, ResolvedPack, RoutineTemplate } from '@onehuman/schemas';
 import { pluralize } from './pack';
 
 const NUMBERS: FieldType[] = ['money', 'number', 'integer'];
@@ -22,6 +22,32 @@ export type ListCheck =
   | (CheckBase & { kind: 'expiring'; field: EntityField; days: number })
   | (CheckBase & { kind: 'ref'; field: EntityField; target: EntityDef });
 
+/** Where a call reads a phone number or a name, resolved against the pack's record types. */
+export type ResolvedPath =
+  | { kind: 'field'; field: EntityField }
+  | { kind: 'ref'; ref: EntityField; target: EntityDef; field: EntityField }
+  | { kind: 'lookup'; target: EntityDef; match: EntityField; value: EntityField; field: EntityField };
+
+export interface ResolvedFollowUp {
+  /** `<list>.<follow-up>`: unique in the workspace. Switches, attempts and calls use it. */
+  key: string;
+  id: string;
+  registerId: string;
+  label: string;
+  who: 'party' | 'staff';
+  /** When an item is due: the same overdue or expiring rule the list's checks use. */
+  due: Extract<ListCheck, { kind: 'overdue' | 'expiring' }>;
+  when?: Conditions;
+  phone: ResolvedPath | null;
+  contact: ResolvedPath | null;
+  staffField: EntityField | null;
+  about: EntityField[];
+  findOut: EntityField[];
+  everyDays: number;
+  maxTries: number;
+  hours: { start: string; end: string } | null;
+}
+
 export interface ResolvedRegister {
   id: string;
   label: string;
@@ -38,6 +64,7 @@ export interface ResolvedRegister {
   totals: EntityField[];
   card: Register['card'];
   checks: ListCheck[];
+  followUps: ResolvedFollowUp[];
 }
 
 /** The id of a record type's default list: CashlessRequest → cashless-request. */
@@ -105,6 +132,7 @@ function resolveRegister(r: Register, entity: EntityDef, entities: EntityDef[], 
     totals: r.totals ? pick(r.totals) : explicit ? [] : entity.fields.filter((f) => f.type === 'money'),
     card: r.card,
     checks: expandChecks(r.checks, entity, entities),
+    followUps: resolveFollowUps(r, entity, entities),
   };
 }
 
@@ -150,6 +178,63 @@ function expandChecks(checks: Check[], entity: EntityDef, entities: EntityDef[])
   for (const field of entity.fields) {
     const target = field.type === 'reference' && field.ref ? entities.find((e) => e.name === field.ref) : undefined;
     if (target) out.push({ kind: 'ref', key: `ref:${field.name}`, field, target });
+  }
+  return out;
+}
+
+/** A path against the pack, or null when a part of it is missing (a stored snapshot may lack a field). */
+export function resolvePath(p: ContactPath, entity: EntityDef, entities: EntityDef[]): ResolvedPath | null {
+  const own = (n: string) => entity.fields.find((f) => f.name === n);
+  if ('lookup' in p) {
+    const target = entities.find((e) => e.name === p.lookup);
+    const match = target?.fields.find((f) => f.name === p.match);
+    const field = target?.fields.find((f) => f.name === p.field);
+    const value = own(p.value);
+    return target && match && field && value ? { kind: 'lookup', target, match, value, field } : null;
+  }
+  if ('ref' in p) {
+    const ref = own(p.ref);
+    const target = ref?.type === 'reference' ? entities.find((e) => e.name === ref.ref) : undefined;
+    const field = target?.fields.find((f) => f.name === p.field);
+    return ref && target && field ? { kind: 'ref', ref, target, field } : null;
+  }
+  const field = own(p.field);
+  return field ? { kind: 'field', field } : null;
+}
+
+function resolveFollowUps(r: Register, entity: EntityDef, entities: EntityDef[]): ResolvedFollowUp[] {
+  const own = (n: string) => entity.fields.find((f) => f.name === n);
+  const pick = (names: string[]) => names.map(own).filter((f): f is EntityField => !!f);
+  const out: ResolvedFollowUp[] = [];
+  for (const f of r.follow_ups ?? []) {
+    const key = `${r.id}.${f.id}`;
+    const dueField = own('overdue' in f.due ? f.due.overdue.date : f.due.expiring.date);
+    if (!dueField) continue;
+    const due: ResolvedFollowUp['due'] =
+      'overdue' in f.due
+        ? { kind: 'overdue', key: `due:${key}`, field: dueField, graceDays: f.due.overdue.grace_days }
+        : { kind: 'expiring', key: `due:${key}`, field: dueField, days: f.due.expiring.days };
+    const phone = f.phone ? resolvePath(f.phone, entity, entities) : null;
+    const contact = f.contact ? resolvePath(f.contact, entity, entities) : null;
+    const staffField = f.staff ? (own(f.staff.field) ?? null) : null;
+    if (f.who === 'party' ? !phone || !contact : !staffField) continue;
+    out.push({
+      key,
+      id: f.id,
+      registerId: r.id,
+      label: f.label,
+      who: f.who,
+      due,
+      ...(f.when && { when: f.when }),
+      phone,
+      contact,
+      staffField,
+      about: pick(f.about),
+      findOut: pick(f.find_out),
+      everyDays: f.every_days ?? (f.who === 'party' ? 3 : 1),
+      maxTries: f.max_tries,
+      hours: f.hours ?? null,
+    });
   }
   return out;
 }
@@ -200,8 +285,62 @@ export function validateRegisters(pack: Pick<ResolvedPack, 'entities'> & { regis
       else if ('overdue' in c) need(c.overdue.date, 'overdue', DATES);
       else need(c.expiring.date, 'expiring', DATES);
     }
+    const followUpIds = new Set<string>();
+    for (const f of r.follow_ups ?? []) {
+      const where = `${at} follow-up ${f.id}`;
+      if (followUpIds.has(f.id)) issues.push(`${where}: duplicate id`);
+      followUpIds.add(f.id);
+      followUpIssues(entity, pack.entities, f, where, issues);
+    }
   }
   return issues;
+}
+
+function followUpIssues(entity: EntityDef, entities: EntityDef[], f: FollowUp, where: string, issues: string[]) {
+  const own = (n: string) => entity.fields.find((x) => x.name === n);
+  const date = 'overdue' in f.due ? f.due.overdue.date : f.due.expiring.date;
+  const d = own(date);
+  if (!d) issues.push(`${where}: due ${date} is not a field of ${entity.name}`);
+  else if (!DATES.includes(d.type)) issues.push(`${where}: due ${date} must be ${DATES.join(' or ')}, not ${d.type}`);
+  conditionIssues(entity, f.when, where, issues);
+  if (f.phone) pathIssues(f.phone, 'phone', entity, entities, where, issues, 'phone');
+  if (f.contact) pathIssues(f.contact, 'contact', entity, entities, where, issues);
+  if (f.staff && !own(f.staff.field)) issues.push(`${where}: staff ${f.staff.field} is not a field of ${entity.name}`);
+  for (const n of f.about) if (!own(n)) issues.push(`${where}: about ${n} is not a field of ${entity.name}`);
+  for (const n of f.find_out) if (!own(n)) issues.push(`${where}: find_out ${n} is not a field of ${entity.name}`);
+}
+
+/** Checks a call path. `type` is the field type a phone path must end at. */
+function pathIssues(p: ContactPath, role: string, entity: EntityDef, entities: EntityDef[], where: string, issues: string[], type?: FieldType) {
+  const own = (n: string) => entity.fields.find((x) => x.name === n);
+  let target: EntityDef | undefined = entity;
+  if ('lookup' in p) {
+    target = entities.find((e) => e.name === p.lookup);
+    if (!target) {
+      issues.push(`${where}: ${role} looks up ${p.lookup}, which is not a record type`);
+      return;
+    }
+    if (!target.fields.some((x) => x.name === p.match)) issues.push(`${where}: ${role} matches ${p.match}, which is not a field of ${target.name}`);
+    if (!own(p.value)) issues.push(`${where}: ${role} value ${p.value} is not a field of ${entity.name}`);
+  } else if ('ref' in p) {
+    const ref = own(p.ref);
+    if (!ref) {
+      issues.push(`${where}: ${role} ${p.ref} is not a field of ${entity.name}`);
+      return;
+    }
+    if (ref.type !== 'reference') {
+      issues.push(`${where}: ${role} ${p.ref} is not a reference field`);
+      return;
+    }
+    target = entities.find((e) => e.name === ref.ref);
+    if (!target) {
+      issues.push(`${where}: ${role} ${p.ref} points at ${ref.ref ?? 'nothing'}, which is not a record type`);
+      return;
+    }
+  }
+  const field = target.fields.find((x) => x.name === p.field);
+  if (!field) issues.push(`${where}: ${role} ${p.field} is not a field of ${target.name}`);
+  else if (type && field.type !== type) issues.push(`${where}: ${role} ${p.field} must be a ${type} field, not ${field.type}`);
 }
 
 type LimitDef = Extract<Check, { limit: unknown }>['limit'];
@@ -241,7 +380,56 @@ function conditionIssues(entity: EntityDef, when: Conditions | undefined, where:
   }
 }
 
-/** The lists that fit the pack's record types. For a pack a model designed, which inherits lists it cannot see: a type it redefines may no longer fit them. */
+/**
+ * The lists that fit the pack's record types, for a pack a model designed, which inherits
+ * lists it cannot see: a type it redefines may no longer fit them. A follow-up that no longer
+ * fits is left out rather than the list.
+ */
 export function fittingRegisters(pack: Pick<ResolvedPack, 'entities'> & { registers?: Register[] }): Register[] {
-  return (pack.registers ?? []).filter((r) => validateRegisters({ entities: pack.entities, registers: [r] }).length === 0);
+  const fits = (r: Register) => validateRegisters({ entities: pack.entities, registers: [r] }).length === 0;
+  return (pack.registers ?? []).flatMap((r) => {
+    if (fits(r)) return [r];
+    const kept = { ...r, follow_ups: (r.follow_ups ?? []).filter((f) => fits({ ...r, follow_ups: [f] })) };
+    return fits(kept) ? [kept] : [];
+  });
+}
+
+/** The routines whose collection (if any) still has its list and fields. */
+export function fittingRoutines(pack: Pick<ResolvedPack, 'entities'> & { registers?: Register[]; routines?: RoutineTemplate[] }): RoutineTemplate[] {
+  return (pack.routines ?? []).filter((t) => validateCollects({ ...pack, routines: [t] }).length === 0);
+}
+
+/** The asked fields of a collection, in order, less any the routine fills itself. */
+export function collectAsk(reg: ResolvedRegister, collect: Pick<Collect, 'ask' | 'defaults'>): EntityField[] {
+  return collect.ask.filter((n) => !(n in collect.defaults)).flatMap((n) => reg.entity.fields.filter((f) => f.name === n));
+}
+
+/** What is wrong with a pack's collection routines: the list, the fields, the defaults, and required fields nobody fills. */
+export function validateCollects(pack: Pick<ResolvedPack, 'entities'> & { registers?: Register[]; routines?: RoutineTemplate[] }): string[] {
+  const issues: string[] = [];
+  const lists = registersOf(pack);
+  for (const t of pack.routines ?? []) {
+    const c = t.collect;
+    if (!c) continue;
+    const at = `routine ${t.id}`;
+    const reg = lists.find((l) => l.id === c.list);
+    if (!reg) {
+      issues.push(`${at}: no list ${c.list}`);
+      continue;
+    }
+    const field = (n: string) => reg.entity.fields.find((f) => f.name === n);
+    for (const n of c.ask) if (!field(n)) issues.push(`${at}: ask ${n} is not a field of ${reg.entity.name}`);
+    for (const [n, v] of Object.entries(c.defaults)) {
+      const f = field(n);
+      if (!f) issues.push(`${at}: default ${n} is not a field of ${reg.entity.name}`);
+      else if (v === 'today' && f.type !== 'date') issues.push(`${at}: today is for date fields, ${n} is ${f.type}`);
+      else if (v === 'now' && f.type !== 'datetime') issues.push(`${at}: now is for date-time fields, ${n} is ${f.type}`);
+      else if (f.type === 'enum' && !f.options?.includes(String(v))) issues.push(`${at}: ${String(v)} is not an option of ${n}`);
+      if (c.ask.includes(n)) issues.push(`${at}: ${n} is both asked and defaulted`);
+    }
+    for (const f of reg.entity.fields) {
+      if (f.required && !c.ask.includes(f.name) && !(f.name in c.defaults)) issues.push(`${at}: required field ${f.name} is neither asked nor defaulted`);
+    }
+  }
+  return issues;
 }
