@@ -56,6 +56,7 @@ export const AUDIT_EVENT_TYPES = [
   'staff.updated',
   'delegation.created',
   'delegation.updated',
+  'call.scheduled',
   'call.ringing',
   'call.completed',
   'call.no_answer',
@@ -130,6 +131,8 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `Delegated to ${p.staffName ?? 'staff'}: ${p.title ?? ''}`;
     case 'delegation.updated':
       return `${p.staffName ?? 'Staff'}: ${String(p.status ?? '').replace(/_/g, ' ')}${p.title ? ` — ${p.title}` : ''}`;
+    case 'call.scheduled':
+      return `Call planned to ${p.staffName ?? 'someone'} about ${p.title ?? 'an item'}`;
     case 'call.ringing':
       return `Calling ${p.staffName ?? 'staff'} (${String(p.stage ?? '').replace('_', ' ')})`;
     case 'call.completed':

@@ -146,6 +146,10 @@ describe('picking what to call about', () => {
     expect(await followUps.pick(a.tenantId)).toBeNull();
     await tenancy.updateSettings(a.session, { calls: { followUpsPerDay: 30 } });
 
+    const ws = await db().tenant(a.tenantId, (tx) => h.get(RecordsService).activeWorkspace(tx));
+    await tenancy.setWorkspacePaused(a.session, ws.id, true);
+    expect(await followUps.pick(a.tenantId)).toBeNull();
+    await tenancy.setWorkspacePaused(a.session, ws.id, false);
     await tenancy.setTenantPaused(a.session, true);
     expect(await followUps.pick(a.tenantId)).toBeNull();
     await tenancy.setTenantPaused(a.session, false);
@@ -175,9 +179,38 @@ describe('picking what to call about', () => {
   });
 
   it('counts what each follow-up would call about, waits on you for, and has stopped', async () => {
-    const info = (await followUps.forList(a.session, 'bills')).find((f) => f.key === UNPAID)!;
-    expect(info.waiting).toBeGreaterThanOrEqual(1);
-    expect(info.stopped).toBeGreaterThanOrEqual(1);
-    expect(info.due).toBeGreaterThanOrEqual(0);
+    const info = async () => (await followUps.forList(a.session, 'bills')).find((f) => f.key === UNPAID)!;
+    const before = await info();
+    expect(before.waiting).toBeGreaterThanOrEqual(1);
+    expect(before.stopped).toBeGreaterThanOrEqual(1);
+    const id = await bill('C-1');
+    expect((await info()).due).toBe(before.due + 1);
+    await db().tenant(a.tenantId, (tx) =>
+      h.get(NotesService).create(tx, a.tenantId, { recordId: id, callId: null, followUp: UNPAID, kind: 'said', speaker: 'Kaveri', said: 'Will pay soon' }),
+    );
+    expect((await info()).due).toBe(before.due);
+  });
+
+  it('does not ring the same item again today when its call ended without being finished', async () => {
+    await pickAll();
+    const id = await bill('R-1');
+    const first = (await followUps.pick(a.tenantId))!;
+    const [c] = await db().tenant(a.tenantId, (tx) => tx.update(calls).set({ status: 'completed' }).where(eq(calls.id, first.callId)).returning());
+    expect(c!.recordId).toBe(id);
+    const events = await db().tenant(a.tenantId, (tx) => tx.select().from(auditEvents).where(and(eq(auditEvents.type, 'call.scheduled'), eq(auditEvents.refId, first.callId))));
+    expect(events[0]?.payload).toMatchObject({ staffName: 'Kaveri Spec Traders', stage: 'chase', followUp: UNPAID, title: expect.stringContaining('R-1') });
+    expect(await followUps.pick(a.tenantId)).toBeNull();
+  });
+
+  it('never calls about sample items', async () => {
+    const dueNow = async () => (await followUps.forList(a.session, 'bills')).find((f) => f.key === UNPAID)!.due;
+    const before = await dueNow();
+    const sample = await db().tenant(a.tenantId, async (tx) => {
+      const svc = h.get(RecordsService);
+      const data = { billNo: 'SAMPLE-1', billType: 'sales invoice', party: kaveri, billDate: day(-10), dueDate: day(-3), total: 1000, paymentStatus: 'unpaid' };
+      return (await svc.create(tx, a.tenantId, await svc.activeWorkspace(tx), 'Bill', data, SYSTEM, { kind: 'sample' })).id;
+    });
+    expect(await pickAll()).not.toContain(sample);
+    expect(await dueNow()).toBe(before);
   });
 });

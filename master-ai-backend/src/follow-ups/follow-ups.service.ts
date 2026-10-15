@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nest
 import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { FollowUpInfo, ResolvedPack } from '@onehuman/schemas';
 import { normalizeSnapshot, registersOf, titleOf, type ResolvedFollowUp, type ResolvedRegister } from '@onehuman/agent-kit';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, SYSTEM } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { DEFAULT_TENANT_SETTINGS } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
@@ -12,11 +12,11 @@ import { NotesService } from '../notes/notes.service';
 import { TemporalService } from '../orchestration/temporal.service';
 import { RecordsService } from '../records/records.service';
 import { lowerFirst } from '../voice/spoken';
-import { istDate, narrowHours, withinHours } from '../voice/time';
+import { addDaysTo, istDate, narrowHours, withinHours } from '../voice/time';
 import { contactName, matchStaff, phoneKey, readPath } from './targets';
 
 type StaffRow = typeof staff.$inferSelect;
-type Workspace = { id: string; pack: ResolvedPack };
+type Workspace = { id: string; status: string; pack: ResolvedPack };
 type Candidate = { id: string; data: Record<string, unknown>; tries: number | null };
 type Target = { kind: 'party'; name: string; phone: string } | { kind: 'staff'; person: StaffRow } | { kind: 'stop'; why: string };
 
@@ -61,11 +61,12 @@ export class FollowUpsService {
         const sw = switches.find((x) => x.followUp === f.key);
         const [n] = (
           await tx.execute<{ due: number; waiting: number; stopped: number }>(sql`
-            select count(*) filter (where ${dueSql(f, reg.entity, clock)} and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date)))::int as due,
+            select count(*) filter (where ${dueSql(f, reg.entity, clock)} and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
+                     and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new'))::int as due,
                    count(*) filter (where a.state = 'waiting_for_you')::int as waiting,
                    count(*) filter (where a.state = 'stopped')::int as stopped
             from records r left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
-            where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name}`)
+            where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'`)
         ).rows;
         out.push({
           key: f.key,
@@ -150,6 +151,7 @@ export class FollowUpsService {
       if (Number(made?.n ?? 0) >= s.followUpsPerDay) return null;
 
       const ws = await this.workspace(tx);
+      if (ws.status === 'paused') return null;
       const on = new Set(
         (await tx.select().from(followUpSwitches).where(and(eq(followUpSwitches.workspaceId, ws.id), eq(followUpSwitches.enabled, true)))).map((x) => x.followUp),
       );
@@ -165,7 +167,7 @@ export class FollowUpsService {
             await tx.execute<Candidate>(sql`
               select r.id, r.data, a.tries from records r
               left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
-              where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name}
+              where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'
                 and ${dueSql(f, reg.entity, clock)}
                 and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
                 and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new')
@@ -212,10 +214,12 @@ export class FollowUpsService {
   }
 
   private async schedule(tx: Tx, tenantId: string, provider: string, reg: ResolvedRegister, f: ResolvedFollowUp, item: Candidate, target: Exclude<Target, { kind: 'stop' }>, today: string): Promise<string> {
+    // Tomorrow until the call finishes and says otherwise, so a call that dies half way is not rung again today.
+    const tomorrow = addDaysTo(today, 1);
     await tx
       .insert(followUpAttempts)
-      .values({ tenantId, recordId: item.id, followUp: f.key, nextDueOn: today, lastCallAt: new Date() })
-      .onConflictDoUpdate({ target: [followUpAttempts.recordId, followUpAttempts.followUp], set: { lastCallAt: new Date() } });
+      .values({ tenantId, recordId: item.id, followUp: f.key, nextDueOn: tomorrow, lastCallAt: new Date() })
+      .onConflictDoUpdate({ target: [followUpAttempts.recordId, followUpAttempts.followUp], set: { nextDueOn: tomorrow, lastCallAt: new Date() } });
     const [call] = await tx
       .insert(calls)
       .values({
@@ -230,11 +234,23 @@ export class FollowUpsService {
         extracted: { about: { listId: reg.id, itemId: item.id, title: titleOf(reg.entity, item.data) } },
       })
       .returning();
+    await this.audit.append(tx, tenantId, {
+      type: 'call.scheduled',
+      actor: SYSTEM,
+      refId: call!.id,
+      payload: {
+        staffName: target.kind === 'staff' ? target.person.name : target.name,
+        stage: 'chase',
+        followUp: f.key,
+        title: titleOf(reg.entity, item.data),
+        attempt: call!.attempt,
+      },
+    });
     return call!.id;
   }
 
   private async workspace(tx: Tx): Promise<Workspace> {
     const ws = await this.records.activeWorkspace(tx);
-    return { id: ws.id, pack: normalizeSnapshot(ws.pack) };
+    return { id: ws.id, status: ws.status, pack: normalizeSnapshot(ws.pack) };
   }
 }
