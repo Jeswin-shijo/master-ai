@@ -170,3 +170,89 @@ describe('the item in words, the simulator and suggestions', () => {
     expect(followUpSuggestions(staff)).toEqual(["It's in progress, done by tomorrow 5 pm", "It's done", 'Can you call me later?']);
   });
 });
+
+describe('replies that must not turn into the wrong result', () => {
+  const heard = (over: Partial<FollowUpHeard>): FollowUpHeard => ({ identity: null, outcome: null, promiseOn: null, reference: null, status: null, dueAt: null, amount: null, ...over });
+  const ask: FollowUpContext = { ...party, state: { ...newFollowUpState('party'), phase: 'ask' } };
+  const refPhase: FollowUpContext = { ...party, state: { phase: 'reference', retries: 0, result: { kind: 'settled', said: "It's paid", proposed: { paymentStatus: 'paid' } } } };
+
+  it.each(["It isn't fixed yet", "It isn't resolved yet", 'Nothing is done', 'It will be fixed tomorrow', 'I will get it done by tomorrow 5 pm'])(
+    'a team member saying "%s" is in progress, not resolved',
+    async (reply) => {
+      expect((await talk(staff, [reply])).result).toMatchObject({ kind: 'status', patch: { status: 'in-progress' } });
+    },
+  );
+
+  it('reads no status from "going over" or "a new part"', async () => {
+    expect((await talk(staff, ['I am going over to the client site'])).said[0]).toMatch(/^Sorry, what's the status/);
+    expect((await talk(staff, ['A new part is needed'])).said[0]).toMatch(/^Sorry, what's the status/);
+  });
+
+  it('lets the words "not fixed" beat a model that heard resolved', async () => {
+    expect((await talk(staff, ['Not fixed yet'], [heard({ status: 'resolved' })])).result).toMatchObject({ patch: { status: 'in-progress' } });
+  });
+
+  it.each([
+    ['It will be paid by Friday', '2026-10-16'],
+    ['Payment is approved, will be released Friday', '2026-10-16'],
+    ['We are short of cash, will pay Friday', '2026-10-16'],
+  ])('reads "%s" as a promise', async (reply, day) => {
+    expect((await talk(ask, [reply])).result).toEqual({ kind: 'promise', said: reply, promiseOn: day });
+  });
+
+  it.each(['It has not been paid', "We haven't received the goods yet", 'We have received the goods, payment next week', 'Nothing is paid'])(
+    'does not read "%s" as paid',
+    async (reply) => {
+      const { said, result } = await talk(ask, [reply]);
+      expect(result?.kind).not.toBe('settled');
+      expect(said[0]).not.toMatch(/payment reference/);
+    },
+  );
+
+  it('lets the words "not paid" beat a model that heard paid', async () => {
+    expect((await talk(ask, ['It has not been paid'], [heard({ outcome: 'paid' })])).result?.kind).not.toBe('settled');
+  });
+
+  it.each(['Who is speaking?', 'Who is this speaking?', 'Speaking to whom?'])('explains before any detail when asked "%s"', async (reply) => {
+    const { said, state } = await talk(party, [reply]);
+    expect(said[0]).toBe("I'm an AI assistant calling from Metro Traders about an account with Sri Ganesh Traders. Am I speaking with someone from Sri Ganesh Traders?");
+    expect(state.phase).toBe('identity');
+  });
+
+  it('ends without details when told it is the wrong person', async () => {
+    const { said, result } = await talk(party, ['You are speaking to the wrong person']);
+    expect(result?.kind).toBe('wrong_number');
+    expect(said[0]).not.toMatch(/S-1042/);
+  });
+
+  it('treats "don\'t call before 5" as a call-back, not a do-not-call', async () => {
+    const { result, callBack, end } = await talk(ask, ["Please don't call before 5, call after"]);
+    expect(result?.kind).not.toBe('do_not_call');
+    expect(callBack).toBe(true);
+    expect(end).toBe(true);
+  });
+
+  it.each(["Don't keep calling me", 'Stop these calls', 'No more calls please', 'Take me off your list'])('stops calling on "%s"', async (reply) => {
+    expect((await talk(ask, [reply])).result?.kind).toBe('do_not_call');
+  });
+
+  it.each([
+    ['UTR number 445566', '445566'],
+    ['UTR number is 4455 6677', '44556677'],
+    ['Reference no. A1B2C3', 'A1B2C3'],
+  ])('takes the reference from "%s"', async (reply, ref) => {
+    expect((await talk(refPhase, [reply])).result).toMatchObject({ kind: 'settled', proposed: { paymentStatus: 'paid', paymentRef: ref } });
+  });
+
+  it.each(['Reference not available', 'No reference yet'])('takes no reference from "%s"', async (reply) => {
+    const { result } = await talk(refPhase, [reply]);
+    expect(result).toMatchObject({ kind: 'settled', proposed: { paymentStatus: 'paid' } });
+    expect((result as { proposed: Record<string, unknown> }).proposed.paymentRef).toBeUndefined();
+  });
+
+  it('asks for the reference when the only number is a phone number or an amount', async () => {
+    for (const reply of ['Already paid, call my accountant on 9876543210', 'Paid 120000 rupees']) {
+      expect((await talk(ask, [reply])).said[0]).toBe('Thank you. Do you have a payment reference, like a UTR number?');
+    }
+  });
+});

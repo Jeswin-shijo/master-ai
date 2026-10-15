@@ -137,7 +137,7 @@ export function spokenDateTime(text: string, now: Date = new Date()): string | n
 }
 
 const UNSURE = /\b(not sure|don'?t know|no idea|maybe)\b/i;
-const BENIGN = /\b(no problem|no issues?|not a problem|no worries)\b/gi;
+export const BENIGN = /\b(no problem|no issues?|not a problem|no worries)\b/gi;
 const NEGATION = /\b(no|nope|nahi|nah|not|wrong|incorrect)\b/i;
 const YES = /\b(yes|yeah|yep|yup|haan|han|ha|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
 

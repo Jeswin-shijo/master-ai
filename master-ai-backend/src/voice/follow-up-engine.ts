@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import type { EntityField, TranscriptLine } from '@onehuman/schemas';
 import { LlmService } from '../llm/llm.service';
-import { matchOption, orList, sayDay, spokenAmount, spokenDate, spokenDateTime, spokenYesNo } from './spoken';
+import { BENIGN, matchOption, orList, sayDay, spokenAmount, spokenDate, spokenDateTime, spokenYesNo } from './spoken';
 import { istDate, speakable } from './time';
 import { understandReply } from './understand';
 
@@ -68,17 +68,32 @@ export interface FollowUpHeard {
 }
 
 const CALL_BACK = /\b(call (me )?(back|later)|busy (now|right now)|can'?t talk|driving|in a meeting|not a good time)\b/i;
-const DNC = /\b(don'?t (ever )?call|do not call|stop calling|never call|remove (my|this) number)\b/i;
-const WHO = /\b(who (is|'?s) (this|calling|it)|who are you|which company|what('?s| is) this about)\b/i;
-const WRONG = /\b(wrong number|no one (here )?by that name|you have the wrong|doesn'?t (work|live) here|no such (company|person))\b/i;
-const IDENTITY_YES = /\b(speaking|this is (he|she|me|us)|that'?s (me|us)|it'?s (me|us))\b/i;
-const DISPUTE = /\b(never (came|arrived|received|got|reached|delivered)|did ?n'?t (get|receive|order)|not (ours|our order)|wrong (amount|bill|item|goods|rate)|damaged|short(age)?|dispute|disagree|incorrect|mistake|overcharged|returned)\b/i;
+/** "Don't call before 5" asks for another time, not for no calls at all. */
+const NOT_NOW = /\b(?:don['’]?t|do not) (?:call|ring)(?: me| us)? (?:before|after|on|at|during|now|today|tonight|till|until|right now|in the)\b/i;
+const DNC =
+  /\b(?:don['’]?t (?:ever |keep )?(?:calling|call|ringing|ring|disturb)|do not (?:call|ring|disturb)|stop (?:calling|ringing|these calls|the calls)|never call|no more calls|remove (?:my|this|our) number|take (?:me|us|my number|this number|our number) off)\b/i;
+const WHO = /\b(who|whom|which company|why are you calling|what(?:'?s| is) (?:this|it) (?:about|regarding))\b/i;
+const WRONG = /\b(wrong (number|person)|no one (here )?by that name|you have the wrong|doesn'?t (work|live) here|no such (company|person)|not the right (person|number))\b/i;
+/** "Speaking" only as the whole answer ("Yes, speaking"), never inside a question like "Who is speaking?". */
+const IDENTITY_YES = /^\s*(?:yes|yeah|haan|ji|hello)?[\s,.!]*speaking\b|\b(this is (he|she|me|us|him|her)|that'?s (me|us)|it'?s (me|us))\b/i;
+const DISPUTE =
+  /\b(never (came|arrived|received|got|reached|delivered)|did ?n'?t (get|receive|order)|not (ours|our order)|wrong (amount|bill|item|goods|rate)|damaged|shortage|short (supply|supplied|delivered|delivery|sent|shipped|by)|(goods|items|quantity|stock|material|pieces|boxes) (were |was |is |are )?short|dispute|disagree|incorrect|mistake|overcharged|returned)\b/i;
 const NOT_PAID = /\b(not (yet )?(paid|sent|received|done|cleared)|haven'?t (paid|sent|cleared)|didn'?t pay|unpaid|no money)\b/i;
 const PAID = /\b(paid|already (sent|done|cleared|transferred)|transferred|cleared|settled|received|delivered|approved|confirmed|sent (it|the|back))\b/i;
 const NOT_DONE = /\b(not (yet )?(done|finished|fixed|completed|resolved)|still (working|on it|pending)|working on it|in progress)\b/i;
-const DONE = /\b(done|fixed|finished|completed|resolved|sorted|closed|over|returned)\b/i;
-const REF = /\b(?:utr|ref(?:erence)?|txn|transaction|cheque|receipt)\b\D{0,12}?([A-Z0-9][A-Z0-9-]{3,})/i;
-const LONG_NUMBER = /\b([A-Z]{0,4}\d{6,})\b/i;
+const DONE = /\b(done|fixed|finished|completed|resolved|sorted|closed)\b/i;
+const SETTLE_WORDS =
+  'paid|pay|received|receive|done|cleared|clear|transferred|transfer|settled|settle|approved|approve|confirmed|confirm|delivered|deliver|released|release|fixed|fix|finished|finish|completed|complete|resolved|resolve|sorted';
+/** A settle word negated just before it: "has not been paid", "haven't received the goods", "nothing is done", "isn't fixed". */
+const NEGATED_SETTLE = new RegExp(`\\b(?:not|never|no|nothing|none|cannot|yet to|(?:is|are|was|were|has|have|had|did|do|does|wo|ca)n['’]?t)(?:\\s+\\w+){0,2}?\\s+(?:${SETTLE_WORDS})\\b`, 'i');
+/** A settle word in the future: "will be paid", "I'll finish it", "going to clear". */
+const FUTURE_SETTLE = new RegExp(`(?:\\b(?:will|shall|going to|gonna|yet to|about to)|['’]ll)(?:\\s+\\w+){0,2}?\\s+(?:be\\s+)?(?:${SETTLE_WORDS})\\b`, 'i');
+const LATER = /\b(next (week|month)|in a (few|couple of) days|end of (the )?(week|month))\b/i;
+const REF_WORD = /\b(?:utr|ref(?:erence)?|txn|transaction|cheque|receipt)\b/i;
+const REF_FILLER = /^(?:no|number|num|id|is|was|its|it's|[:#.-])$/i;
+const PHONE = /^(?:\+?91)?[6-9]\d{9}$/;
+const PHONE_IN_TEXT = /(?:\+?91[\s-]?)?\b[6-9]\d{9}\b/g;
+const MONEY_NEAR = /₹|\brs\.?|\brupees?\b|\binr\b|\blakhs?\b|\bcrores?\b|\bthousand\b/i;
 const SETTLED = ['paid', 'received', 'approved', 'confirmed', 'delivered', 'done', 'completed'];
 const DONE_OPTIONS = ['resolved', 'fixed', 'done', 'completed', 'closed', 'returned', 'verified', 'issued'];
 const PROGRESS_OPTIONS = ['in-progress', 'in progress', 'assigned', 'capa-open', 'inspection', 'open'];
@@ -122,16 +137,45 @@ function settledPatch(ctx: FollowUpContext, text: string, amount: number | null)
   return patch;
 }
 
-function referenceIn(text: string): string | null {
-  const m = REF.exec(text) ?? LONG_NUMBER.exec(text);
-  return m ? m[1]!.toUpperCase() : null;
+/** The reference said after a reference word ("UTR number is 4455 6677" → 44556677), or a long number that is not a phone number or an amount. */
+function referenceIn(text: string): { ref: string; start: number; end: number } | null {
+  const m = REF_WORD.exec(text);
+  if (m) {
+    const words = /[A-Za-z0-9'’-]+|[^\sA-Za-z0-9'’-]/g;
+    words.lastIndex = m.index + m[0].length;
+    const parts: string[] = [];
+    let end = words.lastIndex;
+    for (let w = words.exec(text); w; w = words.exec(text)) {
+      if (!parts.length && REF_FILLER.test(w[0])) continue;
+      if (!/^[A-Za-z0-9-]+$/.test(w[0]) || !/\d/.test(w[0])) break;
+      parts.push(w[0].toUpperCase());
+      end = w.index + w[0].length;
+    }
+    const ref = parts.join('');
+    if (ref.length >= 4 && ref.length <= 30) return { ref, start: m.index, end };
+  }
+  for (const n of text.matchAll(/\b[A-Za-z]{0,4}\d{6,}\b/g)) {
+    const around = text.slice(Math.max(0, n.index - 12), n.index + n[0].length + 12);
+    if (PHONE.test(n[0].replace(/^[A-Za-z]+/, '')) || MONEY_NEAR.test(around)) continue;
+    return { ref: n[0].toUpperCase(), start: n.index, end: n.index + n[0].length };
+  }
+  return null;
 }
 
-function staffStatus(options: string[], text: string): string | null {
+/** A reference a model heard, kept only if it looks like one: 4–30 letters and digits with at least one digit. */
+function heardRef(r: string | null | undefined): string | null {
+  const x = r?.replace(/[\s-]/g, '').toUpperCase();
+  return x && /^[A-Z0-9]{4,30}$/.test(x) && /\d/.test(x) ? x : null;
+}
+
+const notDoneIn = (t: string) => NOT_DONE.test(t) || NEGATED_SETTLE.test(t) || FUTURE_SETTLE.test(t);
+
+/** The status a team member gave. A negated or future done-word means in progress; a call never sets an item back to new. */
+function staffStatus(options: string[], text: string, notDone: boolean): string | null {
   const pick = (want: string[]) => want.find((o) => options.includes(o)) ?? null;
-  if (NOT_DONE.test(text)) return pick(PROGRESS_OPTIONS);
-  const said = matchOption(options, text);
+  const said = matchOption(options.filter((o) => o !== 'new' && !(notDone && DONE_OPTIONS.includes(o))), text);
   if (said) return said;
+  if (notDone) return pick(PROGRESS_OPTIONS);
   if (DONE.test(text)) return pick(DONE_OPTIONS);
   return null;
 }
@@ -140,6 +184,7 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   const s: FollowUpState = { ...ctx.state };
   const today = istDate(ctx.now);
   const said = text.trim();
+  const plain = text.replace(BENIGN, ' ');
   const say = (line: string): FollowUpTurn => ({ say: line, end: false, callBack: false, state: s });
   const end = (line: string, result: FollowUpResult | null, callBack = false): FollowUpTurn => {
     s.phase = 'done';
@@ -148,19 +193,21 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   };
   const goodbye = `Thank you, I'll pass that on. Goodbye.`;
 
-  if (heard?.outcome === 'do_not_call' || DNC.test(text)) return end("Sorry for the trouble. We won't call this number again. Goodbye.", { kind: 'do_not_call', said });
-  if (heard?.outcome === 'call_back' || CALL_BACK.test(text)) {
+  const notNow = NOT_NOW.test(text);
+  if (!notNow && (heard?.outcome === 'do_not_call' || DNC.test(text))) return end("Sorry for the trouble. We won't call this number again. Goodbye.", { kind: 'do_not_call', said });
+  if (notNow || heard?.outcome === 'call_back' || CALL_BACK.test(text)) {
     return end(ctx.who === 'party' ? 'No problem, we will call another time. Goodbye.' : `No problem, ${firstName(ctx.name)}. I'll call you back a little later.`, null, true);
   }
 
   if (s.phase === 'identity') {
-    const yes = heard?.identity === 'yes' || IDENTITY_YES.test(text) || spokenYesNo(text) === true;
-    if (heard?.identity === 'asking' || (WHO.test(text) && !yes)) {
+    if (heard?.identity === 'no' || WRONG.test(text)) return end('Sorry to have troubled you. Goodbye.', { kind: 'wrong_number', said });
+    if (heard?.identity === 'asking' || WHO.test(text) || /\?\s*$/.test(text)) {
       if (s.retries >= 2) return end('Sorry to have troubled you. Goodbye.', null);
       s.retries++;
       return say(`I'm an AI assistant calling from ${ctx.companyName} about an account with ${ctx.name}. Am I speaking with someone from ${ctx.name}?`);
     }
-    if (heard?.identity === 'no' || WRONG.test(text) || (!yes && spokenYesNo(text) === false)) return end('Sorry to have troubled you. Goodbye.', { kind: 'wrong_number', said });
+    const yes = heard?.identity === 'yes' || IDENTITY_YES.test(text) || spokenYesNo(text) === true;
+    if (!yes && spokenYesNo(text) === false) return end('Sorry to have troubled you. Goodbye.', { kind: 'wrong_number', said });
     if (yes) {
       s.phase = 'ask';
       s.retries = 0;
@@ -176,7 +223,7 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   if (s.phase === 'reference') {
     const prev = s.result as Extract<FollowUpResult, { kind: 'settled' }>;
     const refField = ctx.findOut.find((f) => f.type === 'string');
-    const ref = heard?.reference && /^[A-Za-z0-9 -]{3,40}$/.test(heard.reference) ? heard.reference.toUpperCase() : referenceIn(text);
+    const ref = heardRef(heard?.reference) ?? referenceIn(text)?.ref ?? null;
     const proposed = ref && refField ? { ...prev.proposed, [refField.name]: ref } : prev.proposed;
     return end(`Thank you, I've noted it. Someone from ${ctx.companyName} will check it. Goodbye.`, { kind: 'settled', said: `${prev.said}. ${said}`, proposed });
   }
@@ -184,8 +231,10 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   if (ctx.who === 'staff') {
     const field = statusField(ctx);
     const dateField = ctx.findOut.find((f) => f.type === 'date' || f.type === 'datetime');
-    const heardStatus = heard?.status && field?.options?.includes(heard.status) ? heard.status : null;
-    const status = heardStatus ?? (field?.options ? staffStatus(field.options, text) : null);
+    const notDone = notDoneIn(plain);
+    const heardStatus =
+      heard?.status && field?.options?.includes(heard.status) && heard.status !== 'new' && !(notDone && DONE_OPTIONS.includes(heard.status)) ? heard.status : null;
+    const status = heardStatus ?? (field?.options ? staffStatus(field.options, plain, notDone) : null);
     let due: string | null = null;
     if (dateField) {
       const heardDue = heard?.dueAt && !Number.isNaN(Date.parse(heard.dueAt)) ? heard.dueAt : null;
@@ -209,11 +258,15 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   if (heard?.outcome === 'dispute' || DISPUTE.test(text)) {
     return end(`I've noted that; someone from ${ctx.companyName} will call you back. Goodbye.`, { kind: 'dispute', said });
   }
-  if (heard?.outcome === 'paid' || (!NOT_PAID.test(text) && PAID.test(text))) {
-    const amount = heard?.amount ?? spokenAmount(text.replace(REF, ' ').replace(LONG_NUMBER, ' '));
+  const found = referenceIn(text);
+  const rest = found ? `${text.slice(0, found.start)} ${text.slice(found.end)}` : text;
+  const day = spokenDate(rest, ctx.now);
+  const notYet = NOT_PAID.test(plain) || NEGATED_SETTLE.test(plain) || FUTURE_SETTLE.test(plain) || LATER.test(plain) || (day !== null && day > today);
+  if (!notYet && (heard?.outcome === 'paid' || PAID.test(plain))) {
+    const amount = heard?.amount ?? spokenAmount(rest.replace(PHONE_IN_TEXT, ' '));
     const proposed = settledPatch(ctx, text, amount !== null && amount >= 1 ? amount : null);
     const refField = ctx.findOut.find((f) => f.type === 'string');
-    const ref = heard?.reference && /^[A-Za-z0-9 -]{3,40}$/.test(heard.reference) ? heard.reference.toUpperCase() : referenceIn(text);
+    const ref = heardRef(heard?.reference) ?? found?.ref ?? null;
     if (refField && ref) proposed[refField.name] = ref;
     if (refField && !ref) {
       s.phase = 'reference';
@@ -222,7 +275,7 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
     }
     return end(`Thank you, I've noted that. Someone from ${ctx.companyName} will check it. Goodbye.`, { kind: 'settled', said, proposed });
   }
-  const promised = dayOk(heard?.promiseOn ?? null, today) ? heard!.promiseOn! : spokenDate(text, ctx.now);
+  const promised = dayOk(heard?.promiseOn ?? null, today) ? heard!.promiseOn! : day;
   if (promised && promised >= today) return end(`Thank you, I've noted that for ${sayDay(promised, ctx.now)}. Goodbye.`, { kind: 'promise', said, promiseOn: promised });
   if (s.retries < 1) {
     s.retries++;
