@@ -101,7 +101,9 @@ export async function collectTurn(ctx: CollectContext, text: string, deps: Colle
   const s: CollectState = { ...prev, item: { ...prev.item }, titles: { ...prev.titles }, skipped: [...prev.skipped], choices: [...prev.choices], saved: [...prev.saved] };
   const first = ctx.staff.name.split(' ')[0];
   const { fields, itemLabel: item } = ctx;
-  const answer = heard?.answer ? heard.answer === 'yes' : spokenYesNo(text);
+  const scripted = spokenYesNo(text);
+  // An explicit "no" in the words always wins over what a model heard.
+  const answer = scripted === false ? false : heard?.answer ? heard.answer === 'yes' : scripted;
 
   const say = (line: string): CollectTurn => ({ say: line.replace(/\s+/g, ' ').trim(), end: false, callBack: false, state: s });
   const end = (line: string, callBack = false): CollectTurn => {
@@ -196,6 +198,7 @@ export async function collectTurn(ctx: CollectContext, text: string, deps: Colle
         s.retries = 0;
         return say(matches.length === 1 ? `${matches[0]!.title}, is that right?` : `Is it ${orList(matches.map((m) => m.title))}?`);
       }
+      if ((field.type === 'string' || field.type === 'text') && SKIP.test(raw)) return skipOrRetry(field);
       const parsed = parseField(field, raw, ctx.now);
       if (parsed.ok) {
         s.item[field.name] = parsed.value;

@@ -24,16 +24,32 @@ type Part = { n: number } | { scale: number };
 
 /** "48,260", "₹48260", "1.2 lakh", "forty-eight thousand two sixty", "one lakh twenty" (1,20,000), "two sixty" (260). */
 export function spokenAmount(text: string): number | null {
-  const tokens = text.toLowerCase().replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?|[a-z]+/g) ?? [];
+  const lower = text.toLowerCase();
+  if (/\b(half|quarter)\b/.test(lower)) return null;
+  const tokens = lower.replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?|[a-z]+/g) ?? [];
   const parts: Part[] = [];
+  // "two point five": digits after "point" are decimal places, read one by one.
+  let decimal: { part: { n: number }; base: number; digits: string } | null = null;
   tokens.forEach((tok, i) => {
-    if (/^\d/.test(tok)) parts.push({ n: Number(tok) });
+    if (decimal) {
+      const d = /^\d+$/.test(tok) ? tok : tok in UNITS && UNITS[tok]! < 10 ? String(UNITS[tok]) : null;
+      if (d !== null) {
+        decimal.digits += d;
+        decimal.part.n = decimal.base + Number(`0.${decimal.digits}`);
+        return;
+      }
+      decimal = null;
+    }
+    if (tok === 'point') {
+      const last = parts[parts.length - 1];
+      if (last && 'n' in last) decimal = { part: last, base: last.n, digits: '' };
+    } else if (/^\d/.test(tok)) parts.push({ n: Number(tok) });
     else if (tok in UNITS) parts.push({ n: UNITS[tok]! });
     else if (tok in TENS) parts.push({ n: TENS[tok]! });
     else if (tok in SCALES && (tok !== 'k' || parts.length > 0)) parts.push({ scale: SCALES[tok]! });
     else if ((tok === 'a' || tok === 'an') && (tokens[i + 1] ?? '') in SCALES) parts.push({ n: 1 });
   });
-  // Join the numbers said as one: "forty eight" → 48, "two sixty" → 260. Two numbers that don't join: keep the first.
+  // Join the numbers said as one: "forty eight" → 48, "two sixty" → 260. Two numbers that don't join: not sure, so ask again.
   const merged: Part[] = [];
   for (const p of parts) {
     const prev = merged[merged.length - 1];
@@ -41,7 +57,7 @@ export function spokenAmount(text: string): number | null {
       const endsInTens = prev.n % 100 >= 20 && prev.n % 10 === 0 && Number.isInteger(prev.n);
       if (endsInTens && p.n < 10) prev.n += p.n;
       else if (prev.n >= 1 && prev.n < 10 && p.n >= 10 && p.n < 100) prev.n = prev.n * 100 + p.n;
-      else break;
+      else return null;
       continue;
     }
     merged.push({ ...p });
@@ -120,15 +136,16 @@ export function spokenDateTime(text: string, now: Date = new Date()): string | n
   return day ? new Date(`${day}T18:00:00+05:30`).toISOString() : null;
 }
 
-const YES_FIRST = /^\s*(yes|yeah|yep|yup|haan|han|ha|sure|correct|right|ok(ay)?)\b/i;
-const NO = /\b(no|nope|nahi|nah|not|wrong|incorrect)\b/i;
-const YES = /\b(yes|yeah|yep|yup|haan|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
+const UNSURE = /\b(not sure|don'?t know|no idea|maybe)\b/i;
+const BENIGN = /\b(no problem|no issues?|not a problem|no worries)\b/gi;
+const NEGATION = /\b(no|nope|nahi|nah|not|wrong|incorrect)\b/i;
+const YES = /\b(yes|yeah|yep|yup|haan|han|ha|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
 
 export function spokenYesNo(text: string): boolean | null {
-  if (YES_FIRST.test(text)) return true;
-  if (NO.test(text)) return false;
-  if (YES.test(text)) return true;
-  return null;
+  if (UNSURE.test(text)) return null;
+  const t = text.replace(BENIGN, ' ');
+  if (NEGATION.test(t)) return false;
+  return YES.test(t) ? true : null;
 }
 
 const norm = (s: string) => ` ${s.toLowerCase().replace(/[-_]/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()} `;

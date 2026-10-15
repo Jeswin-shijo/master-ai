@@ -21,13 +21,18 @@ describe('spoken amounts', () => {
     ['a lakh', 100000],
     ['5 crore', 50000000],
     ['twelve', 12],
+    ['two point five lakh', 250000],
+    ['1 point 2 lakh', 120000],
+    ['forty point five', 40.5],
   ])('reads %s as %d', (text, value) => {
     expect(spokenAmount(text)).toBe(value);
   });
 
   it('finds no amount in words without numbers, and keeps only the first of two numbers', () => {
     expect(spokenAmount('not sure')).toBeNull();
-    expect(spokenAmount('3 bills, 48260')).toBe(3);
+    expect(spokenAmount('3 bills, 48260')).toBeNull();
+    expect(spokenAmount('ten fifty')).toBeNull();
+    expect(spokenAmount('one and a half lakh')).toBeNull();
   });
 
   it('reads a count, with none as zero', () => {
@@ -80,6 +85,9 @@ describe('yes, no and choices', () => {
     expect(spokenYesNo('No, the total is wrong')).toBe(false);
     expect(spokenYesNo('not right')).toBe(false);
     expect(spokenYesNo('maybe')).toBeNull();
+    expect(spokenYesNo('Ok but the total is wrong')).toBe(false);
+    expect(spokenYesNo('Sure, no')).toBe(false);
+    expect(spokenYesNo('Not sure')).toBeNull();
   });
 
   it('matches options with or without dashes, and by a unique first word', () => {

@@ -146,6 +146,34 @@ describe('the collection call', () => {
   });
 });
 
+describe('replies that must not be saved as guessed values', () => {
+  const note: EntityField = { name: 'note', label: 'Note', type: 'text', required: false };
+
+  it('skips an optional text field answered "don\'t know"', async () => {
+    const { deps, saved } = fakeDeps();
+    const ctx = { fields: [billNo, note] };
+    const r = await talk(['One', 'S-1', "don't know", 'yes'], deps, ctx);
+    expect(r.said[2]).toBe("Okay. Bill: bill no. S-1. Is that right?");
+    expect(saved).toEqual([{ billNo: 'S-1' }]);
+  });
+
+  it('re-asks a required field answered "not sure", then leaves the item for the app', async () => {
+    const { deps, saved } = fakeDeps();
+    const r = await talk(['One', 'not sure', 'not sure'], deps);
+    expect(r.said[1]).toBe("Sorry, I didn't catch that. What's the bill no.?");
+    expect(r.said[2]).toContain('please add this bill in the app');
+    expect(saved).toEqual([]);
+  });
+
+  it('does not save when the words say no, even if a model heard yes', async () => {
+    const { deps, saved } = fakeDeps();
+    const state = { ...newCollectState(), phase: 'confirm' as const, item: { billNo: 'S-1' } };
+    const heard: CollectHeard = { count: null, values: {}, answer: 'yes', noMore: false, callBack: false };
+    await collectTurn({ ...base, fields: [billNo], state }, 'No, wrong', deps, heard);
+    expect(saved).toEqual([]);
+  });
+});
+
 describe('the simulator', () => {
   it('answers like a cooperative clerk until the item is saved, then says that is all', async () => {
     const { deps, saved } = fakeDeps();
