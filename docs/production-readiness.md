@@ -84,3 +84,4 @@ Supported: Chrome and Edge 111+, Firefox 128+, Safari 16.4+ on iPhone and Mac (2
 4. **Secrets.** The JWT secret and database passwords sit in `.env` files on one machine. Move them to the host's secret store. Changing the JWT secret signs everyone out.
 5. **The model.** The free Gemini key runs out within a day of real use ([known gaps](known-gaps.md#with-gemini-a-free-key)); production needs a paid key, Claude or Gemini.
 6. **Domains.** A custom domain for the web app and the API, with `CORS_ORIGINS`, `WEB_URL` and `PUBLIC_URL` set to them.
+7. **Calling outside parties for real.** Before party follow-ups use Twilio: get the number series TRAI requires for service and transactional calls (not a 10-digit personal series), register the caller ID with the operator, record consent where the sector needs it (lenders under RBI's fair practices code), and check the company's calling hours in Settings. The simulator never dials anyone.

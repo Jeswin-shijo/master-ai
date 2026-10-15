@@ -16,3 +16,4 @@ Each record explains one decision: the situation, what was decided, and what fol
 | [0010](0010-roles-invites-and-gate-approvals.md) | Named roles approve | Access roles versus approver roles, invites, routing to role holders, who may decide |
 | [0011](0011-gemini-as-a-second-model-provider.md) | Gemini as a second provider | Claude stays the default; Gemini is optional behind the same gateway, with rate limits and a rules fallback for free keys |
 | [0012](0012-lists-and-checks.md) | Lists and checks | Each organization type's lists are pack data; six fixed checks worked out in SQL when read; only people mark items checked |
+| [0013](0013-calls-to-outside-parties.md) | Calls that fill lists, and calls to outside parties | Collection routines add items by phone; follow-ups on list items call staff or, if the owner allows, parties; what parties say is a note the head applies |

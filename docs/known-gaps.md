@@ -104,4 +104,12 @@ The sector content was researched from public sources, not reviewed by people wh
 - A CSV cell that starts with `=`, `+`, `-` or `@` gets a leading `'` so a spreadsheet can't run it, so phone numbers like `+91…` show that quote in Excel. Cells that are plain numbers (a negative amount like -500) are left alone and stay numbers.
 - Default lists (record types a pack gives no list) only check that references point at real items.
 - A pack the model writes names its main lists but no checks.
-- Part 2, the AI's calls (collecting items from staff, following up with staff and outside parties), is designed in the spec and not built yet.
+
+## Sector lists, part 2 (the AI's calls)
+
+- Calls about list items are in the web simulator and through Twilio; the phone app shows them in its call list but has no Lists tab yet.
+- A follow-up reads one item per call. A party with five overdue bills gets five calls on different sweeps, not one call about all five.
+- Team members are matched to an item by name: an active person with exactly that full name, or — when the item gives only a first name — the one active person with it. An item naming someone not on the team, or with a misspelt surname, stops with a note for the head.
+- The offline scripts understand everyday English replies; Hindi and Malayalam replies need a model.
+- A collection routine's defaults and asked fields come from the pack; the owner can't change which fields are asked yet.
+- Types described in the owner's own words get no follow-ups or collection routines from the generator.

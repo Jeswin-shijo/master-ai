@@ -28,6 +28,8 @@ This repository implements the [architecture plan](docs/architecture-plan.md) an
 | **Web app (Glow)** | A dark violet-navy look with warm orange actions, inspired by n8n.io. Home, Cases (with each case's 8 stages as dots), the case page (the stages on an animated canvas, the case file in sentences, the report), Approvals, Team with invites and roles, Reports, Routines, Calls, Lists (each organization type's own lists, with totals, problems found for you, corrections and checking), Workflows, Agents, Knowledge, the Industry pack, Audit and Settings. Works at phone width. |
 | **Phone app (Glow)** | Expo app with Cases, Approvals (with a badge), Calls, Pulse and Settings. The case screen shows the 8 stages with the live one pulsing (still under reduced motion); the approval screen asks the question in plain words with the risk and evidence, approves with the fingerprint and rejects with a note. Saved approvals work without signal and are kept per person on a shared phone. |
 
+The AI can also fill and follow up the lists by phone: collection routines call the person who keeps a list (the billing clerk, the helpdesk lead) and take down the day's items one by one; follow-ups call the team about overdue items and update them, or — when the owner switches it on — call customers and suppliers inside calling hours and leave what they say as a note the head applies or dismisses. See [ADR 0013](docs/adr/0013-calls-to-outside-parties.md).
+
 ### Ready-made organization types
 
 | Sector | Organization types |
@@ -143,6 +145,7 @@ An installed workspace keeps a snapshot of its pack. When the base packs later g
 10. [Named roles approve: invites, approver roles and who may decide](docs/adr/0010-roles-invites-and-gate-approvals.md)
 11. [Google Gemini as an optional second model provider](docs/adr/0011-gemini-as-a-second-model-provider.md)
 12. [Lists and checks](docs/adr/0012-lists-and-checks.md)
+13. [Calls that fill lists, and calls to outside parties](docs/adr/0013-calls-to-outside-parties.md)
 
 ## Not built yet
 
