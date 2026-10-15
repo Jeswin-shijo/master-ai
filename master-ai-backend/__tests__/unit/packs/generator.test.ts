@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import type { Pack } from '@onehuman/schemas';
-import { fittingRegisters, parsePack, resolvePack, validatePackRefs } from '@onehuman/agent-kit';
+import { fittingRegisters, fittingRoutines, parsePack, resolvePack, validatePackRefs } from '@onehuman/agent-kit';
 import { pickSetup } from '../../../src/packs/generator.service';
 
 const PACKS = join(__dirname, '../../../../packs');
@@ -52,6 +52,8 @@ describe('a designed type that redefines a record type it inherits', () => {
     expect(validatePackRefs(resolved).some((i) => i.startsWith('register tickets'))).toBe(true);
     const fitted = { ...resolved, registers: fittingRegisters(resolved) };
     expect(fitted.registers.some((r) => r.id === 'tickets')).toBe(false);
-    expect(validatePackRefs(fitted)).toEqual([]);
+    const pack = { ...fitted, routines: fittingRoutines(fitted) };
+    expect(pack.routines.some((r) => r.id === 'new-tickets')).toBe(false);
+    expect(validatePackRefs(pack)).toEqual([]);
   });
 });
