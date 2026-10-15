@@ -79,6 +79,17 @@ export interface RoutineRunInput {
   trigger: 'schedule' | 'manual';
 }
 
+export interface FollowUpSweepInput {
+  tenantId: string;
+  /** schedule: the half-hourly sweep. manual: "Call now". */
+  trigger: 'schedule' | 'manual';
+}
+
+export interface FollowUpCallInput {
+  tenantId: string;
+  callId: string;
+}
+
 export interface CheckinCallInput {
   tenantId: string;
   entryId: string;

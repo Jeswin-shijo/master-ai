@@ -11,6 +11,7 @@ import type {
   ListItemDetail,
   ListPage,
   ListQueryParams,
+  FollowUpInfo,
   ListsOverview,
   UpdateListItemInput,
   Member,
@@ -176,6 +177,7 @@ export function createClient(options: ClientOptions) {
 
   const get = <T>(path: string) => request<T>('GET', path);
   const post = <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {});
+  const put = <T>(path: string, body: unknown) => request<T>('PUT', path, body);
   const patch = <T>(path: string, body: unknown) => request<T>('PATCH', path, body);
   const del = <T>(path: string) => request<T>('DELETE', path);
   const qs = (params: Record<string, string | number | undefined>) => {
@@ -322,7 +324,15 @@ export function createClient(options: ClientOptions) {
       apply: (id: string) => post<{ applied: true }>(`/notes/${id}/apply`),
       dismiss: (id: string) => post<{ dismissed: true }>(`/notes/${id}/dismiss`),
     },
+    followUps: {
+      /** Owner only for calls to customers and suppliers. */
+      switch: (key: string, enabled: boolean) => put<FollowUpInfo>(`/follow-ups/${encodeURIComponent(key)}`, { enabled }),
+      /** Look for items to call about now, instead of waiting for the next half hour. */
+      run: () => post<{ ok: true }>('/follow-ups/run'),
+    },
     lists: {
+      /** The list's follow-up calls and their switches. */
+      followUps: (id: string) => get<FollowUpInfo[]>(`/lists/${encodeURIComponent(id)}/follow-ups`),
       overview: () => get<ListsOverview>('/lists'),
       page: (id: string, query: ListQueryParams = {}) => get<ListPage>(`/lists/${encodeURIComponent(id)}${listQuery(query)}`),
       /** The filtered list as CSV text. fetch drops the byte order mark; add it back before saving (Excel needs it). */

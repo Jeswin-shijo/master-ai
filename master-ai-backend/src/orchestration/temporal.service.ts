@@ -19,6 +19,7 @@ import {
   type GateDecisionSignal,
   type GoalWorkflowInput,
   type PlanDecisionSignal,
+  type FollowUpSweepInput,
   type RoutineRunInput,
 } from './shared';
 
@@ -111,6 +112,38 @@ export class TemporalService implements OnModuleDestroy {
       policies: { overlap: ScheduleOverlapPolicy.SKIP },
       state: { paused: !r.active, note: r.active ? undefined : 'Routine paused by the owner' },
     });
+  }
+
+  /** Keep the company's follow-up sweep in step: every 30 minutes while any follow-up is on, none otherwise. */
+  async syncFollowUpSchedule(r: { tenantId: string; active: boolean }) {
+    const client = await this.client();
+    const scheduleId = `follow-ups-${r.tenantId}`;
+    try {
+      await client.schedule.getHandle(scheduleId).delete();
+    } catch (err) {
+      if (!(err instanceof ScheduleNotFoundError)) throw err;
+    }
+    if (!r.active) return;
+    await client.schedule.create({
+      scheduleId,
+      spec: { intervals: [{ every: '30m' }] },
+      action: {
+        type: 'startWorkflow',
+        workflowType: 'followUpSweepWorkflow',
+        taskQueue: config.TEMPORAL_TASK_QUEUE,
+        workflowId: scheduleId,
+        args: [{ tenantId: r.tenantId, trigger: 'schedule' } satisfies FollowUpSweepInput],
+      },
+      policies: { overlap: ScheduleOverlapPolicy.SKIP },
+    });
+  }
+
+  /** "Call now": a sweep at once. Only one follow-up call rings at a time whatever runs. */
+  async startFollowUpSweep(input: FollowUpSweepInput): Promise<string> {
+    const client = await this.client();
+    const workflowId = `follow-ups-${input.tenantId}-${Date.now()}`;
+    await client.workflow.start('followUpSweepWorkflow', { taskQueue: config.TEMPORAL_TASK_QUEUE, workflowId, args: [input] });
+    return workflowId;
   }
 
   /** Start a case's workflow. Safe to call twice: the second call finds it running. */

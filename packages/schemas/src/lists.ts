@@ -150,3 +150,25 @@ export interface ListQueryParams {
   page?: number;
   filters?: Record<string, string>;
 }
+
+/** One of a list's follow-up calls, with its switch and what it is doing. */
+export interface FollowUpInfo {
+  /** `<list>.<follow-up>`. */
+  key: string;
+  id: string;
+  label: string;
+  who: 'party' | 'staff';
+  enabled: boolean;
+  changedBy: string | null;
+  changedAt: string | null;
+  /** Only the owner switches calls to outside parties. */
+  canSwitch: boolean;
+  /** Items it would call about now. */
+  due: number;
+  /** Items waiting for you to act on what was said. */
+  waiting: number;
+  /** Items it has stopped calling about. */
+  stopped: number;
+}
+
+export const SwitchFollowUpInputSchema = z.object({ enabled: z.boolean() });
