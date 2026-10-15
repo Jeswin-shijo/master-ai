@@ -78,6 +78,11 @@ export class TemporalService implements OnModuleDestroy {
     await this.signal(`checkin-${entryId}`, SIGNALS.callUpdate, update);
   }
 
+  /** A follow-up call was answered or ended: wake its call workflow. */
+  async signalFollowUp(callId: string, update: CallUpdateSignal) {
+    await this.signal(`follow-up-call-${callId}`, SIGNALS.callUpdate, update);
+  }
+
   /** Run a routine now ("Run now", or a test): calls whoever has not reported today. */
   async startRoutineRun(input: RoutineRunInput): Promise<string> {
     const client = await this.client();

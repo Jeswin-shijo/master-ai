@@ -693,7 +693,7 @@ export const calls = pgTable(
     outcome: text('outcome').$type<CallOutcome>(),
     /** Delegation calls: deadline and notes. Check-in calls: answers so far and re-asks per question. */
     extracted: jsonb('extracted')
-      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number>; about?: CallAbout; collect?: CollectState; followUp?: FollowUpState }>()
+      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number>; about?: CallAbout; collect?: CollectState; followUp?: FollowUpState; attemptDone?: boolean }>()
       .notNull()
       .default({}),
     costInr: money('cost_inr'),

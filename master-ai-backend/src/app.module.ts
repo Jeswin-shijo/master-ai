@@ -34,6 +34,7 @@ import { PolicyService } from './policy/policy.service';
 import { RealtimeGateway } from './realtime/realtime.gateway';
 import { ListsController } from './lists/lists.controller';
 import { ListsService } from './lists/lists.service';
+import { FollowUpCallsService } from './follow-ups/follow-up-calls.service';
 import { FollowUpsController } from './follow-ups/follow-ups.controller';
 import { FollowUpsService } from './follow-ups/follow-ups.service';
 import { NotesController } from './notes/notes.controller';
@@ -116,6 +117,7 @@ import { TeamController, TeamService } from './voice/team.service';
     ListsService,
     NotesService,
     FollowUpsService,
+    FollowUpCallsService,
     KnowledgeService,
     ConnectorsService,
     // Team and phone delegation

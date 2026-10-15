@@ -371,10 +371,13 @@ export class ListsService {
       kind: n.kind,
       speaker: n.speaker,
       said: n.said,
-      proposed: Object.entries(n.proposed).map(([field, value]) => {
-        const f = reg.entity.fields.find((x) => x.name === field);
-        return { field, label: f?.label ?? field, value: f ? shown(f, value, titles) : String(value) };
-      }),
+      // jsonb does not keep key order: show the fields in the list's own order.
+      proposed: Object.entries(n.proposed)
+        .sort(([x], [y]) => fieldIndex(reg, x) - fieldIndex(reg, y))
+        .map(([field, value]) => {
+          const f = reg.entity.fields.find((x) => x.name === field);
+          return { field, label: f?.label ?? field, value: f ? shown(f, value, titles) : String(value) };
+        }),
       promiseOn: n.promiseOn,
       status: n.status,
       decidedBy: n.decidedBy ? (names.get(n.decidedBy) ?? 'Someone') : null,
@@ -467,3 +470,8 @@ function problemsOf(reg: ResolvedRegister, flag: FlagRow, r: RecordRow, today: s
     return [problem];
   });
 }
+
+const fieldIndex = (reg: ResolvedRegister, name: string) => {
+  const i = reg.entity.fields.findIndex((f) => f.name === name);
+  return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+};

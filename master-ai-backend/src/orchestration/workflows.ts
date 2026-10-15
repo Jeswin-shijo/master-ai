@@ -15,6 +15,8 @@ import {
   type CallUpdateSignal,
   type CheckinCallInput,
   type DelegationWorkflowInput,
+  type FollowUpCallInput,
+  type FollowUpSweepInput,
   type GoalWorkflowInput,
   type PlanDecisionSignal,
   type RoutineRunInput,
@@ -294,3 +296,37 @@ export async function checkinCallWorkflow(input: CheckinCallInput) {
 }
 
 export { caseWorkflow, stageWorkflow } from './case-workflows';
+
+/**
+ * The company's follow-up sweep: one call at a time until nothing is due
+ * inside calling hours, the day's cap is reached, or another sweep's call is on.
+ */
+export async function followUpSweepWorkflow(input: FollowUpSweepInput) {
+  for (let i = 0; i < 200; i++) {
+    const next = await db.pickFollowUp(input);
+    if (!next) return;
+    await executeChild(followUpCallWorkflow, {
+      workflowId: `follow-up-call-${next.callId}`,
+      args: [{ tenantId: input.tenantId, callId: next.callId }],
+      parentClosePolicy: ParentClosePolicy.TERMINATE,
+    });
+  }
+}
+
+/** One follow-up call: ring, wait for an answer and the end, then set when the item is due again. */
+export async function followUpCallWorkflow(input: FollowUpCallInput) {
+  const answered = new Set<string>();
+  const ended = new Set<string>();
+  setHandler(callUpdate, ({ callId, event }) => {
+    answered.add(callId);
+    if (event === 'ended') ended.add(callId);
+  });
+  const plan = await db.followUpPlan(input);
+  const placed = await db.placeFollowUpCall(input);
+  if (!placed.done) {
+    const picked = await condition(() => answered.has(input.callId), plan.ringTimeoutMs);
+    if (picked) await condition(() => ended.has(input.callId), plan.talkTimeoutMs);
+    if (!ended.has(input.callId)) await db.endFollowUpCall(input);
+  }
+  await db.finishFollowUp(input);
+}

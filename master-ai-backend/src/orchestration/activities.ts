@@ -1,5 +1,7 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import type { DelegationStatus } from '@onehuman/schemas';
+import { FollowUpCallsService } from '../follow-ups/follow-up-calls.service';
+import { FollowUpsService } from '../follow-ups/follow-ups.service';
 import { CaseStagesService } from '../cases/stages.service';
 import { RoutinesService } from '../routines/routines.service';
 import { DelegationService, type CallResult, type DelegationResult } from '../voice/delegation.service';
@@ -12,6 +14,8 @@ import type {
   CallStageName,
   CheckinCallInput,
   DelegationWorkflowInput,
+  FollowUpCallInput,
+  FollowUpSweepInput,
   GoalWorkflowInput,
   RoutineRunInput,
   TaskOutcome,
@@ -30,6 +34,8 @@ export function createActivities(app: INestApplicationContext) {
   const delegation = app.get(DelegationService);
   const routines = app.get(RoutinesService);
   const stages = app.get(CaseStagesService);
+  const followUps = app.get(FollowUpsService);
+  const followUpCalls = app.get(FollowUpCallsService);
 
   return {
     planGoal: (i: GoalWorkflowInput) => orchestrator.planGoal(i.tenantId, i.goalId, !!i.autoStart),
@@ -72,6 +78,12 @@ export function createActivities(app: INestApplicationContext) {
     // Routines: check-ins collected by phone
     startRoutineRun: (i: RoutineRunInput) => routines.startRun(i.tenantId, i.routineId, i.trigger),
     finishRoutineRun: (i: RoutineRunInput) => routines.finishRun(i.tenantId, i.routineId),
+    // Follow-up calls about open list items
+    pickFollowUp: (i: FollowUpSweepInput) => followUps.pick(i.tenantId),
+    followUpPlan: (i: FollowUpCallInput) => followUpCalls.plan(i.tenantId),
+    placeFollowUpCall: (i: FollowUpCallInput) => followUpCalls.place(i.tenantId, i.callId),
+    endFollowUpCall: (i: FollowUpCallInput) => followUpCalls.endUnanswered(i.tenantId, i.callId),
+    finishFollowUp: (i: FollowUpCallInput) => followUpCalls.finish(i.tenantId, i.callId),
     checkinPlan: (i: CheckinCallInput) => routines.plan(i.tenantId),
     checkinWait: (i: CheckinCallInput) => routines.waitBeforeCall(i.tenantId, i.entryId),
     placeCheckinCall: (i: CheckinCallInput & { attempt: number }) => routines.placeCall(i.tenantId, i.entryId, i.attempt),
