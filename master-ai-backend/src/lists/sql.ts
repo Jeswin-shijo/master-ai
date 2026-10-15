@@ -1,6 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { Condition, Conditions, EntityDef, EntityField } from '@onehuman/schemas';
-import type { ListCheck, ResolvedRegister } from '@onehuman/agent-kit';
+import type { ListCheck, ResolvedFollowUp, ResolvedRegister } from '@onehuman/agent-kit';
 import { rangeDays, type ParsedListQuery } from './query';
 
 /** "Today" and "now" in India time, fixed once per request so every query agrees. */
@@ -187,4 +187,9 @@ export function cardSelect(reg: ResolvedRegister, clock: SqlClock): SQL {
   return sql`select count(*) filter (where ${counted})::int as count, ${sum} as sum,
     count(*) filter (where ${openProblems(reg)})::int as problems, count(*) filter (where r.checked_at is null)::int as not_checked, count(*) filter (where ${hasNewNote})::int as new_notes
     from flagged r`;
+}
+
+/** Items a follow-up is due to call about: its conditions and its overdue or expiring rule, the same SQL the list's checks use. */
+export function dueSql(f: ResolvedFollowUp, entity: EntityDef, clock: SqlClock): SQL {
+  return sql`(${conditionSql(entity, f.when)}) and coalesce((${problemCore(f.due, entity, clock)}), false)`;
 }

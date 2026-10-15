@@ -165,3 +165,21 @@ export function addDaysTo(day: string, n: number): string {
   const [y, m, d] = day.split('-').map(Number) as [number, number, number];
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
+
+/** Calling hours narrowed by a follow-up's own window (RBI's 08:00–19:00 for recovery calls): the later start, the earlier end. */
+export function narrowHours(hours: WorkingHours, window: { start: string; end: string } | null): WorkingHours {
+  if (!window) return hours;
+  return { days: hours.days, start: window.start > hours.start ? window.start : hours.start, end: window.end < hours.end ? window.end : hours.end };
+}
+
+/** True when `at` falls on one of the days, inside the hours and inside 9:00–21:00 India time. */
+export function withinHours(at: Date, hours: WorkingHours): boolean {
+  const p = ist(at);
+  if (!hours.days.includes(p.dow)) return false;
+  const minutes = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number) as [number, number];
+    return h * 60 + m;
+  };
+  const now = p.hh * 60 + p.mm;
+  return now >= Math.max(minutes(hours.start), LEGAL_START) && now < Math.min(minutes(hours.end), LEGAL_END);
+}
