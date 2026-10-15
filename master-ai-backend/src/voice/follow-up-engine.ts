@@ -28,6 +28,8 @@ export interface FollowUpState {
   phase: 'identity' | 'ask' | 'reference' | 'done';
   retries: number;
   result: FollowUpResult | null;
+  /** The call ended before the person said who they are, with nothing to note: it counts as a try, like an unanswered call. */
+  unconfirmed?: boolean;
 }
 
 export function newFollowUpState(who: 'party' | 'staff'): FollowUpState {
@@ -204,6 +206,7 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   const plain = text.replace(BENIGN, ' ');
   const say = (line: string): FollowUpTurn => ({ say: line, end: false, callBack: false, state: s });
   const end = (line: string, result: FollowUpResult | null, callBack = false): FollowUpTurn => {
+    if (s.phase === 'identity' && !result) s.unconfirmed = true;
     s.phase = 'done';
     s.result = result;
     return { say: line, end: true, callBack, state: s };

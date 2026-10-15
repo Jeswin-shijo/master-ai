@@ -186,7 +186,11 @@ export class FollowUpCallsService {
       let set: Partial<typeof followUpAttempts.$inferInsert>;
       // Never rung (cancelled), or Twilio couldn't place it (failed): no try, and the item stays due tomorrow as set when it was picked.
       if (c.status === 'cancelled' || c.status === 'failed') return;
-      if (c.status === 'no_answer') {
+      // Ended before the person said who they are ("no", "call later", "who is this?" three times, or the line dropped), with nothing to note:
+      // a try, like an unanswered call, so a wrong number that only says "no" is not rung for ever.
+      const st = c.extracted.followUp;
+      const unconfirmed = c.status === 'completed' && !!st && !st.result && (st.unconfirmed === true || st.phase === 'identity');
+      if (c.status === 'no_answer' || unconfirmed) {
         const tries = a.tries + 1;
         if (tries >= f.maxTries) {
           set = { tries, state: 'stopped' };

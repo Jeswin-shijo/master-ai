@@ -418,6 +418,34 @@ describe('the call to an outside party', () => {
     expect(await phone().get(a.tenantId, callId)).toMatchObject({ status: 'failed', summary: "Couldn't place the call. Twilio said no." });
   });
 
+  it("counts a call that never confirmed who it reached as a try, and stops after the third", async () => {
+    const id = await bill('F-9');
+    for (let n = 1; n <= 3; n++) {
+      if (n > 1) {
+        await nextDay();
+        await db().tenant(a.tenantId, (tx) => tx.update(followUpAttempts).set({ nextDueOn: day(0) }).where(eq(followUpAttempts.recordId, id)));
+      }
+      const callId = await ring(id);
+      await phone().answer(a.tenantId, callId);
+      await phone().reply(a.tenantId, callId, 'No sir');
+      await calling().finish(a.tenantId, callId);
+      if (n < 3) expect(await attempt(id)).toMatchObject({ state: 'active', tries: n, nextDueOn: day(3) });
+    }
+    expect(await attempt(id)).toMatchObject({ state: 'stopped', tries: 3 });
+    const { notes } = await lists().item(a.tenantId, 'bills', id);
+    expect(notes.map((x) => x.kind)).toEqual(['unreachable']);
+  });
+
+  it('counts a call that dropped before the person said who they are as a try', async () => {
+    const id = await bill('F-10');
+    const callId = await ring(id);
+    await phone().answer(a.tenantId, callId);
+    await calling().endUnanswered(a.tenantId, callId);
+    await calling().finish(a.tenantId, callId);
+    expect(await phone().get(a.tenantId, callId)).toMatchObject({ status: 'completed', summary: 'The call dropped before an answer.' });
+    expect(await attempt(id)).toMatchObject({ state: 'active', tries: 1, nextDueOn: day(3) });
+  });
+
   it('plays the whole call in the simulator when nobody answers in the app', async () => {
     const tenancy = h.get(TenancyService);
     await tenancy.updateSettings(a.session, { calls: { simulatorMode: 'auto' } });

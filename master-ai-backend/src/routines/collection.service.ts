@@ -145,7 +145,9 @@ export class CollectionService {
         .from(routineEntries)
         .innerJoin(routines, eq(routines.id, routineEntries.routineId))
         .innerJoin(staff, eq(staff.id, routineEntries.staffId))
-        .where(eq(routineEntries.id, c.checkinId));
+        .where(eq(routineEntries.id, c.checkinId))
+        // The day's count adds to what is there; a count added by hand at the same moment waits, then adds up.
+        .for('update', { of: routineEntries });
       if (!row?.r.collect) return;
       const { e, r, person } = row;
       const labels = { listLabel: lowerFirst(row.r.collect.listLabel), itemLabel: row.r.collect.itemLabel };

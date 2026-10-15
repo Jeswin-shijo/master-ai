@@ -272,6 +272,11 @@ describe('replies that must not turn into the wrong result', () => {
     },
   );
 
+  it('marks a call that ended before the person said who they are as unconfirmed', async () => {
+    expect((await talk(party, ['No sir'])).state.unconfirmed).toBe(true);
+    expect((await talk(party, ['Yes, speaking', 'I am driving, call me later'])).state.unconfirmed).not.toBe(true);
+  });
+
   it('treats "don\'t call before 5" as a call-back, not a do-not-call', async () => {
     const { result, callBack, end } = await talk(ask, ["Please don't call before 5, call after"]);
     expect(result?.kind).not.toBe('do_not_call');
