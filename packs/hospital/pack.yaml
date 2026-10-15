@@ -470,6 +470,16 @@ routines:
       - { key: dischargesHeldUp, label: "Discharges held up", ask: "Is any discharge waiting on a bill or an insurance approval?", type: text, flag: true }
       - { key: incidentsToday, label: "Incidents today", ask: "Did any fall, medication error or other safety incident happen today?", type: text, flag: true }
       - { key: cashlessPending, label: "Cashless pending", ask: "Is any cashless or PM-JAY approval still pending?", type: text, flag: true, required: false }
+  - id: cashless-sent-today
+    name: Cashless requests sent today
+    description: The AI calls the TPA desk each evening and adds the day's pre-authorisation and claim requests to the Cashless requests list.
+    days: [0, 1, 2, 3, 4, 5, 6]
+    time: '19:00'
+    collect:
+      list: cashless-requests
+      ask: [patientName, visitNumber, payer, insurerOrTpa, requestType, amountAsked]
+      defaults: { sentAt: now, status: sent }
+      who: the TPA desk
 
 lifecycle:
   case: { label: Patient request, plural: Patient requests, prefix: PRQ }
@@ -1265,6 +1275,16 @@ registers:
       - overdue: { date: sentAt, grace_days: 1 }
         when: { status: [query] }
         why: query open for over a day
+    follow_ups:
+      - id: cashless-queries
+        label: Cashless queries → the TPA
+        who: party
+        due: { overdue: { date: sentAt, grace_days: 1 } }
+        when: { status: [query] }
+        phone: { field: tpaPhone }
+        contact: { field: insurerOrTpa }
+        about: [visitNumber, packageCode, amountAsked]
+        find_out: [status, amountApproved]
   - id: appointments
     entity: Booking
     label: Appointments

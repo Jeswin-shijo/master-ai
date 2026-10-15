@@ -450,6 +450,16 @@ routines:
       - { key: adAccounts, label: "Ad accounts in trouble", ask: "Is any ad account overspending, rejected or not delivering?", type: text, flag: true }
       - { key: hoursLogged, label: "Client hours logged", ask: "How many hours did your team log on client work today?", type: number, unit: hours }
       - { key: needs, label: "Needs help", ask: "Do you need anything from the account director or the owner?", type: text, flag: true, required: false }
+  - id: new-jobs
+    name: New jobs
+    description: The AI calls the account manager each evening and adds the jobs clients asked for to the Deliverables list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '18:00'
+    collect:
+      list: deliverables
+      ask: [client, title, kind, dueDate, hoursEstimated]
+      defaults: { status: in-progress }
+      who: the account manager
 
 lifecycle:
   case: { label: Job, plural: Jobs, prefix: JOB }
@@ -1629,6 +1639,16 @@ registers:
       - duplicate: [invoiceNumber]
       - overdue: { date: dueDate }
         when: { status: [sent, part-paid, overdue] }
+    follow_ups:
+      - id: unpaid-invoices
+        label: Unpaid invoices → the client
+        who: party
+        due: { overdue: { date: dueDate } }
+        when: { status: [sent, part-paid, overdue] }
+        phone: { lookup: Customer, match: name, value: client, field: phone }
+        contact: { field: client }
+        about: [invoiceNumber, invoiceDate, amount, dueDate]
+        find_out: [status]
   - id: scopes
     entity: Scope
     label: Scopes

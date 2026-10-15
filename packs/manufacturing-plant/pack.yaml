@@ -359,6 +359,16 @@ routines:
       - { key: breakdownHours, label: "Breakdown hours", ask: "How many hours were machines stopped for breakdowns?", type: number, unit: hours }
       - { key: safetyEvents, label: "Accidents or near misses", ask: "Was there any accident, near miss or unsafe condition?", type: text, flag: true }
       - { key: shortages, label: "Shortages", ask: "Is any raw material, spare or manpower short for today's plan?", type: text, flag: true, required: false }
+  - id: quality-issues-today
+    name: Quality issues found today
+    description: The AI calls the QC in-charge each evening and adds the defects found today to the Quality issues list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '18:30'
+    collect:
+      list: quality-issues
+      ask: [partNo, lotNo, defect, qtyAffected, foundAt, owner]
+      defaults: { foundOn: today, status: open }
+      who: the QC in-charge
 
 lifecycle:
   case: { label: Work order, plural: Work orders, prefix: WO }
@@ -1200,6 +1210,15 @@ registers:
         when: { disposition: [use-as-is-concession] }
       - missing: [rootCause]
         when: { status: [closed] }
+    follow_ups:
+      - id: open-quality-issues
+        label: Open quality issues → the owner
+        who: staff
+        due: { overdue: { date: capaDue } }
+        when: { status: [open, contained, capa-open] }
+        staff: { field: owner }
+        about: [partNo, lotNo, defect, capaDue]
+        find_out: [status, capaDue]
   - id: machines
     entity: Machine
     label: Machines

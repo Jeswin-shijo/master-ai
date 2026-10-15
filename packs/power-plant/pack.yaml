@@ -587,6 +587,18 @@ kpis:
     direction: down
     target: 15
 
+routines:
+  - id: permits-issued-today
+    name: Permits issued today
+    description: The AI calls the shift in-charge each night and adds the day's work permits to the Work permits list.
+    days: [0, 1, 2, 3, 4, 5, 6]
+    time: '20:00'
+    collect:
+      list: work-permits
+      ask: [permitNo, permitType, equipment, receivedBy, crewCount, validTill]
+      defaults: { status: issued }
+      who: the shift in-charge
+
 registers:
   - id: work-permits
     entity: WorkPermit
@@ -604,6 +616,15 @@ registers:
       - missing: [earthsFixed]
         when: { permitType: [electrical, line-clear] }
       - duplicate: [permitNo]
+    follow_ups:
+      - id: permits-past-time
+        label: Permits past their time → the permit holder
+        who: staff
+        due: { overdue: { date: validTill } }
+        when: { status: [issued] }
+        staff: { field: receivedBy }
+        about: [permitNo, equipment, validTill]
+        find_out: [status]
   - id: outages
     entity: Outage
     label: Outages

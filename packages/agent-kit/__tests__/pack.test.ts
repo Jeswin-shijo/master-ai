@@ -233,3 +233,46 @@ describe('lists of each organization type', () => {
     expect(names('hospital', 'Booking')).not.toContain('supplier');
   });
 });
+
+describe('calls in the ready-made types', () => {
+  const expected: Record<string, { followUps: string[]; collections: string[] }> = {
+    'wholesale-retail': { followUps: ['bills.unpaid-bills', 'orders.late-purchase-orders'], collections: ['todays-bills'] },
+    logistics: { followUps: ['shipments.pod-not-received'], collections: ['todays-lrs'] },
+    'travel-agency': { followUps: ['bookings.held-bookings'], collections: ['new-bookings'] },
+    'it-services': { followUps: ['tickets.overdue-tickets'], collections: ['new-tickets'] },
+    'software-saas': { followUps: ['payments.unpaid-invoices', 'tickets.overdue-tickets'], collections: ['new-tickets'] },
+    'digital-agency': { followUps: ['invoices.unpaid-invoices'], collections: ['new-jobs'] },
+    construction: { followUps: ['site-issues.open-site-issues'], collections: ['todays-site-issues', 'weekly-contractor-bills'] },
+    'power-plant': { followUps: ['work-permits.permits-past-time'], collections: ['permits-issued-today'] },
+    'manufacturing-plant': { followUps: ['quality-issues.open-quality-issues'], collections: ['quality-issues-today'] },
+    hospital: { followUps: ['cashless-requests.cashless-queries'], collections: ['cashless-sent-today'] },
+    education: { followUps: ['fee-accounts.fees-due'], collections: ['new-enrolments'] },
+    municipal: { followUps: ['service-applications.overdue-applications'], collections: ['applications-today'] },
+    lender: { followUps: ['repayments.broken-promises', 'repayments.missed-repayments'], collections: ['cash-collections'] },
+    'accounting-firm': { followUps: ['filings.papers-not-sent'], collections: ['new-tax-notices'] },
+    ngo: { followUps: ['grants.grant-reports-due'], collections: ['donations-today'] },
+  };
+
+  for (const [id, want] of Object.entries(expected)) {
+    it(`${id} offers its follow-ups and collections, and they fit its record types`, () => {
+      const pack = resolvePack(registry.get(id)!, lookup);
+      expect(registersOf(pack).flatMap((r) => r.followUps.map((f) => f.key)).sort()).toEqual([...want.followUps].sort());
+      expect(pack.routines.filter((r) => r.collect).map((r) => r.id).sort()).toEqual([...want.collections].sort());
+      expect(validatePackRefs(pack).filter((i) => /follow-up|routine /.test(i))).toEqual([]);
+    });
+  }
+
+  it("keeps the lender's calls inside RBI's recovery hours", () => {
+    const lender = registersOf(resolvePack(registry.get('lender')!, lookup)).find((r) => r.id === 'repayments')!;
+    expect(lender.followUps.map((f) => f.hours)).toEqual([{ start: '08:00', end: '19:00' }, { start: '08:00', end: '19:00' }]);
+  });
+
+  it('calls outside parties only through party follow-ups, and staff through a team field', () => {
+    for (const id of Object.keys(expected)) {
+      for (const f of registersOf(resolvePack(registry.get(id)!, lookup)).flatMap((r) => r.followUps)) {
+        if (f.who === 'party') expect(f.phone?.field.type, `${f.key} phone`).toBe('phone');
+        else expect(f.staffField, `${f.key} staff`).not.toBeNull();
+      }
+    }
+  });
+});

@@ -400,6 +400,16 @@ routines:
       - { key: pending, label: "Visits and parts pending", ask: "Are any site visits, parts or vendor cases still pending?", type: text, flag: true }
       - { key: backups, label: "Backups and alerts", ask: "Did any backup fail or any monitoring alert stay red today?", type: text, flag: true }
       - { key: needs, label: "Needs from owner", ask: "Do you need anything from the owner or another team?", type: text, flag: true, required: false }
+  - id: new-tickets
+    name: New tickets
+    description: The AI calls the helpdesk lead each evening and adds the tickets that came in by phone or WhatsApp to the Tickets list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '17:30'
+    collect:
+      list: tickets
+      ask: [clientName, summary, kind, priority, raisedBy, assignedTo, dueBy]
+      defaults: { raisedAt: now, status: new }
+      who: the helpdesk lead
 
 lifecycle:
   case: { label: Ticket, plural: Tickets, prefix: TKT }
@@ -1474,6 +1484,15 @@ registers:
       - overdue: { date: dueBy }
         when: { status: [new, assigned, in-progress, waiting-for-client, reopened] }
       - duplicate: [ticketNo]
+    follow_ups:
+      - id: overdue-tickets
+        label: Overdue tickets → the engineer
+        who: staff
+        due: { overdue: { date: dueBy } }
+        when: { status: [new, assigned, in-progress, waiting-for-client, reopened] }
+        staff: { field: assignedTo }
+        about: [ticketNo, clientName, summary, dueBy]
+        find_out: [status, dueBy]
   - id: incidents
     entity: Incident
     label: Incidents

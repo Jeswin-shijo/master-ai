@@ -386,6 +386,16 @@ routines:
       - { key: openIncidents, label: "Open P1 or P2", ask: "Is any outage, security issue or P1 or P2 ticket still open?", type: text, flag: true }
       - { key: blockers, label: "Blocked", ask: "Is anything blocked or likely to miss its deadline?", type: text, flag: true }
       - { key: needs, label: "Needs from founder", ask: "Do you need anything from the founder or another team?", type: text, flag: true, required: false }
+  - id: new-tickets
+    name: New tickets
+    description: The AI calls the support lead each evening and adds the day's new tickets to the Tickets list.
+    days: [1, 2, 3, 4, 5]
+    time: '17:30'
+    collect:
+      list: tickets
+      ask: [account, summary, kind, severity, reportedBy, assignedTo]
+      defaults: { reportedAt: now, status: new }
+      who: the support lead
 
 lifecycle:
   case: { label: Ticket, plural: Tickets, prefix: TKT }
@@ -1296,6 +1306,15 @@ registers:
       - overdue: { date: dueBy }
         when: { status: [new, triaged, in-progress, waiting-for-customer] }
       - duplicate: [ticketNo]
+    follow_ups:
+      - id: overdue-tickets
+        label: Overdue tickets → the engineer
+        who: staff
+        due: { overdue: { date: dueBy } }
+        when: { status: [new, triaged, in-progress, waiting-for-customer] }
+        staff: { field: assignedTo }
+        about: [ticketNo, account, summary, dueBy]
+        find_out: [status, dueBy]
   - id: incidents
     entity: Incident
     label: Incidents
@@ -1334,3 +1353,13 @@ registers:
       - overdue: { date: invoiceDate, grace_days: 15 }
         when: { status: [due, failed] }
         why: unpaid 15 days after the invoice
+    follow_ups:
+      - id: unpaid-invoices
+        label: Unpaid invoices → the customer
+        who: party
+        due: { overdue: { date: invoiceDate, grace_days: 15 } }
+        when: { status: [due, failed] }
+        phone: { lookup: CustomerAccount, match: companyName, value: account, field: phone }
+        contact: { field: account }
+        about: [invoiceNumber, invoiceDate, amount]
+        find_out: [status, reference]

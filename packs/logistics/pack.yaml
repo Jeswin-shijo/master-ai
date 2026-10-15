@@ -730,6 +730,18 @@ kpis:
     direction: down
     source: { type: records_count, entity: Claim, where: { status: received } }
 
+routines:
+  - id: todays-lrs
+    name: Today's LRs
+    description: The AI calls the booking clerk each evening and adds the day's lorry receipts to the Shipments list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '19:00'
+    collect:
+      list: shipments
+      ask: [lrNumber, consignorName, consigneeName, fromCity, toCity, packages, freight, paymentTerms, truckNumber]
+      defaults: { bookingDate: today, status: booked }
+      who: the booking clerk
+
 registers:
   - id: shipments
     entity: Shipment
@@ -749,6 +761,16 @@ registers:
         when: { status: [booked, loaded, in-transit] }
       - expiring: { date: ewayBillValidUntil, days: 1 }
         when: { status: [loaded, in-transit] }
+    follow_ups:
+      - id: pod-not-received
+        label: POD not received → the consignee
+        who: party
+        due: { overdue: { date: deliveredAt, grace_days: 3 } }
+        when: { status: [delivered], podReceived: [false] }
+        phone: { field: consigneePhone }
+        contact: { field: consigneeName }
+        about: [lrNumber, deliveredAt]
+        find_out: [podReceived, podRemarks]
   - id: claims
     entity: Claim
     label: Claims

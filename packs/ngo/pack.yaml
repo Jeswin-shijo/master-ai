@@ -370,6 +370,16 @@ routines:
       - { key: shortages, label: "Running short", ask: "Is anything running short, like kits, medicines or forms?", type: text, flag: true }
       - { key: concerns, label: "Safety or money concern", ask: "Did anyone raise a worry about a child's safety, harassment or money being asked for?", type: text, flag: true }
       - { key: problems, label: "Problems", ask: "Is there any problem you need help with?", type: text, flag: true, required: false }
+  - id: donations-today
+    name: Donations received today
+    description: The AI calls accounts each evening and adds the day's donations to the Donations list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '18:00'
+    collect:
+      list: donations
+      ask: [receiptNumber, donorName, amount, mode, panOrId, purpose]
+      defaults: { receivedOn: today }
+      who: accounts
 
 policies:
   - id: board-above-5-lakh
@@ -1197,6 +1207,15 @@ registers:
         why: "FCRA: admin costs up to 20%"
       - expiring: { date: nextReportDue, days: 15 }
         when: { status: [signed, active, closing] }
+    follow_ups:
+      - id: grant-reports-due
+        label: Grant reports due → the programme lead
+        who: staff
+        due: { expiring: { date: nextReportDue, days: 15 } }
+        when: { status: [signed, active, closing] }
+        staff: { field: programmeLead }
+        about: [grantCode, donorName, nextReportDue]
+        find_out: [nextReportDue]
   - id: beneficiaries
     entity: Beneficiary
     label: Beneficiaries

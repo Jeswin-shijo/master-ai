@@ -536,6 +536,18 @@ playbooks:
       6. Send an escort with big groups, carry the rooming list and emergency plan (nearest hospitals, 112, the insurer's number, our 24x7 duty phone), and meet airline and hotel name-list deadlines.
       7. The operations manager signs off once everyone is home and every supplier bill is settled.
 
+routines:
+  - id: new-bookings
+    name: New bookings
+    description: The AI calls the sales desk each evening and adds the day's new bookings to the Bookings list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '19:00'
+    collect:
+      list: bookings
+      ask: [customerName, phone, service, date, partySize, amount, supplier]
+      defaults: { status: requested }
+      who: the sales desk
+
 registers:
   - id: bookings
     entity: Booking
@@ -550,6 +562,16 @@ registers:
       - overdue: { date: date }
         when: { status: [requested, held] }
         why: travel date passed and still not confirmed
+    follow_ups:
+      - id: held-bookings
+        label: Held bookings → the supplier
+        who: party
+        due: { expiring: { date: date, days: 7 } }
+        when: { status: [held] }
+        phone: { field: supplierPhone }
+        contact: { field: supplier }
+        about: [service, date, partySize]
+        find_out: [status]
   - id: trips
     entity: Trip
     label: Trips

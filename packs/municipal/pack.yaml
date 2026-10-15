@@ -269,6 +269,16 @@ routines:
       - { key: vehicleMissed, label: "Vehicle missed route", ask: "Did any garbage vehicle miss its route today?", type: yes_no, flag: true }
       - { key: staffAbsent, label: "Staff absent", ask: "How many safai staff were absent today?", type: number, unit: people }
       - { key: dangerSpots, label: "Dangerous spots", ask: "Did you see any open manhole, fallen tree or other dangerous spot today?", type: text, flag: true }
+  - id: applications-today
+    name: Applications received today
+    description: The AI calls the counter clerk each evening and adds the day's applications to the Service applications list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '17:30'
+    collect:
+      list: service-applications
+      ask: [applicationNo, service, applicant, phone, ward, designatedOfficer]
+      defaults: { receivedOn: today, status: received }
+      who: the counter clerk
 
 lifecycle:
   case: { label: Citizen request, plural: Citizen requests, prefix: CR }
@@ -1060,6 +1070,15 @@ registers:
         why: Right to Services deadline
       - missing: [designatedOfficer]
       - duplicate: [applicationNo]
+    follow_ups:
+      - id: overdue-applications
+        label: Overdue applications → the officer
+        who: staff
+        due: { overdue: { date: dueBy } }
+        when: { status: [received, papers-pending, inspection, sanctioned] }
+        staff: { field: designatedOfficer }
+        about: [applicationNo, service, applicant, dueBy]
+        find_out: [status]
   - id: properties
     entity: Property
     label: Properties

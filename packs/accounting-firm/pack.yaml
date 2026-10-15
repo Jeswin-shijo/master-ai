@@ -350,6 +350,16 @@ routines:
       - { key: waitingOnClients, label: "Waiting on clients", ask: "Which clients are we still waiting on for papers, payment or an OTP?", type: text, flag: true }
       - { key: dueSoon, label: "Due soon and not ready", ask: "Is anything due in the next three days that is not ready yet?", type: text, flag: true }
       - { key: problems, label: "Problems", ask: "Is there any other problem you need help with?", type: text, flag: true, required: false }
+  - id: new-tax-notices
+    name: New tax notices
+    description: The AI calls the office manager each evening and adds notices that came in today to the Tax notices list.
+    days: [1, 2, 3, 4, 5]
+    time: '17:30'
+    collect:
+      list: tax-notices
+      ask: [client, authority, noticeType, period, noticeDate, replyDueDate, referenceNo]
+      defaults: { status: received }
+      who: the office manager
 
 lifecycle:
   case: { label: Assignment, plural: Assignments, prefix: ASG }
@@ -904,6 +914,15 @@ registers:
         when: { status: [not-started, waiting-for-client, prepared, in-review, client-approval] }
       - missing: [reviewedBy, acknowledgementNo]
         when: { status: [filed, verified, closed] }
+    follow_ups:
+      - id: papers-not-sent
+        label: "Papers the client hasn't sent → the client"
+        who: party
+        due: { expiring: { date: dueDate, days: 10 } }
+        when: { status: [waiting-for-client] }
+        phone: { lookup: Customer, match: name, value: client, field: phone }
+        contact: { field: client }
+        about: [filingType, period, dueDate]
   - id: tax-notices
     entity: TaxNotice
     label: Tax notices

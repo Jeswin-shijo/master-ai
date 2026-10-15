@@ -795,6 +795,28 @@ kpis:
     direction: up
     target: 100
 
+routines:
+  - id: todays-site-issues
+    name: Site issues
+    description: The AI calls the site supervisor each evening and adds the day's snags, shortages and delays to the Site issues list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '18:00'
+    collect:
+      list: site-issues
+      ask: [project, location, kind, description, contractor, engineer, dueBy]
+      defaults: { raisedOn: today, status: open }
+      who: the site supervisor
+  - id: weekly-contractor-bills
+    name: Contractor bills
+    description: The AI calls the quantity surveyor on Saturday and adds the week's running-account bills to the Contractor bills list.
+    days: [6]
+    time: '17:00'
+    collect:
+      list: contractor-bills
+      ask: [contractor, project, raBillNumber, thisBill, retention, tds, netPayable]
+      defaults: { receivedOn: today, status: received }
+      who: the QS
+
 registers:
   - id: site-issues
     entity: SiteIssue
@@ -808,6 +830,16 @@ registers:
       - missing: [engineer]
       - overdue: { date: dueBy }
         when: { status: [open, in-progress] }
+    follow_ups:
+      - id: open-site-issues
+        label: Open site issues → the contractor
+        who: party
+        due: { overdue: { date: dueBy } }
+        when: { status: [open, in-progress] }
+        phone: { ref: contractor, field: phone }
+        contact: { ref: contractor, field: name }
+        about: [issueNo, project, location, description, dueBy]
+        find_out: [status, dueBy]
   - id: contractor-bills
     entity: ContractorBill
     label: Contractor bills

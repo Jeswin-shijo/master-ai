@@ -695,6 +695,18 @@ kpis:
     direction: up
     target: 100
 
+routines:
+  - id: todays-bills
+    name: Today's bills
+    description: The AI calls the person who makes bills each evening and adds the day's bills to the Bills list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '18:00'
+    collect:
+      list: bills
+      ask: [billNo, billType, party, total, gstAmount, dueDate]
+      defaults: { billDate: today, paymentStatus: unpaid }
+      who: the billing clerk
+
 registers:
   - id: bills
     entity: Bill
@@ -710,6 +722,16 @@ registers:
       - duplicate: [billType, billNo, party]
       - overdue: { date: dueDate }
         when: { paymentStatus: [unpaid, part-paid] }
+    follow_ups:
+      - id: unpaid-bills
+        label: Unpaid bills → the party
+        who: party
+        due: { overdue: { date: dueDate } }
+        when: { billType: [sales invoice], paymentStatus: [unpaid, part-paid] }
+        phone: { ref: party, field: phone }
+        contact: { ref: party, field: name }
+        about: [billNo, billDate, total, dueDate]
+        find_out: [paymentStatus, paymentRef]
   - id: orders
     entity: Order
     label: Orders
@@ -722,6 +744,16 @@ registers:
       - missing: [customerName, items]
       - overdue: { date: neededBy }
         when: { status: [new, confirmed, on-hold, packed, shipped] }
+    follow_ups:
+      - id: late-purchase-orders
+        label: Late purchase orders → the supplier
+        who: party
+        due: { overdue: { date: neededBy } }
+        when: { orderType: [purchase order], status: [confirmed, on-hold, shipped] }
+        phone: { field: phone }
+        contact: { field: customerName }
+        about: [orderNo, items, neededBy]
+        find_out: [status, neededBy]
   - id: parties
     entity: Party
     label: Parties

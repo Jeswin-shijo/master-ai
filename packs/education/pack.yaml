@@ -309,6 +309,16 @@ routines:
       - { key: childrenLate, label: "Children not dropped on time", ask: "Was any child not picked up or not dropped home on time?", type: text, flag: true }
       - { key: safetyKit, label: "Bus safety items missing", ask: "Is any bus missing its GPS, camera, speed governor or woman attendant?", type: text, flag: true }
       - { key: incidents, label: "Problems on the bus", ask: "Did any child get hurt or report a problem on a bus today?", type: text, flag: true, required: false }
+  - id: new-enrolments
+    name: New enrolments
+    description: The AI calls the admissions office each evening and adds the day's enquiries and admissions to the Enrolments list.
+    days: [1, 2, 3, 4, 5, 6]
+    time: '17:00'
+    collect:
+      list: enrolments
+      ask: [customerName, phone, service, date, amount]
+      defaults: { status: requested }
+      who: the admissions office
 
 policies:
   - id: facility-spend-above-25000
@@ -723,6 +733,16 @@ registers:
       - limit: { fields: [concession], max: totalFee }
       - missing: [concessionReason]
         when: { concession: { above: 0 } }
+    follow_ups:
+      - id: fees-due
+        label: Fees due → the parent
+        who: party
+        due: { overdue: { date: nextDueDate, grace_days: 7 } }
+        when: { due: { above: 0 } }
+        phone: { lookup: Customer, match: admissionNumber, value: admissionNumber, field: phone }
+        contact: { lookup: Customer, match: admissionNumber, value: admissionNumber, field: parentName }
+        about: [studentName, academicYear, due, nextDueDate]
+        find_out: [paid]
   - id: enrolments
     entity: Booking
     label: Enrolments
