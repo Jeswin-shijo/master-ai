@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest';
+import type { EntityField } from '@onehuman/schemas';
+import { askFor, matchOption, parseField, readBack, spokenAmount, spokenCount, spokenDate, spokenDateTime, spokenYesNo } from '../../../src/voice/spoken';
+import { addDaysTo } from '../../../src/voice/time';
+
+// 15 October 2026, 5:30 pm in India (a Thursday).
+const now = new Date('2026-10-15T12:00:00Z');
+
+describe('spoken amounts', () => {
+  it.each([
+    ['48,260', 48260],
+    ['₹48260', 48260],
+    ["it's 7,360 rupees", 7360],
+    ['forty-eight thousand two sixty', 48260],
+    ['two sixty', 260],
+    ['two sixty eight', 268],
+    ['two hundred sixty', 260],
+    ['one lakh twenty', 120000],
+    ['one lakh twenty thousand', 120000],
+    ['1.2 lakh', 120000],
+    ['a lakh', 100000],
+    ['5 crore', 50000000],
+    ['twelve', 12],
+  ])('reads %s as %d', (text, value) => {
+    expect(spokenAmount(text)).toBe(value);
+  });
+
+  it('finds no amount in words without numbers, and keeps only the first of two numbers', () => {
+    expect(spokenAmount('not sure')).toBeNull();
+    expect(spokenAmount('3 bills, 48260')).toBe(3);
+  });
+
+  it('reads a count, with none as zero', () => {
+    expect(spokenCount('None today')).toBe(0);
+    expect(spokenCount('three')).toBe(3);
+    expect(spokenCount('a few')).toBeNull();
+  });
+});
+
+describe('spoken dates', () => {
+  it.each([
+    ['today', '2026-10-15'],
+    ['yesterday', '2026-10-14'],
+    ['tomorrow', '2026-10-16'],
+    ['day after tomorrow', '2026-10-17'],
+    ['20 October', '2026-10-20'],
+    ['the 20th of Oct', '2026-10-20'],
+    ['October 20th', '2026-10-20'],
+    ['20/10', '2026-10-20'],
+    ['20-10-2026', '2026-10-20'],
+    ['2026-11-02', '2026-11-02'],
+    ['on Friday', '2026-10-16'],
+    ['last Monday', '2026-10-12'],
+    ['in 3 days', '2026-10-18'],
+  ])('reads %s as %s', (text, day) => {
+    expect(spokenDate(text, now)).toBe(day);
+  });
+
+  it('refuses a date that does not exist, and words with no date', () => {
+    expect(spokenDate('31/02', now)).toBeNull();
+    expect(spokenDate('soon', now)).toBeNull();
+  });
+
+  it('reads a date-time, with 6 pm India time when only a day is said', () => {
+    expect(spokenDateTime('tomorrow 5 pm', now)).toBe('2026-10-16T11:30:00.000Z');
+    expect(spokenDateTime('20 October', now)).toBe('2026-10-20T12:30:00.000Z');
+  });
+
+  it('adds days to an India date', () => {
+    expect(addDaysTo('2026-10-31', 1)).toBe('2026-11-01');
+    expect(addDaysTo('2026-03-01', -1)).toBe('2026-02-28');
+  });
+});
+
+describe('yes, no and choices', () => {
+  it('hears yes and no', () => {
+    expect(spokenYesNo('Yes, that is right')).toBe(true);
+    expect(spokenYesNo('Haan')).toBe(true);
+    expect(spokenYesNo('Yes no problem')).toBe(true);
+    expect(spokenYesNo('No, the total is wrong')).toBe(false);
+    expect(spokenYesNo('not right')).toBe(false);
+    expect(spokenYesNo('maybe')).toBeNull();
+  });
+
+  it('matches options with or without dashes, and by a unique first word', () => {
+    const options = ['sales invoice', 'purchase bill', 'credit note', 'debit note'];
+    expect(matchOption(options, "It's a sales invoice")).toBe('sales invoice');
+    expect(matchOption(options, 'purchase')).toBe('purchase bill');
+    expect(matchOption(['new', 'in-progress', 'resolved'], 'in progress')).toBe('in-progress');
+    expect(matchOption(options, 'a receipt')).toBeNull();
+  });
+});
+
+describe('questions and read-back', () => {
+  const billType: EntityField = { name: 'billType', label: 'Bill type', type: 'enum', options: ['sales invoice', 'purchase bill'], required: true };
+  const gst: EntityField = { name: 'gstAmount', label: 'GST amount', type: 'money', required: false };
+  const party: EntityField = { name: 'party', label: 'Party', type: 'reference', ref: 'Party', required: false };
+  const due: EntityField = { name: 'dueDate', label: 'Due date', type: 'date', required: false };
+
+  it('asks for a field by its label and type', () => {
+    expect(askFor(billType)).toBe("What's the bill type: sales invoice or purchase bill?");
+    expect(askFor(gst)).toBe("What's the GST amount?");
+    expect(askFor(party)).toBe('Which party?');
+  });
+
+  it('reads an item back in words', () => {
+    const line = readBack('bill', [billType, party, gst, due], { billType: 'sales invoice', party: 'p1', gstAmount: 120000, dueDate: '2026-10-16' }, { party: 'Sri Ganesh Traders' }, now);
+    expect(line).toBe('Bill: sales invoice, Sri Ganesh Traders, GST amount ₹1,20,000, due date tomorrow.');
+  });
+
+  it('reads a phone number and an e-mail, and refuses a number in words', () => {
+    expect(parseField({ name: 'phone', label: 'Phone', type: 'phone', required: false }, '98470 12345', now)).toEqual({ ok: true, value: '9847012345' });
+    expect(parseField({ name: 'email', label: 'E-mail', type: 'email', required: false }, 'it is Ravi@Example.com', now)).toEqual({ ok: true, value: 'ravi@example.com' });
+    expect(parseField(gst, 'not sure', now)).toEqual({ ok: false });
+  });
+});

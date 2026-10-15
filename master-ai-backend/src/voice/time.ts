@@ -159,3 +159,9 @@ export function nextRunAt(days: number[], time: string, from: Date = new Date())
   }
   return null;
 }
+
+/** The India date `n` days after `day` (YYYY-MM-DD); negative goes back. */
+export function addDaysTo(day: string, n: number): string {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
