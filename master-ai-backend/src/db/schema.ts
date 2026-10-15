@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  date,
   check,
   customType,
   index,
@@ -17,6 +18,7 @@ import {
   vector,
 } from 'drizzle-orm/pg-core';
 import type {
+  CallAbout,
   CaseAssignee,
   CaseFile,
   CaseRisk,
@@ -38,6 +40,7 @@ import type {
   PolicyDecision,
   PolicyRule,
   ResolvedPack,
+  RoutineCollect,
   RoutineQuestion,
   TenantSettings,
   TranscriptLine,
@@ -604,6 +607,8 @@ export const routines = pgTable(
     time: text('time').notNull(),
     chaseMissing: boolean('chase_missing').notNull().default(true),
     questions: jsonb('questions').$type<RoutineQuestion[]>().notNull(),
+    /** Collection routines: the list they add to. Null for question routines. */
+    collect: jsonb('collect').$type<RoutineCollect>(),
     staffIds: uuid('staff_ids').array().notNull().default(sql`'{}'::uuid[]`),
     status: text('status', { enum: ['active', 'paused'] }).notNull().default('active'),
     createdAt: createdAt(),
@@ -665,7 +670,14 @@ export const calls = pgTable(
     delegationId: uuid('delegation_id').references(() => delegations.id, { onDelete: 'cascade' }),
     /** Set for routine check-in calls. */
     checkinId: uuid('checkin_id').references(() => routineEntries.id, { onDelete: 'cascade' }),
-    staffId: uuid('staff_id').notNull().references(() => staff.id),
+    /** The team member called; null for calls to outside parties. */
+    staffId: uuid('staff_id').references(() => staff.id),
+    /** Calls to customers and suppliers: who and on which number. */
+    contactName: text('contact_name'),
+    contactPhone: text('contact_phone'),
+    /** Follow-up calls: the item, and the follow-up (`<list>.<id>`). */
+    recordId: uuid('record_id').references(() => records.id, { onDelete: 'set null' }),
+    followUp: text('follow_up'),
     stage: text('stage').$type<CallStage>().notNull(),
     attempt: integer('attempt').notNull(),
     status: text('status').$type<CallStatus>().notNull().default('scheduled'),
@@ -679,11 +691,89 @@ export const calls = pgTable(
     outcome: text('outcome').$type<CallOutcome>(),
     /** Delegation calls: deadline and notes. Check-in calls: answers so far and re-asks per question. */
     extracted: jsonb('extracted')
-      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number> }>()
+      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number>; about?: CallAbout }>()
       .notNull()
       .default({}),
     costInr: money('cost_inr'),
     createdAt: createdAt(),
   },
-  (t) => [index('calls_delegation_idx').on(t.delegationId), index('calls_checkin_idx').on(t.checkinId), index('calls_status_idx').on(t.tenantId, t.status)],
+  (t) => [
+    index('calls_delegation_idx').on(t.delegationId),
+    index('calls_checkin_idx').on(t.checkinId),
+    index('calls_status_idx').on(t.tenantId, t.status),
+    index('calls_record_idx').on(t.recordId),
+    check('calls_who', sql`${t.staffId} is not null or ${t.contactPhone} is not null`),
+  ],
+);
+
+/** What someone said on a call about a list item, for the head to apply or dismiss. Never applied by itself. */
+export const recordNotes = pgTable(
+  'record_notes',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    recordId: uuid('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),
+    callId: uuid('call_id').references(() => calls.id, { onDelete: 'set null' }),
+    /** The follow-up (`<list>.<id>`) the call was for; null for collection calls. */
+    followUp: text('follow_up'),
+    kind: text('kind', { enum: ['said', 'promise', 'dispute', 'wrong_number', 'difference', 'unreachable'] }).notNull(),
+    /** Who said it: the party's or the team member's name. */
+    speaker: text('speaker').notNull(),
+    said: text('said').notNull(),
+    /** Field values the note proposes; Apply sets them. */
+    proposed: jsonb('proposed').$type<Record<string, unknown>>().notNull().default({}),
+    promiseOn: date('promise_on', { mode: 'string' }),
+    status: text('status', { enum: ['new', 'applied', 'dismissed'] }).notNull().default('new'),
+    decidedBy: uuid('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('record_notes_record_idx').on(t.recordId), index('record_notes_status_idx').on(t.tenantId, t.status)],
+);
+
+/** Which follow-ups a company has switched on. Every follow-up starts off. */
+export const followUpSwitches = pgTable(
+  'follow_up_switches',
+  {
+    tenantId: tenantId(),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    followUp: text('follow_up').notNull(),
+    enabled: boolean('enabled').notNull().default(false),
+    changedBy: uuid('changed_by'),
+    changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.workspaceId, t.followUp] })],
+);
+
+/** One item's follow-up: how often it rang, when it is due again, and whether it waits for the head or has stopped. */
+export const followUpAttempts = pgTable(
+  'follow_up_attempts',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    recordId: uuid('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),
+    followUp: text('follow_up').notNull(),
+    /** Calls nobody answered since the last answered one. */
+    tries: integer('tries').notNull().default(0),
+    lastCallAt: timestamp('last_call_at', { withTimezone: true }),
+    nextDueOn: date('next_due_on', { mode: 'string' }).notNull(),
+    state: text('state', { enum: ['active', 'waiting_for_you', 'stopped'] }).notNull().default('active'),
+  },
+  (t) => [uniqueIndex('follow_up_attempts_item_idx').on(t.recordId, t.followUp), index('follow_up_attempts_tenant_idx').on(t.tenantId)],
+);
+
+/** Numbers the AI never calls again: the person asked, or it was a wrong number. */
+export const doNotCall = pgTable(
+  'do_not_call',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    /** The number's last 10 digits. */
+    phone: text('phone').notNull(),
+    reason: text('reason', { enum: ['asked', 'wrong_number'] }).notNull(),
+    recordId: uuid('record_id').references(() => records.id, { onDelete: 'set null' }),
+    callId: uuid('call_id').references(() => calls.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('do_not_call_phone_idx').on(t.tenantId, t.phone)],
 );

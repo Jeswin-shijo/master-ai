@@ -259,7 +259,7 @@ export class DelegationService {
     if (c.status !== 'ringing') return;
     await this.db.tenant(tenantId, async (tx) => {
       const d = await this.delegation(tx, c.delegationId!);
-      const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId));
+      const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId!));
       await tx
         .update(calls)
         .set({ status: failure ? 'failed' : 'no_answer', endedAt: new Date(), outcome: 'no_answer', summary: failure ?? `${person?.name ?? 'They'} didn't answer.` })

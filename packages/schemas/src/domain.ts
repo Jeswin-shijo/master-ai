@@ -418,8 +418,8 @@ export interface StaffMember {
   createdAt: string;
 }
 
-/** Delegation calls assign, follow up and confirm; check-in calls collect a routine's answers. */
-export type CallStage = 'assign' | 'follow_up' | 'confirm' | 'checkin';
+/** Delegation calls assign, follow up and confirm; check-in calls collect a routine's answers; collect calls add items to a list; chase calls follow up an open item. */
+export type CallStage = 'assign' | 'follow_up' | 'confirm' | 'checkin' | 'collect' | 'chase';
 
 export type CallStatus = 'scheduled' | 'ringing' | 'in_progress' | 'completed' | 'no_answer' | 'failed' | 'cancelled';
 
@@ -437,12 +437,29 @@ export type CallOutcome =
   /** Check-in calls: every required answer was collected. */
   | 'reported'
   /** Check-in calls: the person asked to be called back. */
-  | 'call_back';
+  | 'call_back'
+  /** Follow-up calls: the party says it is paid, received or done (a note proposes it). */
+  | 'settled'
+  | 'promised'
+  | 'disputed'
+  | 'wrong_number'
+  | 'do_not_call'
+  /** Follow-up calls to staff: the item was updated from what they said. */
+  | 'updated'
+  /** Follow-up calls: what was said is noted for the head. */
+  | 'noted';
 
 export interface TranscriptLine {
   speaker: 'ai' | 'person';
   text: string;
   at: string;
+}
+
+/** The list item a follow-up call is about. */
+export interface CallAbout {
+  listId: string;
+  itemId: string;
+  title: string;
 }
 
 export interface CallRecord {
@@ -451,9 +468,15 @@ export interface CallRecord {
   delegationId: string | null;
   /** Set for routine check-in calls. */
   checkinId: string | null;
-  staffId: string;
+  staffId: string | null;
+  /** The team member's name, or the outside party's. */
   staffName: string;
+  /** The team member's title, or `Outside party`. */
   staffTitle: string;
+  /** Calls to customers and suppliers: who and on which number. */
+  contact: { name: string; phone: string } | null;
+  /** Follow-up calls: the item they are about. */
+  about: CallAbout | null;
   stage: CallStage;
   attempt: number;
   status: CallStatus;
@@ -509,6 +532,19 @@ export interface Delegation {
 
 export type RoutineMode = 'manual' | 'automatic';
 
+/** A collection routine: the list it adds to and what it asks, copied from the template when switched on. */
+export interface RoutineCollect {
+  list: string;
+  entity: string;
+  /** "Bills" and "bill", for the routine's cards and the call. */
+  listLabel: string;
+  itemLabel: string;
+  ask: string[];
+  defaults: Record<string, string | number | boolean>;
+  maxItems: number;
+  who: string | null;
+}
+
 /** A repeating check-in the business runs, e.g. the daily site report. */
 export interface Routine {
   id: string;
@@ -524,6 +560,7 @@ export interface Routine {
   /** Manual mode: phone whoever has not reported by `time`. */
   chaseMissing: boolean;
   questions: RoutineQuestion[];
+  collect: RoutineCollect | null;
   people: { id: string; name: string; title: string }[];
   status: 'active' | 'paused';
   /** The next time it runs, when active. */

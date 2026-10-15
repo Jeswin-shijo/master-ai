@@ -47,6 +47,8 @@ const STAGE_GOALS: Record<CallStage, string> = {
   confirm:
     'Confirm the work is finished and capture what was done in notes. Outcome: done or not_done (reason in notes).',
   checkin: 'Not used: check-in calls run on the CheckinEngine.',
+  collect: 'Not used: collection calls run on their own engine.',
+  chase: 'Not used: follow-up calls to outside parties run on their own engine.',
 };
 
 const MAX_PERSON_TURNS = 3;
@@ -77,6 +79,9 @@ export class CallEngine {
         return `Hi ${first}, the ${ctx.companyName} assistant here. Is "${ctx.task.title}" done? Please tell me briefly what was done.`;
       case 'checkin':
         throw new Error('Check-in calls use the CheckinEngine');
+      case 'collect':
+      case 'chase':
+        throw new Error('Collection and follow-up calls do not use the delegation engine');
     }
   }
 
@@ -223,6 +228,9 @@ export function scriptedTurn(ctx: CallContext, personText: string, now: Date = n
     }
     case 'checkin':
       throw new Error('Check-in calls use the CheckinEngine');
+    case 'collect':
+    case 'chase':
+      throw new Error('Collection and follow-up calls do not use the delegation engine');
   }
 }
 
@@ -237,5 +245,8 @@ export function simulatedReply(ctx: CallContext): string {
       return "Yes, it's done. Everything is in order.";
     case 'checkin':
       throw new Error('Check-in calls use the CheckinEngine');
+    case 'collect':
+    case 'chase':
+      throw new Error('Collection and follow-up calls do not use the delegation engine');
   }
 }

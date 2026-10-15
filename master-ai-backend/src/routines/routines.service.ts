@@ -354,7 +354,7 @@ export class RoutinesService {
     }
     if (c.status !== 'ringing') return;
     await this.db.tenant(tenantId, async (tx) => {
-      const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId));
+      const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId!));
       await tx
         .update(calls)
         .set({ status: failure ? 'failed' : 'no_answer', endedAt: new Date(), outcome: 'no_answer', summary: failure ?? `${person?.name ?? 'They'} didn't answer.` })
@@ -434,10 +434,10 @@ export class RoutinesService {
   }
 
   /** Suggested replies for the simulator while a check-in call is on. */
-  async suggestionsFor(tx: Tx, c: CallRow, person: StaffRow): Promise<string[]> {
+  async suggestionsFor(tx: Tx, c: CallRow, person: StaffRow | null): Promise<string[]> {
     if (!c.checkinId || (c.status !== 'in_progress' && c.status !== 'ringing')) return [];
     const [row] = await tx.select({ r: routines }).from(routineEntries).innerJoin(routines, eq(routines.id, routineEntries.routineId)).where(eq(routineEntries.id, c.checkinId));
-    return row ? checkinSuggestions(row.r.questions, c.extracted.values ?? {}, person.name) : [];
+    return row ? checkinSuggestions(row.r.questions, c.extracted.values ?? {}, person?.name ?? '') : [];
   }
 
   /** Save what the call collected: the entry is reported once every required answer is in. */
@@ -585,6 +585,7 @@ function toRoutine(r: RoutineRow, people: StaffRow[], todays: EntryRow[], today:
     time: r.time,
     chaseMissing: r.chaseMissing,
     questions: r.questions,
+    collect: r.collect ?? null,
     people: reporters.map((p) => ({ id: p.id, name: p.name, title: p.title })),
     status: r.status,
     nextRunAt: r.status === 'active' ? (nextRunAt(r.days, r.time)?.toISOString() ?? null) : null,

@@ -4,7 +4,7 @@ import type { CallRecord, CallStage, Delegation } from '@onehuman/schemas';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { cn, formatDateTime, timeAgo } from '@/lib/utils';
 
-export const STAGE_NAME: Record<CallStage, string> = { assign: 'Assign', follow_up: 'Follow-up', confirm: 'Confirm', checkin: 'Check-in' };
+export const STAGE_NAME: Record<CallStage, string> = { assign: 'Assign', follow_up: 'Follow-up', confirm: 'Confirm', checkin: 'Check-in', collect: 'Collection', chase: 'Follow-up' };
 
 const DELEGATION_TONE: Record<string, BadgeTone> = {
   assigning: 'info',

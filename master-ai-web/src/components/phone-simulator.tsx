@@ -13,13 +13,22 @@ import { cn } from '@/lib/utils';
  * side. Real calls (Twilio) are answered on the phone; this shows them live.
  */
 
-const STAGE_LABEL: Record<CallStage, string> = { assign: 'Assigning work', follow_up: 'Follow-up', confirm: 'Confirming done', checkin: 'Daily check-in' };
+const STAGE_LABEL: Record<CallStage, string> = {
+  assign: 'Assigning work',
+  follow_up: 'Follow-up',
+  confirm: 'Confirming done',
+  checkin: 'Daily check-in',
+  collect: 'Collecting items',
+  chase: 'Follow-up on an item',
+};
 
 const QUICK_REPLIES: Record<CallStage, string[]> = {
   assign: ['Yes, I can do it by tomorrow 5 pm', 'Sure, by Friday evening', "Sorry, I can't, I'm on leave"],
   follow_up: ["It's on track", 'I need more time, by Friday', "There's a problem, I'm waiting for the keys"],
   confirm: ["Yes, it's done", 'Not yet, still pending'],
   checkin: [],
+  collect: [],
+  chase: [],
 };
 
 interface SpeechRecognitionLike {

@@ -30,7 +30,7 @@ export class CallsService {
       const rows = await tx
         .select({ c: calls, person: staff, job: delegations.title, routine: routines.name })
         .from(calls)
-        .innerJoin(staff, eq(staff.id, calls.staffId))
+        .leftJoin(staff, eq(staff.id, calls.staffId))
         .leftJoin(delegations, eq(delegations.id, calls.delegationId))
         .leftJoin(routineEntries, eq(routineEntries.id, calls.checkinId))
         .leftJoin(routines, eq(routines.id, routineEntries.routineId))
@@ -38,7 +38,7 @@ export class CallsService {
         .orderBy(desc(calls.createdAt))
         .limit(opts.limit ?? 100);
       return Promise.all(
-        rows.map(async (r) => toCall(r.c, r.person, r.job ?? r.routine ?? 'Call', await this.routines.suggestionsFor(tx, r.c, r.person))),
+        rows.map(async (r) => toCall(r.c, r.person, r.job ?? r.routine ?? r.c.extracted.about?.title ?? 'Call', await this.routines.suggestionsFor(tx, r.c, r.person))),
       );
     });
   }
@@ -48,12 +48,12 @@ export class CallsService {
       const [r] = await tx
         .select({ c: calls, person: staff, job: delegations.title, routine: routines.name })
         .from(calls)
-        .innerJoin(staff, eq(staff.id, calls.staffId))
+        .leftJoin(staff, eq(staff.id, calls.staffId))
         .leftJoin(delegations, eq(delegations.id, calls.delegationId))
         .leftJoin(routineEntries, eq(routineEntries.id, calls.checkinId))
         .leftJoin(routines, eq(routines.id, routineEntries.routineId))
         .where(eq(calls.id, callId));
-      return r ? toCall(r.c, r.person, r.job ?? r.routine ?? 'Call', await this.routines.suggestionsFor(tx, r.c, r.person)) : null;
+      return r ? toCall(r.c, r.person, r.job ?? r.routine ?? r.c.extracted.about?.title ?? 'Call', await this.routines.suggestionsFor(tx, r.c, r.person)) : null;
     });
     if (!rows) throw new NotFoundException('Call not found');
     return rows;
