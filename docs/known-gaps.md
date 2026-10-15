@@ -108,8 +108,9 @@ The sector content was researched from public sources, not reviewed by people wh
 ## Sector lists, part 2 (the AI's calls)
 
 - Calls about list items are in the web simulator and through Twilio; the phone app shows them in its call list but has no Lists tab yet.
-- A follow-up reads one item per call. A party with five overdue bills gets five calls on different sweeps, not one call about all five.
+- A follow-up reads one item per call. A follow-up calls each number or team member at most once a day, about one item; a party with five overdue bills hears about them over five days, not in one call.
 - Team members are matched to an item by name: an active person with exactly that full name, or — when the item gives only a first name — the one active person with it. An item naming someone not on the team, or with a misspelt surname, stops with a note for the head.
 - The offline scripts understand everyday English replies; Hindi and Malayalam replies need a model.
+- Members can't list, open or answer calls about list items, but the live updates every signed-in browser gets still carry their one-line summaries ("Call planned to Sri Ganesh Traders about S-1042").
 - A collection routine's defaults and asked fields come from the pack; the owner can't change which fields are asked yet.
 - Types described in the owner's own words get no follow-ups or collection routines from the generator.
