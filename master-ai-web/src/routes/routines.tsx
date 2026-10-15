@@ -3,14 +3,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ArrowLeft, ArrowRight, CalendarClock, Flag, Pause, PencilLine, Phone, PhoneOff, Play, Repeat, Sparkles, Users, X } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { CheckinEntry, CheckinStatus, CheckinValue, Routine, RoutineQuestion } from '@onehuman/schemas';
+import type { CheckinEntry, CheckinStatus, CheckinValue, Routine, RoutineQuestion, RoutineTemplateInfo } from '@onehuman/schemas';
 import { CheckinForm } from '@/components/checkin-form';
+import { CollectForm } from '@/components/collect-form';
 import { PackUpdatesBanner } from '@/components/pack-updates';
+import { PickPeople } from '@/components/pick-people';
 import { AnimatedNumber, DrawCheck, item, LiftCard, ModeSwitch, ProgressRing, RingPulse, spring, Stagger } from '@/components/motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorNote, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
+import { collectedText } from '@/lib/collect';
 import { useNewRequest } from '@/lib/new-request';
 import { cn, timeAgo } from '@/lib/utils';
 import { usePageTitle } from '@/lib/title';
@@ -65,16 +68,17 @@ function useUpdateRoutine(id: string) {
 /** "The AI phones 3 people at 6:00 pm, Mon–Sat." */
 function ModeSentence({ routine }: { routine: Routine }) {
   const n = routine.people.length;
-  const who = `${n} ${n === 1 ? 'person' : 'people'}`;
+  const who = routine.collect && n === 1 ? routine.people[0]!.name : `${n} ${n === 1 ? 'person' : 'people'}`;
+  const what = routine.collect ? `adds the day's ${routine.collect.listLabel.toLowerCase()} to ${routine.collect.listLabel}` : 'fills it in from what they say';
   return routine.mode === 'automatic' ? (
     <p className="text-sm text-fg-muted">
       <Phone className="mr-1 inline size-3.5 text-primary" aria-hidden />
-      The AI phones {who} at <span className="font-medium text-fg">{time12(routine.time)}</span>, {daysText(routine.days)}, and fills it in from what they say.
+      The AI phones {who} at <span className="font-medium text-fg">{time12(routine.time)}</span>, {daysText(routine.days)}, and {what}.
     </p>
   ) : (
     <p className="text-sm text-fg-muted">
       <PencilLine className="mr-1 inline size-3.5 text-accent" aria-hidden />
-      {who} fill it in here by <span className="font-medium text-fg">{time12(routine.time)}</span>, {daysText(routine.days)}.
+      {who} {routine.collect ? `add the day's ${routine.collect.listLabel.toLowerCase()} here` : 'fill it in here'} by <span className="font-medium text-fg">{time12(routine.time)}</span>, {daysText(routine.days)}.
       {routine.chaseMissing ? ' Anyone who hasn’t gets a call from the AI.' : ' Nobody is called.'}
     </p>
   );
@@ -143,9 +147,11 @@ export function RoutinesPage() {
   const routines = useQuery({ queryKey: ['routines'], queryFn: api.routines.list, refetchInterval: (q) => (q.state.data?.some((r) => r.today.calling > 0) ? 2500 : false) });
   const templates = useQuery({ queryKey: ['routines', 'templates'], queryFn: api.routines.templates });
   const team = useQuery({ queryKey: ['team'], queryFn: api.team.list });
+  const [picking, setPicking] = useState<RoutineTemplateInfo | null>(null);
   const create = useMutation({
-    mutationFn: (templateId: string) => api.routines.create({ templateId }),
+    mutationFn: (input: { templateId: string; staffIds?: string[] }) => api.routines.create(input),
     onSuccess: (r) => {
+      setPicking(null);
       void queryClient.invalidateQueries({ queryKey: ['routines'] });
       navigate(`/routines/${r.id}`);
     },
@@ -200,17 +206,33 @@ export function RoutinesPage() {
               <LiftCard key={t.id} className="flex flex-col p-5">
                 <p className="font-semibold text-fg">{t.name}</p>
                 <p className="mt-1 text-sm text-fg-muted">{t.description}</p>
-                <ul className="mt-3 flex flex-wrap gap-1">
-                  {t.questions.map((q) => (
-                    <li key={q.key} className={cn('rounded-md px-2 py-0.5 text-xs', q.flag ? 'bg-warning-soft text-warning' : 'bg-muted text-fg')}>
-                      {q.label}
-                    </li>
-                  ))}
-                </ul>
+                {t.collect ? (
+                  <>
+                    <p className="mt-3 text-xs text-fg-muted">
+                      Adds to <span className="text-fg">{t.listLabel}</span>
+                      {t.collect.who ? ` · calls ${t.collect.who}` : ''}
+                    </p>
+                    <ul className="mt-2 flex flex-wrap gap-1">
+                      {t.askLabels.map((l) => (
+                        <li key={l} className="rounded-md bg-muted px-2 py-0.5 text-xs text-fg">
+                          {l}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <ul className="mt-3 flex flex-wrap gap-1">
+                    {t.questions.map((q) => (
+                      <li key={q.key} className={cn('rounded-md px-2 py-0.5 text-xs', q.flag ? 'bg-warning-soft text-warning' : 'bg-muted text-fg')}>
+                        {q.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="mt-3 text-xs text-fg-muted">
                   {t.mode === 'automatic' ? 'AI calls' : 'Filled in by hand'} · {daysText(t.days)} at {time12(t.time)}
                 </p>
-                <Button className="mt-4 self-start" size="sm" onClick={() => create.mutate(t.id)} loading={create.isPending && create.variables === t.id} disabled={noTeam}>
+                <Button className="mt-4 self-start" size="sm" onClick={() => (t.collect ? setPicking(t) : create.mutate({ templateId: t.id }))} loading={create.isPending && create.variables?.templateId === t.id} disabled={noTeam}>
                   <Play /> Switch it on
                 </Button>
               </LiftCard>
@@ -221,6 +243,14 @@ export function RoutinesPage() {
       {routines.data?.length === 0 && unused.length === 0 && !templates.isLoading && (
         <EmptyState icon={<Repeat />} title="No check-ins in your setup yet">Update your industry pack from the Industry pack page to get ready-made check-ins.</EmptyState>
       )}
+      <PickPeople
+        open={!!picking}
+        who={picking?.collect?.who ?? null}
+        pending={create.isPending}
+        error={create.error}
+        onClose={() => setPicking(null)}
+        onPick={(staffIds) => create.mutate({ templateId: picking!.id, staffIds })}
+      />
     </div>
   );
 }
@@ -290,7 +320,16 @@ function PersonCard({ entry, routine, onFill }: { entry: CheckinEntry; routine: 
         )}
       </AnimatePresence>
 
-      {Object.keys(entry.values).length > 0 && (
+      {routine.collect && entry.status === 'reported' && (
+        <p className="mt-3 text-sm text-fg">
+          {collectedText(routine, entry.values)} ·{' '}
+          <Link to={`/lists/${routine.collect.list}`} className="text-accent hover:underline">
+            Open {routine.collect.listLabel}
+          </Link>
+        </p>
+      )}
+
+      {!routine.collect && Object.keys(entry.values).length > 0 && (
         <dl className="mt-3 grid gap-1.5 text-sm">
           {routine.questions.map((q) => {
             const v = entry.values[q.key];
@@ -541,7 +580,11 @@ export function RoutineBoardPage() {
         </p>
       )}
 
-      <CheckinForm routine={routine} staffId={form?.staffId ?? null} initial={form?.values} open={!!form} onClose={() => setForm(null)} />
+      {routine.collect ? (
+        <CollectForm routine={routine} staffId={form?.staffId ?? null} open={!!form} onClose={() => setForm(null)} />
+      ) : (
+        <CheckinForm routine={routine} staffId={form?.staffId ?? null} initial={form?.values} open={!!form} onClose={() => setForm(null)} />
+      )}
     </div>
   );
 }

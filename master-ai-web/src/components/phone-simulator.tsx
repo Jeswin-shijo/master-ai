@@ -59,6 +59,9 @@ function speak(text: string) {
   window.speechSynthesis.speak(u);
 }
 
+/** Staff are named by first name; an outside party by their whole name, as they have no first-name footing here. */
+const asWho = (c: CallRecord) => (c.contact ? c.staffName : c.staffName.split(' ')[0]);
+
 export function PhoneSimulator() {
   const queryClient = useQueryClient();
   const active = useQuery({
@@ -142,7 +145,12 @@ export function PhoneSimulator() {
             </div>
           </div>
           <p className="mt-3 line-clamp-2 text-sm text-fg">{call.delegationTitle}</p>
-          <p className="mt-2 text-xs text-fg-muted">Answer as {call.staffName.split(' ')[0]} to try the conversation. No real phone is dialled yet.</p>
+          {call.contact && (
+            <p className="mt-2 text-xs text-warning">
+              A customer or supplier: answer as them. Nothing they say changes the item until you apply it.
+            </p>
+          )}
+          <p className="mt-2 text-xs text-fg-muted">Answer as {asWho(call)} to try the conversation. No real phone is dialled yet.</p>
         </div>
         <div className="flex gap-2 border-t border-border p-3">
           <Button variant="success" className="flex-1" onClick={() => answer.mutate(call.id)} loading={answer.isPending}>
@@ -167,6 +175,7 @@ export function PhoneSimulator() {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-fg">You are {current.staffName}</p>
           <p className="truncate text-xs text-fg-muted">{ended ? 'Call ended' : `On call · ${STAGE_LABEL[current.stage]}`}</p>
+          {current.about && <p className="truncate text-xs text-fg-muted">About {current.about.title}</p>}
         </div>
         <Button variant="ghost" size="icon" onClick={() => setVoiceOn((v) => !v)} aria-label={voiceOn ? 'Mute AI voice' : 'Play AI voice'}>
           {voiceOn ? <Volume2 /> : <VolumeX />}
@@ -214,7 +223,7 @@ export function PhoneSimulator() {
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={`Reply as ${current.staffName.split(' ')[0]}…`}
+              placeholder={`Reply as ${asWho(current)}…`}
               className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm text-fg placeholder:text-fg-muted/70 focus:border-primary focus:outline-none"
               aria-label="Your reply"
             />

@@ -99,6 +99,57 @@ function PhoneCallSettings() {
             </span>
           </span>
         </label>
+        <fieldset className="space-y-2">
+          <legend className="mb-1 font-medium text-fg">Calling customers and suppliers</legend>
+          <p className="text-fg-muted">Follow-up calls to outside parties go out only on these days and hours, and never before 9 am or after 9 pm IST.</p>
+          {calls && (
+            <>
+              <div role="group" aria-label="Days for outside calls" className="flex flex-wrap gap-1">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => {
+                  const on = calls.partyHours.days.includes(i);
+                  const days = on ? calls.partyHours.days.filter((x) => x !== i) : [...calls.partyHours.days, i].sort();
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={on && days.length === 0}
+                      onClick={() => save.mutate({ partyHours: { ...calls.partyHours, days } })}
+                      className={cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary-soft text-primary' : 'border-border text-fg-muted hover:text-fg')}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2">
+                  From
+                  <Input type="time" aria-label="Outside calls from" defaultValue={calls.partyHours.start} onBlur={(e) => e.target.value && save.mutate({ partyHours: { ...calls.partyHours, start: e.target.value } })} className="w-auto" />
+                </label>
+                <label className="flex items-center gap-2">
+                  to
+                  <Input type="time" aria-label="Outside calls until" defaultValue={calls.partyHours.end} onBlur={(e) => e.target.value && save.mutate({ partyHours: { ...calls.partyHours, end: e.target.value } })} className="w-auto" />
+                </label>
+              </div>
+            </>
+          )}
+        </fieldset>
+        <label className="flex flex-wrap items-center gap-3">
+          <span className="font-medium text-fg">Follow-up calls a day, at most</span>
+          <Input
+            type="number"
+            min={1}
+            max={200}
+            aria-label="Follow-up calls a day"
+            defaultValue={calls?.followUpsPerDay ?? 30}
+            onBlur={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isInteger(n) && n >= 1 && n <= 200) save.mutate({ followUpsPerDay: n });
+            }}
+            className="w-24"
+          />
+        </label>
         <p className="text-fg-muted">
           Up to {calls?.maxAttempts} attempts per call, {calls?.retryMinutes} minutes apart; after that the job comes back to you.
         </p>
