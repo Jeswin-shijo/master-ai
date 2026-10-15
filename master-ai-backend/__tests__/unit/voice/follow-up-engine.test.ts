@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { EntityField } from '@onehuman/schemas';
 import {
   followUpOpening,
@@ -183,6 +183,44 @@ describe('replies that must not turn into the wrong result', () => {
     },
   );
 
+  it.each(['Done by tomorrow', 'Done by evening', 'Should be done today', 'Hopefully done tomorrow', 'I am on it, done by 5 pm', 'Done in 2 days', 'Almost done', 'Nearly done', 'Done, only testing pending'])(
+    'a team member saying "%s" is still in progress: done later or hedged is not done',
+    async (reply) => {
+      const { result } = await talk(staff, [reply]);
+      expect(result?.kind).toBe('status');
+      expect((result as { patch: Record<string, unknown> }).patch.status).toBe('in-progress');
+    },
+  );
+
+  it.each(["It's done", "It's fixed", 'Resolved', 'Fixed yesterday', 'I fixed it'])('a team member saying "%s" is resolved', async (reply) => {
+    const { result } = await talk(staff, [reply]);
+    expect(result?.kind).toBe('status');
+    expect((result as { patch: Record<string, unknown> }).patch.status).toBe('resolved');
+  });
+
+  describe('a deadline a model heard', () => {
+    // A server runs in UTC; this machine may be in India, where an offset-less time already reads as India time.
+    let tz: string | undefined;
+    beforeAll(() => {
+      tz = process.env.TZ;
+      process.env.TZ = 'UTC';
+    });
+    afterAll(() => {
+      if (tz === undefined) delete process.env.TZ;
+      else process.env.TZ = tz;
+    });
+
+    it('is read as India time when the words give none', async () => {
+      const { result } = await talk(staff, ['It will take some time'], [heard({ dueAt: '2026-10-16T17:00:00' })]);
+      expect((result as { patch: Record<string, unknown> }).patch.dueBy).toBe(new Date('2026-10-16T17:00:00+05:30').toISOString());
+    });
+
+    it("gives way to the script's reading of the words", async () => {
+      const { result } = await talk(staff, ["It's in progress, done by tomorrow 5 pm"], [heard({ dueAt: '2026-10-16T17:00:00Z' })]);
+      expect((result as { patch: Record<string, unknown> }).patch.dueBy).toBe(new Date('2026-10-16T17:00:00+05:30').toISOString());
+    });
+  });
+
   it('reads no status from "going over" or "a new part"', async () => {
     expect((await talk(staff, ['I am going over to the client site'])).said[0]).toMatch(/^Sorry, what's the status/);
     expect((await talk(staff, ['A new part is needed'])).said[0]).toMatch(/^Sorry, what's the status/);
@@ -224,6 +262,15 @@ describe('replies that must not turn into the wrong result', () => {
     expect(result?.kind).toBe('wrong_number');
     expect(said[0]).not.toMatch(/S-1042/);
   });
+
+  it.each(['He is not available', 'No, he is out', 'No, he is not here', 'No, this is his wife', 'Not the right time', 'No no, tell me'])(
+    'ends "%s" politely as a call-back, not a wrong number, and says nothing about the item',
+    async (reply) => {
+      const { said, result, callBack, end } = await talk(party, [reply]);
+      expect({ result, callBack, end }).toEqual({ result: null, callBack: true, end: true });
+      expect(said[0]).not.toMatch(/S-1042/);
+    },
+  );
 
   it('treats "don\'t call before 5" as a call-back, not a do-not-call', async () => {
     const { result, callBack, end } = await talk(ask, ["Please don't call before 5, call after"]);

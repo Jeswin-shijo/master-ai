@@ -74,6 +74,8 @@ const DNC =
   /\b(?:don['’]?t (?:ever |keep )?(?:calling|call|ringing|ring|disturb)|do not (?:call|ring|disturb)|stop (?:calling|ringing|these calls|the calls)|never call|no more calls|remove (?:my|this|our) number|take (?:me|us|my number|this number|our number) off)\b/i;
 const WHO = /\b(who|whom|which company|why are you calling|what(?:'?s| is) (?:this|it) (?:about|regarding))\b/i;
 const WRONG = /\b(wrong (number|person)|no one (here )?by that name|you have the wrong|doesn'?t (work|live) here|no such (company|person)|not the right (person|number))\b/i;
+/** A reply that is only "no" ("No.", "No no", "Nahi"): with WRONG, the only replies that make a wrong number. */
+const BARE_NO = /^\s*(?:no|nope|nahi|nah)(?:[\s,.!]+(?:no|nope|nahi|nah))*[\s.!]*$/i;
 /** "Speaking" only as the whole answer ("Yes, speaking"), never inside a question like "Who is speaking?". */
 const IDENTITY_YES = /^\s*(?:yes|yeah|haan|ji|hello)?[\s,.!]*speaking\b|\b(this is (he|she|me|us|him|her)|that'?s (me|us)|it'?s (me|us))\b/i;
 const DISPUTE =
@@ -82,6 +84,8 @@ const NOT_PAID = /\b(not (yet )?(paid|sent|received|done|cleared)|haven'?t (paid
 const PAID = /\b(paid|already (sent|done|cleared|transferred)|transferred|cleared|settled|received|delivered|approved|confirmed|sent (it|the|back))\b/i;
 const NOT_DONE = /\b(not (yet )?(done|finished|fixed|completed|resolved)|still (working|on it|pending)|working on it|in progress)\b/i;
 const DONE = /\b(done|fixed|finished|completed|resolved|sorted|closed)\b/i;
+/** A done-word with a hedge or a time still to come is not done: "almost done", "should be done", "done by 5 pm", "done in 2 days". */
+const HEDGE = /\b(almost|nearly|should|hopefully|probably|by|in \d+ (?:days?|hours?)|pending|remaining|soon|tomorrow)\b/i;
 const SETTLE_WORDS =
   'paid|pay|received|receive|done|cleared|clear|transferred|transfer|settled|settle|approved|approve|confirmed|confirm|delivered|deliver|released|release|fixed|fix|finished|finish|completed|complete|resolved|resolve|sorted';
 /** A settle word negated just before it: "has not been paid", "haven't received the goods", "nothing is done", "isn't fixed". */
@@ -169,6 +173,19 @@ function heardRef(r: string | null | undefined): string | null {
 }
 
 const notDoneIn = (t: string) => NOT_DONE.test(t) || NEGATED_SETTLE.test(t) || FUTURE_SETTLE.test(t);
+/** A deadline a model heard, read as India wall-clock time: its day and time (6 pm when it gives none), whatever offset it carries. */
+function indiaTime(raw: string | null | undefined): { day: string; at: string } | null {
+  const m = raw ? /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/.exec(raw.trim()) : null;
+  if (!m) return null;
+  const at = new Date(`${m[1]}T${m[2] ?? '18:00'}:00+05:30`);
+  return Number.isNaN(at.getTime()) ? null : { day: m[1]!, at: at.toISOString() };
+}
+
+/** A team member's reply that is not done yet: negated or future, hedged, or naming a day after today. */
+const staffNotDone = (t: string, now: Date) => {
+  const day = spokenDate(t, now);
+  return notDoneIn(t) || HEDGE.test(t) || (day !== null && day > istDate(now));
+};
 
 /** The status a team member gave. A negated or future done-word means in progress; a call never sets an item back to new. */
 function staffStatus(options: string[], text: string, notDone: boolean): string | null {
@@ -200,14 +217,16 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   }
 
   if (s.phase === 'identity') {
-    if (heard?.identity === 'no' || WRONG.test(text)) return end('Sorry to have troubled you. Goodbye.', { kind: 'wrong_number', said });
+    // A wrong number blocks the number for good, so only the words say so: a wrong-number phrase, or a bare "no". A model's "no" alone never does.
+    if (WRONG.test(text) || BARE_NO.test(text)) return end('Sorry to have troubled you. Goodbye.', { kind: 'wrong_number', said });
     if (heard?.identity === 'asking' || WHO.test(text) || /\?\s*$/.test(text)) {
       if (s.retries >= 2) return end('Sorry to have troubled you. Goodbye.', null);
       s.retries++;
       return say(`I'm an AI assistant calling from ${ctx.companyName} about an account with ${ctx.name}. Am I speaking with someone from ${ctx.name}?`);
     }
     const yes = heard?.identity === 'yes' || IDENTITY_YES.test(text) || spokenYesNo(text) === true;
-    if (!yes && spokenYesNo(text) === false) return end('Sorry to have troubled you. Goodbye.', { kind: 'wrong_number', said });
+    // "He is not available", "No, this is his wife": not the right person now, so no details, and another call another day.
+    if (heard?.identity === 'no' || (!yes && spokenYesNo(text) === false)) return end('Sorry to have troubled you. We will call another time. Goodbye.', null, true);
     if (yes) {
       s.phase = 'ask';
       s.retries = 0;
@@ -231,14 +250,16 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
   if (ctx.who === 'staff') {
     const field = statusField(ctx);
     const dateField = ctx.findOut.find((f) => f.type === 'date' || f.type === 'datetime');
-    const notDone = notDoneIn(plain);
+    const notDone = staffNotDone(plain, ctx.now);
     const heardStatus =
       heard?.status && field?.options?.includes(heard.status) && heard.status !== 'new' && !(notDone && DONE_OPTIONS.includes(heard.status)) ? heard.status : null;
     const status = heardStatus ?? (field?.options ? staffStatus(field.options, plain, notDone) : null);
     let due: string | null = null;
     if (dateField) {
-      const heardDue = heard?.dueAt && !Number.isNaN(Date.parse(heard.dueAt)) ? heard.dueAt : null;
-      const raw = heardDue ?? (dateField.type === 'date' ? spokenDate(text, ctx.now) : spokenDateTime(text, ctx.now));
+      // The script's reading of the words wins; a model's deadline only fills in when the words give none.
+      const scripted = dateField.type === 'date' ? spokenDate(text, ctx.now) : spokenDateTime(text, ctx.now);
+      const modelDue = scripted ? null : indiaTime(heard?.dueAt);
+      const raw = scripted ?? (modelDue && (dateField.type === 'date' ? modelDue.day : modelDue.at));
       const day = raw ? (dateField.type === 'date' ? raw.slice(0, 10) : istDate(new Date(raw))) : null;
       if (raw && day && day >= today) due = dateField.type === 'date' ? raw.slice(0, 10) : new Date(raw).toISOString();
     }
@@ -336,7 +357,7 @@ export class FollowUpEngine {
 Report only what the reply says; never guess. Today is ${istDate(ctx.now)} (India).
 identity: yes if they confirm they are ${ctx.name}, no if not, asking if they ask who is calling; else null.
 outcome: paid (they say it is paid, received, approved or done), promise (they give a date), dispute (they disagree or say something went wrong), do_not_call, status (a team member gives a status), call_back, or other; null if the reply is only about identity.
-promise_on: the promised day as YYYY-MM-DD. reference: a payment or transaction reference if said. status: one of ${options || 'none'} if said. due_at: a new deadline as an ISO date-time. amount: an amount in rupees if said.`,
+promise_on: the promised day as YYYY-MM-DD. reference: a payment or transaction reference if said. status: one of ${options || 'none'} if said. due_at: a new deadline in India time as YYYY-MM-DDTHH:MM (no offset). amount: an amount in rupees if said.`,
       user: `The AI just said: "${asked}"\nThe reply: "${text}"`,
     });
     return heard && { identity: heard.identity, outcome: heard.outcome, promiseOn: heard.promise_on, reference: heard.reference, status: heard.status, dueAt: heard.due_at, amount: heard.amount };
