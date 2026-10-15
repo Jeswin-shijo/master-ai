@@ -121,6 +121,20 @@ describe('collection routines', () => {
     expect(day.entries[0]).toMatchObject({ status: 'reported', source: 'manual', values: { items: 3, differences: 0 } });
   });
 
+  it('adds the bills added by hand to the ones the call added, and keeps its differences', async () => {
+    await addRecord('Bill', { billNo: 'CM-0', billType: 'sales invoice', party: kaveriId, total: 48260 });
+    const { person, routine } = await clerk('Kiran Rao');
+    const callId = await ring(routine.id);
+    await say(callId, ['Three', 'CM-1', 'sales invoice', 'nobody', '100', 'skip', 'skip', 'yes']);
+    await say(callId, ['CM-2', 'sales invoice', 'nobody', '200', 'skip', 'skip', 'yes']);
+    await say(callId, ['CM-0', 'sales invoice', 'Kaveri Spec', 'yes', '48,600', 'skip', 'skip', 'yes', "No, that's all"]);
+    const after = (await routines.day(a.tenantId, routine.id)).entries[0]!;
+    expect(after).toMatchObject({ status: 'reported', source: 'call', values: { items: 2, differences: 1 } });
+
+    const day = await routines.submit(a.session, routine.id, { staffId: person.id, values: { items: 1 } });
+    expect(day.entries[0]).toMatchObject({ status: 'reported', source: 'call', values: { items: 3, differences: 1 } });
+  });
+
   it('lets the simulated clerk add bills when nobody answers in the app', async () => {
     await h.get(TenancyService).updateSettings(a.session, { calls: { simulatorMode: 'auto' } });
     try {

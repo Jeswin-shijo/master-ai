@@ -189,25 +189,40 @@ export class RoutinesService {
     return (await this.list(session.tenantId)).find((r) => r.id === routineId)!;
   }
 
-  /** Someone filled in today's check-in by hand (or the owner corrected it). */
+  /**
+   * Someone filled in today's check-in by hand (or the owner corrected it).
+   * For a collection routine the items added by hand add to the day's count,
+   * beside what a call added; the call's differences stay.
+   */
   async submit(session: Session, routineId: string, input: CheckinInput): Promise<RoutineDay> {
     await this.db.tenant(session.tenantId, async (tx) => {
       const r = await this.routine(tx, routineId);
       if (!r.staffIds.includes(input.staffId)) throw new BadRequestException('That person is not part of this routine');
       const [person] = await tx.select().from(staff).where(eq(staff.id, input.staffId));
+      const date = istDate();
+      let existing: typeof routineEntries.$inferSelect | undefined;
+      if (r.collect) {
+        // The day's row, locked, so a call finishing at the same moment and this count add up instead of one replacing the other.
+        await tx.insert(routineEntries).values({ tenantId: session.tenantId, routineId, staffId: input.staffId, date }).onConflictDoNothing();
+        [existing] = await tx
+          .select()
+          .from(routineEntries)
+          .where(and(eq(routineEntries.routineId, routineId), eq(routineEntries.staffId, input.staffId), eq(routineEntries.date, date)))
+          .for('update');
+      }
       const values = r.collect
-        ? { items: Math.max(0, Math.round(Number(input.values.items) || 0)), differences: 0 }
+        ? { items: Number(existing?.values.items ?? 0) + Math.max(0, Math.round(Number(input.values.items) || 0)), differences: Number(existing?.values.differences ?? 0) }
         : cleanValues(r.questions, input.values as Record<string, CheckinValue>);
       const missing = r.collect ? [] : r.questions.filter((q) => q.required && (values[q.key] === undefined || values[q.key] === null || values[q.key] === ''));
       if (missing.length) throw new BadRequestException(`Please answer: ${missing.map((q) => q.label).join(', ')}`);
-      const date = istDate();
+      const source = existing?.source ?? 'manual';
       const flags = flagsOf(r.questions, values);
       await tx
         .insert(routineEntries)
-        .values({ tenantId: session.tenantId, routineId, staffId: input.staffId, date, status: 'reported', source: 'manual', values, flags })
+        .values({ tenantId: session.tenantId, routineId, staffId: input.staffId, date, status: 'reported', source, values, flags })
         .onConflictDoUpdate({
           target: [routineEntries.routineId, routineEntries.staffId, routineEntries.date],
-          set: { status: 'reported', source: 'manual', values, flags, updatedAt: new Date() },
+          set: { status: 'reported', source, values, flags, updatedAt: new Date() },
         });
       await this.audit.append(tx, session.tenantId, {
         type: 'checkin.reported',

@@ -35,3 +35,44 @@ test('bills added by hand count for the person even when the dialog is closed wi
   await expect(second.getByText('Each one goes to Bills.')).toBeVisible();
   await expect(second.getByText(/added so far/)).toHaveCount(0);
 });
+
+test('closing the dialog while Done is still saving does not count the bills twice', async ({ page }) => {
+  const org = await newOrganization('wholesale-retail');
+  const ravi = await org.api.team.add({ name: 'Ravi Kumar', phone: '+919811100003', title: 'Billing clerk' });
+  const routine = await org.api.routines.create({ templateId: 'todays-bills', staffIds: [ravi.id] });
+  await signInAs(page, org);
+
+  await page.goto(`/routines/${routine.id}`);
+  await page.getByRole('article').filter({ hasText: 'Ravi Kumar' }).getByRole('button', { name: 'Fill in' }).click();
+  const dialog = page.getByRole('dialog').filter({ hasText: "Add today's bills" });
+  await dialog.getByLabel('Bill no.').fill('HAND-2');
+  await dialog.getByLabel('Type', { exact: false }).selectOption({ index: 1 });
+  await dialog.getByLabel('Party').selectOption({ index: 1 });
+  await dialog.getByLabel('Total').fill('2360');
+  await dialog.getByRole('button', { name: 'Add bill' }).click();
+  await expect(dialog.getByText('1 added so far.')).toBeVisible();
+
+  // Hold Done's request back, and press Escape while it is on its way.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let sent = 0;
+  await page.route(/\/routines\/[^/]+\/checkins$/, async (route) => {
+    sent++;
+    await held;
+    await route.continue();
+  });
+  await dialog.getByRole('button', { name: 'Done, 1 added' }).click();
+  await expect.poll(() => sent).toBe(1);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  release();
+  await expect(dialog).toHaveCount(0);
+
+  await expect
+    .poll(async () => {
+      const day = await org.api.routines.day(routine.id);
+      return day.entries.find((e) => e.staffId === ravi.id)!.values.items;
+    })
+    .toBe(1);
+  expect(sent).toBe(1);
+});
