@@ -404,7 +404,7 @@ export class RoutinesService {
         .update(calls)
         .set({ status: failure ? 'failed' : 'no_answer', endedAt: new Date(), outcome: 'no_answer', summary: failure ?? `${person?.name ?? 'They'} didn't answer.` })
         .where(eq(calls.id, callId));
-      await this.audit.append(tx, tenantId, { type: 'call.no_answer', actor: SYSTEM, refId: callId, payload: { staffName: person?.name, stage: 'checkin', attempt: c.attempt } });
+      await this.audit.append(tx, tenantId, { type: 'call.no_answer', actor: SYSTEM, refId: callId, payload: { staffName: person?.name, stage: c.stage === 'collect' ? 'collect' : 'checkin', attempt: c.attempt } });
     });
   }
 

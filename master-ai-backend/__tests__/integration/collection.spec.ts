@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CreateStaffInputSchema } from '@onehuman/schemas';
 import { SYSTEM } from '../../src/audit/audit.service';
 import { DbService } from '../../src/db/db.service';
-import { calls as callsTable } from '../../src/db/schema';
+import { auditEvents, calls as callsTable } from '../../src/db/schema';
 import { ListsService } from '../../src/lists/lists.service';
 import { RecordsService } from '../../src/records/records.service';
 import { RoutinesService } from '../../src/routines/routines.service';
@@ -99,6 +99,15 @@ describe('collection routines', () => {
     expect(numbers).not.toContain('CD-2');
     expect((await routines.day(a.tenantId, routine.id)).entries[0]).toMatchObject({ status: 'reported', values: { items: 1, differences: 0 } });
     expect((await calls.get(a.tenantId, callId)).summary).toBe('Added 1 bill');
+  });
+
+  it('logs a collection call nobody answered as a collection call', async () => {
+    const { routine } = await clerk('Nobody Answers');
+    const run = await routines.startRun(a.tenantId, routine.id, 'manual');
+    const placed = await routines.placeCall(a.tenantId, run.entryIds[0]!, 1);
+    await calls.decline(a.tenantId, placed.callId!);
+    const events = await h.get(DbService).tenant(a.tenantId, (tx) => tx.select().from(auditEvents).where(eq(auditEvents.refId, placed.callId!)));
+    expect(events.find((e) => e.type === 'call.no_answer')?.payload).toMatchObject({ stage: 'collect' });
   });
 
   it('notes a difference on the bill already on the list instead of adding it again', async () => {

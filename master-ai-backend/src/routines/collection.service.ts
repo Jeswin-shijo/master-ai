@@ -138,7 +138,8 @@ export class CollectionService {
    */
   async finish(tenantId: string, callId: string, transcript: TranscriptLine[], state: CollectState, how: 'ended' | 'call_back' | 'dropped') {
     await this.db.tenant(tenantId, async (tx) => {
-      const [c] = await tx.select().from(calls).where(eq(calls.id, callId));
+      // Locked, so a call that drops while an item is being confirmed is finished once, after any save in flight.
+      const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
       if (!c?.checkinId || c.status === 'completed') return;
       const [row] = await tx
         .select({ e: routineEntries, r: routines, person: staff })
