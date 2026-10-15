@@ -16,6 +16,7 @@ export function CollectForm({ routine, staffId, open, onClose }: { routine: Rout
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list, enabled: open });
   const [added, setAdded] = useState(0);
   const [round, setRound] = useState(0);
+  const person = staffId ?? routine.people[0]?.id ?? null;
   const list = overview.data?.lists.find((l) => l.id === collect.list);
   const form = list && { ...list.entity, fields: list.entity.fields.filter((f) => collect.ask.includes(f.name) && !(f.name in collect.defaults)) };
   const add = useMutation({
@@ -26,17 +27,20 @@ export function CollectForm({ routine, staffId, open, onClose }: { routine: Rout
     },
   });
   const finish = useMutation({
-    mutationFn: () => api.routines.submit(routine.id, { staffId: staffId ?? routine.people[0]!.id, values: { items: added } }),
+    mutationFn: () => api.routines.submit(routine.id, { staffId: person!, values: { items: added } }),
     onSuccess: () => {
       for (const key of ['routine', 'routines', 'lists', 'list']) void queryClient.invalidateQueries({ queryKey: [key] });
       setAdded(0);
       onClose();
     },
   });
+  /** Closing any way records what was added, like Done; a close with nothing added just closes. */
+  const close = () => (added > 0 && person ? finish.mutate() : onClose());
   return (
-    <Dialog open={open} onClose={onClose} title={`Add today's ${collect.listLabel.toLowerCase()}`} lead={added ? `${added} added so far.` : `Each one goes to ${collect.listLabel}.`}>
-      {!form && <Spinner />}
-      {form && (
+    <Dialog open={open} onClose={close} title={`Add today's ${collect.listLabel.toLowerCase()}`} lead={added ? `${added} added so far.` : `Each one goes to ${collect.listLabel}.`}>
+      {!person && <p className="text-sm text-fg-muted">Nobody is on this routine yet. Add someone to it first.</p>}
+      {person && !form && <Spinner />}
+      {person && form && (
         <RecordForm
           key={round}
           entity={form}
@@ -45,14 +49,16 @@ export function CollectForm({ routine, staffId, open, onClose }: { routine: Rout
           pending={add.isPending}
           error={add.error}
           onSubmit={(data) => add.mutate(data)}
-          onCancel={onClose}
+          onCancel={close}
         />
       )}
-      <div className="mt-4 flex justify-end">
-        <Button variant="success" loading={finish.isPending} onClick={() => finish.mutate()}>
-          Done, {added} added
-        </Button>
-      </div>
+      {person && (
+        <div className="mt-4 flex justify-end">
+          <Button variant="success" loading={finish.isPending} onClick={() => finish.mutate()}>
+            Done, {added} added
+          </Button>
+        </div>
+      )}
       <ErrorNote error={finish.error} />
     </Dialog>
   );

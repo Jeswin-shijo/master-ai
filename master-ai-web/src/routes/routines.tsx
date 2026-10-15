@@ -581,7 +581,7 @@ export function RoutineBoardPage() {
       )}
 
       {routine.collect ? (
-        <CollectForm routine={routine} staffId={form?.staffId ?? null} open={!!form} onClose={() => setForm(null)} />
+        <CollectForm key={form?.staffId ?? 'none'} routine={routine} staffId={form?.staffId ?? null} open={!!form} onClose={() => setForm(null)} />
       ) : (
         <CheckinForm routine={routine} staffId={form?.staffId ?? null} initial={form?.values} open={!!form} onClose={() => setForm(null)} />
       )}
