@@ -14,6 +14,8 @@ describe('who a follow-up calls', () => {
     const team = [person('Anil Kumar'), person('Anil Menon', 'inactive'), person('Ravi Kumar'), person('Ravi Shankar')];
     expect(matchStaff(team, 'anil kumar ')?.id).toBe('Anil Kumar');
     expect(matchStaff(team, 'Anil')?.id).toBe('Anil Kumar');
+    expect(matchStaff(team, 'Anil Sharma')).toBeNull();
+    expect(matchStaff(team, 'Anil Menon')).toBeNull();
     expect(matchStaff(team, 'Ravi')).toBeNull();
     expect(matchStaff(team, 'Nobody')).toBeNull();
     expect(matchStaff(team, '')).toBeNull();

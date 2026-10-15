@@ -11,13 +11,14 @@ export function phoneKey(phone: string): string {
   return phone.replace(/\D/g, '').slice(-10);
 }
 
-/** The team member a name on an item means: the full name, else a first name only one active person has. */
+/** The team member a name on an item means: an active person with that full name, or — when only a first name is given — the one active person with that first name. */
 export function matchStaff(people: StaffRow[], name: string): StaffRow | null {
   const want = name.trim().toLowerCase();
   if (!want) return null;
   const active = people.filter((p) => p.status === 'active');
   const full = active.filter((p) => p.name.trim().toLowerCase() === want);
   if (full.length === 1) return full[0]!;
+  if (/\s/.test(want)) return null;
   const firstOf = (s: string) => s.trim().toLowerCase().split(/\s+/)[0];
   const byFirst = active.filter((p) => firstOf(p.name) === firstOf(want));
   return byFirst.length === 1 ? byFirst[0]! : null;
