@@ -148,7 +148,7 @@ export class RecordsService {
       type: 'record.updated',
       actor: change.actor,
       refId: id,
-      payload: { entity: entity.name, label: entity.label, title: titleOf(entity, merged), changes, via: change.via, ...(change.note && { note: change.note }) },
+      payload: { entity: entity.name, label: entity.label, title: titleOf(entity, merged), changes, via: change.via, ...(change.ref && { ref: change.ref }), ...(change.note && { note: change.note }) },
     });
     return row!;
   }

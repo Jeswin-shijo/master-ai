@@ -139,6 +139,9 @@ function searchSql(reg: ResolvedRegister, q: string): SQL {
   return sql`(${sql.join(parts, sql` or `)})`;
 }
 
+/** The item has a note from a call that nobody has applied or seen. */
+const hasNewNote = sql`exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new')`;
+
 export function whereSql(reg: ResolvedRegister, q: ParsedListQuery): SQL {
   const parts: SQL[] = [];
   if (q.dates && reg.dateField) parts.push(sql`${dayExpr(reg.dateField)} between ${q.dates.from}::date and ${q.dates.to}::date`);
@@ -149,6 +152,7 @@ export function whereSql(reg: ResolvedRegister, q: ParsedListQuery): SQL {
   if (q.show === 'problems') parts.push(openProblems(reg));
   if (q.show === 'not_checked') parts.push(sql`r.checked_at is null`);
   if (q.show === 'checked') parts.push(sql`r.checked_at is not null`);
+  if (q.show === 'new_notes') parts.push(hasNewNote);
   return parts.length ? sql.join(parts, sql` and `) : sql`true`;
 }
 
@@ -181,6 +185,6 @@ export function cardSelect(reg: ResolvedRegister, clock: SqlClock): SQL {
       : sql`true`;
   const sum = reg.card?.sum ? sql`sum(${num(reg.card.sum.field)}) filter (where ${conditionSql(reg.entity, reg.card.sum.when)})` : sql`null::numeric`;
   return sql`select count(*) filter (where ${counted})::int as count, ${sum} as sum,
-    count(*) filter (where ${openProblems(reg)})::int as problems, count(*) filter (where r.checked_at is null)::int as not_checked
+    count(*) filter (where ${openProblems(reg)})::int as problems, count(*) filter (where r.checked_at is null)::int as not_checked, count(*) filter (where ${hasNewNote})::int as new_notes
     from flagged r`;
 }

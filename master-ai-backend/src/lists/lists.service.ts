@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import type {
   ItemSource,
   ListCard,
   ListHistoryEntry,
   ListItem,
   ListItemDetail,
+  ListNote,
   ListMeta,
   ListPage,
   ListProblem,
@@ -16,7 +17,7 @@ import { normalizeSnapshot, registersOf, titleOf, type ResolvedRegister } from '
 import type { Session } from '../common/auth';
 import { AuditService } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
-import { auditEvents, cases, principals, records, toolCalls } from '../db/schema';
+import { auditEvents, calls, cases, principals, recordNotes, records, staff, toolCalls } from '../db/schema';
 import { RecordsService } from '../records/records.service';
 import { istDate } from '../voice/time';
 import { toCsv } from './csv';
@@ -26,7 +27,7 @@ import { cardSelect, dayExpr, flaggedCte, flagSelect, orderSql, totalsSelect, wh
 
 type RecordRow = typeof records.$inferSelect;
 type FlagRow = { id: string } & Record<string, unknown>;
-type CardRow = { count: number; sum: string | null; problems: number; not_checked: number };
+type CardRow = { count: number; sum: string | null; problems: number; not_checked: number; new_notes: number };
 type Workspace = { id: string; pack: ResolvedPack };
 type Change = { field: string; from: unknown; to: unknown };
 const EXPORT_LIMIT = 10_000;
@@ -95,7 +96,7 @@ export class ListsService {
     return this.db.tenant(tenantId, async (tx) => {
       const ws = await this.workspace(tx);
       const reg = this.register(ws.pack, listId);
-      return { list: meta(reg), item: await this.one(tx, ws, reg, itemId), history: await this.history(tx, ws, reg, itemId) };
+      return { list: meta(reg), item: await this.one(tx, ws, reg, itemId), history: await this.history(tx, ws, reg, itemId), notes: await this.itemNotes(tx, ws, reg, itemId) };
     });
   }
 
@@ -287,6 +288,11 @@ export class ListsService {
     );
     const refFields = reg.entity.fields.filter((f) => f.type === 'reference');
     const titles = await this.titles(tx, ws.pack, rows.flatMap((r) => refFields.map((f) => r.data[f.name])));
+    const callNames = await this.callNames(
+      tx,
+      unique(rows.flatMap((r) => [r.source === 'call' ? r.sourceRef : null, r.updatedVia === 'call' ? r.updatedRef : null])),
+    );
+    const newNotes = await this.newNoteCounts(tx, rows.map((r) => r.id));
     const name = (id: string | null) => (id ? (names.get(id) ?? null) : null);
     return flags.flatMap((flag) => {
       const r = byId.get(flag.id);
@@ -302,10 +308,11 @@ export class ListsService {
               return typeof v === 'string' && titles.has(v) ? [[f.name, titles.get(v)!]] : [];
             }),
           ),
-          source: sourceOf(r, name(r.createdBy), r.sourceRef ? caseOf.get(r.sourceRef) : undefined),
-          updated: { via: r.updatedVia, by: name(r.updatedBy), at: r.updatedAt.toISOString() },
+          source: sourceOf(r, name(r.createdBy), r.sourceRef ? caseOf.get(r.sourceRef) : undefined, r.sourceRef ? callNames.get(r.sourceRef) : undefined),
+          updated: { via: r.updatedVia, by: r.updatedVia === 'call' ? (r.updatedRef ? (callNames.get(r.updatedRef) ?? null) : null) : name(r.updatedBy), at: r.updatedAt.toISOString() },
           problems: problemsOf(reg, flag, r, clock.today),
           checked: r.checkedAt ? { by: name(r.checkedBy) ?? 'Someone', at: r.checkedAt.toISOString(), note: r.checkNote } : null,
+          newNotes: newNotes.get(r.id) ?? 0,
           createdAt: r.createdAt.toISOString(),
         },
       ];
@@ -330,6 +337,50 @@ export class ListsService {
         return [t.id, def ? titleOf(def, t.data) : t.entity] as const;
       }),
     );
+  }
+
+  /** Who each call was with: the team member, or the outside party. */
+  private async callNames(tx: Tx, ids: string[]): Promise<Map<string, string>> {
+    const want = ids.filter(isUuid);
+    if (!want.length) return new Map();
+    const rows = await tx
+      .select({ id: calls.id, person: staff.name, contact: calls.contactName })
+      .from(calls)
+      .leftJoin(staff, eq(staff.id, calls.staffId))
+      .where(inArray(calls.id, want));
+    return new Map(rows.flatMap((c) => (c.person ?? c.contact ? [[c.id, (c.person ?? c.contact)!] as const] : [])));
+  }
+
+  private async newNoteCounts(tx: Tx, ids: string[]): Promise<Map<string, number>> {
+    if (!ids.length) return new Map();
+    const rows = await tx
+      .select({ id: recordNotes.recordId, n: count() })
+      .from(recordNotes)
+      .where(and(inArray(recordNotes.recordId, ids), eq(recordNotes.status, 'new')))
+      .groupBy(recordNotes.recordId);
+    return new Map(rows.map((r) => [r.id, Number(r.n)]));
+  }
+
+  /** An item's notes from calls, newest first, with what they propose in words. */
+  private async itemNotes(tx: Tx, ws: Workspace, reg: ResolvedRegister, itemId: string): Promise<ListNote[]> {
+    const rows = await tx.select().from(recordNotes).where(eq(recordNotes.recordId, itemId)).orderBy(desc(recordNotes.createdAt));
+    const names = await this.names(tx, rows.map((n) => n.decidedBy));
+    const titles = await this.titles(tx, ws.pack, rows.flatMap((n) => Object.values(n.proposed)));
+    return rows.map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      speaker: n.speaker,
+      said: n.said,
+      proposed: Object.entries(n.proposed).map(([field, value]) => {
+        const f = reg.entity.fields.find((x) => x.name === field);
+        return { field, label: f?.label ?? field, value: f ? shown(f, value, titles) : String(value) };
+      }),
+      promiseOn: n.promiseOn,
+      status: n.status,
+      decidedBy: n.decidedBy ? (names.get(n.decidedBy) ?? 'Someone') : null,
+      callId: n.callId,
+      at: n.createdAt.toISOString(),
+    }));
   }
 
   /** The item's history from the audit trail, in words, references by title. */
@@ -388,17 +439,18 @@ function card(reg: ResolvedRegister, row: CardRow): ListCard {
     sumLabel: reg.card?.sum?.label ?? null,
     problems: Number(row.problems ?? 0),
     notChecked: Number(row.not_checked ?? 0),
+    newNotes: Number(row.new_notes ?? 0),
   };
 }
 
-function sourceOf(r: RecordRow, creator: string | null, c?: { caseId: string; code: string }): ItemSource {
+function sourceOf(r: RecordRow, creator: string | null, c?: { caseId: string; code: string }, callWith?: string): ItemSource {
   switch (r.source) {
     case 'sample':
       return { kind: 'sample', label: 'Sample data' };
     case 'agent':
       return c ? { kind: 'agent', label: `AI agent (${c.code})`, caseId: c.caseId, caseCode: c.code } : { kind: 'agent', label: 'AI agent' };
     case 'call':
-      return { kind: 'call', label: 'Phone call', ...(r.sourceRef ? { callId: r.sourceRef } : {}) };
+      return { kind: 'call', label: callWith ? `Call with ${callWith}` : 'Phone call', ...(r.sourceRef ? { callId: r.sourceRef } : {}) };
     default:
       return { kind: 'manual', label: creator ? `${creator}, by hand` : 'By hand' };
   }

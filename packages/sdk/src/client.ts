@@ -317,6 +317,11 @@ export function createClient(options: ClientOptions) {
       reply: (id: string, text: string) => post<CallRecord>(`/calls/${id}/reply`, { text }),
       decline: (id: string) => post<CallRecord>(`/calls/${id}/decline`),
     },
+    notes: {
+      /** Sets what a call note proposes on its item; the item becomes checked by you. */
+      apply: (id: string) => post<{ applied: true }>(`/notes/${id}/apply`),
+      dismiss: (id: string) => post<{ dismissed: true }>(`/notes/${id}/dismiss`),
+    },
     lists: {
       overview: () => get<ListsOverview>('/lists'),
       page: (id: string, query: ListQueryParams = {}) => get<ListPage>(`/lists/${encodeURIComponent(id)}${listQuery(query)}`),

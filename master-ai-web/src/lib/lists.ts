@@ -7,7 +7,7 @@ export const RANGE_LABELS: Record<ListRange, string> = {
   last_month: 'Last month',
   all: 'All time',
 };
-export const SHOW_LABELS: Record<ListShow | 'all', string> = { all: 'All', problems: 'Has problems', not_checked: 'Not checked', checked: 'Checked' };
+export const SHOW_LABELS: Record<ListShow | 'all', string> = { all: 'All', problems: 'Has problems', not_checked: 'Not checked', checked: 'Checked', new_notes: 'New from calls' };
 export const SOURCE_LABELS: Record<ItemSourceKind, string> = { manual: 'By hand', call: 'Phone call', agent: 'AI agent', sample: 'Sample data' };
 
 /** What a list page shows. `range: 'custom'` uses `from` and `to`. */

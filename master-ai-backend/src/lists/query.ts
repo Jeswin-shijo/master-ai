@@ -7,7 +7,7 @@ export const PAGE_SIZE = 50;
 export const RANGES = ['today', 'this_week', 'this_month', 'last_month', 'all'] as const;
 export type RangeName = (typeof RANGES)[number];
 const SOURCES = ['manual', 'call', 'agent', 'sample'] as const;
-const SHOW = ['problems', 'not_checked', 'checked'] as const;
+const SHOW = ['problems', 'not_checked', 'checked', 'new_notes'] as const;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface ParsedListQuery {

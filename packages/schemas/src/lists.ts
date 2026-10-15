@@ -20,7 +20,7 @@ export const RemoveListItemInputSchema = z.object({ reason: z.string().trim().mi
 
 export type ItemSourceKind = 'manual' | 'call' | 'agent' | 'sample';
 export type ListRange = 'today' | 'this_week' | 'this_month' | 'last_month' | 'all';
-export type ListShow = 'problems' | 'not_checked' | 'checked';
+export type ListShow = 'problems' | 'not_checked' | 'checked' | 'new_notes';
 
 /** What a list is: its record type and how it is shown. Field names refer to `entity.fields`. */
 export interface ListMeta {
@@ -45,6 +45,8 @@ export interface ListCard {
   /** Items with a problem nobody has accepted. */
   problems: number;
   notChecked: number;
+  /** Items with a note from a call the head hasn't seen. */
+  newNotes: number;
 }
 
 export interface ListSummary extends ListMeta {
@@ -84,6 +86,8 @@ export interface ListItem {
   updated: { via: 'manual' | 'call' | 'agent' | 'system' | null; by: string | null; at: string };
   problems: ListProblem[];
   checked: { by: string; at: string; note: string | null } | null;
+  /** Notes from calls not yet applied or seen. */
+  newNotes: number;
   createdAt: string;
 }
 
@@ -107,10 +111,31 @@ export interface ListHistoryEntry {
   note: string | null;
 }
 
+/** What a call left on an item: what was said (as said), and what it proposes. */
+export type NoteKind = 'said' | 'promise' | 'dispute' | 'wrong_number' | 'difference' | 'unreachable';
+
+export interface ListNote {
+  id: string;
+  kind: NoteKind;
+  /** The party's or team member's name. */
+  speaker: string;
+  said: string;
+  /** Changes it proposes, in words. Apply sets them. */
+  proposed: { field: string; label: string; value: string }[];
+  /** A promise's date, YYYY-MM-DD. */
+  promiseOn: string | null;
+  status: 'new' | 'applied' | 'dismissed';
+  /** Who applied or dismissed it. */
+  decidedBy: string | null;
+  callId: string | null;
+  at: string;
+}
+
 export interface ListItemDetail {
   list: ListMeta;
   item: ListItem;
   history: ListHistoryEntry[];
+  notes: ListNote[];
 }
 
 /** A list page's query: a named range or a from/to pair, filters as field → value. */
