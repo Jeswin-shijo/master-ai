@@ -124,6 +124,16 @@ describe('collection routines', () => {
     ]);
   });
 
+  it('checks each fixed default against its field', () => {
+    const withDefaults = (defaults: Record<string, string | number | boolean>): RoutineTemplate => ({ ...todays, collect: { ...todays.collect!, ask: ['billNo'], defaults } });
+    const issues = (defaults: Record<string, string | number | boolean>) => validateCollects(pack([bills([])], [withDefaults(defaults)]));
+    expect(issues({ billDate: 'today', total: 0, paymentStatus: 'unpaid' })).toEqual([]);
+    expect(issues({ total: 'unknown' })).toContain('routine todays-bills: total is money, so its default must be a number');
+    expect(issues({ clerk: 5 })).toContain('routine todays-bills: clerk is string, so its default cannot be a number');
+    expect(issues({ billDate: 'now' })).toContain('routine todays-bills: now is for date-time fields, billDate is date');
+    expect(issues({ clerk: 'today' })).toContain('routine todays-bills: today is for date fields, clerk is string');
+  });
+
   it('asks the asked fields in order, less the defaulted ones', () => {
     const reg = registersOf(pack([bills([])])).find((r) => r.id === 'bills')!;
     expect(collectAsk(reg, { ask: ['total', 'billNo', 'billDate'], defaults: { billDate: 'today' } }).map((f) => f.name)).toEqual(['total', 'billNo']);
@@ -148,6 +158,22 @@ describe('follow-ups as updates', () => {
     const collect = { list: 'orders', ask: ['billNo'], defaults: {}, max_items: 15 };
     const r: RoutineTemplate = { id: 'orders-call', name: 'Orders', description: 'x', mode: 'automatic', days: [1], time: '18:00', questions: [], collect };
     expect(packUpdates(resolved([bills([])]), resolved([bills([])], [r])).routines).toEqual([]);
+  });
+});
+
+describe('a pack update that offers a collection routine', () => {
+  const resolvedWith = (routines: RoutineTemplate[]) =>
+    ({ entities: [Party, Bill], registers: [bills([])], routines, agents: [], tools: [], workflows: [], policies: [], kpis: [], playbooks: [] }) as unknown as ResolvedPack;
+  const routine = (over: Partial<RoutineTemplate['collect'] & object>): RoutineTemplate => ({
+    id: 'todays-bills', name: 'Bills', description: 'x', mode: 'automatic', days: [1], time: '18:00', questions: [],
+    collect: { list: 'bills', ask: ['billNo'], defaults: {}, max_items: 15, ...over },
+  });
+
+  it('leaves out one that asks a field the list does not have, or that would fail the checks', () => {
+    const installed = resolvedWith([]);
+    expect(packUpdates(installed, resolvedWith([routine({ ask: ['billNo', 'colour'] })])).routines).toEqual([]);
+    expect(packUpdates(installed, resolvedWith([routine({ defaults: { total: 'unknown' } })])).routines).toEqual([]);
+    expect(packUpdates(installed, resolvedWith([routine({})])).routines.map((r) => r.id)).toEqual(['todays-bills']);
   });
 });
 

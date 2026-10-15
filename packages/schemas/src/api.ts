@@ -142,12 +142,14 @@ export type TenantSettingsInput = z.input<typeof TenantSettingsInputSchema>;
 
 const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'HH:MM');
 
-export const WorkingHoursSchema = z.object({
-  /** 0 = Sunday … 6 = Saturday. */
-  days: z.array(z.number().int().min(0).max(6)).min(1).default([1, 2, 3, 4, 5, 6]),
-  start: HHMM.default('09:00'),
-  end: HHMM.default('19:00'),
-});
+export const WorkingHoursSchema = z
+  .object({
+    /** 0 = Sunday … 6 = Saturday. */
+    days: z.array(z.number().int().min(0).max(6)).min(1).default([1, 2, 3, 4, 5, 6]),
+    start: HHMM.default('09:00'),
+    end: HHMM.default('19:00'),
+  })
+  .refine((h) => h.start < h.end, { message: 'Calling hours must end after they start', path: ['end'] });
 
 export const CreateStaffInputSchema = z.object({
   name: z.string().trim().min(1).max(120),

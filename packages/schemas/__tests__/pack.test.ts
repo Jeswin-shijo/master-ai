@@ -95,6 +95,13 @@ describe('follow-ups on a list', () => {
     expect(FollowUpSchema.safeParse(staff).success).toBe(true);
   });
 
+  it('refuses calling hours that run backwards, in words', () => {
+    const r = FollowUpSchema.safeParse({ ...party, hours: { start: '19:00', end: '08:00' } });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues.map((i) => i.message)).toContain('Calling hours must end after they start');
+    expect(FollowUpSchema.safeParse({ ...party, hours: { start: '08:00', end: '19:00' } }).success).toBe(true);
+  });
+
   it('reads all three ways to find a phone', () => {
     for (const phone of [{ field: 'consigneePhone' }, { ref: 'party', field: 'phone' }, { lookup: 'Customer', match: 'name', value: 'client', field: 'phone' }]) {
       expect(FollowUpSchema.safeParse({ ...party, phone }).success).toBe(true);

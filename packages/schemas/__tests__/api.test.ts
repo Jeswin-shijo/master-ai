@@ -3,11 +3,14 @@ import {
   CallSettingsInputSchema,
   CreateCaseInputSchema,
   CreateIntakeKeyInputSchema,
+  CreateStaffInputSchema,
   CreateInviteInputSchema,
   IntakeCaseInputSchema,
   LoginInputSchema,
   PublicFormInputSchema,
   SignupInputSchema,
+  TenantSettingsInputSchema,
+  WorkingHoursSchema,
 } from '../src/api';
 
 const messages = (r: { success: boolean; error?: { issues: { message: string }[] } }) => (r.success ? [] : r.error!.issues.map((i) => i.message));
@@ -90,5 +93,17 @@ describe('call settings for outside parties', () => {
     expect(s).toEqual({ partyHours: { days: [1, 2, 3, 4, 5], start: '10:00', end: '17:00' }, followUpsPerDay: 20 });
     expect(CallSettingsInputSchema.safeParse({ followUpsPerDay: 0 }).success).toBe(false);
     expect(CallSettingsInputSchema.safeParse({ followUpsPerDay: 201 }).success).toBe(false);
+  });
+});
+
+describe('calling hours', () => {
+  it('must run forwards, said in words', () => {
+    const backwards = TenantSettingsInputSchema.safeParse({ calls: { partyHours: { start: '18:00', end: '10:00' } } });
+    expect(backwards.success).toBe(false);
+    expect(backwards.error?.issues[0]?.message).toBe('Calling hours must end after they start');
+    expect(TenantSettingsInputSchema.safeParse({ calls: { partyHours: { start: '10:00', end: '10:00' } } }).success).toBe(false);
+    expect(TenantSettingsInputSchema.safeParse({ calls: { partyHours: { start: '10:00', end: '18:00' } } }).success).toBe(true);
+    expect(WorkingHoursSchema.safeParse({ start: '20:00', end: '08:00' }).success).toBe(false);
+    expect(CreateStaffInputSchema.safeParse({ name: 'A', phone: '+91 98470 12345', title: 'x', workingHours: { start: '20:00', end: '08:00' } }).success).toBe(false);
   });
 });

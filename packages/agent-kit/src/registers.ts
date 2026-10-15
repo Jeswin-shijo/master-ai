@@ -422,6 +422,8 @@ export function validateCollects(pack: Pick<ResolvedPack, 'entities'> & { regist
     for (const [n, v] of Object.entries(c.defaults)) {
       const f = field(n);
       if (!f) issues.push(`${at}: default ${n} is not a field of ${reg.entity.name}`);
+      else if (typeof v === 'string' && f.type === 'money' && v !== 'today' && v !== 'now') issues.push(`${at}: ${n} is money, so its default must be a number`);
+      else if (typeof v === 'number' && !['number', 'integer', 'money'].includes(f.type)) issues.push(`${at}: ${n} is ${f.type}, so its default cannot be a number`);
       else if (v === 'today' && f.type !== 'date') issues.push(`${at}: today is for date fields, ${n} is ${f.type}`);
       else if (v === 'now' && f.type !== 'datetime') issues.push(`${at}: now is for date-time fields, ${n} is ${f.type}`);
       else if (f.type === 'enum' && !f.options?.includes(String(v))) issues.push(`${at}: ${String(v)} is not an option of ${n}`);

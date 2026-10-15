@@ -185,7 +185,10 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     agents,
     tools,
     workflows,
-    routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id).filter((r) => !r.collect || listIds.has(r.collect.list)),
+    // A collection routine is offered only if it fits the lists and fields the workspace will have.
+    routines: missing(latest.routines ?? [], installed.routines ?? [], (r) => r.id).filter(
+      (r) => !r.collect || (listIds.has(r.collect.list) && validateCollects({ entities: nextEntities, registers: [...(installed.registers ?? []), ...registers], routines: [r] }).length === 0),
+    ),
     policies: missing(latest.policies, installed.policies, policyKey).filter(
       (r) => (!r.agent || roles.has(r.agent)) && (r.when?.category ?? []).every((id) => categoryIds.has(id)),
     ),

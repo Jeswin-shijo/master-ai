@@ -329,7 +329,7 @@ export const FollowUpSchema = z
     every_days: z.number().int().min(1).max(30).optional(),
     max_tries: z.number().int().min(1).max(5).default(3),
     /** A narrower calling window, e.g. RBI's 08:00–19:00 for recovery calls. */
-    hours: z.strictObject({ start: HHMM, end: HHMM }).optional(),
+    hours: z.strictObject({ start: HHMM, end: HHMM }).refine((h) => h.start < h.end, { message: 'Calling hours must end after they start', path: ['end'] }).optional(),
   })
   .refine(
     (f) => (f.who === 'party' ? !!f.phone && !!f.contact && !f.staff : !!f.staff && !f.phone && !f.contact),
