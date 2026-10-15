@@ -17,6 +17,8 @@ const SCALES: Record<string, number> = {
   hundred: 100, thousand: 1_000, k: 1_000, lakh: 100_000, lakhs: 100_000, lac: 100_000, lacs: 100_000, crore: 10_000_000, crores: 10_000_000,
 };
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+/** What people say for each month: the full name or a standard abbreviation, as a whole word ("maybe" and "market" are not months). */
+const MONTH_WORDS = ['jan|january', 'feb|february', 'mar|march', 'apr|april', 'may', 'jun|june', 'jul|july', 'aug|august', 'sept?|september', 'oct|october', 'nov|november', 'dec|december'].map((m) => `(?:${m})\\.?(?![a-z])`);
 const MONTH_NAMES = MONTHS.map((m) => m[0]!.toUpperCase() + m.slice(1));
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -26,6 +28,8 @@ type Part = { n: number } | { scale: number };
 export function spokenAmount(text: string): number | null {
   const lower = text.toLowerCase();
   if (/\b(half|quarter)\b/.test(lower)) return null;
+  // A self-correction ("sixty thousand, no sorry, sixty five thousand") is asked again, not guessed.
+  if (/\b(sorry|no wait|i mean|correction)\b/.test(lower)) return null;
   const tokens = lower.replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?|[a-z]+/g) ?? [];
   const parts: Part[] = [];
   // "two point five": digits after "point" are decimal places, read one by one.
@@ -82,9 +86,10 @@ export function spokenAmount(text: string): number | null {
 
 /** How many: "three", "12", "none" (0). */
 export function spokenCount(text: string): number | null {
-  if (/^\s*(none|no(ne)?\s*\w*\s*today|nothing|zero|nil|no)\b/i.test(text)) return 0;
-  const n = spokenAmount(text);
-  return n === null ? null : Math.round(n);
+  const n = /^\s*no\s+one\b/i.test(text) ? null : spokenAmount(text);
+  if (n !== null) return Math.round(n);
+  // "No, there are five" counts 5 (above); a bare "No" or "None" is zero.
+  return /^\s*(none|no(ne)?\s*\w*\s*today|nothing|zero|nil|no)\b/i.test(text) ? 0 : null;
 }
 
 function realDay(y: number, m: number, d: number): string | null {
@@ -93,6 +98,20 @@ function realDay(y: number, m: number, d: number): string | null {
   return dt.toISOString().slice(0, 10);
 }
 
+/** "20 October", "Oct 20th", "5 May": a month as a whole word, with its day. */
+function monthDay(t: string, year: number): string | null {
+  const month = MONTH_WORDS.findIndex((m) => new RegExp(`\\b${m}`).test(t));
+  if (month < 0) return null;
+  const name = MONTH_WORDS[month]!;
+  const day = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?${name}`).exec(t) ?? new RegExp(`\\b${name}\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`).exec(t);
+  const y = /\b(20\d{2})\b/.exec(t);
+  return day ? realDay(y ? Number(y[1]) : year, month + 1, Number(day[1])) : null;
+}
+
+/** A past-tense cue before a bare weekday: "Fixed it on Tuesday", "paid on Monday"; a future cue ("will be delivered on Tuesday") cancels it. */
+const PAST_CUE = /\b(?:fixed|paid|done|did|was|were|sent|received|came|closed|finished|completed|cleared|delivered)\b|\b\w+ed\s+on\s*$/;
+const FUTURE_CUE = /\b(?:will|shall|going to|gonna|should|must|to be)\b|['’]ll\b/;
+
 /** A day, YYYY-MM-DD in India: "today", "yesterday", "20 October", "20/10" (day first), "on Friday", "last Monday", "in 3 days". */
 export function spokenDate(text: string, now: Date = new Date()): string | null {
   const t = text.toLowerCase();
@@ -100,6 +119,17 @@ export function spokenDate(text: string, now: Date = new Date()): string | null 
   const year = Number(today.slice(0, 4));
   const iso = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(t);
   if (iso) return realDay(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const relative = /\b(day before yesterday|day after tomorrow|yesterday|tomorrow|today|tonight|in \d{1,2} days?)\b/.test(t);
+  // An explicit date beats "today" or "tomorrow" said in the same reply ("entered today, dated 12 October").
+  const named = monthDay(t, year);
+  if (named) return named;
+  const numeric = /\b(\d{1,2})([/.-])(\d{1,2})(?:[/.-](\d{2,4}))?\b/.exec(t);
+  // With a relative word, only "20/10" and "20-10" count as a date, so "yesterday at 5.30" is still yesterday.
+  if (numeric && !(relative && numeric[2] === '.')) {
+    const y = numeric[4] ? (numeric[4].length === 2 ? 2000 + Number(numeric[4]) : Number(numeric[4])) : year;
+    const day = realDay(y, Number(numeric[3]), Number(numeric[1]));
+    if (day || !relative) return day;
+  }
   if (/\bday before yesterday\b/.test(t)) return addDaysTo(today, -2);
   if (/\bday after tomorrow\b/.test(t)) return addDaysTo(today, 2);
   if (/\byesterday\b/.test(t)) return addDaysTo(today, -1);
@@ -107,22 +137,13 @@ export function spokenDate(text: string, now: Date = new Date()): string | null 
   if (/\b(today|tonight)\b/.test(t)) return today;
   const inDays = /\bin (\d{1,2}) days?\b/.exec(t);
   if (inDays) return addDaysTo(today, Number(inDays[1]));
-  const numeric = /\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b/.exec(t);
-  if (numeric) {
-    const y = numeric[3] ? (numeric[3].length === 2 ? 2000 + Number(numeric[3]) : Number(numeric[3])) : year;
-    return realDay(y, Number(numeric[2]), Number(numeric[1]));
-  }
-  const month = MONTHS.findIndex((m) => new RegExp(`\\b${m.slice(0, 3)}[a-z]*\\b`).test(t));
-  if (month >= 0) {
-    const name = `${MONTHS[month]!.slice(0, 3)}[a-z]*`;
-    const day = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?${name}`).exec(t) ?? new RegExp(`${name}\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`).exec(t);
-    const y = /\b(20\d{2})\b/.exec(t);
-    if (day) return realDay(y ? Number(y[1]) : year, month + 1, Number(day[1]));
-  }
-  const wd = WEEKDAYS.findIndex((w) => new RegExp(`\\b${w}\\b`).test(t));
-  if (wd >= 0) {
+  const wdMatch = WEEKDAYS.map((w) => new RegExp(`\\b${w}\\b`).exec(t)).find((m) => m);
+  if (wdMatch) {
+    const wd = WEEKDAYS.indexOf(wdMatch[0]);
     const dow = new Date(`${today}T00:00:00Z`).getUTCDay();
-    if (/\blast\b/.test(t)) return addDaysTo(today, -(((dow - wd + 7) % 7) || 7));
+    const before = t.slice(0, wdMatch.index);
+    const gone = /\blast\b/.test(t) || (PAST_CUE.test(before) && !FUTURE_CUE.test(before) && !/\bnext\b/.test(t));
+    if (gone) return addDaysTo(today, -(((dow - wd + 7) % 7) || 7));
     return addDaysTo(today, ((wd - dow + 7) % 7) || 7);
   }
   return null;
@@ -139,7 +160,7 @@ export function spokenDateTime(text: string, now: Date = new Date()): string | n
 const UNSURE = /\b(not sure|don'?t know|no idea|maybe)\b/i;
 export const BENIGN = /\b(no problem|no issues?|not a problem|no worries)\b/gi;
 const NEGATION = /\b(no|nope|nahi|nah|not|wrong|incorrect)\b/i;
-const YES = /\b(yes|yeah|yep|yup|haan|han|ha|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
+const YES = /\b(yes|yeah|yep|yup|haan|han|ha|ji|theek hai|thik hai|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
 
 export function spokenYesNo(text: string): boolean | null {
   if (UNSURE.test(text)) return null;
@@ -153,6 +174,8 @@ const norm = (s: string) => ` ${s.toLowerCase().replace(/[-_]/g, ' ').replace(/[
 /** The option said: the whole option ("in progress" for in-progress), or a first word only one option has ("purchase"). */
 export function matchOption(options: string[], text: string): string | null {
   const t = norm(text);
+  // "Not credit note, debit note" is the debit note: an option directly after "not" is left out.
+  options = options.filter((o) => !t.includes(` not${norm(o)}`));
   const whole = [...options].sort((a, b) => b.length - a.length).find((o) => t.includes(norm(o)));
   if (whole) return whole;
   const byFirst = options.filter((o) => {
@@ -258,7 +281,8 @@ export function parseField(f: EntityField, text: string, now: Date): { ok: true;
     }
     case 'phone': {
       const digits = t.replace(/[^\d+]/g, '');
-      return digits.replace(/\D/g, '').length >= 8 ? { ok: true, value: digits } : { ok: false };
+      const n = digits.replace(/\D/g, '').length;
+      return n >= 8 && n <= 13 ? { ok: true, value: digits } : { ok: false };
     }
     case 'email': {
       const m = /[^\s@]+@[^\s@]+\.[^\s@]+/.exec(t);

@@ -87,7 +87,7 @@ export interface CollectHeard {
   callBack: boolean;
 }
 
-const CALL_BACK = /\b(call (me )?(back|later)|busy (now|right now)|can'?t talk|driving|in a meeting|not a good time)\b/i;
+const CALL_BACK = /\b(call (me )?(back|later)|busy (now|right now)|can'?t talk|i['’]?m driving|i am driving|in a meeting|not a good time)\b/i;
 const NO_MORE = /\b(that'?s (all|it|everything)|no more|nothing (else|more)|that is all|done for (today|now)|no others?)\b/i;
 const SKIP = /\b(skip|don'?t know|not sure|no idea|not there|not given|leave it|none|nil)\b/i;
 const OTHER = /\b(none|neither|other|different one)\b/i;

@@ -308,3 +308,41 @@ describe('replies that must not turn into the wrong result', () => {
     }
   });
 });
+
+describe('leftover gaps in follow-up replies', () => {
+  const paidWays = ['Payment done', 'Payment is done', 'Done the payment', 'Made the payment'];
+
+  it.each(paidWays)('reads "%s" as paid and asks for a reference', async (reply) => {
+    const t = await talk(party, ['Yes, speaking', reply]);
+    expect(t.state.phase).toBe('reference');
+    expect(t.state.result).toMatchObject({ kind: 'settled' });
+  });
+
+  it('still reads a future or negated payment as not paid', async () => {
+    expect((await talk(party, ['Yes, speaking', 'Payment will be done Friday'])).result).toMatchObject({ kind: 'promise' });
+    expect((await talk(party, ['Yes, speaking', 'Payment not done yet'])).result).not.toMatchObject({ kind: 'settled' });
+    expect((await talk(party, ['Yes, speaking', "I haven't made the payment"])).result).not.toMatchObject({ kind: 'settled' });
+  });
+
+  it('takes "nothing pending" as done and "only testing pending" as in progress', async () => {
+    expect((await talk(staff, ['All done, nothing pending'])).result).toMatchObject({ kind: 'status', patch: { status: 'resolved' } });
+    expect((await talk(staff, ['Done, only testing pending'])).result).toMatchObject({ kind: 'status', patch: { status: 'in-progress' } });
+  });
+
+  it('ignores a due time that has already passed', async () => {
+    const t = await talk(staff, ['Fixed it this morning']);
+    expect(t.result).toMatchObject({ kind: 'status', patch: { status: 'resolved' } });
+    expect((t.result as { patch: Record<string, unknown> }).patch).not.toHaveProperty('dueBy');
+  });
+
+  it('reads a long number after a payment word as an amount, not a reference', async () => {
+    const amount: EntityField = { name: 'amountPaid', label: 'Amount paid', type: 'money', required: false };
+    const ctx = { ...party, findOut: [paymentStatus, paymentRef, amount] };
+    const t = await talk(ctx, ['Yes, speaking', 'Paid 120000']);
+    expect(t.state.phase).toBe('reference');
+    expect(t.result).toMatchObject({ kind: 'settled', proposed: { amountPaid: 120000 } });
+    expect((t.result as { proposed: Record<string, unknown> }).proposed).not.toHaveProperty('paymentRef');
+    const utr = await talk(party, ['Yes, speaking', 'Paid, UTR 445566']);
+    expect(utr.result).toMatchObject({ kind: 'settled', proposed: { paymentRef: '445566' } });
+  });
+});

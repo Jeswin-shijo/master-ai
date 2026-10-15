@@ -83,13 +83,13 @@ const IDENTITY_YES = /^\s*(?:yes|yeah|haan|ji|hello)?[\s,.!]*speaking\b|\b(this 
 const DISPUTE =
   /\b(never (came|arrived|received|got|reached|delivered)|did ?n'?t (get|receive|order)|not (ours|our order)|wrong (amount|bill|item|goods|rate)|damaged|shortage|short (supply|supplied|delivered|delivery|sent|shipped|by)|(goods|items|quantity|stock|material|pieces|boxes) (were |was |is |are )?short|dispute|disagree|incorrect|mistake|overcharged|returned)\b/i;
 const NOT_PAID = /\b(not (yet )?(paid|sent|received|done|cleared)|haven'?t (paid|sent|cleared)|didn'?t pay|unpaid|no money)\b/i;
-const PAID = /\b(paid|already (sent|done|cleared|transferred)|transferred|cleared|settled|received|delivered|approved|confirmed|sent (it|the|back))\b/i;
+const PAID = /\b(payment (?:is |was |has been )?(?:done|made|complete|completed)|(?:done|made|completed) (?:the |my |our )?payment|paid|already (sent|done|cleared|transferred)|transferred|cleared|settled|received|delivered|approved|confirmed|sent (it|the|back))\b/i;
 const NOT_DONE = /\b(not (yet )?(done|finished|fixed|completed|resolved)|still (working|on it|pending)|working on it|in progress)\b/i;
 const DONE = /\b(done|fixed|finished|completed|resolved|sorted|closed)\b/i;
 /** A done-word with a hedge or a time still to come is not done: "almost done", "should be done", "done by 5 pm", "done in 2 days". */
 const HEDGE = /\b(almost|nearly|should|hopefully|probably|by|in \d+ (?:days?|hours?)|pending|remaining|soon|tomorrow)\b/i;
 const SETTLE_WORDS =
-  'paid|pay|received|receive|done|cleared|clear|transferred|transfer|settled|settle|approved|approve|confirmed|confirm|delivered|deliver|released|release|fixed|fix|finished|finish|completed|complete|resolved|resolve|sorted';
+  'paid|pay|received|receive|done|cleared|clear|transferred|transfer|settled|settle|approved|approve|confirmed|confirm|delivered|deliver|released|release|fixed|fix|finished|finish|completed|complete|resolved|resolve|sorted|made';
 /** A settle word negated just before it: "has not been paid", "haven't received the goods", "nothing is done", "isn't fixed". */
 const NEGATED_SETTLE = new RegExp(`\\b(?:not|never|no|nothing|none|cannot|yet to|(?:is|are|was|were|has|have|had|did|do|does|wo|ca)n['’]?t)(?:\\s+\\w+){0,2}?\\s+(?:${SETTLE_WORDS})\\b`, 'i');
 /** A settle word in the future: "will be paid", "I'll finish it", "going to clear". */
@@ -97,6 +97,8 @@ const FUTURE_SETTLE = new RegExp(`(?:\\b(?:will|shall|going to|gonna|yet to|abou
 const LATER = /\b(next (week|month)|in a (few|couple of) days|end of (the )?(week|month))\b/i;
 const REF_WORD = /\b(?:utr|ref(?:erence)?|txn|transaction|cheque|receipt)\b/i;
 const REF_FILLER = /^(?:no|number|num|id|is|was|its|it's|[:#.-])$/i;
+/** A long number right after a payment word is an amount: "Paid 120000", "payment of 120000". */
+const AMOUNT_BEFORE = /\b(?:paid|pay|payment|amount)(?:\s+(?:of|is|was))?\s*[:-]?\s*$/i;
 const PHONE = /^(?:\+?91)?[6-9]\d{9}$/;
 const PHONE_IN_TEXT = /(?:\+?91[\s-]?)?\b[6-9]\d{9}\b/g;
 const MONEY_NEAR = /₹|\brs\.?|\brupees?\b|\binr\b|\blakhs?\b|\bcrores?\b|\bthousand\b/i;
@@ -162,7 +164,8 @@ function referenceIn(text: string): { ref: string; start: number; end: number } 
   }
   for (const n of text.matchAll(/\b[A-Za-z]{0,4}\d{6,}\b/g)) {
     const around = text.slice(Math.max(0, n.index - 12), n.index + n[0].length + 12);
-    if (PHONE.test(n[0].replace(/^[A-Za-z]+/, '')) || MONEY_NEAR.test(around)) continue;
+    const before = text.slice(0, n.index);
+    if (PHONE.test(n[0].replace(/^[A-Za-z]+/, '')) || MONEY_NEAR.test(around) || AMOUNT_BEFORE.test(before)) continue;
     return { ref: n[0].toUpperCase(), start: n.index, end: n.index + n[0].length };
   }
   return null;
@@ -183,10 +186,13 @@ function indiaTime(raw: string | null | undefined): { day: string; at: string } 
   return Number.isNaN(at.getTime()) ? null : { day: m[1]!, at: at.toISOString() };
 }
 
+/** "Nothing pending" says it is done, so "pending" there is not a hedge. */
+const NOTHING_LEFT = /\b(nothing pending|no pending|nothing left|all done)\b/gi;
+
 /** A team member's reply that is not done yet: negated or future, hedged, or naming a day after today. */
 const staffNotDone = (t: string, now: Date) => {
   const day = spokenDate(t, now);
-  return notDoneIn(t) || HEDGE.test(t) || (day !== null && day > istDate(now));
+  return notDoneIn(t) || HEDGE.test(t.replace(NOTHING_LEFT, ' ')) || (day !== null && day > istDate(now));
 };
 
 /** The status a team member gave. A negated or future done-word means in progress; a call never sets an item back to new. */
@@ -264,7 +270,7 @@ export function followUpTurn(ctx: FollowUpContext, text: string, heard: FollowUp
       const modelDue = scripted ? null : indiaTime(heard?.dueAt);
       const raw = scripted ?? (modelDue && (dateField.type === 'date' ? modelDue.day : modelDue.at));
       const day = raw ? (dateField.type === 'date' ? raw.slice(0, 10) : istDate(new Date(raw))) : null;
-      if (raw && day && day >= today) due = dateField.type === 'date' ? raw.slice(0, 10) : new Date(raw).toISOString();
+      if (raw && day && day >= today && (dateField.type === 'date' || new Date(raw) > ctx.now)) due = dateField.type === 'date' ? raw.slice(0, 10) : new Date(raw).toISOString();
     }
     const patch: Record<string, unknown> = { ...(status && field && { [field.name]: status }), ...(due && dateField && { [dateField.name]: due }) };
     if (Object.keys(patch).length) {

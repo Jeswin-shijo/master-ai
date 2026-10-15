@@ -56,7 +56,7 @@ export function parseDue(text: string, now: Date = new Date()): Date | null {
   let dayOffset: number | null = null;
   if (/\bday after tomorrow\b/.test(t)) dayOffset = 2;
   else if (/\btomorrow\b/.test(t)) dayOffset = 1;
-  else if (/\b(today|tonight)\b/.test(t)) dayOffset = 0;
+  else if (/\b(today|tonight|this (?:morning|afternoon|evening))\b/.test(t)) dayOffset = 0;
   else {
     const inDays = /\bin\s+(\d{1,2})\s*days?\b/.exec(t);
     if (inDays) dayOffset = Number(inDays[1]);

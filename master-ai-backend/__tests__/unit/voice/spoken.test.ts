@@ -122,3 +122,62 @@ describe('questions and read-back', () => {
     expect(parseField(gst, 'not sure', now)).toEqual({ ok: false });
   });
 });
+
+describe('leftover gaps in what people say', () => {
+  it('reads a month only as a whole word or a standard abbreviation', () => {
+    expect(spokenDate('maybe 5', now)).toBeNull();
+    expect(spokenDate('market 12', now)).toBeNull();
+    expect(spokenDate('5 May', now)).toBe('2026-05-05');
+    expect(spokenDate('20 October', now)).toBe('2026-10-20');
+    expect(spokenDate('Oct 20', now)).toBe('2026-10-20');
+    expect(spokenDate('5 sept.', now)).toBe('2026-09-05');
+  });
+
+  it('lets an explicit date beat today or tomorrow in the same reply', () => {
+    expect(spokenDate('entered today, dated 12 October', now)).toBe('2026-10-12');
+    expect(spokenDate('today', now)).toBe('2026-10-15');
+    expect(spokenDate('yesterday at 5.30', now)).toBe('2026-10-14');
+  });
+
+  it('reads a bare weekday after a past-tense cue as the one just gone', () => {
+    expect(spokenDate('Fixed it on Tuesday', now)).toBe('2026-10-13');
+    expect(spokenDate('The client paid on Monday', now)).toBe('2026-10-12');
+    expect(spokenDate('We will pay on Tuesday', now)).toBe('2026-10-20');
+    expect(spokenDate('It will be delivered on Tuesday', now)).toBe('2026-10-20');
+    expect(spokenDate('next Friday', now)).toBe('2026-10-16');
+  });
+
+  it('reads this morning, this afternoon and this evening as today, even when it has passed', () => {
+    expect(spokenDateTime('Fixed it this morning', now)).toBe('2026-10-15T04:30:00.000Z');
+    expect(spokenDateTime('this evening', now)).toBe('2026-10-15T12:30:00.000Z');
+  });
+
+  it('asks again after a self-correction', () => {
+    expect(spokenAmount('sixty thousand, no sorry, sixty five thousand')).toBeNull();
+    expect(spokenAmount('five, I mean six')).toBeNull();
+    expect(spokenAmount('sixty five thousand')).toBe(65000);
+  });
+
+  it('reads a count after a leading no, and a bare no as zero', () => {
+    expect(spokenCount('No, there are five')).toBe(5);
+    expect(spokenCount('No')).toBe(0);
+    expect(spokenCount('None')).toBe(0);
+    expect(spokenCount('No one today')).toBe(0);
+  });
+
+  it('reads Indian yes phrasings, with negations still winning', () => {
+    for (const t of ['theek hai', 'Thik hai', 'ji', 'haan ji']) expect(spokenYesNo(t)).toBe(true);
+    expect(spokenYesNo('theek hai, but wrong')).toBe(false);
+  });
+
+  it('picks Y from "not X, Y"', () => {
+    expect(matchOption(['credit note', 'debit note'], 'not credit note, debit note')).toBe('debit note');
+    expect(matchOption(['credit note', 'debit note'], 'credit note')).toBe('credit note');
+  });
+
+  it('reads a phone number only up to 13 digits', () => {
+    const phone: EntityField = { name: 'phone', label: 'Phone', type: 'phone', required: false };
+    expect(parseField(phone, '+91 98470 12345', now)).toEqual({ ok: true, value: '+919847012345' });
+    expect(parseField(phone, '9847012345 9847012345', now)).toEqual({ ok: false });
+  });
+});

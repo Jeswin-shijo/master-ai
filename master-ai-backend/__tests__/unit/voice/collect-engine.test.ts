@@ -193,3 +193,32 @@ describe('the simulator', () => {
     expect(collectSuggestions({ ...base, state: confirm })).toEqual(['Yes', 'No, that is wrong']);
   });
 });
+
+describe('leftover gaps in the collection call', () => {
+  it('reads a count after a leading no, and a bare no or none as zero', async () => {
+    const five = await talk(['No, there are five'], fakeDeps().deps);
+    expect(five.state.expected).toBe(5);
+    expect(five.said[0]).toContain('5, got it.');
+    for (const reply of ['No', 'None']) {
+      const none = await talk([reply], fakeDeps().deps);
+      expect(none.end).toBe(true);
+      expect(none.said[0]).toContain('no bills today');
+    }
+  });
+
+  it('does not take a field answer with "driving" in it as a call-back', async () => {
+    const t = await talk(['Two', 'Sharma Driving School'], fakeDeps().deps);
+    expect(t.callBack).toBe(false);
+    expect(t.end).toBe(false);
+    expect(t.state.item.billNo).toBe('Sharma Driving School');
+    const busy = await talk(['Two', "I'm driving"], fakeDeps().deps);
+    expect(busy.callBack).toBe(true);
+  });
+
+  it('asks a phone field again when the answer has more than 13 digits', async () => {
+    const phone: EntityField = { name: 'phone', label: 'Phone', type: 'phone', required: true };
+    const t = await talk(['One', '9847012345 9847012345'], fakeDeps().deps, { fields: [phone] });
+    expect(t.said[1]).toContain("Sorry, I didn't catch that.");
+    expect(t.state.item.phone).toBeUndefined();
+  });
+});
