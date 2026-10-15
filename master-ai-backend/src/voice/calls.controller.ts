@@ -12,41 +12,44 @@ export class CallsController {
     private readonly delegations: DelegationService,
   ) {}
 
+  /** Calls about list items are left out for members. */
   @Get('calls')
   list(@CurrentSession() s: Session, @Query('status') status?: string) {
-    return status === 'active' ? this.calls.active(s.tenantId) : this.calls.list(s.tenantId);
+    return status === 'active' ? this.calls.activeFor(s) : this.calls.listFor(s);
   }
 
   @Get('calls/:id')
   get(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
-    return this.calls.get(s.tenantId, id);
+    return this.calls.getFor(s, id);
   }
 
   /** Simulator: pick up as the staff member. */
   @Post('calls/:id/answer')
   async answer(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
-    await this.simulated(s.tenantId, id);
-    return this.calls.answer(s.tenantId, id);
+    await this.simulated(s, id);
+    return this.calls.answerFor(s, id);
   }
 
   /** Simulator: say something as the staff member; the AI replies. */
   @Post('calls/:id/reply')
   async reply(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(CallReplyInputSchema)) body: CallReplyInput) {
-    await this.simulated(s.tenantId, id);
-    return this.calls.reply(s.tenantId, id, body.text);
+    await this.simulated(s, id);
+    return this.calls.replyFor(s, id, body.text);
   }
 
   /** Simulator: let it ring out / reject the call. */
   @Post('calls/:id/decline')
   async decline(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
-    await this.simulated(s.tenantId, id);
-    return this.calls.decline(s.tenantId, id);
+    await this.simulated(s, id);
+    return this.calls.declineFor(s, id);
   }
 
-  /** Real calls are answered on the phone, never from the web app. */
-  private async simulated(tenantId: string, callId: string) {
-    const call = await this.calls.raw(tenantId, callId);
-    if (call && call.provider !== 'simulator') throw new BadRequestException('This is a real phone call; it can only be answered on the phone.');
+  /** Real calls are answered on the phone, never from the web app. A call this person may not handle is not found first, so it says nothing about it. */
+  private async simulated(s: Session, callId: string) {
+    const call = await this.calls.raw(s.tenantId, callId);
+    if (!call) return;
+    this.calls.assertCanHandle(s, call);
+    if (call.provider !== 'simulator') throw new BadRequestException('This is a real phone call; it can only be answered on the phone.');
   }
 
   @Get('delegations')

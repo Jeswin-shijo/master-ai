@@ -605,6 +605,33 @@ describe('calling again after a follow-up stopped', () => {
   });
 });
 
+describe('calls about list items are for the owner and admins', () => {
+  beforeEach(drain);
+
+  it("keeps a member out of a call to a party: it isn't listed or found, and they can't answer it", async () => {
+    const member: Session = { ...a.session, role: 'member' };
+    const phone = h.get(CallsService);
+    await bill('M-8');
+    const { callId } = (await followUps.pick(a.tenantId))!;
+    expect((await phone.listFor(member)).map((c) => c.id)).not.toContain(callId);
+    await expect(phone.getFor(member, callId)).rejects.toThrow('Call not found');
+    expect((await phone.listFor(a.session)).map((c) => c.id)).toContain(callId);
+    expect((await phone.getFor(admin, callId)).id).toBe(callId);
+
+    await h.get(FollowUpCallsService).place(a.tenantId, callId);
+    expect((await phone.activeFor(member)).map((c) => c.id)).not.toContain(callId);
+    expect((await phone.activeFor(a.session)).map((c) => c.id)).toContain(callId);
+    await expect(phone.answerFor(member, callId)).rejects.toThrow('Call not found');
+    await expect(phone.replyFor(member, callId, 'Yes, speaking')).rejects.toThrow('Call not found');
+    await expect(phone.declineFor(member, callId)).rejects.toThrow('Call not found');
+    expect((await phone.get(a.tenantId, callId)).status).toBe('ringing');
+
+    expect((await phone.answerFor(a.session, callId)).status).toBe('in_progress');
+    await phone.declineFor(a.session, callId);
+    await h.get(FollowUpCallsService).finish(a.tenantId, callId);
+  });
+});
+
 describe('follow-ups to the team', () => {
   let it2: Org;
   let anilId: string;

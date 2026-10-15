@@ -100,9 +100,14 @@ export class AuthGuard implements CanActivate {
   }
 }
 
+/** The owner or an admin. */
+export function isManager(session: Session): boolean {
+  return session.role === 'owner' || session.role === 'admin';
+}
+
 /** Settings, intake keys and cancelling cases are for the owner and admins. */
 export function requireManager(session: Session): void {
-  if (session.role !== 'owner' && session.role !== 'admin') throw new ForbiddenException('Only the owner or an admin can do this.');
+  if (!isManager(session)) throw new ForbiddenException('Only the owner or an admin can do this.');
 }
 
 export const CurrentSession = createParamDecorator((_: unknown, ctx: ExecutionContext): Session => {
