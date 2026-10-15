@@ -270,3 +270,13 @@ export function parseField(f: EntityField, text: string, now: Date): { ok: true;
     }
   }
 }
+
+/** What a follow-up call is about: "bill S-1042: bill date 12 October, total ₹48,260, due date 20 October". */
+export function aboutText(itemLabel: string, fields: EntityField[], data: Record<string, unknown>, titles: Record<string, string>, now: Date): string {
+  const given = fields.filter((f) => data[f.name] !== undefined && data[f.name] !== null && data[f.name] !== '');
+  const [first, ...rest] = given;
+  if (!first) return `a ${itemLabel}`;
+  const head = `${itemLabel} ${sayValue(first, data[first.name], titles, now)}`;
+  const tail = rest.map((f) => (f.type === 'enum' || f.type === 'reference' ? sayValue(f, data[f.name], titles, now) : `${lowerFirst(f.label)} ${sayValue(f, data[f.name], titles, now)}`));
+  return tail.length ? `${head}: ${tail.join(', ')}` : head;
+}

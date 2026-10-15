@@ -52,6 +52,7 @@ import { TwilioService } from './voice/twilio';
 import { TwilioController } from './voice/twilio.controller';
 import { DelegationService } from './voice/delegation.service';
 import { CollectEngine } from './voice/collect-engine';
+import { FollowUpEngine } from './voice/follow-up-engine';
 import { CallEngine } from './voice/engine';
 import { TeamController, TeamService } from './voice/team.service';
 
@@ -117,6 +118,7 @@ import { TeamController, TeamService } from './voice/team.service';
     TeamService,
     CallEngine,
     CollectEngine,
+    FollowUpEngine,
     DelegationService,
     TwilioService,
     ReportsService,

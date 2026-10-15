@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { CollectState } from '../voice/collect-engine';
+import type { FollowUpState } from '../voice/follow-up-engine';
 import {
   bigint,
   boolean,
@@ -692,7 +693,7 @@ export const calls = pgTable(
     outcome: text('outcome').$type<CallOutcome>(),
     /** Delegation calls: deadline and notes. Check-in calls: answers so far and re-asks per question. */
     extracted: jsonb('extracted')
-      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number>; about?: CallAbout; collect?: CollectState }>()
+      .$type<{ dueAt?: string | null; notes?: string | null; values?: Record<string, CheckinValue>; retries?: Record<string, number>; about?: CallAbout; collect?: CollectState; followUp?: FollowUpState }>()
       .notNull()
       .default({}),
     costInr: money('cost_inr'),
