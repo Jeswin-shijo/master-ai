@@ -50,8 +50,11 @@ export class FollowUpCallsService {
     return { ringTimeoutMs: s.provider !== 'simulator' ? 90_000 : 45_000, talkTimeoutMs: 15 * 60_000 };
   }
 
-  /** Rings: a real call through Twilio, a simulated one in the app, or — in the simulator's auto mode — the whole call now. */
-  async place(tenantId: string, callId: string): Promise<{ done: boolean }> {
+  /**
+   * Rings: a real call through Twilio, a simulated one in the app, or — in the simulator's auto mode — the whole call now.
+   * `failed` when Twilio could not place it: the sweep stops there, as the next call would most likely fail the same way.
+   */
+  async place(tenantId: string, callId: string): Promise<{ done: boolean; failed?: boolean }> {
     const s = await this.settings(tenantId);
     const ready = await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
@@ -85,7 +88,7 @@ export class FollowUpCallsService {
       } catch (err) {
         this.logger.warn(`Follow-up call ${callId} not placed: ${(err as Error).message}`);
         await this.endUnanswered(tenantId, callId, `Couldn't place the call. ${(err as Error).message}`);
-        return { done: true };
+        return { done: true, failed: true };
       }
       return { done: false };
     }
@@ -181,8 +184,9 @@ export class FollowUpCallsService {
       const today = istDate();
       const result = c.extracted.followUp?.result ?? null;
       let set: Partial<typeof followUpAttempts.$inferInsert>;
-      if (c.status === 'cancelled') return; // never rung: no try, and the item stays due tomorrow as set when it was picked
-      if (c.status === 'no_answer' || c.status === 'failed') {
+      // Never rung (cancelled), or Twilio couldn't place it (failed): no try, and the item stays due tomorrow as set when it was picked.
+      if (c.status === 'cancelled' || c.status === 'failed') return;
+      if (c.status === 'no_answer') {
         const tries = a.tries + 1;
         if (tries >= f.maxTries) {
           set = { tries, state: 'stopped' };

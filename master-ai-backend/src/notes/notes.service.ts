@@ -1,12 +1,12 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import type { NoteKind } from '@onehuman/schemas';
-import { normalizeSnapshot, titleOf } from '@onehuman/agent-kit';
+import { normalizeSnapshot, registersOf, titleOf } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
-import type { Session } from '../common/auth';
+import { requireManager, type Session } from '../common/auth';
 import { isUuid } from '../lists/format';
 import { DbService, type Tx } from '../db/db.service';
-import { followUpAttempts, recordNotes, records } from '../db/schema';
+import { doNotCall, followUpAttempts, recordNotes, records } from '../db/schema';
 import { RecordsService } from '../records/records.service';
 import { istDate } from '../voice/time';
 
@@ -28,7 +28,9 @@ type NoteRow = typeof recordNotes.$inferSelect;
  * Notes calls leave on list items. What an outside party says is never applied
  * by itself: the head applies a note (its proposed fields go through
  * RecordsService.update) or dismisses it. Either way, a follow-up that was
- * waiting for the head starts again the next day.
+ * waiting for the head starts again the next day. A follow-up that stopped
+ * (nobody to reach, or a wrong number) starts again only when the head says
+ * "Call again".
  */
 @Injectable()
 export class NotesService {
@@ -85,6 +87,49 @@ export class NotesService {
       const { note } = await this.open(tx, noteId);
       await this.decide(tx, session, note, 'dismissed');
       return { dismissed: true as const };
+    });
+  }
+
+  /**
+   * "Call again" on a note saying a follow-up stopped: the item is due today
+   * with its tries reset, and a wrong-number block the call put on the number
+   * is lifted. Owner only for calls to outside parties, as for the switch.
+   */
+  async callAgain(session: Session, noteId: string): Promise<{ restarted: true }> {
+    return this.db.tenant(session.tenantId, async (tx) => {
+      if (!isUuid(noteId)) throw new NotFoundException('Note not found');
+      const [note] = await tx.select().from(recordNotes).where(eq(recordNotes.id, noteId)).for('update');
+      if (!note) throw new NotFoundException('Note not found');
+      if (note.kind !== 'unreachable' && note.kind !== 'wrong_number') throw new BadRequestException('Call again is only for a follow-up that stopped: nobody to reach, or a wrong number.');
+      if (!note.followUp) throw new BadRequestException('This note is not from a follow-up, so there is no call to start again.');
+      const ws = await this.records.activeWorkspace(tx);
+      const f = registersOf(normalizeSnapshot(ws.pack))
+        .flatMap((r) => r.followUps)
+        .find((x) => x.key === note.followUp);
+      if (!f) throw new BadRequestException('This follow-up is no longer in your setup.');
+      if (f.who === 'party' && session.role !== 'owner') throw new ForbiddenException('Only the owner can start calls to customers and suppliers again');
+      requireManager(session);
+
+      if (note.status === 'new') await this.decide(tx, session, note, 'dismissed');
+      const today = istDate();
+      await tx
+        .insert(followUpAttempts)
+        .values({ tenantId: session.tenantId, recordId: note.recordId, followUp: note.followUp, nextDueOn: today, state: 'active', tries: 0 })
+        .onConflictDoUpdate({ target: [followUpAttempts.recordId, followUpAttempts.followUp], set: { state: 'active', tries: 0, nextDueOn: today } });
+      const lifted =
+        note.kind === 'wrong_number'
+          ? await tx
+              .delete(doNotCall)
+              .where(and(eq(doNotCall.reason, 'wrong_number'), note.callId ? eq(doNotCall.callId, note.callId) : eq(doNotCall.recordId, note.recordId)))
+              .returning({ id: doNotCall.id })
+          : [];
+      await this.audit.append(tx, session.tenantId, {
+        type: 'followup.restarted',
+        actor: { id: session.principalId, kind: 'human' },
+        refId: note.recordId,
+        payload: { title: await this.title(tx, note.recordId), unblocked: lifted.length > 0 },
+      });
+      return { restarted: true as const };
     });
   }
 

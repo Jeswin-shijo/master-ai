@@ -299,22 +299,25 @@ export { caseWorkflow, stageWorkflow } from './case-workflows';
 
 /**
  * The company's follow-up sweep: one call at a time until nothing is due
- * inside calling hours, the day's cap is reached, or another sweep's call is on.
+ * inside calling hours, the day's cap is reached, another sweep's call is on,
+ * or a call could not be placed (the next would most likely fail the same way).
  */
 export async function followUpSweepWorkflow(input: FollowUpSweepInput) {
   for (let i = 0; i < 200; i++) {
     const next = await db.pickFollowUp(input);
     if (!next) return;
-    await executeChild(followUpCallWorkflow, {
+    const call = await executeChild(followUpCallWorkflow, {
       workflowId: `follow-up-call-${next.callId}`,
       args: [{ tenantId: input.tenantId, callId: next.callId }],
       parentClosePolicy: ParentClosePolicy.TERMINATE,
     });
+    // `?.`: a call workflow started before this change returns nothing.
+    if (call?.failed) return;
   }
 }
 
-/** One follow-up call: ring, wait for an answer and the end, then set when the item is due again. */
-export async function followUpCallWorkflow(input: FollowUpCallInput) {
+/** One follow-up call: ring, wait for an answer and the end, then set when the item is due again. `failed` when it could not be placed. */
+export async function followUpCallWorkflow(input: FollowUpCallInput): Promise<{ failed: boolean }> {
   const answered = new Set<string>();
   const ended = new Set<string>();
   setHandler(callUpdate, ({ callId, event }) => {
@@ -329,4 +332,5 @@ export async function followUpCallWorkflow(input: FollowUpCallInput) {
     if (!ended.has(input.callId)) await db.endFollowUpCall(input);
   }
   await db.finishFollowUp(input);
+  return { failed: !!placed.failed };
 }

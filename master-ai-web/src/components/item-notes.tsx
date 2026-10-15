@@ -6,11 +6,19 @@ import { api } from '@/lib/api';
 import { dayLabel, NOTE_LABELS } from '@/lib/lists';
 import { cn, timeAgo } from '@/lib/utils';
 
-/** What calls left on an item, newest first. Apply sets what a note proposes; a note with nothing to apply is only marked as seen. */
+/** Notes saying a follow-up stopped: nobody to reach, or a wrong number. "Call again" starts it again. */
+const STOPPED: ListNote['kind'][] = ['unreachable', 'wrong_number'];
+
+/**
+ * What calls left on an item, newest first. Apply sets what a note proposes; a note with nothing to apply is only marked as seen.
+ * A note saying the follow-up stopped offers "Call again" while it is new, and after it is seen for as long as it is the latest of its kind.
+ */
 export function ItemNotes({ notes, onDone }: { notes: ListNote[]; onDone: () => void }) {
   const apply = useMutation({ mutationFn: (id: string) => api.notes.apply(id), onSuccess: onDone });
   const dismiss = useMutation({ mutationFn: (id: string) => api.notes.dismiss(id), onSuccess: onDone });
+  const callAgain = useMutation({ mutationFn: (id: string) => api.notes.callAgain(id), onSuccess: onDone });
   if (!notes.length) return null;
+  const canCallAgain = (n: ListNote) => STOPPED.includes(n.kind) && (n.status === 'new' || notes.find((x) => x.kind === n.kind)?.id === n.id);
   const state = (n: ListNote) => (n.status === 'new' ? 'New from a call' : n.status === 'applied' ? `Applied by ${n.decidedBy ?? 'someone'}` : `Seen by ${n.decidedBy ?? 'someone'}`);
   return (
     <section aria-label="From calls" className="space-y-2">
@@ -31,21 +39,28 @@ export function ItemNotes({ notes, onDone }: { notes: ListNote[]; onDone: () => 
               ))}
             </ul>
           )}
-          {n.status === 'new' && (
+          {(n.status === 'new' || canCallAgain(n)) && (
             <div className="mt-2 flex gap-2">
-              {n.proposed.length > 0 && (
+              {n.status === 'new' && n.proposed.length > 0 && (
                 <Button size="sm" variant="success" loading={apply.isPending && apply.variables === n.id} onClick={() => apply.mutate(n.id)}>
                   Apply
                 </Button>
               )}
-              <Button size="sm" variant="secondary" loading={dismiss.isPending && dismiss.variables === n.id} onClick={() => dismiss.mutate(n.id)}>
-                {n.proposed.length > 0 ? 'Dismiss' : 'Seen'}
-              </Button>
+              {n.status === 'new' && (
+                <Button size="sm" variant="secondary" loading={dismiss.isPending && dismiss.variables === n.id} onClick={() => dismiss.mutate(n.id)}>
+                  {n.proposed.length > 0 ? 'Dismiss' : 'Seen'}
+                </Button>
+              )}
+              {canCallAgain(n) && (
+                <Button size="sm" variant="secondary" loading={callAgain.isPending && callAgain.variables === n.id} onClick={() => callAgain.mutate(n.id)}>
+                  Call again
+                </Button>
+              )}
             </div>
           )}
         </div>
       ))}
-      <ErrorNote error={apply.error ?? dismiss.error} />
+      <ErrorNote error={apply.error ?? dismiss.error ?? callAgain.error} />
     </section>
   );
 }

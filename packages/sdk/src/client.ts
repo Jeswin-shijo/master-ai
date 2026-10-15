@@ -323,6 +323,8 @@ export function createClient(options: ClientOptions) {
       /** Sets what a call note proposes on its item; the item becomes checked by you. */
       apply: (id: string) => post<{ applied: true }>(`/notes/${id}/apply`),
       dismiss: (id: string) => post<{ dismissed: true }>(`/notes/${id}/dismiss`),
+      /** Starts a stopped follow-up again from its "couldn't reach" or "wrong number" note; a wrong-number block on the number is lifted. */
+      callAgain: (id: string) => post<{ restarted: true }>(`/notes/${id}/call-again`),
     },
     followUps: {
       /** Owner only for calls to customers and suppliers. */

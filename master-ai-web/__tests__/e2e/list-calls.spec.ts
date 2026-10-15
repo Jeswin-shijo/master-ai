@@ -87,3 +87,25 @@ test('the owner switches on a follow-up, a party says it is paid on a simulated 
   await expect(notes).toContainText('Applied by Asha Owner');
   await expect(panel).toContainText('Checked by Asha Owner');
 });
+
+test('a follow-up stopped for want of a phone number starts again from "Call again" on its note', async ({ page }) => {
+  test.setTimeout(120_000);
+  const org = await newOrganization('wholesale-retail');
+  await org.api.lists.removeSamples();
+  const party = await org.api.lists.create('parties', { name: 'E2E No Phone Traders', partyType: 'retailer' });
+  const bill = await org.api.lists.create('bills', { billNo: 'E2E-F2', billType: 'sales invoice', party: party.id, billDate: istDay(-10), dueDate: istDay(-3), total: 1000, paymentStatus: 'unpaid' });
+  await org.api.followUps.switch('bills.unpaid-bills', true);
+  await org.api.followUps.run();
+  await expect.poll(async () => (await org.api.lists.item('bills', bill.id)).notes.length, { timeout: 30_000 }).toBe(1);
+
+  await signInAs(page, org);
+  await page.goto('/lists/bills');
+  await page.getByRole('row', { name: /E2E-F2/ }).click();
+  const notes = page.getByRole('dialog', { name: 'E2E-F2' }).getByRole('region', { name: 'From calls' });
+  await expect(notes).toContainText('There is no phone number to call E2E No Phone Traders about E2E-F2');
+  await expect(notes.getByRole('button', { name: 'Seen', exact: true })).toBeVisible();
+  await notes.getByRole('button', { name: 'Call again', exact: true }).click();
+  await expect(notes).toContainText('Seen by Asha Owner');
+  // Still the item's latest note of its kind, so it can be used again.
+  await expect(notes.getByRole('button', { name: 'Call again', exact: true })).toBeVisible();
+});

@@ -114,5 +114,6 @@ describe('call audit events', () => {
     expect(summarizeEvent('note.applied', { title: 'S-1042' })).toBe('Call note applied to S-1042');
     expect(summarizeEvent('note.dismissed', { title: 'S-1042' })).toBe('Call note seen on S-1042');
     expect(summarizeEvent('do_not_call.added', { name: 'Sri Ganesh Traders' })).toBe('Sri Ganesh Traders will not be called again');
+    expect(summarizeEvent('followup.restarted', { title: 'S-1042', unblocked: true })).toBe('Follow-up started again for S-1042');
   });
 });

@@ -47,6 +47,7 @@ export const AUDIT_EVENT_TYPES = [
   'record.removed',
   'record.samples_removed',
   'followup.switched',
+  'followup.restarted',
   'note.created',
   'note.applied',
   'note.dismissed',
@@ -164,6 +165,8 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `Removed ${p.count ?? 0} sample items`;
     case 'followup.switched':
       return `Follow-up switched ${p.enabled ? 'on' : 'off'}: ${p.label ?? ''}`;
+    case 'followup.restarted':
+      return `Follow-up started again for ${p.title ?? 'an item'}`;
     case 'note.created':
       return `Note from a call with ${p.speaker ?? 'someone'} on ${p.title ?? 'an item'}`;
     case 'note.applied':

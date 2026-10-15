@@ -2,7 +2,7 @@ import { Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentSession, ManagersOnly, type Session } from '../common/auth';
 import { NotesService } from './notes.service';
 
-/** The head applies or dismisses what a call noted on an item. */
+/** The head applies or dismisses what a call noted on an item, or starts a stopped follow-up again. */
 @ManagersOnly()
 @Controller('notes')
 export class NotesController {
@@ -16,5 +16,11 @@ export class NotesController {
   @Post(':id/dismiss')
   dismiss(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
     return this.notes.dismiss(s, id);
+  }
+
+  /** Starts a stopped follow-up again from its note. */
+  @Post(':id/call-again')
+  callAgain(@CurrentSession() s: Session, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notes.callAgain(s, id);
   }
 }

@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import type { FollowUpInfo, ResolvedPack } from '@onehuman/schemas';
 import { normalizeSnapshot, registersOf, titleOf, type ResolvedFollowUp, type ResolvedRegister } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
@@ -17,11 +17,14 @@ import { contactName, matchStaff, phoneKey, readPath } from './targets';
 
 type StaffRow = typeof staff.$inferSelect;
 type Workspace = { id: string; status: string; pack: ResolvedPack };
-type Candidate = { id: string; data: Record<string, unknown>; tries: number | null };
+/** `updated_at` as Postgres text, to the microsecond: the cursor for the next page. */
+type Candidate = { id: string; data: Record<string, unknown>; tries: number | null; updated_at: string };
 type Target = { kind: 'party'; name: string; phone: string } | { kind: 'staff'; person: StaffRow } | { kind: 'stop'; why: string };
 
 /** A follow-up call older than this no longer counts as the one live call (a crashed workflow must not block every follow-up). */
 const LIVE_MS = 30 * 60_000;
+/** Due items read at a time while looking for one to call about. */
+const PAGE = 100;
 const SYSTEM_SPEAKER = 'ONEHUMAN OS';
 
 /**
@@ -129,7 +132,9 @@ export class FollowUpsService {
    * paused, once today's cap is reached, or while another follow-up call is
    * live. The first switched-on follow-up with a due item inside calling hours
    * wins: the item gets an attempt and a scheduled call. Items with no phone or
-   * no matching team member stop with a note, so they leave the queue.
+   * no matching team member stop with a note, so they leave the queue. A number
+   * or team member already called today is not called again until tomorrow, so
+   * five overdue bills from one party are five calls on five days.
    */
   async pick(tenantId: string): Promise<{ callId: string } | null> {
     return this.db.tenant(tenantId, async (tx) => {
@@ -159,30 +164,43 @@ export class FollowUpsService {
       const anyHours = s.fastSchedule && s.provider === 'simulator';
       const blocked = new Set((await tx.select({ phone: doNotCall.phone }).from(doNotCall)).map((d) => d.phone));
       const people = await tx.select().from(staff);
+      // At most one follow-up call a day to each number and each team member.
+      const calledToday = await tx
+        .select({ phone: calls.contactPhone, staffId: calls.staffId })
+        .from(calls)
+        .where(and(eq(calls.stage, 'chase'), ne(calls.status, 'cancelled'), sql`(${calls.createdAt} at time zone 'Asia/Kolkata')::date = ${clock.today}::date`));
+      const phonesToday = new Set(calledToday.flatMap((c) => (c.phone ? [phoneKey(c.phone)] : [])));
+      const staffToday = new Set(calledToday.flatMap((c) => (c.staffId ? [c.staffId] : [])));
 
       for (const reg of registersOf(ws.pack)) {
         for (const f of reg.followUps.filter((x) => on.has(x.key))) {
           if (f.who === 'party' && !anyHours && !withinHours(now, narrowHours(s.partyHours, f.hours))) continue;
-          const rows = (
-            await tx.execute<Candidate>(sql`
-              select r.id, r.data, a.tries from records r
-              left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
-              where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'
-                and ${dueSql(f, reg.entity, clock)}
-                and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
-                and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new')
-              order by r.updated_at asc
-              limit 100`)
-          ).rows;
-          for (const item of rows) {
-            const target = await this.target(tx, ws, reg, f, item, people);
-            if (target.kind === 'stop') {
-              await this.stop(tx, tenantId, f, item.id, target.why, clock.today);
-              continue;
+          // A page at a time, so items of numbers already called today can't hide the rest.
+          for (let after: Candidate | null = null; ; ) {
+            const rows: Candidate[] = (
+              await tx.execute<Candidate>(sql`
+                select r.id, r.data, a.tries, r.updated_at::text as updated_at from records r
+                left join follow_up_attempts a on a.record_id = r.id and a.follow_up = ${f.key}
+                where r.workspace_id = ${ws.id} and r.entity = ${reg.entity.name} and r.source <> 'sample'
+                  and ${dueSql(f, reg.entity, clock)}
+                  and (a.id is null or (a.state = 'active' and a.next_due_on <= ${clock.today}::date))
+                  and not exists (select 1 from record_notes n where n.record_id = r.id and n.status = 'new')
+                  ${after ? sql`and (r.updated_at, r.id) > (${after.updated_at}::timestamptz, ${after.id}::uuid)` : sql``}
+                order by r.updated_at asc, r.id asc
+                limit ${PAGE}`)
+            ).rows;
+            for (const item of rows) {
+              const target = await this.target(tx, ws, reg, f, item, people);
+              if (target.kind === 'stop') {
+                await this.stop(tx, tenantId, f, item.id, target.why, clock.today);
+                continue;
+              }
+              if (target.kind === 'party' && (blocked.has(phoneKey(target.phone)) || phonesToday.has(phoneKey(target.phone)))) continue;
+              if (target.kind === 'staff' && (staffToday.has(target.person.id) || (!anyHours && !withinHours(now, target.person.workingHours)))) continue;
+              return { callId: await this.schedule(tx, tenantId, s.provider, reg, f, item, target, clock.today) };
             }
-            if (target.kind === 'party' && blocked.has(phoneKey(target.phone))) continue;
-            if (target.kind === 'staff' && !anyHours && !withinHours(now, target.person.workingHours)) continue;
-            return { callId: await this.schedule(tx, tenantId, s.provider, reg, f, item, target, clock.today) };
+            if (rows.length < PAGE) break;
+            after = rows.at(-1)!;
           }
         }
       }
@@ -263,7 +281,8 @@ export class FollowUpsService {
     const now = new Date();
     if (now.getTime() - c.createdAt.getTime() > LIVE_MS) return 'The call waited too long to ring.';
     const s = { ...DEFAULT_TENANT_SETTINGS.calls, ...tenant.settings.calls };
-    const anyHours = s.fastSchedule && s.provider === 'simulator';
+    // The fast schedule ignores hours only for a simulated call: a call planned while real calls were on rings through Twilio.
+    const anyHours = s.fastSchedule && s.provider === 'simulator' && c.provider === 'simulator';
     if (c.staffId) {
       const [person] = await tx.select().from(staff).where(eq(staff.id, c.staffId));
       if (!person || person.status !== 'active') return 'The team member is no longer active.';
