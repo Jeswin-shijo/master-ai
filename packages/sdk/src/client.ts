@@ -61,7 +61,7 @@ import type {
   ReportPeriod,
   Routine,
   RoutineDay,
-  RoutineTemplate,
+  RoutineTemplateInfo,
   Pulse,
   RegisterDeviceKeyInput,
   RegisterPushTokenInput,
@@ -338,7 +338,7 @@ export function createClient(options: ClientOptions) {
     routines: {
       list: () => get<Routine[]>('/routines'),
       /** Check-ins the industry setup offers, ready to switch on. */
-      templates: () => get<(RoutineTemplate & { inUse: boolean })[]>('/routines/templates'),
+      templates: () => get<RoutineTemplateInfo[]>('/routines/templates'),
       create: (input: CreateRoutineInput) => post<Routine>('/routines', input),
       day: (id: string, date?: string) => get<RoutineDay>(`/routines/${id}${qs({ date })}`),
       update: (id: string, input: UpdateRoutineInput) => patch<Routine>(`/routines/${id}`, input),

@@ -334,7 +334,7 @@ function sampleAnswer(f: EntityField, n: number): string {
     case 'email':
       return 'accounts@example.com';
     case 'reference':
-      return 'Not sure';
+      return f.required ? 'Sharma and Sons' : 'Not sure';
     case 'text':
       return n === 1 ? 'Leaking tap near the main gate' : 'Two cement bags short';
     default:

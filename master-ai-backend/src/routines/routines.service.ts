@@ -9,9 +9,11 @@ import type {
   RoutineDay,
   RoutineDaySummary,
   RoutineQuestion,
+  RoutineTemplateInfo,
   TranscriptLine,
   UpdateRoutineInput,
 } from '@onehuman/schemas';
+import { collectAsk, normalizeSnapshot, registersOf } from '@onehuman/agent-kit';
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { DEFAULT_TENANT_SETTINGS } from '../common/mappers';
@@ -20,6 +22,7 @@ import { calls, principals, routineEntries, routines, staff, tenants, workspaces
 import { NotificationsService } from '../notifications/notifications.service';
 import { TemporalService } from '../orchestration/temporal.service';
 import { toCall } from '../voice/call-record';
+import { newCollectState } from '../voice/collect-engine';
 import {
   CheckinEngine,
   checkinSummary,
@@ -31,6 +34,7 @@ import {
 } from '../voice/checkin-engine';
 import { ANY_HOURS, istDate, nextCallableTime, nextRunAt } from '../voice/time';
 import { TwilioService } from '../voice/twilio';
+import { CollectionService } from './collection.service';
 
 type RoutineRow = typeof routines.$inferSelect;
 type EntryRow = typeof routineEntries.$inferSelect;
@@ -59,16 +63,23 @@ export class RoutinesService {
     private readonly temporal: TemporalService,
     private readonly notifications: NotificationsService,
     private readonly twilio: TwilioService,
+    private readonly collection: CollectionService,
   ) {}
 
   // ---------- reads ----------
 
-  /** Check-ins the installed industry pack offers, and whether each is already switched on. */
-  async templates(tenantId: string) {
+  /** Routines the installed industry pack offers, and whether each is already switched on. */
+  async templates(tenantId: string): Promise<RoutineTemplateInfo[]> {
     return this.db.tenant(tenantId, async (tx) => {
       const ws = await this.workspace(tx);
+      const pack = normalizeSnapshot(ws.pack);
+      const lists = registersOf(pack);
       const used = new Set((await tx.select({ t: routines.templateId }).from(routines)).map((r) => r.t));
-      return (ws.pack.routines ?? []).map((t) => ({ ...t, inUse: used.has(t.id) }));
+      return pack.routines.flatMap<RoutineTemplateInfo>((t) => {
+        if (!t.collect) return [{ ...t, inUse: used.has(t.id), listLabel: null, askLabels: [] }];
+        const reg = lists.find((l) => l.id === t.collect!.list);
+        return reg ? [{ ...t, inUse: used.has(t.id), listLabel: reg.label, askLabels: collectAsk(reg, t.collect).map((f) => f.label) }] : [];
+      });
     });
   }
 
@@ -122,9 +133,11 @@ export class RoutinesService {
       const ws = await this.workspace(tx);
       const template = input.templateId ? (ws.pack.routines ?? []).find((t) => t.id === input.templateId) : undefined;
       if (input.templateId && !template) throw new NotFoundException('That check-in is not part of your industry setup');
-      const questions = input.questions ?? template?.questions;
+      const collect = template?.collect ? this.collection.snapshot(ws.pack, template.collect) : null;
+      const questions = collect ? [] : (input.questions ?? template?.questions);
       const name = input.name ?? template?.name;
-      if (!questions?.length || !name) throw new BadRequestException('A routine needs a name and at least one question');
+      if (!name || (!collect && !questions?.length)) throw new BadRequestException('A routine needs a name and at least one question');
+      if (collect && !input.staffIds?.length) throw new BadRequestException(`Pick who the AI calls for ${name}`);
       const team = await tx.select().from(staff).where(eq(staff.status, 'active'));
       const [row] = await tx
         .insert(routines)
@@ -139,6 +152,7 @@ export class RoutinesService {
           time: input.time ?? template?.time ?? '18:00',
           chaseMissing: input.chaseMissing ?? true,
           questions: questions as RoutineQuestion[],
+          collect,
           staffIds: input.staffIds ?? team.map((p) => p.id),
         })
         .returning();
@@ -181,8 +195,10 @@ export class RoutinesService {
       const r = await this.routine(tx, routineId);
       if (!r.staffIds.includes(input.staffId)) throw new BadRequestException('That person is not part of this routine');
       const [person] = await tx.select().from(staff).where(eq(staff.id, input.staffId));
-      const values = cleanValues(r.questions, input.values as Record<string, CheckinValue>);
-      const missing = r.questions.filter((q) => q.required && (values[q.key] === undefined || values[q.key] === null || values[q.key] === ''));
+      const values = r.collect
+        ? { items: Math.max(0, Math.round(Number(input.values.items) || 0)), differences: 0 }
+        : cleanValues(r.questions, input.values as Record<string, CheckinValue>);
+      const missing = r.collect ? [] : r.questions.filter((q) => q.required && (values[q.key] === undefined || values[q.key] === null || values[q.key] === ''));
       if (missing.length) throw new BadRequestException(`Please answer: ${missing.map((q) => q.label).join(', ')}`);
       const date = istDate();
       const flags = flagsOf(r.questions, values);
@@ -294,18 +310,25 @@ export class RoutinesService {
       if (e.status === 'reported') return null;
       const [call] = await tx
         .insert(calls)
-        .values({ tenantId, checkinId: entryId, staffId: e.staffId, stage: 'checkin', attempt, status: 'ringing', provider: s.provider, extracted: { values: e.values } })
+        .values({ tenantId, checkinId: entryId, staffId: e.staffId, stage: r.collect ? 'collect' : 'checkin', attempt, status: 'ringing', provider: s.provider, extracted: r.collect ? { collect: newCollectState() } : { values: e.values } })
         .returning();
       await this.audit.append(tx, tenantId, {
         type: 'call.ringing',
         actor: SYSTEM,
         refId: call!.id,
-        payload: { staffName: person.name, stage: 'checkin', attempt, routine: r.name, mode: s.provider === 'simulator' ? s.simulatorMode : s.provider },
+        payload: { staffName: person.name, stage: r.collect ? 'collect' : 'checkin', attempt, routine: r.name, mode: s.provider === 'simulator' ? s.simulatorMode : s.provider },
       });
-      return { callId: call!.id, phone: person.phone, ctx: await this.context(tx, r, person, e.values, {}, []) };
+      return {
+        callId: call!.id,
+        phone: person.phone,
+        r,
+        person,
+        ctx: r.collect ? null : await this.context(tx, r, person, e.values, {}, []),
+        collect: r.collect ? await this.collection.context(tx, r, person, newCollectState(), []) : null,
+      };
     });
     if (!placed) return { callId: null, done: true };
-    const { callId, phone, ctx } = placed;
+    const { callId, phone, ctx, collect, r, person } = placed;
 
     if (s.provider === 'twilio') {
       try {
@@ -319,8 +342,14 @@ export class RoutinesService {
       return { callId, done: false };
     }
     if (s.simulatorMode === 'interactive') return { callId, done: false };
+    if (collect) {
+      const done = await this.collection.simulate(tenantId, callId, r, person, collect);
+      await this.collection.finish(tenantId, callId, done.transcript, done.state, done.callBack ? 'call_back' : 'ended');
+      return { callId, done: true };
+    }
 
     // Auto mode: a simulated person in charge answers every question.
+    if (!ctx) throw new Error('Check-in call without a context');
     let transcript: TranscriptLine[] = [line('ai', this.engine.opening(ctx))];
     let state = { values: ctx.values, retries: ctx.retries };
     await this.db.tenant(tenantId, (tx) => tx.update(calls).set({ status: 'in_progress', startedAt: new Date(), transcript }).where(eq(calls.id, callId)));
@@ -348,8 +377,9 @@ export class RoutinesService {
     const [c] = await this.db.tenant(tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, callId)));
     if (!c) return;
     if (c.status === 'in_progress') {
-      // Keep whatever was answered before the line dropped.
-      await this.finishCall(tenantId, callId, c.transcript, c.extracted.values ?? {}, true);
+      // Keep whatever was answered (or taken down) before the line dropped.
+      if (c.stage === 'collect') await this.collection.finish(tenantId, callId, c.transcript, c.extracted.collect ?? newCollectState(), 'dropped');
+      else await this.finishCall(tenantId, callId, c.transcript, c.extracted.values ?? {}, true);
       return;
     }
     if (c.status !== 'ringing') return;
@@ -403,19 +433,34 @@ export class RoutinesService {
       const [c] = await tx.select().from(calls).where(eq(calls.id, call.id)).for('update');
       if (!c || c.status !== 'ringing') throw new ConflictException(`Call is ${c?.status.replace('_', ' ') ?? 'gone'}`);
       const { r, e, person } = await this.entry(tx, entryId);
-      const ctx = await this.context(tx, r, person, c.extracted.values ?? e.values, {}, []);
-      await tx.update(calls).set({ status: 'in_progress', startedAt: new Date(), transcript: [line('ai', this.engine.opening(ctx))] }).where(eq(calls.id, call.id));
+      const opening = r.collect
+        ? this.collection.opening(await this.collection.context(tx, r, person, c.extracted.collect ?? newCollectState(), []))
+        : this.engine.opening(await this.context(tx, r, person, c.extracted.values ?? e.values, {}, []));
+      await tx.update(calls).set({ status: 'in_progress', startedAt: new Date(), transcript: [line('ai', opening)] }).where(eq(calls.id, call.id));
     });
     await this.temporal.signalCheckin(entryId, { callId: call.id, event: 'answered' });
   }
 
   async reply(tenantId: string, call: CallRow, text: string) {
-    const { c, ctx } = await this.db.tenant(tenantId, async (tx) => {
+    const { c, r, person } = await this.db.tenant(tenantId, async (tx) => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, call.id));
       if (!c || c.status !== 'in_progress') throw new BadRequestException('Answer the call first');
       const { r, person } = await this.entry(tx, c.checkinId!);
-      return { c, ctx: await this.context(tx, r, person, c.extracted.values ?? {}, c.extracted.retries ?? {}, c.transcript) };
+      return { c, r, person };
     });
+    if (r.collect) {
+      const ctx = await this.db.tenant(tenantId, (tx) => this.collection.context(tx, r, person, c.extracted.collect ?? newCollectState(), c.transcript));
+      const res = await this.collection.turn(tenantId, call.id, r, person, ctx, text);
+      const transcript = [...c.transcript, line('person', text), line('ai', res.say)];
+      if (res.end) {
+        await this.collection.finish(tenantId, call.id, transcript, res.state, res.callBack ? 'call_back' : 'ended');
+        await this.temporal.signalCheckin(c.checkinId!, { callId: call.id, event: 'ended' });
+      } else {
+        await this.db.tenant(tenantId, (tx) => tx.update(calls).set({ transcript, extracted: { ...c.extracted, collect: res.state } }).where(eq(calls.id, call.id)));
+      }
+      return;
+    }
+    const ctx = await this.db.tenant(tenantId, (tx) => this.context(tx, r, person, c.extracted.values ?? {}, c.extracted.retries ?? {}, c.transcript));
     const res = await this.engine.turn(ctx, text);
     const transcript = [...c.transcript, line('person', text), line('ai', res.say)];
     if (res.end) {
@@ -437,7 +482,9 @@ export class RoutinesService {
   async suggestionsFor(tx: Tx, c: CallRow, person: StaffRow | null): Promise<string[]> {
     if (!c.checkinId || (c.status !== 'in_progress' && c.status !== 'ringing')) return [];
     const [row] = await tx.select({ r: routines }).from(routineEntries).innerJoin(routines, eq(routines.id, routineEntries.routineId)).where(eq(routineEntries.id, c.checkinId));
-    return row ? checkinSuggestions(row.r.questions, c.extracted.values ?? {}, person?.name ?? '') : [];
+    if (!row) return [];
+    if (row.r.collect) return this.collection.suggestions(await this.collection.context(tx, row.r, person!, c.extracted.collect ?? newCollectState(), c.transcript));
+    return checkinSuggestions(row.r.questions, c.extracted.values ?? {}, person?.name ?? '');
   }
 
   /** Save what the call collected: the entry is reported once every required answer is in. */
@@ -554,13 +601,15 @@ export function summarize(r: RoutineRow, people: StaffRow[], entries: EntryRow[]
   const mine = entries.filter((e) => people.some((p) => p.id === e.staffId));
   const reported = mine.filter((e) => e.status === 'reported');
   const name = (id: string) => people.find((p) => p.id === id)?.name ?? 'Someone';
-  const totals = r.questions
-    .filter((q) => q.type === 'number' || q.type === 'percent')
-    .map((q) => {
-      const nums = reported.map((e) => e.values[q.key]).filter((v): v is number => typeof v === 'number');
-      const value = q.type === 'number' ? nums.reduce((a, b) => a + b, 0) : nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
-      return { key: q.key, label: q.type === 'percent' ? `Average ${q.label.toLowerCase()}` : q.label, value, ...(q.type === 'percent' ? { unit: '%' } : q.unit ? { unit: q.unit } : {}) };
-    });
+  const totals = r.collect
+    ? [{ key: 'items', label: `${r.collect.listLabel} added`, value: reported.reduce((n, e) => n + Number(e.values.items ?? 0), 0) }]
+    : r.questions
+        .filter((q) => q.type === 'number' || q.type === 'percent')
+        .map((q) => {
+          const nums = reported.map((e) => e.values[q.key]).filter((v): v is number => typeof v === 'number');
+          const value = q.type === 'number' ? nums.reduce((a, b) => a + b, 0) : nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
+          return { key: q.key, label: q.type === 'percent' ? `Average ${q.label.toLowerCase()}` : q.label, value, ...(q.type === 'percent' ? { unit: '%' } : q.unit ? { unit: q.unit } : {}) };
+        });
   return {
     date,
     expected: people.length,

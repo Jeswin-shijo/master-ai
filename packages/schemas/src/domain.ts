@@ -1,7 +1,7 @@
 import type { AgentClearance, AutonomyLevel, DataClass, ModelTier } from './autonomy';
 import type { CaseFile, Requester } from './case';
 import type { CaseLabel, CaseRisk, CaseSource, PriorityId, SectorId, StageKey } from './lifecycle';
-import type { PackAgent, ResolvedPack, RoutineQuestion } from './pack';
+import type { PackAgent, ResolvedPack, RoutineQuestion, RoutineTemplate } from './pack';
 
 /** Response shapes returned by the API. Dates are ISO strings on the wire. */
 
@@ -571,6 +571,9 @@ export interface Routine {
   createdAt: string;
   updatedAt: string;
 }
+
+/** A routine the industry setup offers. Collection routines name their list and what they ask. */
+export type RoutineTemplateInfo = RoutineTemplate & { inUse: boolean; listLabel: string | null; askLabels: string[] };
 
 export type CheckinStatus = 'pending' | 'calling' | 'reported' | 'missed';
 export type CheckinValue = string | number | boolean | null;

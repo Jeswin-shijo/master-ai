@@ -43,6 +43,7 @@ import { TenancyController } from './tenancy/tenancy.controller';
 import { TenancyService } from './tenancy/tenancy.service';
 import { CallsController } from './voice/calls.controller';
 import { ReportsController, ReportsService } from './reports/reports.service';
+import { CollectionService } from './routines/collection.service';
 import { RoutinesController } from './routines/routines.controller';
 import { RoutinesService } from './routines/routines.service';
 import { CallsService } from './voice/calls.service';
@@ -119,6 +120,7 @@ import { TeamController, TeamService } from './voice/team.service';
     DelegationService,
     TwilioService,
     ReportsService,
+    CollectionService,
     RoutinesService,
     CheckinEngine,
     CallsService,
