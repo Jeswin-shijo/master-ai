@@ -222,3 +222,11 @@ describe('leftover gaps in the collection call', () => {
     expect(t.state.item.phone).toBeUndefined();
   });
 });
+
+describe('fix round 1: a correction at the count question', () => {
+  it('asks again instead of ending the call', async () => {
+    const t = await talk(['No, I mean five'], fakeDeps().deps);
+    expect(t.end).toBe(false);
+    expect(t.said[0]).toContain('how many bills');
+  });
+});

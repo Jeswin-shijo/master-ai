@@ -346,3 +346,11 @@ describe('leftover gaps in follow-up replies', () => {
     expect(utr.result).toMatchObject({ kind: 'settled', proposed: { paymentRef: '445566' } });
   });
 });
+
+describe('fix round 1: driving', () => {
+  it('does not take a name with "driving" in it as a call-back', async () => {
+    const t = await talk(party, ['Sharma Driving School']);
+    expect(t.callBack).toBe(false);
+    expect(t.end).toBe(false);
+  });
+});

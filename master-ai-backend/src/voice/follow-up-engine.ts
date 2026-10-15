@@ -69,7 +69,7 @@ export interface FollowUpHeard {
   amount: number | null;
 }
 
-const CALL_BACK = /\b(call (me )?(back|later)|busy (now|right now)|can'?t talk|driving|in a meeting|not a good time)\b/i;
+const CALL_BACK = /\b(call (me )?(back|later)|busy (now|right now)|can'?t talk|i['’]?m driving|i am driving|in a meeting|not a good time)\b/i;
 /** "Don't call before 5" asks for another time, not for no calls at all. */
 const NOT_NOW = /\b(?:don['’]?t|do not) (?:call|ring)(?: me| us)? (?:before|after|on|at|during|now|today|tonight|till|until|right now|in the)\b/i;
 const DNC =

@@ -215,7 +215,7 @@ export class FollowUpCallsService {
           case 'settled':
           case 'dispute': {
             // Waits for the head only while the note is still there: one dismissed before the call finished leaves nothing to wait for.
-            const [waiting] = await tx.select({ id: recordNotes.id }).from(recordNotes).where(and(eq(recordNotes.recordId, c.recordId), eq(recordNotes.status, 'new'))).limit(1);
+            const [waiting] = await tx.select({ id: recordNotes.id }).from(recordNotes).where(and(eq(recordNotes.recordId, c.recordId), eq(recordNotes.followUp, f.key), eq(recordNotes.status, 'new'))).limit(1);
             set = waiting ? { tries: 0, state: 'waiting_for_you' } : { tries: 0, state: 'active', nextDueOn: addDaysTo(today, 1) };
             break;
           }

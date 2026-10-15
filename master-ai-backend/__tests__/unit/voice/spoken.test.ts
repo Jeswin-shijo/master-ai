@@ -166,7 +166,7 @@ describe('leftover gaps in what people say', () => {
   });
 
   it('reads Indian yes phrasings, with negations still winning', () => {
-    for (const t of ['theek hai', 'Thik hai', 'ji', 'haan ji']) expect(spokenYesNo(t)).toBe(true);
+    for (const t of ['theek hai', 'Thik hai', 'haan ji']) expect(spokenYesNo(t)).toBe(true);
     expect(spokenYesNo('theek hai, but wrong')).toBe(false);
   });
 
@@ -179,5 +179,34 @@ describe('leftover gaps in what people say', () => {
     const phone: EntityField = { name: 'phone', label: 'Phone', type: 'phone', required: false };
     expect(parseField(phone, '+91 98470 12345', now)).toEqual({ ok: true, value: '+919847012345' });
     expect(parseField(phone, '9847012345 9847012345', now)).toEqual({ ok: false });
+  });
+});
+
+describe('fix round 1', () => {
+  it('asks a count again after a spoken correction, and reads a lone number after "sorry" normally', () => {
+    for (const t of ['No wait, five', 'No, I mean five', 'No, sorry, there are five']) expect(spokenCount(t)).toBeNull();
+    expect(spokenAmount('Sorry sir, 5000')).toBe(5000);
+    expect(spokenAmount('I mean it, 5000')).toBe(5000);
+    expect(spokenAmount('sixty thousand, no sorry, sixty five thousand')).toBeNull();
+  });
+
+  it('keeps a past-weekday cue inside the weekday\'s own clause', () => {
+    expect(spokenDate('Half paid, balance on Friday', now)).toBe('2026-10-16');
+    expect(spokenDate("it'd be done on Friday", now)).toBe('2026-10-16');
+    expect(spokenDate('I was told to pay on Monday', now)).toBe('2026-10-19');
+    expect(spokenDate('Fixed it on Tuesday', now)).toBe('2026-10-13');
+    expect(spokenDate('paid on Monday', now)).toBe('2026-10-12');
+  });
+
+  it('does not read a range as a date when a relative day is said', () => {
+    expect(spokenDate('tomorrow between 10-12', now)).toBe('2026-10-16');
+    expect(spokenDate('12-10', now)).toBe('2026-10-12');
+  });
+
+  it('does not take a bare "ji" as yes', () => {
+    expect(spokenYesNo('ji, who is this?')).toBeNull();
+    expect(spokenYesNo('ji haan')).toBe(true);
+    expect(spokenYesNo('haan ji')).toBe(true);
+    expect(spokenYesNo('theek hai')).toBe(true);
   });
 });

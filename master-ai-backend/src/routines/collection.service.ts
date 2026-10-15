@@ -136,11 +136,17 @@ export class CollectionService {
    * is reported when the call ended normally, or dropped after at least one item.
    * A call-back leaves it open so the routine calls again.
    */
-  async finish(tenantId: string, callId: string, transcript: TranscriptLine[], state: CollectState, how: 'ended' | 'call_back' | 'dropped') {
+  async finish(tenantId: string, callId: string, passedTranscript: TranscriptLine[], passedState: CollectState, how: 'ended' | 'call_back' | 'dropped') {
     await this.db.tenant(tenantId, async (tx) => {
       // Locked, so a call that drops while an item is being confirmed is finished once, after any save in flight.
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
       if (!c?.checkinId || c.status === 'completed') return;
+      // The newest state wins: the call row's, if it holds at least as many items and differences as the one passed in (a drop can arrive with an older read).
+      const taken = (s: CollectState) => s.saved.length + s.differences;
+      const stored = c.extracted.collect;
+      const useStored = !!stored && taken(stored) >= taken(passedState);
+      const state = useStored ? stored : passedState;
+      const transcript = useStored ? c.transcript : passedTranscript;
       const [row] = await tx
         .select({ e: routineEntries, r: routines, person: staff })
         .from(routineEntries)

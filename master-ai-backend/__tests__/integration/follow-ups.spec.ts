@@ -754,6 +754,21 @@ describe('leftover gaps in follow-ups on the lists', () => {
     expect(await attemptOf(id)).toMatchObject({ state: 'active', tries: 0, nextDueOn: day(1) });
   });
 
+  it("does not wait for the head on another follow-up's new note", async () => {
+    const id = await bill('LG-6');
+    const next = (await followUps.pick(a.tenantId))!;
+    await calling().place(a.tenantId, next.callId);
+    await phone().answer(a.tenantId, next.callId);
+    for (const text of ['Yes', "It's already paid", 'UTR 445566']) await phone().reply(a.tenantId, next.callId, text);
+    const [note] = await notesOf(id);
+    await h.get(NotesService).dismiss(a.session, note!.id);
+    await db().tenant(a.tenantId, (tx) =>
+      h.get(NotesService).create(tx, a.tenantId, { recordId: id, callId: null, followUp: ORDERS, kind: 'said', speaker: 'Someone', said: 'Other list' }),
+    );
+    await calling().finish(a.tenantId, next.callId);
+    expect(await attemptOf(id)).toMatchObject({ state: 'active', nextDueOn: day(1) });
+  });
+
   it("takes turns between lists, so one busy list can't starve the others", async () => {
     await followUps.switch(a.session, ORDERS, true);
     const p1 = await add('Party', { name: 'Turn One Traders', partyType: 'retailer', phone: '+91 98470 61111' });

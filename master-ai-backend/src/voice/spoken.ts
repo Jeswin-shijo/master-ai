@@ -24,12 +24,26 @@ const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frida
 
 type Part = { n: number } | { scale: number };
 
+const CORRECTION = /\b(sorry|no wait|i mean|correction)\b/;
+
+/** How many separate numbers a reply holds: runs of number words or digits, split by other words ("sixty thousand, no sorry, sixty five" is two). */
+function numberRuns(lower: string): number {
+  let runs = 0;
+  let inRun = false;
+  for (const tok of lower.replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?|[a-z]+/g) ?? []) {
+    const isNumber = /^\d/.test(tok) || tok in UNITS || tok in TENS || (tok in SCALES && tok !== 'k');
+    if (isNumber && !inRun) runs++;
+    inRun = isNumber || (inRun && tok === 'point');
+  }
+  return runs;
+}
+
 /** "48,260", "₹48260", "1.2 lakh", "forty-eight thousand two sixty", "one lakh twenty" (1,20,000), "two sixty" (260). */
 export function spokenAmount(text: string): number | null {
   const lower = text.toLowerCase();
   if (/\b(half|quarter)\b/.test(lower)) return null;
   // A self-correction ("sixty thousand, no sorry, sixty five thousand") is asked again, not guessed.
-  if (/\b(sorry|no wait|i mean|correction)\b/.test(lower)) return null;
+  if (CORRECTION.test(lower) && numberRuns(lower) >= 2) return null;
   const tokens = lower.replace(/(\d),(?=\d)/g, '$1').match(/\d+(?:\.\d+)?|[a-z]+/g) ?? [];
   const parts: Part[] = [];
   // "two point five": digits after "point" are decimal places, read one by one.
@@ -86,6 +100,8 @@ export function spokenAmount(text: string): number | null {
 
 /** How many: "three", "12", "none" (0). */
 export function spokenCount(text: string): number | null {
+  // A correction ("No wait, five", "No, I mean five") is asked again, before the bare-no rule can read it as zero.
+  if (CORRECTION.test(text.toLowerCase()) && (/^\s*no\b/i.test(text) || numberRuns(text.toLowerCase()) >= 2)) return null;
   const n = /^\s*no\s+one\b/i.test(text) ? null : spokenAmount(text);
   if (n !== null) return Math.round(n);
   // "No, there are five" counts 5 (above); a bare "No" or "None" is zero.
@@ -110,7 +126,9 @@ function monthDay(t: string, year: number): string | null {
 
 /** A past-tense cue before a bare weekday: "Fixed it on Tuesday", "paid on Monday"; a future cue ("will be delivered on Tuesday") cancels it. */
 const PAST_CUE = /\b(?:fixed|paid|done|did|was|were|sent|received|came|closed|finished|completed|cleared|delivered)\b|\b\w+ed\s+on\s*$/;
-const FUTURE_CUE = /\b(?:will|shall|going to|gonna|should|must|to be)\b|['’]ll\b/;
+const FUTURE_CUE = /\b(?:will|shall|going to|gonna|should|would|must|to|told)\b|['’][ld]\b/;
+/** Where a clause starts: after a comma, semicolon, full stop, "but" or "balance". */
+const CLAUSE_BREAK = /[,;.]|\b(?:but|balance)\b/g;
 
 /** A day, YYYY-MM-DD in India: "today", "yesterday", "20 October", "20/10" (day first), "on Friday", "last Monday", "in 3 days". */
 export function spokenDate(text: string, now: Date = new Date()): string | null {
@@ -124,8 +142,8 @@ export function spokenDate(text: string, now: Date = new Date()): string | null 
   const named = monthDay(t, year);
   if (named) return named;
   const numeric = /\b(\d{1,2})([/.-])(\d{1,2})(?:[/.-](\d{2,4}))?\b/.exec(t);
-  // With a relative word, only "20/10" and "20-10" count as a date, so "yesterday at 5.30" is still yesterday.
-  if (numeric && !(relative && numeric[2] === '.')) {
+  // With a relative word, only "20/10" counts as a date, so "yesterday at 5.30" and "tomorrow between 10-12" are still the relative day.
+  if (numeric && !(relative && numeric[2] !== '/')) {
     const y = numeric[4] ? (numeric[4].length === 2 ? 2000 + Number(numeric[4]) : Number(numeric[4])) : year;
     const day = realDay(y, Number(numeric[3]), Number(numeric[1]));
     if (day || !relative) return day;
@@ -141,7 +159,8 @@ export function spokenDate(text: string, now: Date = new Date()): string | null 
   if (wdMatch) {
     const wd = WEEKDAYS.indexOf(wdMatch[0]);
     const dow = new Date(`${today}T00:00:00Z`).getUTCDay();
-    const before = t.slice(0, wdMatch.index);
+    const upTo = t.slice(0, wdMatch.index);
+    const before = upTo.slice([...upTo.matchAll(CLAUSE_BREAK)].reduce((at, m) => m.index + m[0].length, 0));
     const gone = /\blast\b/.test(t) || (PAST_CUE.test(before) && !FUTURE_CUE.test(before) && !/\bnext\b/.test(t));
     if (gone) return addDaysTo(today, -(((dow - wd + 7) % 7) || 7));
     return addDaysTo(today, ((wd - dow + 7) % 7) || 7);
@@ -160,7 +179,7 @@ export function spokenDateTime(text: string, now: Date = new Date()): string | n
 const UNSURE = /\b(not sure|don'?t know|no idea|maybe)\b/i;
 export const BENIGN = /\b(no problem|no issues?|not a problem|no worries)\b/gi;
 const NEGATION = /\b(no|nope|nahi|nah|not|wrong|incorrect)\b/i;
-const YES = /\b(yes|yeah|yep|yup|haan|han|ha|ji|theek hai|thik hai|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
+const YES = /\b(yes|yeah|yep|yup|haan|han|ha|theek hai|thik hai|sure|correct|right|ok(ay)?|speaking|that'?s me)\b/i;
 
 export function spokenYesNo(text: string): boolean | null {
   if (UNSURE.test(text)) return null;

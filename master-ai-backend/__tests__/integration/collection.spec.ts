@@ -6,6 +6,8 @@ import { DbService } from '../../src/db/db.service';
 import { auditEvents, calls as callsTable } from '../../src/db/schema';
 import { ListsService } from '../../src/lists/lists.service';
 import { RecordsService } from '../../src/records/records.service';
+import { CollectionService } from '../../src/routines/collection.service';
+import { newCollectState } from '../../src/voice/collect-engine';
 import { RoutinesService } from '../../src/routines/routines.service';
 import { TenancyService } from '../../src/tenancy/tenancy.service';
 import { CallsService } from '../../src/voice/calls.service';
@@ -108,6 +110,18 @@ describe('collection routines', () => {
     await calls.decline(a.tenantId, placed.callId!);
     const events = await h.get(DbService).tenant(a.tenantId, (tx) => tx.select().from(auditEvents).where(eq(auditEvents.refId, placed.callId!)));
     expect(events.find((e) => e.type === 'call.no_answer')?.payload).toMatchObject({ stage: 'collect' });
+  });
+
+  it('counts the newest state when a finish arrives with an older one', async () => {
+    const { routine } = await clerk('Stale State');
+    const callId = await ring(routine.id);
+    const state = (n: number) => ({ ...newCollectState(), phase: 'confirm' as const, saved: Array.from({ length: n }, (_, i) => `r${i}`), done: n });
+    await h.get(DbService).tenant(a.tenantId, async (tx) => {
+      const [c] = await tx.select().from(callsTable).where(eq(callsTable.id, callId));
+      await tx.update(callsTable).set({ extracted: { ...c!.extracted, collect: state(2) } }).where(eq(callsTable.id, callId));
+    });
+    await h.get(CollectionService).finish(a.tenantId, callId, [], state(1), 'dropped');
+    expect((await routines.day(a.tenantId, routine.id)).entries[0]).toMatchObject({ values: { items: 2 } });
   });
 
   it('notes a difference on the bill already on the list instead of adding it again', async () => {
