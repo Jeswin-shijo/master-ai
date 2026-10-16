@@ -863,20 +863,25 @@ describe('leftover gaps in follow-ups on the lists', () => {
 describe('pushes for answers that need the head', () => {
   const calling = () => h.get(FollowUpCallsService);
   const phone = () => h.get(CallsService);
-  type Sent = { tenantId: string; message: { title: string; body: string; data?: Record<string, unknown> }; committed: Promise<boolean> };
+  type Sent = { tenantId: string; message: { title: string; body: string; data?: Record<string, unknown> }; openTransactions: number };
   let sent: Sent[] = [];
   const listPushes = () => sent.filter((s) => s.message.data && 'listId' in s.message.data);
+  let open = 0;
 
   beforeAll(() => {
+    // Count the transactions open at the moment a push is sent: after the commit there are none.
+    const dbs = h.get(DbService);
+    const real = dbs.tenant.bind(dbs);
+    vi.spyOn(dbs, 'tenant').mockImplementation((async (id: string, fn: never) => {
+      open++;
+      try {
+        return await real(id, fn);
+      } finally {
+        open--;
+      }
+    }) as never);
     vi.spyOn(h.get(NotificationsService), 'pushToManagers').mockImplementation(async (tenantId, message) => {
-      const itemId = (message.data as { itemId?: string } | undefined)?.itemId;
-      // Read on another connection at once: a push sent inside the transaction would find no note yet.
-      const committed = itemId
-        ? db()
-            .tenant(tenantId, (tx) => tx.select().from(recordNotes).where(eq(recordNotes.recordId, itemId)))
-            .then((rows) => rows.length > 0)
-        : Promise.resolve(false);
-      sent.push({ tenantId, message, committed });
+      sent.push({ tenantId, message, openTransactions: open });
     });
   });
   afterAll(() => vi.restoreAllMocks());
@@ -903,13 +908,14 @@ describe('pushes for answers that need the head', () => {
     const [p] = listPushes();
     expect(p!.tenantId).toBe(a.tenantId);
     expect(p!.message).toEqual({ title: 'Kaveri Spec Traders says bill PU-1 is paid', body: '"It\'s already paid. UTR 445566" Tap to apply or dismiss.', data: { listId: 'bills', itemId: id } });
-    expect(await p!.committed).toBe(true);
+    expect(p!.openTransactions).toBe(0);
   });
 
   it('pushes a dispute in their words', async () => {
     const id = await bill('PU-2');
     await talk(id, ['Yes', 'The goods never came']);
     expect(listPushes().map((p) => p.message)).toEqual([{ title: 'Kaveri Spec Traders disputes bill PU-2', body: '"The goods never came"', data: { listId: 'bills', itemId: id } }]);
+    expect(listPushes().map((p) => p.openTransactions)).toEqual([0]);
   });
 
   it('pushes a wrong number, saying where to correct it', async () => {
@@ -923,6 +929,7 @@ describe('pushes for answers that need the head', () => {
         data: { listId: 'bills', itemId: id },
       },
     ]);
+    expect(listPushes().map((p) => p.openTransactions)).toEqual([0]);
   });
 
   it("doesn't push a promise, an unanswered call or a do-not-call request", async () => {

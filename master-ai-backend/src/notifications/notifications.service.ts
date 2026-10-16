@@ -27,15 +27,21 @@ export class NotificationsService {
   }
 
   private async pushTo(tenantId: string, target: { role: string } | 'managers', message: PushMessage) {
-    const tokens = await this.db.tenant(tenantId, async (tx) => {
-      const people = await tx
-        .select({ id: principals.id, role: principals.role, status: principals.status, approverRoles: principals.approverRoles })
-        .from(principals)
-        .where(eq(principals.kind, 'human'));
-      const ids = pushAudience(people, target);
-      if (ids.length === 0) return [];
-      return tx.select({ token: pushTokens.token }).from(pushTokens).where(inArray(pushTokens.principalId, ids));
-    });
+    let tokens: { token: string }[];
+    try {
+      tokens = await this.db.tenant(tenantId, async (tx) => {
+        const people = await tx
+          .select({ id: principals.id, role: principals.role, status: principals.status, approverRoles: principals.approverRoles })
+          .from(principals)
+          .where(eq(principals.kind, 'human'));
+        const ids = pushAudience(people, target);
+        if (ids.length === 0) return [];
+        return tx.select({ token: pushTokens.token }).from(pushTokens).where(inArray(pushTokens.principalId, ids));
+      });
+    } catch (err) {
+      this.logger.warn(`Push audience lookup failed: ${(err as Error).message}`);
+      return;
+    }
     if (tokens.length === 0) return;
     try {
       const res = await fetch('https://exp.host/--/api/v2/push/send', {
