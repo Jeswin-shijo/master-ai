@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import type { ListItem, ListMeta, ListRange, ListShow } from '@onehuman/schemas';
@@ -60,6 +60,7 @@ export default function ListScreen() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<string | null>(null);
+  const listRef = useRef<FlatList<ListItem>>(null);
 
   // The search is sent once typing pauses.
   useEffect(() => {
@@ -76,10 +77,12 @@ export default function ListScreen() {
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page * last.pageSize < last.total ? last.page + 1 : undefined),
     enabled: !!meta,
+    placeholderData: keepPreviousData,
   });
   // A selection belongs to what was on screen: a new view starts with none.
   useEffect(() => {
     setSelected(new Set());
+    setSelecting(false);
     setResult(null);
   }, [key]);
 
@@ -89,6 +92,7 @@ export default function ListScreen() {
       setResult(checkedLine(r));
       setSelected(new Set());
       setSelecting(false);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
       for (const k of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [k] });
     },
   });
@@ -150,7 +154,7 @@ export default function ListScreen() {
         </T>
       )}
       {pages.error && !offline && <T tone="danger">{errorMessage(pages.error)}</T>}
-      {items.length > 0 && (
+      {(items.length > 0 || selecting) && (
         <Button
           testID="select"
           variant="secondary"
@@ -174,6 +178,7 @@ export default function ListScreen() {
     <Screen underHeader scroll={false}>
       <Stack.Screen options={{ title: meta.label }} />
       <FlatList
+        ref={listRef}
         data={items}
         keyExtractor={(i) => i.id}
         ListHeaderComponent={header}
@@ -195,7 +200,7 @@ export default function ListScreen() {
         ListEmptyComponent={
           pages.isLoading ? (
             <T tone="muted">Loading…</T>
-          ) : (
+          ) : pages.error ? null : (
             <Empty title={v.q ? `Nothing matches “${v.q}”` : 'Nothing here'}>Try another Show or range.</Empty>
           )
         }
