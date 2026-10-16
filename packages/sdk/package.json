@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@onehuman/schemas": "workspace:*",
+    "@onehuman/ui": "workspace:*",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {

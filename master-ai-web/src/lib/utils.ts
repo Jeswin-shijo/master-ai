@@ -15,10 +15,3 @@ export function formatDateTime(iso: string | null | undefined): string {
 export function humanize(s: string): string {
   return s.replace(/[._-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
-
-export function formatValue(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}

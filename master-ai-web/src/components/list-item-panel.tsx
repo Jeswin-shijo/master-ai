@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorNote, Spinner } from '@/components/ui/feedback';
 import { Field, Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
-import { referenceText } from '@/lib/lists';
-import { recordCell } from '@/lib/record-cell';
+import { itemCell } from '@/lib/record-cell';
 import { timeAgo } from '@/lib/utils';
 
 type Mode = 'view' | 'edit' | 'check' | 'remove';
@@ -235,7 +234,7 @@ export function ListItemPanel({
                   <div key={f.name} className="contents">
                     <dt className="text-fg-muted">{f.label}</dt>
                     <dd className="break-words text-fg">
-                      {f.type === 'reference' ? (d.item.titles[f.name] ?? referenceText(d.item.data[f.name])) : recordCell(f, d.item.data[f.name])}
+                      {itemCell(f, d.item)}
                     </dd>
                   </div>
                 ))}

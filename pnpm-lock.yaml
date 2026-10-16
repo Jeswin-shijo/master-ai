@@ -428,6 +428,9 @@ importers:
       '@onehuman/schemas':
         specifier: workspace:*
         version: link:../schemas
+      '@onehuman/ui':
+        specifier: workspace:*
+        version: link:../ui
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3

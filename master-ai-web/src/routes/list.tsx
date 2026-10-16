@@ -17,14 +17,13 @@ import {
   listParams,
   nextSort,
   RANGE_LABELS,
-  referenceText,
   saveText,
   SHOW_LABELS,
   sortMark,
   SOURCE_LABELS,
   type ListView,
 } from '@/lib/lists';
-import { recordCell } from '@/lib/record-cell';
+import { itemCell } from '@/lib/record-cell';
 import { usePageTitle } from '@/lib/title';
 import { cn, formatInr } from '@/lib/utils';
 
@@ -318,7 +317,7 @@ export function ListPage() {
                       />
                     </td>
                     {columns.map((c, ci) => {
-                      const text = c.type === 'reference' ? (item.titles[c.name] ?? referenceText(item.data[c.name])) : recordCell(c, item.data[c.name]);
+                      const text = itemCell(c, item);
                       return (
                         <td key={c.name} className="max-w-xs truncate px-3 py-2.5 text-fg">
                           {ci === 0 ? (

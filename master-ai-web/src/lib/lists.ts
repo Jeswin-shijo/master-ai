@@ -1,46 +1,8 @@
-import type { FollowUpInfo, ItemSourceKind, NoteKind, ListQueryParams, ListRange, ListShow } from '@onehuman/schemas';
-
-export const RANGE_LABELS: Record<ListRange, string> = {
-  today: 'Today',
-  this_week: 'This week',
-  this_month: 'This month',
-  last_month: 'Last month',
-  all: 'All time',
-};
-export const SHOW_LABELS: Record<ListShow | 'all', string> = { all: 'All', problems: 'Has problems', not_checked: 'Not checked', checked: 'Checked', new_notes: 'New from calls' };
-export const SOURCE_LABELS: Record<ItemSourceKind, string> = { manual: 'By hand', call: 'Phone call', agent: 'AI agent', sample: 'Sample data' };
-
-/** What a list page shows. `range: 'custom'` uses `from` and `to`. */
-export interface ListView {
-  range: ListRange | 'custom';
-  from: string;
-  to: string;
-  q: string;
-  filters: Record<string, string>;
-  source: ItemSourceKind | '';
-  show: ListShow | 'all';
-  sort: string;
-  page: number;
-}
-
-export function initialView(hasDate: boolean): ListView {
-  return { range: hasDate ? 'this_month' : 'all', from: '', to: '', q: '', filters: {}, source: '', show: 'all', sort: '', page: 1 };
-}
-
-/** The API query for what the page shows. */
-export function listParams(v: ListView): ListQueryParams {
-  const filters = Object.fromEntries(Object.entries(v.filters).filter(([, x]) => x));
-  const q = v.q.trim();
-  return {
-    ...(v.range === 'custom' ? (v.from && v.to ? { from: v.from, to: v.to } : { range: 'all' as const }) : { range: v.range }),
-    ...(q ? { q } : {}),
-    ...(v.source ? { source: v.source } : {}),
-    ...(v.show !== 'all' ? { show: v.show } : {}),
-    ...(v.sort ? { sort: v.sort } : {}),
-    ...(v.page > 1 ? { page: v.page } : {}),
-    ...(Object.keys(filters).length ? { filters } : {}),
-  };
-}
+/**
+ * The list page's web-only helpers: sort marks and the CSV download. The wording
+ * the phone shares (labels, the page's query, values in words) lives in @onehuman/sdk.
+ */
+export { dayLabel, followUpLine, initialView, listParams, NOTE_LABELS, RANGE_LABELS, referenceText, SHOW_LABELS, SOURCE_LABELS, type ListView } from '@onehuman/sdk';
 
 /** Clicking a column header: ascending, then descending, then back to the list's own order. */
 export function nextSort(current: string, field: string): string {
@@ -51,14 +13,6 @@ export function nextSort(current: string, field: string): string {
 
 export function sortMark(current: string, field: string): string {
   return current === `${field}:asc` ? ' ↑' : current === `${field}:desc` ? ' ↓' : '';
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** A reference with no title to show: the words as typed, or "a removed item" for an id (ids are never shown). */
-export function referenceText(v: unknown): string {
-  if (v === undefined || v === null || v === '') return '—';
-  return typeof v === 'string' && UUID.test(v) ? 'a removed item' : String(v);
 }
 
 /** "bills-2026-10-14.csv", dated in the viewer's own time. */
@@ -83,26 +37,4 @@ export function saveText(name: string, text: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-export const NOTE_LABELS: Record<NoteKind, string> = {
-  said: 'Said on a call',
-  promise: 'Promise',
-  dispute: 'Dispute',
-  wrong_number: 'Wrong number',
-  difference: 'Different on a call',
-  unreachable: "Couldn't call",
-};
-
-/** "On · 3 to call about now · 1 waiting for you". */
-export function followUpLine(f: FollowUpInfo): string {
-  const parts = [f.enabled ? 'On' : 'Off', f.due ? `${f.due} to call about now` : 'nothing due now'];
-  if (f.waiting) parts.push(`${f.waiting} waiting for you`);
-  if (f.stopped) parts.push(`${f.stopped} stopped`);
-  return parts.join(' · ');
-}
-
-/** "Fri, 16 Oct" for a YYYY-MM-DD day. */
-export function dayLabel(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
