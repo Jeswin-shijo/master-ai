@@ -33,6 +33,7 @@ export default function ItemScreen() {
     onSuccess: done,
   });
 
+  const busy = act.isPending || check.isPending;
   if (detail.isLoading) {
     return (
       <Screen underHeader>
@@ -42,7 +43,7 @@ export default function ItemScreen() {
   }
   if (!detail.data) {
     return (
-      <Screen underHeader>
+      <Screen underHeader refreshControl={<RefreshControl refreshing={detail.isRefetching} onRefresh={() => detail.refetch()} />}>
         <T tone="danger">{offline ? noSignalLine(true, 0) : errorMessage(detail.error)}</T>
       </Screen>
     );
@@ -115,7 +116,7 @@ export default function ItemScreen() {
               accessibilityLabel="Why it is right as it is"
               style={{ minHeight: 72, textAlignVertical: 'top' }}
             />
-            <Button testID="check-confirm" variant="success" title={button.label} disabled={!note.trim() || offline} loading={check.isPending} onPress={() => check.mutate()} />
+            <Button testID="check-confirm" variant="success" title={button.label} disabled={!note.trim() || offline || busy} loading={check.isPending} onPress={() => check.mutate()} />
             <Button
               variant="ghost"
               title="Cancel"
@@ -126,7 +127,7 @@ export default function ItemScreen() {
             />
           </Card>
         ) : (
-          <Button testID="check" variant="success" title={button.label} disabled={offline} loading={check.isPending} onPress={() => (button.needsNote ? setNoting(true) : check.mutate())} />
+          <Button testID="check" variant="success" title={button.label} disabled={offline || busy} loading={check.isPending} onPress={() => (button.needsNote ? setNoting(true) : check.mutate())} />
         ))}
       {offline && (
         <T tone="muted" size="sm">
@@ -173,7 +174,7 @@ export default function ItemScreen() {
                         testID={`note-${a}`}
                         title={NOTE_ACTION_LABELS[a]}
                         variant={a === 'apply' ? 'success' : 'secondary'}
-                        disabled={offline || (act.isPending && act.variables?.noteId !== n.id)}
+                        disabled={offline || busy}
                         loading={act.isPending && act.variables?.noteId === n.id && act.variables.action === a}
                         onPress={() => act.mutate({ noteId: n.id, action: a })}
                       />

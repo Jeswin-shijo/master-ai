@@ -100,7 +100,7 @@ export default function ListScreen() {
 
   if (!meta) {
     return (
-      <Screen underHeader>
+      <Screen underHeader refreshControl={<RefreshControl refreshing={overview.isRefetching} onRefresh={() => overview.refetch()} />}>
         {overview.isLoading ? (
           <T tone="muted">Loading…</T>
         ) : overview.error ? (
