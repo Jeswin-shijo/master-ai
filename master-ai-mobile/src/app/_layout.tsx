@@ -2,13 +2,13 @@ import { useEffect } from 'react';
 import { RedHatDisplay_300Light, RedHatDisplay_400Regular } from '@expo-google-fonts/red-hat-display';
 import { RedHatText_400Regular, RedHatText_500Medium, RedHatText_600SemiBold, useFonts } from '@expo-google-fonts/red-hat-text';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
 import { queryClient } from '@/lib/api';
 import { startQueueSync } from '@/lib/offline';
-import { registerForPush } from '@/lib/push';
+import { openPushTaps, registerForPush } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
 import { useSession } from '@/lib/session';
 import { font, useTheme } from '@/lib/theme';
@@ -25,9 +25,11 @@ function SignedInEffects() {
     void registerForPush();
     const stopSync = startQueueSync();
     const stopRefresh = refreshListsOnForeground();
+    const stopTaps = openPushTaps((href) => router.push(href));
     return () => {
       stopSync();
       stopRefresh();
+      stopTaps();
     };
   }, []);
   return null;

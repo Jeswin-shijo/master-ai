@@ -1,7 +1,9 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
+import type { Href } from 'expo-router';
 import { Platform } from 'react-native';
 import { api } from './api';
+import { pushTarget } from './push-target';
 
 /**
  * Register this phone for approval pushes. Remote push needs a development or
@@ -44,4 +46,29 @@ export async function registerForPush(): Promise<string | null> {
   } catch {
     return null; // Offline or not configured; retried on next launch.
   }
+}
+
+/** The last push this run opened, so signing in again doesn't open it twice. */
+let opened: string | null = null;
+
+/**
+ * Opens what a tapped push is about: a list item, a case or a decision. This
+ * covers a tap that started the app as well. Expo Go has no remote push, so it
+ * listens for nothing there, and expo-notifications is required lazily for the
+ * same reason as above.
+ */
+export function openPushTaps(open: (href: Href) => void): () => void {
+  if (!Device.isDevice || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return () => undefined;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+  const go = (response: import('expo-notifications').NotificationResponse | null) => {
+    if (!response || response.notification.request.identifier === opened) return;
+    opened = response.notification.request.identifier;
+    const to = pushTarget(response.notification.request.content.data);
+    if (to) open(to);
+  };
+  go(Notifications.getLastNotificationResponse());
+  Notifications.clearLastNotificationResponse();
+  const sub = Notifications.addNotificationResponseReceivedListener(go);
+  return () => sub.remove();
 }
