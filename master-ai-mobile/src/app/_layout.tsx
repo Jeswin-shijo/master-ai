@@ -12,6 +12,7 @@ import { registerForPush } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
 import { useSession } from '@/lib/session';
 import { font, useTheme } from '@/lib/theme';
+import { refreshListsOnForeground } from '@/lib/use-lists';
 
 void SplashScreen.preventAutoHideAsync();
 // The live stage handles reduced motion itself (a still ring), so Reanimated's development notice
@@ -22,7 +23,12 @@ function SignedInEffects() {
   useRealtime();
   useEffect(() => {
     void registerForPush();
-    return startQueueSync();
+    const stopSync = startQueueSync();
+    const stopRefresh = refreshListsOnForeground();
+    return () => {
+      stopSync();
+      stopRefresh();
+    };
   }, []);
   return null;
 }
@@ -64,6 +70,8 @@ function RootStack() {
           <Stack.Screen name="case/[id]" options={{ ...header, title: '' }} />
           <Stack.Screen name="case/new" options={{ ...header, title: 'New request', presentation: 'modal' }} />
           <Stack.Screen name="approval/[id]" options={{ ...header, title: 'Decision', presentation: 'modal' }} />
+          <Stack.Screen name="list/[id]/index" options={{ ...header, title: '' }} />
+          <Stack.Screen name="list/[id]/[itemId]" options={{ ...header, title: '' }} />
         </Stack.Protected>
       </Stack>
     </>

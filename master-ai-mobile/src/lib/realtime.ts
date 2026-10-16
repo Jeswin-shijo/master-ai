@@ -18,6 +18,9 @@ export function useRealtime() {
       onEvent: (e) => {
         const area = e.type.split('.')[0];
         if (area === 'approval' || area === 'policy' || area === 'action') void queryClient.invalidateQueries({ queryKey: ['approvals'] });
+        if (area === 'note' || area === 'record' || area === 'call') {
+          for (const key of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [key] });
+        }
         if (area === 'goal' || area === 'task' || area === 'action') {
           void queryClient.invalidateQueries({ queryKey: ['goals'] });
           if (e.goalId) void queryClient.invalidateQueries({ queryKey: ['goal', e.goalId] });

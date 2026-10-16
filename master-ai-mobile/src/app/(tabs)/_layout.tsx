@@ -1,12 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { useMyApprovals } from '@/lib/approvals';
+import { canSeeLists, newNotesTotal } from '@/lib/lists';
+import { useSession } from '@/lib/session';
 import { font, fontSize, tabBadge, useTheme } from '@/lib/theme';
+import { useListsOverview } from '@/lib/use-lists';
 
-/** Cases, Approvals, Calls, Pulse, Settings, in the spec's order. The app opens on the first tab; Approvals carries the badge. */
+/** Cases, Approvals, Lists (owner and admins), Calls, Pulse, Settings. The app opens on the first tab; Approvals and Lists carry badges. */
 export default function TabsLayout() {
   const { c } = useTheme();
   const count = useMyApprovals().data?.list.length ?? 0;
+  const role = useSession((s) => s.user?.role);
+  const newNotes = newNotesTotal(useListsOverview().data);
 
   return (
     <Tabs
@@ -30,6 +35,16 @@ export default function TabsLayout() {
           tabBarButtonTestID: 'tab-approvals',
           tabBarBadge: count > 0 ? count : undefined,
           tabBarIcon: ({ color, size }) => <Ionicons name="checkmark-done-circle-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="lists"
+        options={{
+          title: 'Lists',
+          href: canSeeLists(role) ? undefined : null,
+          tabBarButtonTestID: 'tab-lists',
+          tabBarBadge: newNotes > 0 ? newNotes : undefined,
+          tabBarIcon: ({ color, size }) => <Ionicons name="list-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen name="calls" options={{ title: 'Calls', tabBarIcon: ({ color, size }) => <Ionicons name="call-outline" size={size} color={color} /> }} />
