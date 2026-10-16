@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { RedHatDisplay_300Light, RedHatDisplay_400Regular } from '@expo-google-fonts/red-hat-display';
 import { RedHatText_400Regular, RedHatText_500Medium, RedHatText_600SemiBold, useFonts } from '@expo-google-fonts/red-hat-text';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
@@ -21,17 +21,21 @@ LogBox.ignoreLogs(['[Reanimated] Reduced motion setting is enabled']);
 
 function SignedInEffects() {
   useRealtime();
+  // A cold-start tap is read on mount, before the Stack's screens are registered, so listen only once the navigator is ready.
+  const navReady = !!useRootNavigationState()?.key;
   useEffect(() => {
     void registerForPush();
     const stopSync = startQueueSync();
     const stopRefresh = refreshListsOnForeground();
-    const stopTaps = openPushTaps((href) => router.push(href));
     return () => {
       stopSync();
       stopRefresh();
-      stopTaps();
     };
   }, []);
+  useEffect(() => {
+    if (!navReady) return;
+    return openPushTaps((href) => router.push(href));
+  }, [navReady]);
   return null;
 }
 
