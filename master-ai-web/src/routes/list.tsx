@@ -115,17 +115,22 @@ export function ListPage() {
   const meta = overview.data?.lists.find((l) => l.id === id);
   const entities = workspaces.data?.[0]?.pack.entities ?? [];
   const [view, setView] = useState<ListView | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const v = view ?? initialView(!!meta?.dateField);
+  // A bulk selection belongs to the view it was made in.
+  const changeView = (next: ListView) => {
+    setSelected(new Set());
+    setView(next);
+  };
+  const set = (patch: Partial<ListView>) => changeView({ ...v, page: 1, ...patch });
   // Deferred as a string: a new object every render would make React re-render without end. Typing in search stays smooth.
   const queryKey = useDeferredValue(JSON.stringify(listParams(v)));
-  const set = (patch: Partial<ListView>) => setView({ ...v, page: 1, ...patch });
   const page = useQuery({
     queryKey: ['list', id, queryKey],
     queryFn: () => api.lists.page(id, JSON.parse(queryKey) as ListQueryParams),
     enabled: !!meta,
     placeholderData: keepPreviousData,
   });
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   usePageTitle(meta?.label ?? 'Lists');
@@ -148,7 +153,7 @@ export function ListPage() {
       refresh();
     },
   });
-  const download = useMutation({ mutationFn: () => api.lists.exportCsv(id, listParams(v)), onSuccess: (text) => saveText(csvFileName(meta!.label), text) });
+  const download = useMutation({ mutationFn: () => api.lists.exportCsv(id, listParams(v)), onSuccess: (r) => saveText(csvFileName(meta!.label), r.csv) });
   const openOne = (itemId: string) =>
     setParams((p) => {
       p.set('item', itemId);
@@ -180,6 +185,11 @@ export function ListPage() {
           </div>
         }
       />
+      {download.data?.truncated && (
+        <p role="status" className="mb-4 text-sm text-fg-body">
+          The download holds the first {download.data.limit?.toLocaleString('en-IN')} items. Narrow the list to get the rest.
+        </p>
+      )}
       <FollowUpsPanel listId={id} />
 
       <Card className="mb-4">
@@ -353,13 +363,13 @@ export function ListPage() {
               </button>
             )}
             <div className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="ghost" disabled={v.page <= 1} onClick={() => setView({ ...v, page: v.page - 1 })}>
+              <Button size="sm" variant="ghost" disabled={v.page <= 1} onClick={() => changeView({ ...v, page: v.page - 1 })}>
                 Previous
               </Button>
               <span className="text-fg-muted">
                 Page {v.page} of {Math.max(1, Math.ceil(page.data.total / page.data.pageSize))}
               </span>
-              <Button size="sm" variant="ghost" disabled={v.page * page.data.pageSize >= page.data.total} onClick={() => setView({ ...v, page: v.page + 1 })}>
+              <Button size="sm" variant="ghost" disabled={v.page * page.data.pageSize >= page.data.total} onClick={() => changeView({ ...v, page: v.page + 1 })}>
                 Next
               </Button>
             </div>

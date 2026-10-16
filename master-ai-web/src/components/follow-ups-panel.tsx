@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PhoneCall, PhoneOutgoing } from 'lucide-react';
 import type { FollowUpInfo } from '@onehuman/schemas';
@@ -12,11 +13,18 @@ import { cn, timeAgo } from '@/lib/utils';
 export function FollowUpsPanel({ listId }: { listId: string }) {
   const queryClient = useQueryClient();
   const followUps = useQuery({ queryKey: ['follow-ups', listId], queryFn: () => api.lists.followUps(listId) });
+  // The "looking for items" line goes once the panel's data has refreshed after the sweep.
+  const updatedAt = useRef(followUps.dataUpdatedAt);
+  updatedAt.current = followUps.dataUpdatedAt;
+  const [sweptAt, setSweptAt] = useState(0);
+  const run = useMutation({ mutationFn: () => api.followUps.run(), onSuccess: () => setSweptAt(updatedAt.current) });
   const toggle = useMutation({
     mutationFn: (f: FollowUpInfo) => api.followUps.switch(f.key, !f.enabled),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['follow-ups', listId] }),
+    onSuccess: () => {
+      run.reset();
+      return queryClient.invalidateQueries({ queryKey: ['follow-ups', listId] });
+    },
   });
-  const run = useMutation({ mutationFn: () => api.followUps.run() });
   const list = followUps.data ?? [];
   if (!list.length) return null;
   return (
@@ -48,7 +56,7 @@ export function FollowUpsPanel({ listId }: { listId: string }) {
                 role="switch"
                 aria-checked={f.enabled}
                 aria-label={f.label}
-                disabled={!f.canSwitch || toggle.isPending}
+                disabled={!f.canSwitch || (toggle.isPending && toggle.variables?.key === f.key)}
                 onClick={() => toggle.mutate(f)}
                 className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50', f.enabled ? 'bg-primary' : 'bg-muted')}
               >
@@ -57,7 +65,7 @@ export function FollowUpsPanel({ listId }: { listId: string }) {
             </li>
           ))}
         </ul>
-        {run.isSuccess && <p className="text-xs text-fg-muted">Looking for items to call about now. Calls ring one at a time, inside calling hours.</p>}
+        {run.isSuccess && followUps.dataUpdatedAt === sweptAt && <p className="text-xs text-fg-muted">Looking for items to call about now. Calls ring one at a time, inside calling hours.</p>}
         <ErrorNote error={followUps.error ?? toggle.error ?? run.error} />
       </CardBody>
     </Card>

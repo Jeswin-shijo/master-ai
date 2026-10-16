@@ -106,6 +106,6 @@ test('a follow-up stopped for want of a phone number starts again from "Call aga
   await expect(notes.getByRole('button', { name: 'Seen', exact: true })).toBeVisible();
   await notes.getByRole('button', { name: 'Call again', exact: true }).click();
   await expect(notes).toContainText('Seen by Asha Owner');
-  // Still the item's latest note of its kind, so it can be used again.
-  await expect(notes.getByRole('button', { name: 'Call again', exact: true })).toBeVisible();
+  // The follow-up is running again, so there is nothing stopped to start: the button goes.
+  await expect(notes.getByRole('button', { name: 'Call again', exact: true })).toHaveCount(0);
 });

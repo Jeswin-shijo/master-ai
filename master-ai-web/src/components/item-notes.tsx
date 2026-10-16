@@ -18,7 +18,7 @@ export function ItemNotes({ notes, onDone }: { notes: ListNote[]; onDone: () => 
   const dismiss = useMutation({ mutationFn: (id: string) => api.notes.dismiss(id), onSuccess: onDone });
   const callAgain = useMutation({ mutationFn: (id: string) => api.notes.callAgain(id), onSuccess: onDone });
   if (!notes.length) return null;
-  const canCallAgain = (n: ListNote) => STOPPED.includes(n.kind) && (n.status === 'new' || notes.find((x) => x.kind === n.kind)?.id === n.id);
+  const canCallAgain = (n: ListNote) => n.canCallAgain;
   const state = (n: ListNote) => (n.status === 'new' ? 'New from a call' : n.status === 'applied' ? `Applied by ${n.decidedBy ?? 'someone'}` : `Seen by ${n.decidedBy ?? 'someone'}`);
   return (
     <section aria-label="From calls" className="space-y-2">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, Moon, Monitor, Sun } from 'lucide-react';
 import { darkPalette } from '@onehuman/ui';
@@ -24,6 +24,20 @@ function PhoneCallSettings() {
   const calls = tenant.data?.settings.calls;
   const twilio = voice.data?.twilio;
   const real = calls?.provider === 'twilio';
+  // The days are kept here and copied from the saved settings when those change, so a second quick tap builds on the first.
+  const savedDays = calls?.partyHours.days;
+  const [days, setDays] = useState<number[]>(savedDays ?? []);
+  const savedKey = savedDays?.join(',');
+  useEffect(() => {
+    if (savedDays) setDays(savedDays);
+  }, [savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleDay = (i: number) => {
+    if (!calls) return;
+    const next = days.includes(i) ? days.filter((x) => x !== i) : [...days, i].sort();
+    if (!next.length) return;
+    setDays(next);
+    save.mutate({ partyHours: { ...calls.partyHours, days: next } });
+  };
 
   const radio = 'mt-1 accent-[var(--oh-primary)]';
   return (
@@ -106,15 +120,14 @@ function PhoneCallSettings() {
             <>
               <div role="group" aria-label="Days for outside calls" className="flex flex-wrap gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => {
-                  const on = calls.partyHours.days.includes(i);
-                  const days = on ? calls.partyHours.days.filter((x) => x !== i) : [...calls.partyHours.days, i].sort();
+                  const on = days.includes(i);
                   return (
                     <button
                       key={d}
                       type="button"
                       aria-pressed={on}
-                      disabled={on && days.length === 0}
-                      onClick={() => save.mutate({ partyHours: { ...calls.partyHours, days } })}
+                      disabled={on && days.length === 1}
+                      onClick={() => toggleDay(i)}
                       className={cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary-soft text-primary' : 'border-border text-fg-muted hover:text-fg')}
                     >
                       {d}

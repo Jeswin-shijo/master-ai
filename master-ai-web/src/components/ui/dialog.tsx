@@ -1,8 +1,9 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 
 /** A modal on a dimmed, blurred page. Escape or a click outside closes it. */
 export function Dialog({ open, onClose, title, lead, children }: { open: boolean; onClose: () => void; title: string; lead?: string; children: ReactNode }) {
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -27,14 +28,14 @@ export function Dialog({ open, onClose, title, lead, children }: { open: boolean
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="dialog-title"
+            aria-labelledby={titleId}
             className="glass w-full max-w-lg rounded-lg p-6"
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           >
-            <h2 id="dialog-title" className="font-display text-2xl font-light text-fg">
+            <h2 id={titleId} className="font-display text-2xl font-light text-fg">
               {lead && <span className="text-fg-lead">{lead} </span>}
               {title}
             </h2>

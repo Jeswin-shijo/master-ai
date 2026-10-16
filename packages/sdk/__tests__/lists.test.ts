@@ -25,9 +25,16 @@ describe('api.lists', () => {
 
   it('downloads CSV as text with the session header, never a token in the URL, and without the page', async () => {
     const { api, calls } = client(() => new Response('﻿Bill no.,Total\r\nS-1,100\r\n', { status: 200 }));
-    expect(await api.lists.exportCsv('bills', { range: 'all', page: 3 })).toBe('Bill no.,Total\r\nS-1,100\r\n');
+    expect((await api.lists.exportCsv('bills', { range: 'all', page: 3 })).csv).toBe('Bill no.,Total\r\nS-1,100\r\n');
     expect(calls[0]!.url).toBe('http://api.test/lists/bills/export?range=all');
     expect((calls[0]!.init.headers as Record<string, string>).Authorization).toBe('Bearer token-1');
+  });
+
+  it('says when the download was cut at the limit, and when it was not', async () => {
+    const cut = client(() => new Response('a\r\n', { status: 200, headers: { 'X-Export-Truncated': '1', 'X-Export-Limit': '10000' } }));
+    expect(await cut.api.lists.exportCsv('bills')).toEqual({ csv: 'a\r\n', truncated: true, limit: 10000 });
+    const whole = client(() => new Response('a\r\n', { status: 200 }));
+    expect(await whole.api.lists.exportCsv('bills')).toEqual({ csv: 'a\r\n', truncated: false, limit: null });
   });
 
   it('turns a refused download into an ApiError with the reason', async () => {

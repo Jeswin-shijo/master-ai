@@ -48,6 +48,7 @@ export function useRealtimeConnection(): RealtimeStatus {
         if (area === 'followup' || area === 'note' || area === 'do_not_call') void queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
         if (area === 'call' || area === 'delegation') {
           void queryClient.invalidateQueries({ queryKey: ['calls'] });
+          if (area === 'call') void queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
           void queryClient.invalidateQueries({ queryKey: ['delegations'] });
           void queryClient.invalidateQueries({ queryKey: ['team'] });
         }

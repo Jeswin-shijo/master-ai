@@ -162,8 +162,8 @@ export function createClient(options: ClientOptions) {
     return data as T;
   }
 
-  /** A text answer (CSV). Same session header and errors as `request`. */
-  async function requestText(path: string): Promise<string> {
+  /** A text answer (CSV) with its response headers. Same session header and errors as `request`. */
+  async function requestTextWithHeaders(path: string): Promise<{ text: string; headers: Headers }> {
     const token = await options.getToken?.();
     const res = await doFetch(`${baseUrl}${path}`, { method: 'GET', headers: { Accept: 'text/csv', ...(token && { Authorization: `Bearer ${token}` }) } });
     const text = await res.text();
@@ -172,7 +172,7 @@ export function createClient(options: ClientOptions) {
       const bodyMessage = data && typeof data === 'object' && 'message' in data ? formatMessage((data as { message: unknown }).message) : '';
       throw new ApiError(res.status, bodyMessage || res.statusText || `Request failed (${res.status})`, data);
     }
-    return text;
+    return { text, headers: res.headers };
   }
 
   const get = <T>(path: string) => request<T>('GET', path);
@@ -338,7 +338,12 @@ export function createClient(options: ClientOptions) {
       overview: () => get<ListsOverview>('/lists'),
       page: (id: string, query: ListQueryParams = {}) => get<ListPage>(`/lists/${encodeURIComponent(id)}${listQuery(query)}`),
       /** The filtered list as CSV text. fetch drops the byte order mark; add it back before saving (Excel needs it). */
-      exportCsv: (id: string, query: ListQueryParams = {}) => requestText(`/lists/${encodeURIComponent(id)}/export${listQuery({ ...query, page: undefined })}`),
+      /** The CSV, and whether the server cut it at its limit (`X-Export-Truncated`, `X-Export-Limit`). */
+      exportCsv: async (id: string, query: ListQueryParams = {}): Promise<{ csv: string; truncated: boolean; limit: number | null }> => {
+        const { text, headers } = await requestTextWithHeaders(`/lists/${encodeURIComponent(id)}/export${listQuery({ ...query, page: undefined })}`);
+        const limit = Number(headers.get('X-Export-Limit'));
+        return { csv: text, truncated: headers.get('X-Export-Truncated') === '1', limit: headers.get('X-Export-Limit') && Number.isFinite(limit) ? limit : null };
+      },
       item: (id: string, itemId: string) => get<ListItemDetail>(`/lists/${encodeURIComponent(id)}/items/${itemId}`),
       create: (id: string, data: Record<string, unknown>) => post<ListItem>(`/lists/${encodeURIComponent(id)}/items`, { data }),
       update: (id: string, itemId: string, input: UpdateListItemInput) => patch<ListItem>(`/lists/${encodeURIComponent(id)}/items/${itemId}`, input),

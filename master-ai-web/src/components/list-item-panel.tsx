@@ -76,7 +76,7 @@ export function ListItemPanel({
   const done = () => {
     setMode('view');
     setText('');
-    for (const key of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [key] });
+    for (const key of ['lists', 'list', 'list-item', 'follow-ups']) void queryClient.invalidateQueries({ queryKey: [key] });
   };
   const update = useMutation({
     mutationFn: (v: { data: Record<string, unknown>; note: string }) => api.lists.update(list.id, itemId, { data: v.data, ...(v.note ? { note: v.note } : {}) }),

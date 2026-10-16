@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { api } from '@/lib/api';
 export function PickPeople({ open, who, pending, error, onClose, onPick }: { open: boolean; who: string | null; pending: boolean; error: unknown; onClose: () => void; onPick: (ids: string[]) => void }) {
   const team = useQuery({ queryKey: ['team'], queryFn: api.team.list, enabled: open });
   const [ids, setIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (open) setIds([]);
+  }, [open]);
   const active = (team.data ?? []).filter((p) => p.status === 'active');
   return (
     <Dialog open={open} onClose={onClose} title="Who does the AI call?" lead={who ? `Pick ${who}. The AI calls them at the routine's time and adds what they read out.` : 'Pick who the AI calls.'}>
