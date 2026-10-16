@@ -22,4 +22,6 @@ The head of an organization had no way to see the records their kind of organiza
 - A new organization type gets its lists by writing YAML; `pack.test.ts` checks every field a list or check names.
 - Checks always match today's date and the current pack, with no nightly job. The cost is working them out on every read. That is fine at the sizes a company keeps; a materialised view is the way out if it ever isn't.
 - The audit trail keeps old and new values, and a full copy of each removed item, so the personal details in records also live there.
-- Lists in the phone app, role holders seeing their own list, and the AI's calls about items come in later parts.
+- The phone app shows the lists to the owner and admins for review and action: browse, filter, mark checked, and Apply, Dismiss or Call again on notes from calls. Its wording comes from `@onehuman/sdk`, shared with the web. Adding and editing items, follow-up switches and the CSV stay on the web.
+- A party's answer that needs the head (paid or settled, a dispute, a wrong number) is pushed to the owner and admins once it is saved, and the push opens the item.
+- Role holders seeing their own list is still to come.

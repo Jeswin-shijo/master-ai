@@ -6,6 +6,9 @@ name: A member sees nobody else's approvals and no kill switch, and can read the
     file: common/sign-in.yaml
     env:
       EMAIL: ${MANOJ_EMAIL}
+# Lists are for the owner and admins: a member has no tab for them.
+- assertNotVisible:
+    id: "tab-lists"
 - tapOn:
     id: "tab-approvals"
 - extendedWaitUntil:

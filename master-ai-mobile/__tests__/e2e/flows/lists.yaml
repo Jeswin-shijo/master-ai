@@ -1,0 +1,35 @@
+appId: host.exp.exponent
+name: The owner applies what a customer said on a call, from the Lists tab
+---
+- runFlow: common/open.yaml
+- runFlow:
+    file: common/sign-in.yaml
+    env:
+      EMAIL: ${LISTS_OWNER_EMAIL}
+- tapOn:
+    id: "tab-lists"
+- extendedWaitUntil:
+    visible: ".*1 new from calls.*"
+    timeout: 20000
+- tapOn:
+    id: "list-bills"
+# The bill is dated ten days ago, which may be last month early in a month: look at all time.
+- tapOn:
+    id: "range-all"
+- tapOn:
+    id: "show-new_notes"
+- tapOn:
+    id: "item-${LISTS_BILL}"
+- extendedWaitUntil:
+    visible: ".*It's already paid\\. UTR 445566.*"
+    timeout: 20000
+- assertVisible: "Payment: paid"
+- tapOn:
+    id: "note-apply"
+- extendedWaitUntil:
+    visible: "Applied by Asha Owner"
+    timeout: 20000
+- assertVisible: ".*Checked by Asha Owner.*"
+- back
+- back
+- runFlow: common/sign-out.yaml

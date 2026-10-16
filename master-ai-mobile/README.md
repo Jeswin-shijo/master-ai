@@ -47,12 +47,15 @@ Remote push notifications need a development build (`eas build --profile develop
   - `tokens.test.ts`: the colour and font rules;
   - `offline.test.ts`: saved approvals per person, against a real SQLite;
   - `session.test.ts`: signing in or out clears the cache;
-  - `badge.test.ts`: badge contrast.
+  - `badge.test.ts`: badge contrast;
+  - `lists.test.ts`: the list helpers in words;
+  - `push-target.test.ts`: where a tapped push opens.
 - **End-to-end** (`pnpm e2e:mobile` from the root): Maestro 2.10.0 flows in Expo Go on the Android emulator.
   - **Flows** (`__tests__/e2e/flows/`):
     - `role-holder.yaml`: sees only their approval and approves it;
-    - `member.yaml`: sees no approvals;
-    - `new-request.yaml`: sends a request and watches its stages.
+    - `member.yaml`: sees no approvals and no Lists tab;
+    - `new-request.yaml`: sends a request and watches its stages;
+    - `lists.yaml`: the owner opens a bill from Lists and applies what the customer said.
   - **Before you run them:** start `pnpm dev`, Metro on 8082 and the emulator with Expo Go. Install Maestro into `~/.maestro`:
     ```bash
     export MAESTRO_VERSION=2.10.0; curl -Ls "https://get.maestro.mobile.dev" | bash

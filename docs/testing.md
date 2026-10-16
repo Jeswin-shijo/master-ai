@@ -38,7 +38,7 @@ Every package has its own (`pnpm --filter <package> test`):
   - that all 25 packs parse, resolve and validate, and that worked examples stay out of the test sets;
   - the offline stage rules, the AI prompts, the Gemini mapping and plain-words narration.
 - **`packages/policy`**: risk scores and Cedar decisions.
-- **`packages/sdk`**: signing, readable fields, the case views and report shared by web and mobile, and the live connection's tickets and reconnects.
+- **`packages/sdk`**: signing, readable fields, the case views and report shared by web and mobile, the list wording (labels, a page's query, values in words), and the live connection's tickets and reconnects.
 - **`packages/schemas`**: the input rules people meet (sign-up, a request, the public form, intake keys, invites), the plain values the apps show, and the canonical JSON behind audit hashes and signatures.
 - **`packages/ui`**: colour contrast of the design tokens.
 - **`master-ai-backend`** covers:
@@ -46,7 +46,7 @@ Every package has its own (`pnpm --filter <package> test`):
   - the rate limiter, the rules fallback, the choice of AI provider, and Twilio signatures;
   - the call engines and their helpers: `spoken` (Indian amounts and dates), `collect-engine`, `follow-up-engine`, `hours`, `due-sql` and `targets`.
 - **`master-ai-web`**: navigation, people and the design-token guard.
-- **`master-ai-mobile`**: design tokens, sessions, offline approvals, and the badge.
+- **`master-ai-mobile`**: design tokens, sessions, offline approvals, the badge, the list helpers (cards, rows, buttons, no-signal line) and where a tapped push opens.
 - **`evals`** covers:
   - the test sets themselves, and the checks the sector run applies;
   - the live scorer's error handling;
@@ -103,7 +103,7 @@ These scripts live in `master-ai-backend/scripts/` and talk to a running API exa
 
   Use `--only <id>` to run a single organization. With a model configured (`GET /health` says `online`), it runs one organization per sector, one at a time, and reports where the model's judgement differs from the test set instead of failing.
 - **`pnpm e2e`** runs the Playwright tests in `master-ai-web/__tests__/e2e/`. They cover signup to report in the browser at 1440 px (sector, type, preview, install, a new request, stages advancing live, approval by the role holder in a second browser, sign-off, the report), plus the main pages at 390 px phone width. `pages.spec.ts` opens every menu page as the owner and as a member: a heading, its tab title, no page errors, and no ids or tool names in what people read. `features.spec.ts` covers the kill switch, Knowledge, and Team with an automatic check-in. `lists.spec.ts` is the head's journey, at desktop and 390 px phone width: a bill that doesn't add up is found, bills are filtered to unpaid this month with the exact total checked, the problem is accepted with a note, the bill is corrected (its history shows the old and new values) and the list downloaded as CSV. `list-calls.spec.ts` (a collection call and a follow-up the head applies, desktop) and `collect-by-hand.spec.ts` (bills added by hand count for the right person, even when the form is closed without Done; desktop). `browsers.spec.ts` runs the main path (sign-up, a live request, the report, Copy, the print view) in Chromium, Firefox and WebKit, and fails on any page error or blocked script. Install the browsers once with `pnpm --filter @onehuman/web exec playwright install chromium firefox webkit`. On macOS 27.0.1 Playwright's Firefox doesn't start ("Could not find profile folder"); run `pnpm e2e --project=desktop --project=webkit` there, and CI covers Firefox.
-- **`pnpm e2e:mobile`** runs the Maestro flows in `master-ai-mobile/__tests__/e2e/`: a role holder approves with the fingerprint-signed key, a member sees no approvals, and a new request from the phone runs its stages. Setup is in [master-ai-mobile/README.md](../master-ai-mobile/README.md#testing).
+- **`pnpm e2e:mobile`** runs the Maestro flows in `master-ai-mobile/__tests__/e2e/`: a role holder approves with the fingerprint-signed key, a member sees no approvals, and a new request from the phone runs its stages, and the owner applies a customer's "paid" from the Lists tab. Setup is in [master-ai-mobile/README.md](../master-ai-mobile/README.md#testing).
 
 ## CI
 

@@ -6,7 +6,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { API_URL, PASSWORD, seed } from './seed.mts';
+import { API_URL, PASSWORD, seed, seedLists } from './seed.mts';
 
 const ADB = process.env.ADB ?? join(homedir(), 'Library/Android/sdk/platform-tools/adb');
 const MAESTRO = process.env.MAESTRO ?? join(homedir(), '.maestro/bin/maestro');
@@ -28,8 +28,9 @@ if (!/emulator-\d+\s+device/.test(adb('devices'))) fail('No Android emulator is 
 if (!adb('shell', 'pm', 'list', 'packages', 'host.exp.exponent').includes('host.exp.exponent')) fail('Expo Go is not on the emulator. Press `a` once in the Metro terminal to install it.');
 for (const port of ['3000', '8082']) adb('reverse', `tcp:${port}`, `tcp:${port}`);
 
-const env = await seed();
+const env = { ...(await seed()), ...(await seedLists()) };
 console.log(`✓ Seeded ${env.COMPANY}: ${env.HOT_WORK_CODE} waits for the safety officer, ${env.OVERHAUL_CODE} for the owner`);
+console.log(`✓ Seeded a trader: bill ${env.LISTS_BILL} has a customer's "paid" waiting in Lists`);
 
 // The live stage pulses forever, and a screen that never stops animating never lets UI Automator
 // read it. So the flows run with Android's animations off, which is also the phone's reduced-motion

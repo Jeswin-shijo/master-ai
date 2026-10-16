@@ -97,7 +97,8 @@ The sector content was researched from public sources, not reviewed by people wh
 
 ## Sector lists, part 1
 
-- Lists are on the web only; the phone app gets them in a later part.
+- On the phone, lists are for review and action only. Adding or editing items, follow-up switches, "Call now", totals by field and the CSV are on the web. Lists aren't saved for use without signal.
+- Pushes about lists cover only a party's paid, dispute and wrong-number answers; the rest shows on the Lists badge. Pushes need a development or production build (not Expo Go).
 - A role holder (accounts, site engineer) can't yet see only their own list; lists are for the owner and admins.
 - Reference pickers in the item form offer the 100 most recently changed items of that type.
 - A CSV download holds at most 10,000 items.
@@ -107,7 +108,7 @@ The sector content was researched from public sources, not reviewed by people wh
 
 ## Sector lists, part 2 (the AI's calls)
 
-- Calls about list items are in the web simulator and through Twilio; the phone app shows them in its call list but has no Lists tab yet.
+- Calls about list items are in the web simulator and through Twilio; the phone shows them in its call list and their notes in Lists.
 - A follow-up reads one item per call. A follow-up calls each number or team member at most once a day, about one item; a party with five overdue bills hears about them over five days, not in one call.
 - Team members are matched to an item by name: an active person with exactly that full name, or — when the item gives only a first name — the one active person with it. An item naming someone not on the team, or with a misspelt surname, stops with a note for the head.
 - The offline scripts understand everyday English replies; Hindi and Malayalam replies need a model.

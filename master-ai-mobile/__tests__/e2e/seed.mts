@@ -71,6 +71,55 @@ export async function seed(): Promise<Seeded> {
   };
 }
 
+/** India's date `n` days from today. */
+const istDay = (n: number) => new Date(Date.now() + 5.5 * 3_600_000 + n * 86_400_000).toISOString().slice(0, 10);
+
+async function until<T>(get: () => Promise<T | undefined>, failure: string, ms = 90_000): Promise<T> {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const found = await get();
+    if (found) return found;
+    await sleep(1000);
+  }
+  throw new Error(failure);
+}
+
+export interface SeededLists {
+  LISTS_OWNER_EMAIL: string;
+  LISTS_BILL: string;
+}
+
+/**
+ * A wholesale trader whose customer said on a simulated follow-up call that a
+ * bill is paid. Its Bills list holds one bill with a new note proposing
+ * "paid", for the owner to apply from the phone.
+ */
+export async function seedLists(): Promise<SeededLists> {
+  let token: string | null = null;
+  const owner = createClient({ baseUrl: API_URL, getToken: () => token });
+  const ownerEmail = email('lists');
+  const auth = await owner.auth.signup({
+    companyName: `Phone Traders ${randomBytes(2).toString('hex')}`,
+    ownerName: 'Asha Owner',
+    email: ownerEmail,
+    password: PASSWORD,
+    sector: 'trade-logistics-tourism',
+    orgType: 'wholesale-retail',
+  });
+  token = auth.token;
+  await owner.onboarding.install({ draftId: (await owner.onboarding.preview()).id, sampleData: false });
+  const party = await owner.lists.create('parties', { name: 'Sri Ganesh Traders', partyType: 'retailer', phone: '+91 98470 81234' });
+  const billNo = `PH-${randomBytes(2).toString('hex').toUpperCase()}`;
+  const bill = await owner.lists.create('bills', { billNo, billType: 'sales invoice', party: party.id, billDate: istDay(-10), dueDate: istDay(-3), total: 48260, paymentStatus: 'unpaid' });
+  await owner.followUps.switch('bills.unpaid-bills', true);
+  await owner.followUps.run();
+  const call = await until(async () => (await owner.calls.active()).find((c) => c.about?.itemId === bill.id && c.status === 'ringing'), `${billNo}'s follow-up call never rang`);
+  await owner.calls.answer(call.id);
+  for (const text of ['Yes, speaking', "It's already paid", 'UTR 445566']) await owner.calls.reply(call.id, text);
+  await until(async () => (await owner.lists.item('bills', bill.id)).notes.find((n) => n.status === 'new'), `the call about ${billNo} left no note`);
+  return { LISTS_OWNER_EMAIL: ownerEmail, LISTS_BILL: billNo };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log(JSON.stringify({ ...(await seed()), PASSWORD }, null, 2));
+  console.log(JSON.stringify({ ...(await seed()), ...(await seedLists()), PASSWORD }, null, 2));
 }
