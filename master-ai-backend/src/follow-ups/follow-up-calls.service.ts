@@ -8,12 +8,14 @@ import { DbService, type Tx } from '../db/db.service';
 import { calls, doNotCall, followUpAttempts, recordNotes, records, staff, tenants } from '../db/schema';
 import { isUuid } from '../lists/format';
 import { NotesService } from '../notes/notes.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { TemporalService } from '../orchestration/temporal.service';
 import { RecordsService } from '../records/records.service';
 import { FollowUpEngine, followUpSuggestions, newFollowUpState, simulatedFollowUpReply, type FollowUpContext, type FollowUpResult, type FollowUpState } from '../voice/follow-up-engine';
 import { aboutText, lowerFirst, sayDay } from '../voice/spoken';
 import { addDaysTo, istDate } from '../voice/time';
 import { TwilioService } from '../voice/twilio';
+import { partyAlert, type PartyAlert } from './alerts';
 import { FollowUpsService } from './follow-ups.service';
 import { phoneKey } from './targets';
 
@@ -43,6 +45,7 @@ export class FollowUpCallsService {
     private readonly temporal: TemporalService,
     private readonly twilio: TwilioService,
     private readonly followUps: FollowUpsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async plan(tenantId: string) {
@@ -240,11 +243,11 @@ export class FollowUpCallsService {
     return loaded ? followUpSuggestions(loaded.ctx) : [];
   }
 
-  /** The call's words are in: write the call, and what it leaves on the item. */
+  /** The call's words are in: write the call, and what it leaves on the item. A party's answer that needs the head is pushed once it is saved. */
   private async conclude(tenantId: string, callId: string, transcript: TranscriptLine[], state: FollowUpState, callBack: boolean, dropped = false) {
-    await this.db.tenant(tenantId, async (tx) => {
+    const alert = await this.db.tenant(tenantId, async (tx): Promise<PartyAlert | null> => {
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
-      if (!c || c.status === 'completed') return;
+      if (!c || c.status === 'completed') return null;
       const loaded = await this.load(tx, c);
       const name = loaded?.ctx.name ?? c.contactName ?? 'They';
       const result = state.result;
@@ -256,7 +259,11 @@ export class FollowUpCallsService {
       }
       await tx.update(calls).set({ status: 'completed', endedAt: new Date(), transcript, outcome, summary, extracted: { ...c.extracted, followUp: state } }).where(eq(calls.id, callId));
       await this.audit.append(tx, tenantId, { type: 'call.completed', actor: SYSTEM, refId: callId, payload: { staffName: name, stage: 'chase', outcome, summary } });
+      if (!result || !loaded || !c.recordId || loaded.f.who !== 'party') return null;
+      return partyAlert(result, { listId: loaded.reg.id, itemId: c.recordId, entity: loaded.reg.entity, data: loaded.rec.data, contactName: c.contactName });
     });
+    // After the commit, so the note is there when the head taps the push.
+    if (alert) void this.notifications.pushToManagers(tenantId, alert);
   }
 
   /** What a result leaves on the item: a note, a do-not-call entry, or (a team member's answer) the change itself. */

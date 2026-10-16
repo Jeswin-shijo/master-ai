@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '../../src/common/auth';
 import { CreateStaffInputSchema } from '@onehuman/schemas';
 import { SYSTEM } from '../../src/audit/audit.service';
@@ -10,6 +10,7 @@ import { FollowUpsService } from '../../src/follow-ups/follow-ups.service';
 import { phoneKey } from '../../src/follow-ups/targets';
 import { ListsService } from '../../src/lists/lists.service';
 import { NotesService } from '../../src/notes/notes.service';
+import { NotificationsService } from '../../src/notifications/notifications.service';
 import { RecordsService } from '../../src/records/records.service';
 import { TenancyService } from '../../src/tenancy/tenancy.service';
 import { CallsService } from '../../src/voice/calls.service';
@@ -856,5 +857,108 @@ describe('leftover gaps in follow-ups on the lists', () => {
       expect(notes[0]).toMatchObject({ kind: 'unreachable' });
       expect(notes[0]!.said).toBe("There's more than one Anil on your team. Put the full name on Scanner dead, or follow it up yourself.");
     });
+  });
+});
+
+describe('pushes for answers that need the head', () => {
+  const calling = () => h.get(FollowUpCallsService);
+  const phone = () => h.get(CallsService);
+  type Sent = { tenantId: string; message: { title: string; body: string; data?: Record<string, unknown> }; committed: Promise<boolean> };
+  let sent: Sent[] = [];
+  const listPushes = () => sent.filter((s) => s.message.data && 'listId' in s.message.data);
+
+  beforeAll(() => {
+    vi.spyOn(h.get(NotificationsService), 'pushToManagers').mockImplementation(async (tenantId, message) => {
+      const itemId = (message.data as { itemId?: string } | undefined)?.itemId;
+      // Read on another connection at once: a push sent inside the transaction would find no note yet.
+      const committed = itemId
+        ? db()
+            .tenant(tenantId, (tx) => tx.select().from(recordNotes).where(eq(recordNotes.recordId, itemId)))
+            .then((rows) => rows.length > 0)
+        : Promise.resolve(false);
+      sent.push({ tenantId, message, committed });
+    });
+  });
+  afterAll(() => vi.restoreAllMocks());
+  beforeEach(async () => {
+    await drain();
+    sent = [];
+  });
+
+  /** Picks the item's call, rings it in the simulator, says each reply and finishes the call. */
+  async function talk(id: string, replies: string[]) {
+    const next = (await followUps.pick(a.tenantId))!;
+    const [c] = await db().tenant(a.tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, next.callId)));
+    expect(c?.recordId).toBe(id);
+    await calling().place(a.tenantId, next.callId);
+    await phone().answer(a.tenantId, next.callId);
+    for (const text of replies) await phone().reply(a.tenantId, next.callId, text);
+    await calling().finish(a.tenantId, next.callId);
+  }
+
+  it('pushes once, after the note is saved, when a party says it is paid', async () => {
+    const id = await bill('PU-1');
+    await talk(id, ['Yes', "It's already paid", 'UTR 445566']);
+    expect(listPushes()).toHaveLength(1);
+    const [p] = listPushes();
+    expect(p!.tenantId).toBe(a.tenantId);
+    expect(p!.message).toEqual({ title: 'Kaveri Spec Traders says bill PU-1 is paid', body: '"It\'s already paid. UTR 445566" Tap to apply or dismiss.', data: { listId: 'bills', itemId: id } });
+    expect(await p!.committed).toBe(true);
+  });
+
+  it('pushes a dispute in their words', async () => {
+    const id = await bill('PU-2');
+    await talk(id, ['Yes', 'The goods never came']);
+    expect(listPushes().map((p) => p.message)).toEqual([{ title: 'Kaveri Spec Traders disputes bill PU-2', body: '"The goods never came"', data: { listId: 'bills', itemId: id } }]);
+  });
+
+  it('pushes a wrong number, saying where to correct it', async () => {
+    const wrong = await add('Party', { name: 'Wrong Push Traders', partyType: 'retailer', phone: '+91 98470 44445' });
+    const id = await bill('PU-3', { party: wrong });
+    await talk(id, ['Wrong number']);
+    expect(listPushes().map((p) => p.message)).toEqual([
+      {
+        title: 'Wrong number for Wrong Push Traders',
+        body: "The number called about bill PU-3 isn't theirs. Correct it on the web, then tap Call again on the note.",
+        data: { listId: 'bills', itemId: id },
+      },
+    ]);
+  });
+
+  it("doesn't push a promise, an unanswered call or a do-not-call request", async () => {
+    const promised = await bill('PU-4');
+    await talk(promised, ['Yes, speaking', 'We will pay it tomorrow']);
+    await nextDay();
+    const quiet = await add('Party', { name: 'Quiet Push Traders', partyType: 'retailer', phone: '+91 98470 44446' });
+    const asked = await bill('PU-5', { party: quiet });
+    await talk(asked, ['Yes', "Please don't call me again"]);
+    await nextDay();
+    const unanswered = await bill('PU-6');
+    const next = (await followUps.pick(a.tenantId))!;
+    const [c] = await db().tenant(a.tenantId, (tx) => tx.select().from(calls).where(eq(calls.id, next.callId)));
+    expect(c?.recordId).toBe(unanswered);
+    await calling().place(a.tenantId, next.callId);
+    await phone().decline(a.tenantId, next.callId);
+    await calling().finish(a.tenantId, next.callId);
+    expect(listPushes()).toEqual([]);
+  });
+
+  it("doesn't push a team member's status answer", async () => {
+    const it4 = await newOrg(h, 'it-services');
+    await h.get(ListsService).removeSamples(it4.session);
+    await h.get(TeamService).create(it4.session, CreateStaffInputSchema.parse({ name: 'Anil Kumar', phone: '+91 98470 55557', title: 'Engineer' }));
+    await followUps.switch({ ...it4.session, role: 'admin' }, 'tickets.overdue-tickets', true);
+    await db().tenant(it4.tenantId, async (tx) => {
+      const svc = h.get(RecordsService);
+      const data = { ticketNo: 'T-PU', clientName: 'Acme', summary: 'Printer offline', assignedTo: 'Anil', status: 'assigned', dueBy: new Date(Date.now() - 86_400_000).toISOString() };
+      await svc.create(tx, it4.tenantId, await svc.activeWorkspace(tx), 'Ticket', data, SYSTEM, { kind: 'agent' });
+    });
+    const next = (await followUps.pick(it4.tenantId))!;
+    await calling().place(it4.tenantId, next.callId);
+    await phone().answer(it4.tenantId, next.callId);
+    await phone().reply(it4.tenantId, next.callId, "It's in progress, done by tomorrow 5 pm");
+    await calling().finish(it4.tenantId, next.callId);
+    expect(await phone().get(it4.tenantId, next.callId)).toMatchObject({ outcome: 'updated' });
+    expect(listPushes()).toEqual([]);
   });
 });
