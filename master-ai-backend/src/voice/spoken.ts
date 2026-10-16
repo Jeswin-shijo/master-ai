@@ -126,7 +126,7 @@ function monthDay(t: string, year: number): string | null {
 
 /** A past-tense cue before a bare weekday: "Fixed it on Tuesday", "paid on Monday"; a future cue ("will be delivered on Tuesday") cancels it. */
 const PAST_CUE = /\b(?:fixed|paid|done|did|was|were|sent|received|came|closed|finished|completed|cleared|delivered)\b|\b\w+ed\s+on\s*$/;
-const FUTURE_CUE = /\b(?:will|shall|going to|gonna|should|would|must|to|told)\b|['’][ld]\b/;
+const FUTURE_CUE = /\b(?:will|shall|going to|gonna|should|would|must|told)\b|\bto (?:pay|send|do|deliver|clear|give|transfer|finish|fix|complete|return)\b|['’]ll\b|['’]d (?:be|pay|send|do|deliver|clear|give|finish|fix)\b/;
 /** Where a clause starts: after a comma, semicolon, full stop, "but" or "balance". */
 const CLAUSE_BREAK = /[,;.]|\b(?:but|balance)\b/g;
 

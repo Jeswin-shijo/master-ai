@@ -210,3 +210,16 @@ describe('fix round 1', () => {
     expect(spokenYesNo('theek hai')).toBe(true);
   });
 });
+
+describe('fix round 2: only "to <verb>" and "\'d <verb>" are future', () => {
+  it.each([
+    ['paid to Ramesh on Monday', '2026-10-12'],
+    ['sent to Kaveri on Monday', '2026-10-12'],
+    ['delivered to us on Tuesday', '2026-10-13'],
+    ["I'd paid on Monday", '2026-10-12'],
+    ['I was told to pay on Monday', '2026-10-19'],
+    ["it'd be done on Friday", '2026-10-16'],
+  ])('reads %s as %s', (text, day) => {
+    expect(spokenDate(text, now)).toBe(day);
+  });
+});
