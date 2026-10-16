@@ -117,49 +117,26 @@ The sector content was researched from public sources, not reviewed by people wh
 
 ### Left from the part 2 build
 
-Reviews found these while part 2 was built. Each is small, rare, or fails safe: the call asks again, waits, or leaves a note.
+Reviews found these while part 2 was built, and a follow-up pass fixed most of the others. Each one left is small or rare, or it fails safe: the call asks again, waits, or leaves a note.
 
 - **Spoken replies the offline script still misreads:**
-  - Two options in one reply pick the longer one ("not credit note, debit note" gives credit note).
-  - A month's first letters inside a word read as a date ("maybe 5" gives 5 May).
-  - "Today" or "tomorrow" beats an explicit date in the same reply.
-  - A past weekday or "next Friday" reads as the coming one, and "this morning" after 10:00 reads as tomorrow.
-  - A self-correction ("sixty thousand, no sorry, sixty five thousand") adds both amounts.
-  - "No, there are five" counts as none.
-  - "Theek hai" isn't read as yes.
-  - "Payment done" isn't read as paid.
-  - "All done, nothing pending" reads as still in progress.
-  - A bare long amount ("Paid 120000") is taken as the payment reference.
+  - "next Friday" said on a Thursday reads as tomorrow.
+  - A dashed date next to "today" ("entered today, dated 12-10") reads as today. A date with a slash still wins.
+  - "5k, sorry, 6k" reads as 5000.
+  - "No, none today, will do two tomorrow" counts two.
 
   The read-back before each item is saved catches most of these.
-- **Follow-up notes and the follow-ups panel:**
-  - An unread promise note keeps its item from being called again, and the panel doesn't count it as waiting for you.
-  - A note dismissed in the seconds before its call finishes leaves the item waiting for the head.
-  - The call log can say "Updated from what Anil said" when the update was refused and a note was left instead.
-  - "Couldn't find Anil in your team" also appears when there are two Anils.
-  - With no contact name, a note reads "call P-1 about P-1".
-  - Admins see "Call again" on notes about customers and suppliers, but only the owner can use it.
-  - "Call again" stays on a seen note after the follow-up has started again.
-- **Sweeps and calls:**
-  - The first list with a due item wins every sweep, so other lists' follow-ups wait behind it.
+- **Follow-ups:**
+  - An unread promise note keeps its item from being called again until the head sees it. It counts as "waiting for you".
   - If Twilio times out after it has accepted a call, the call is marked failed while the phone still rings.
   - A number that keeps failing to connect is retried daily, and only the call log says why.
-- **The web app:**
-  - The follow-ups panel's counts refresh when the page is opened or refocused, not after every call.
-  - "Looking for items to call about now" stays on screen after the sweep.
-  - While one switch saves, all of them are greyed out.
-  - "Who does the AI call?" keeps the previous picks after Cancel.
-- **Collection calls:**
-  - A call that drops at the moment the clerk confirms an item can save the item without counting it for the day.
-  - A collection call nobody answered is logged as a check-in call.
 - **Setup:**
-  - Calling hours whose start is after their end never allow a call, and nothing warns.
-  - Two quick day toggles in Settings can undo each other.
   - Switching follow-ups on and off at the same moment can leave the half-hourly sweep in the wrong state.
   - A new workspace from onboarding leaves an idle sweep running.
   - Errors keeping the sweep's schedule in step are only logged.
+- **Lists:**
+  - Sorting by a reference column looks up each row's title, which can be slow near 10,000 items.
+  - A bulk selection survives switching to another list.
 - **Packs:**
-  - A pack update can offer a collection routine whose fields don't fit the workspace's list.
-  - A fixed default isn't checked against its field's type (text on an amount).
   - Lookup fields aren't type-checked.
   - A model-written pack with two follow-ups of the same id loses that list.
