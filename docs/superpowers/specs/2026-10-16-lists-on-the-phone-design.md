@@ -32,8 +32,8 @@ Success: on the phone, the owner sees "Bills · 2 new from calls", opens the bil
   - The heading reads: "Lists, to check what came in."
   - Then one card per list, main lists first, in the order `GET /lists` returns. Each card shows:
     - the list's name;
-    - the count and sum (for example "12 bills · ₹4,82,600"), using `card.countLabel`, `card.sum` and `card.sumLabel`;
-    - one line of marks, each shown only when non-zero: "3 problems · 5 not checked · 2 new from calls".
+    - the count and sum (for example "12 this month · ₹4,82,600 to collect"), using `card.countLabel`, `card.sum` and `card.sumLabel`;
+    - one line of marks, each shown only when non-zero: "3 with problems · 5 not checked · 2 new from calls".
 - **Samples.** When `samples > 0`, a muted line reads: "Sample items are still in your lists. Remove them on the web when you're ready."
 - **Refresh.** Pull to refresh.
 - **Empty.** "No lists yet. Your organization type's lists appear here once it is set up."
@@ -42,7 +42,7 @@ Success: on the phone, the owner sees "Bills · 2 new from calls", opens the bil
 - **Header.** The list's name, then the matching total: "48 bills · ₹12,40,000".
 - **Search.** A search box sends `q` to the server, debounced by 300 ms.
 - **Show pills.** All, Has problems, Not checked, Checked, New from calls, sent as `show` and using the shared labels.
-- **Range pills.** Only when the list has a date field: Today, This week, This month, Last month, All. The default follows the web's `initialView`.
+- **Range pills.** Only when the list has a date field: Today, This week, This month, Last month, All time (the shared labels). The default follows the web's `initialView`.
 - **Rows.** `GET /lists/:id?…`, a page at a time, with more loading at the end of the scroll. Each row shows:
   - the item's title;
   - the first two of the list's `columns` other than the title, in words, through the shared `recordCell` (₹ amounts, dates, references by title);
@@ -50,7 +50,7 @@ Success: on the phone, the owner sees "Bills · 2 new from calls", opens the bil
   - Tapping a row opens the item.
 - **Select.**
   - Tapping "Select" turns rows into checkboxes, and a bottom bar shows "Mark 4 checked".
-  - It calls `POST /lists/:id/check` (`checkMany`). The result reads in words: "4 marked checked" or "3 marked checked; 1 was already checked."
+  - It calls `POST /lists/:id/check` (`checkMany`). The server leaves items with open problems (`skipped`), because those need a note. The result reads in words: "4 marked checked." or "3 marked checked. 1 has problems: open it to check it with a note."
   - The selection clears when the view changes or after the check.
 - **Undated items.** When a range hides undated items, the line "{n} items have no date and aren't shown" appears.
 
@@ -62,9 +62,9 @@ Success: on the phone, the owner sees "Bills · 2 new from calls", opens the bil
   - "Updated on a call with {name}" when `updated.via === 'call'`.
   - "Checked by {name}, {time ago}" with the note, when checked.
 - **Fields.** Every field of the entity, through `recordCell`, as label/value rows. Empty fields read "—".
-- **Problems.** Each problem's message, marked "accepted" if acknowledged.
+- **Problems.** Each problem's message; an accepted one is marked "(seen)", as on the web and in the CSV. A duplicate's problem links to the other item.
 - **Mark checked.**
-  - The button reads "Mark checked", or "Mark checked anyway" when there are open problems, with an optional note.
+  - The button reads "Mark checked", or "Mark checked anyway" when there are open problems. With open problems, a note saying why the item is right is required, because the server refuses an empty one. A checked item with nothing open shows no button.
   - It calls `POST /lists/:id/items/:itemId/check`. Checking with open problems acknowledges them, as on the web.
 - **From calls.** Notes, newest first. Each note shows:
   - the kind's label;
@@ -78,16 +78,17 @@ Success: on the phone, the owner sees "Bills · 2 new from calls", opens the bil
   - **Apply,** for new notes that propose changes.
   - **Dismiss,** for new notes that propose changes, or **Seen** for new notes without proposals.
   - **Call again,** only when `note.canCallAgain`.
-- **History.** The last 10 entries, in words.
+- **History.** The last 10 entries, newest first, in words.
 
 ### 2.4 Shared wording (`@onehuman/sdk`)
 
 Move these from `master-ai-web/src/lib/lists.ts` and `master-ai-web/src/lib/record-cell.ts` into a new `packages/sdk/src/lists.ts`, exported from the SDK:
 - `RANGE_LABELS`, `SHOW_LABELS`, `SOURCE_LABELS` and `NOTE_LABELS`;
 - `followUpLine`, `dayLabel`, `referenceText`, `initialView` and `listParams` (with the `ListView` type);
-- `recordCell`, with the formatters it needs (`formatInr`, `formatValue`).
+- `recordCell`, with `formatValue`. `formatInr` stays in `@onehuman/ui`, which the SDK now depends on;
+- two new helpers: `itemCell` (a reference by its title, anything else through `recordCell`) and `amountText` (a total in rupees or Indian digit groups).
 
-The web's `lib/lists.ts` and `lib/record-cell.ts` re-export them, so web code and tests don't change. Browser-only helpers stay in the web: `saveText`, `withBom`, `csvFileName`, and the sort marks for column headers.
+The web's `lib/lists.ts` and `lib/record-cell.ts` re-export them, so web code doesn't change. The web's list table and item panel use `itemCell` in place of their copy of the same logic. The tests move with the code. Browser-only helpers stay in the web: `saveText`, `withBom`, `csvFileName`, and the sort marks for column headers.
 
 The web takes run-time values only from `@onehuman/schemas/plain`. The moved code must keep that rule: types are `import type` from the schemas root, and run-time values come from `@onehuman/schemas/plain` or the SDK.
 
@@ -97,9 +98,11 @@ The web takes run-time values only from `@onehuman/schemas/plain`. The moved cod
 
 | Result | Title | Body |
 |---|---|---|
-| settled (a note proposing fields) | `{party} says {item} is paid` (or `… is settled` when no payment field was proposed) | `"{their words}" Tap to apply or dismiss.` |
+| settled | `{party} says {item} is paid`. The word is the proposed value when it is paid, received, delivered, approved, confirmed, done or completed; otherwise `… is settled` | `"{their words}" Tap to apply or dismiss.` (only the quote when nothing can be applied) |
 | dispute | `{party} disputes {item}` | `"{their words}"` |
-| wrong number | `Wrong number for {party}` | `The number on {item} isn't theirs. Correct it and tap Call again on the note.` |
+| wrong number | `Wrong number for {party}` | `The number called about {item} isn't theirs. Correct it on the web, then tap Call again on the note.` |
+
+Their words are clipped to 120 characters.
 
 **No push for** promises, "couldn't reach" notes, collection differences, staff answers, or do-not-call requests. Those show on the badge, and a do-not-call request needs no decision.
 
@@ -108,9 +111,10 @@ The web takes run-time values only from `@onehuman/schemas/plain`. The moved cod
 **Tapping a push.** The app has no tap handler today, so it gains one, registered next to `registerForPush` and loaded lazily in the same way:
 - `{ listId, itemId }` opens `/list/{listId}/{itemId}`;
 - `{ caseId }` opens `/case/{caseId}`;
+- `{ approvalId }` opens the decision, `/approval/{approvalId}`;
 - anything else just opens the app.
 
-**Words only.** No ids appear in the title or the body: `{item}` is the item's title and `{party}` the contact's name.
+**Words only.** No ids appear in the title or the body. `{item}` is the record type and the item's title ("bill S-1042"), or "the bill" without a title. `{party}` is the contact's name, or "Your contact" without one.
 
 **Where it works.** Pushes work only in a development or production build. In Expo Go the push is skipped, as for approvals today (`src/lib/push.ts`), and the badge still updates.
 
@@ -139,7 +143,7 @@ The web takes run-time values only from `@onehuman/schemas/plain`. The moved cod
 
 ## 6. Testing
 
-- **SDK** (`packages/sdk/__tests__/lists.test.ts`, extended): unit tests for the moved helpers, including `recordCell` on money, date, enum and reference values, and `listParams`. The web's existing `lists` and `record-cell` tests keep passing through the re-exports.
+- **SDK** (`packages/sdk/__tests__/lists.test.ts`, extended): unit tests for the moved helpers, including `recordCell` and `itemCell` on money, date, enum and reference values, and `listParams`. The web's tests for those helpers move here. The web keeps its web-only tests and one check that its re-exports are the SDK's own functions.
 - **Phone unit tests** (`master-ai-mobile/__tests__/unit/`): pure helpers in `src/lib/lists.ts` (phone):
   - the badge total;
   - a row's two-column summary;
