@@ -9,8 +9,6 @@ export interface PartyAlert {
   data: { listId: string; itemId: string };
 }
 
-/** Values that say what was settled: "… says bill S-1042 is paid". */
-const SETTLED_WORDS = ['paid', 'received', 'delivered', 'approved', 'confirmed', 'done', 'completed'];
 const QUOTE_MAX = 120;
 
 /**
@@ -30,9 +28,9 @@ export function partyAlert(
   const quote = `"${clip(result.said)}"`;
   switch (result.kind) {
     case 'settled': {
-      const word = Object.values(result.proposed).find((v): v is string => typeof v === 'string' && SETTLED_WORDS.includes(v.toLowerCase()));
+      const word = settledWord(about.entity, result.proposed);
       const canApply = Object.keys(result.proposed).length > 0;
-      return { title: `${party} says ${item} is ${word?.toLowerCase() ?? 'settled'}`, body: canApply ? `${quote} Tap to apply or dismiss.` : quote, data };
+      return { title: `${party} says ${item} is ${word ?? 'settled'}`, body: canApply ? `${quote} Tap to apply or dismiss.` : quote, data };
     }
     case 'dispute':
       return { title: `${party} disputes ${item}`, body: quote, data };
@@ -41,6 +39,15 @@ export function partyAlert(
     default:
       return null;
   }
+}
+
+/** The proposed value of the first enum field, as words: "part paid". Null when none is proposed. */
+function settledWord(entity: EntityDef, proposed: Record<string, unknown>): string | null {
+  for (const [key, value] of Object.entries(proposed)) {
+    const field = entity.fields.find((f) => f.name === key);
+    if (field?.type === 'enum' && typeof value === 'string' && value.trim()) return value.trim().toLowerCase().replace(/-/g, ' ');
+  }
+  return null;
 }
 
 /** "bill S-1042", or "the bill" when it has no title. */

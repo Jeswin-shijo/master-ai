@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { keepPreviousData, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ListItem, ListMeta, ListRange, ListShow } from '@onehuman/schemas';
 import { initialView, listParams, RANGE_LABELS, SHOW_LABELS, type ListView } from '@onehuman/sdk';
 import { Badge, Button, Card, Empty, Input, Pill, Screen, T } from '@/components/ui';
@@ -51,6 +52,7 @@ function Row({ list, item, selecting, selected, onPress }: { list: ListMeta; ite
 export default function ListScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const overview = useListsOverview();
   const meta = overview.data?.lists.find((l) => l.id === id);
   const [view, setView] = useState<ListView | null>(null);
@@ -131,7 +133,7 @@ export default function ListScreen() {
       <Input testID="list-search" value={q} onChangeText={setQ} placeholder={`Search ${meta.label.toLowerCase()}`} accessibilityLabel={`Search ${meta.label.toLowerCase()}`} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
         {SHOWS.map((s) => (
-          <Pill key={s} testID={`show-${s}`} label={SHOW_LABELS[s]} active={v.show === s} onPress={() => change({ show: s })} />
+          <Pill key={s} testID={`show-${s}`} label={SHOW_LABELS[s]} active={v.show === s} onPress={() => change(s === 'all' ? { show: s } : { show: s, range: 'all' })} />
         ))}
       </View>
       {meta.dateField && (
@@ -206,10 +208,10 @@ export default function ListScreen() {
         }
         ListFooterComponent={pages.isFetchingNextPage ? <T tone="muted">Loading more…</T> : null}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: selecting ? 140 : space.xxl }}
+        contentContainerStyle={{ paddingBottom: selecting ? 140 + insets.bottom : space.xxl }}
       />
       {selecting && (
-        <View style={{ position: 'absolute', left: space.lg, right: space.lg, bottom: space.lg, gap: space.xs }}>
+        <View style={{ position: 'absolute', left: space.lg, right: space.lg, bottom: space.lg + insets.bottom, gap: space.xs }}>
           <Button
             testID="mark-checked"
             variant="success"

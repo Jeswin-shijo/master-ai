@@ -24,7 +24,7 @@ const adb = (...args: string[]) => execFileSync(ADB, args).toString();
 
 if (!(await answers(`${API_URL}/health`))) fail(`The API is not answering at ${API_URL}. Start everything with \`pnpm dev\` first.`);
 if (!(await answers('http://localhost:8082/status'))) fail('Metro is not running on :8082. Run `pnpm --filter @onehuman/mobile start` in another terminal.');
-if (!/emulator-\d+\s+device/.test(adb('devices'))) fail('No Android emulator is running. Start it with `~/Library/Android/sdk/emulator/emulator -avd Pixel_10_Pro`.');
+if (!/emulator-\d+\s+device/.test(adb('devices'))) fail('No Android emulator is running. Start it with `~/Library/Android/sdk/emulator/emulator -avd Pixel_10_Pro` (Expo Go 57 needs an API 36 or older image).');
 if (!adb('shell', 'pm', 'list', 'packages', 'host.exp.exponent').includes('host.exp.exponent')) fail('Expo Go is not on the emulator. Press `a` once in the Metro terminal to install it.');
 for (const port of ['3000', '8082']) adb('reverse', `tcp:${port}`, `tcp:${port}`);
 

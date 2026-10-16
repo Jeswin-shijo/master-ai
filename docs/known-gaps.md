@@ -64,6 +64,9 @@ What's left before going live (hosting, backups, sessions, monitoring) is in [Pr
 - One approval reason line can name a tool (the policy engine's earned-autonomy line).
 - A decision queued offline is dropped if the session expired meanwhile.
 - Saved approvals aren't encrypted on the phone.
+- The Lists flow (`lists.yaml`) and the member's no-Lists-tab check haven't run on a device yet. Expo Go 57.0.9 doesn't start on the Android 17 (API 37) Pixel_10_Pro emulator: use an API 36 or older image, or a newer Expo Go.
+- A push tap, from a cold start or a warm app, needs a development or production build and hasn't been tried.
+- On the web, a list still opens on This month when you choose Has problems, Not checked or New from calls. The phone switches to All time.
 
 ## Sector content
 - Some approval reasons show role names in lower case.

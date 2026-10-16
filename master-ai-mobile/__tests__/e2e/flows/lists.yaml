@@ -13,9 +13,6 @@ name: The owner applies what a customer said on a call, from the Lists tab
     timeout: 20000
 - tapOn:
     id: "list-bills"
-# The bill is dated ten days ago, which may be last month early in a month: look at all time.
-- tapOn:
-    id: "range-all"
 - tapOn:
     id: "show-new_notes"
 - tapOn:

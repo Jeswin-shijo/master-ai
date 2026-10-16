@@ -9,6 +9,9 @@ const Bill = {
   fields: [
     { name: 'billNo', label: 'Bill no.', type: 'string', required: true },
     { name: 'party', label: 'Party', type: 'reference', ref: 'Party', required: false },
+    { name: 'paymentStatus', label: 'Payment', type: 'enum', options: ['unpaid', 'part-paid', 'paid'], required: false },
+    { name: 'paymentRef', label: 'Payment ref', type: 'string', required: false },
+    { name: 'status', label: 'Status', type: 'enum', options: ['open', 'delivered'], required: false },
   ],
 } as EntityDef;
 const PARTY = '0b9d3c55-8a1e-4f7e-9a51-2f7c3a6c1e11';
@@ -35,6 +38,11 @@ describe('the push for a party answer that needs the head', () => {
   it('names what was settled, or says settled when there is nothing to apply', () => {
     expect(partyAlert({ kind: 'settled', said: 'Goods reached', proposed: { status: 'delivered' } }, about())?.title).toBe('Sri Ganesh Traders says bill S-1042 is delivered');
     expect(partyAlert({ kind: 'settled', said: 'All cleared', proposed: {} }, about())).toMatchObject({ title: 'Sri Ganesh Traders says bill S-1042 is settled', body: '"All cleared"' });
+  });
+
+  it('says what the proposed enum value is, not that it is settled, for a part payment', () => {
+    expect(partyAlert({ kind: 'settled', said: 'Sent half', proposed: { paymentStatus: 'part-paid' } }, about())?.title).toBe('Sri Ganesh Traders says bill S-1042 is part paid');
+    expect(partyAlert({ kind: 'settled', said: 'Ref 445566', proposed: { paymentRef: '445566' } }, about())?.title).toBe('Sri Ganesh Traders says bill S-1042 is settled');
   });
 
   it('says a dispute and a wrong number', () => {

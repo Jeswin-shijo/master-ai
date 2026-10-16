@@ -58,17 +58,21 @@ let opened: string | null = null;
  * same reason as above.
  */
 export function openPushTaps(open: (href: Href) => void): () => void {
-  if (!Device.isDevice || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return () => undefined;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const Notifications = require('expo-notifications') as typeof import('expo-notifications');
-  const go = (response: import('expo-notifications').NotificationResponse | null) => {
-    if (!response || response.notification.request.identifier === opened) return;
-    opened = response.notification.request.identifier;
-    const to = pushTarget(response.notification.request.content.data);
-    if (to) open(to);
-  };
-  go(Notifications.getLastNotificationResponse());
-  Notifications.clearLastNotificationResponse();
-  const sub = Notifications.addNotificationResponseReceivedListener(go);
-  return () => sub.remove();
+  if (Platform.OS === 'web' || !Device.isDevice || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return () => undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+    const go = (response: import('expo-notifications').NotificationResponse | null) => {
+      if (!response || response.notification.request.identifier === opened) return;
+      opened = response.notification.request.identifier;
+      const to = pushTarget(response.notification.request.content.data);
+      if (to) open(to);
+    };
+    go(Notifications.getLastNotificationResponse());
+    Notifications.clearLastNotificationResponse();
+    const sub = Notifications.addNotificationResponseReceivedListener(go);
+    return () => sub.remove();
+  } catch {
+    return () => undefined;
+  }
 }
