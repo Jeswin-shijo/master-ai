@@ -141,10 +141,11 @@ export class CollectionService {
       // Locked, so a call that drops while an item is being confirmed is finished once, after any save in flight.
       const [c] = await tx.select().from(calls).where(eq(calls.id, callId)).for('update');
       if (!c?.checkinId || c.status === 'completed') return;
-      // The newest state wins: the call row's, if it holds at least as many items and differences as the one passed in (a drop can arrive with an older read).
+      // The newest state wins: the call row's, if it holds more items and differences than the one passed in (a drop can arrive with an older read).
       const taken = (s: CollectState) => s.saved.length + s.differences;
       const stored = c.extracted.collect;
-      const useStored = !!stored && taken(stored) >= taken(passedState);
+      // More items wins; on a tie the longer transcript does, so the reply path's final exchange is kept.
+      const useStored = !!stored && (taken(stored) > taken(passedState) || (taken(stored) === taken(passedState) && c.transcript.length > passedTranscript.length));
       const state = useStored ? stored : passedState;
       const transcript = useStored ? c.transcript : passedTranscript;
       const [row] = await tx

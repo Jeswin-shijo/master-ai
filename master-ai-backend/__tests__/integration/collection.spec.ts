@@ -89,6 +89,10 @@ describe('collection routines', () => {
     expect(day.entries[0]).toMatchObject({ status: 'reported', source: 'call', values: { items: 2, differences: 0 } });
     expect(day.summary.totals).toEqual([{ key: 'items', label: 'Bills added', value: 2 }]);
     expect(await calls.get(a.tenantId, callId)).toMatchObject({ status: 'completed', outcome: 'reported', summary: 'Added 2 bills' });
+    // The finished call keeps its last exchange: the clerk's last reply and the AI's closing line.
+    const transcript = (await calls.get(a.tenantId, callId)).transcript;
+    expect(transcript.at(-2)).toMatchObject({ speaker: 'person', text: "No, that's all" });
+    expect(transcript.at(-1)!.text).toMatch(/^Thank you, Ravi\./);
   });
 
   it('keeps the bills confirmed before the line dropped', async () => {
