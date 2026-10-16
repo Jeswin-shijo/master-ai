@@ -29,8 +29,9 @@ function PhoneCallSettings() {
   const [days, setDays] = useState<number[]>(savedDays ?? []);
   const savedKey = savedDays?.join(',');
   useEffect(() => {
-    if (savedDays) setDays(savedDays);
-  }, [savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Not while a save is in flight: an earlier response would overwrite a later tap. Once it settles, take what the server holds.
+    if (savedDays && !save.isPending) setDays(savedDays);
+  }, [savedKey, save.isPending]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggleDay = (i: number) => {
     if (!calls) return;
     const next = days.includes(i) ? days.filter((x) => x !== i) : [...days, i].sort();

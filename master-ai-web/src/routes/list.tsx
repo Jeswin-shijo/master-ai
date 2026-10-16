@@ -120,6 +120,7 @@ export function ListPage() {
   // A bulk selection belongs to the view it was made in.
   const changeView = (next: ListView) => {
     setSelected(new Set());
+    download.reset();
     setView(next);
   };
   const set = (patch: Partial<ListView>) => changeView({ ...v, page: 1, ...patch });

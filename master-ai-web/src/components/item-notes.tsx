@@ -6,12 +6,9 @@ import { api } from '@/lib/api';
 import { dayLabel, NOTE_LABELS } from '@/lib/lists';
 import { cn, timeAgo } from '@/lib/utils';
 
-/** Notes saying a follow-up stopped: nobody to reach, or a wrong number. "Call again" starts it again. */
-const STOPPED: ListNote['kind'][] = ['unreachable', 'wrong_number'];
-
 /**
  * What calls left on an item, newest first. Apply sets what a note proposes; a note with nothing to apply is only marked as seen.
- * A note saying the follow-up stopped offers "Call again" while it is new, and after it is seen for as long as it is the latest of its kind.
+ * "Call again" shows where the server says it works (`canCallAgain`): a stopped follow-up the viewer may start again.
  */
 export function ItemNotes({ notes, onDone }: { notes: ListNote[]; onDone: () => void }) {
   const apply = useMutation({ mutationFn: (id: string) => api.notes.apply(id), onSuccess: onDone });
