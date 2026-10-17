@@ -98,7 +98,7 @@ The web takes run-time values only from `@onehuman/schemas/plain`. The moved cod
 
 | Result | Title | Body |
 |---|---|---|
-| settled | `{party} says {item} is paid`. The word is the proposed value of the first enum field in the proposal, lowercased with hyphens as spaces (`is paid`, `is part paid`, `is delivered`); `… is settled` when no enum value is proposed | `"{their words}" Tap to apply or dismiss.` (only the quote when nothing can be applied) |
+| settled | `{party} says {item} is paid`. The word is the proposed value of the enum field in the proposal whose name contains "status" (else the first other enum), lowercased with hyphens as spaces (`is paid`, `is part paid`, `is delivered`); `… is settled` when no enum value is proposed | `"{their words}" Tap to apply or dismiss.` (only the quote when nothing can be applied). A long item title is clipped to 60 characters in the title |
 | dispute | `{party} disputes {item}` | `"{their words}"` |
 | wrong number | `Wrong number for {party}` | `The number called about {item} isn't theirs. Correct it on the web, then the owner can tap Call again on the note.` |
 
@@ -120,7 +120,7 @@ Their words are clipped to 120 characters.
 
 ## 4. Freshness, no signal and errors
 
-- **Live updates.** `src/lib/realtime.ts` invalidates the lists queries (`['lists']`, `['list', …]` and `['list-item', …]`) on events in the areas `note`, `record` and `call`. On reconnect it already invalidates everything.
+- **Live updates.** `src/lib/realtime.ts` invalidates the lists queries (`['lists']`, `['list', …]` and `['list-item', …]`) on events in the areas `note` and `record` (a call that changes a list also emits one of these, so `call` events alone don't refetch every card). Events in the area `followup` invalidate `['list-item', …]`, so "Call again" pressed on another device hides the button here. On reconnect it already invalidates everything.
 - **Back to the front.** When the app returns to the foreground (`AppState` active), the lists overview refetches, so the badge is current.
 - **No signal.**
   - Lists aren't stored offline. The offline SQLite cache stays for approvals only.

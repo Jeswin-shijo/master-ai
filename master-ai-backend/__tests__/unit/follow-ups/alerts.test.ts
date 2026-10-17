@@ -83,11 +83,12 @@ describe('the push for a party answer that needs the head', () => {
     const said = `${'a'.repeat(119)}${g}${'b'.repeat(30)}`;
     const { body } = partyAlert({ kind: 'dispute', said }, about())!;
     expect(body).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
-    const has = body.includes(g);
-    if (has) expect(body).toContain(`a${g}`);
-    else expect(body).toBe(`"${'a'.repeat(119)}…"`);
+    expect(body).toBe(`"${'a'.repeat(119)}…"`);
+    // One character short of the limit, the grapheme still fits and must stay whole.
     const near = `${'a'.repeat(118)}${g}${'b'.repeat(30)}`;
-    expect(partyAlert({ kind: 'dispute', said: near }, about())!.body).toContain(g);
+    const nearBody = partyAlert({ kind: 'dispute', said: near }, about())!.body;
+    expect(nearBody).toContain(`${'a'.repeat(118)}${g}`);
+    expect(nearBody).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
   });
 
   it('clips a long item title to 60 characters', () => {
