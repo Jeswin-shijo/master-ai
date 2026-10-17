@@ -21,6 +21,9 @@ name: The owner applies what a customer said on a call, from the Lists tab
     visible: ".*It's already paid\\. UTR 445566.*"
     timeout: 20000
 - assertVisible: "Payment: paid"
+- scrollUntilVisible:
+    element:
+      id: "note-apply"
 - tapOn:
     id: "note-apply"
 - extendedWaitUntil:

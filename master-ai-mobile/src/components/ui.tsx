@@ -130,7 +130,7 @@ export function Button({
 
 type BadgeTone = 'default' | 'muted' | 'accent' | 'primary' | 'success' | 'warning' | 'danger';
 
-export function Badge({ label, tone = 'muted' }: { label: string; tone?: BadgeTone }) {
+export function Badge({ label, tone = 'muted', accessibilityLiveRegion }: { label: string; tone?: BadgeTone; accessibilityLiveRegion?: 'none' | 'polite' | 'assertive' }) {
   const { c } = useTheme();
   const map: Record<BadgeTone, [string, string]> = {
     default: [c.line10, c.text],
@@ -143,7 +143,7 @@ export function Badge({ label, tone = 'muted' }: { label: string; tone?: BadgeTo
   };
   const [bg, fg] = map[tone];
   return (
-    <View style={{ backgroundColor: bg, borderRadius: radius.full, paddingHorizontal: space.sm, paddingVertical: 3, alignSelf: 'flex-start' }}>
+    <View accessibilityLiveRegion={accessibilityLiveRegion} style={{ backgroundColor: bg, borderRadius: radius.full, paddingHorizontal: space.sm, paddingVertical: 3, alignSelf: 'flex-start' }}>
       <Text style={{ color: fg, fontSize: fontSize.xs, fontFamily: font.semibold }}>{label}</Text>
     </View>
   );

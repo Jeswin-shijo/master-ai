@@ -4,7 +4,7 @@ import type { ListSummary } from '@onehuman/schemas';
 import { Badge, Card, Empty, H, Screen, T } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { cardCount, cardMarks, noSignalLine } from '@/lib/lists';
-import { useListsOverview, useOffline } from '@/lib/use-lists';
+import { useListsOverview, useOffline, usePullRefresh } from '@/lib/use-lists';
 
 function ListCard({ list }: { list: ListSummary }) {
   const marks = cardMarks(list);
@@ -34,12 +34,14 @@ export default function ListsScreen() {
   const offline = useOffline(overview.error);
   const lists = overview.data?.lists ?? [];
   const signal = noSignalLine(offline, overview.dataUpdatedAt);
+  const pull = usePullRefresh(overview.refetch);
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={overview.isRefetching} onRefresh={() => overview.refetch()} />}>
+    <Screen refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}>
       <H lead="Lists," title="to check what came in." />
-      {signal && <Badge tone="warning" label={signal} />}
-      {overview.error && !offline && <T tone="danger">{errorMessage(overview.error)}</T>}
+      {overview.isLoading && <T tone="muted">Loading…</T>}
+      {signal && <Badge tone="warning" label={signal} accessibilityLiveRegion="polite" />}
+      {overview.error && !offline && <T tone="danger" accessibilityLiveRegion="polite">{errorMessage(overview.error)}</T>}
       {(overview.data?.samples ?? 0) > 0 && (
         <T tone="muted" size="sm">
           Sample items are still in your lists. Remove them on the web when you're ready.

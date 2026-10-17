@@ -8,7 +8,7 @@ import { Badge, Button, Card, H, Input, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { checkButton, historyWords, NEEDS_CONNECTION, NOTE_ACTION_LABELS, noteActions, noteState, noSignalLine, type NoteAction } from '@/lib/lists';
 import { space } from '@/lib/theme';
-import { useOffline } from '@/lib/use-lists';
+import { useOffline, usePullRefresh } from '@/lib/use-lists';
 
 /** One item: how it came in, its problems, the check, what calls said about it, its fields and its history. */
 export default function ItemScreen() {
@@ -18,22 +18,29 @@ export default function ItemScreen() {
   const offline = useOffline(detail.error);
   const [noting, setNoting] = useState(false);
   const [note, setNote] = useState('');
-  const done = () => {
-    setNoting(false);
-    setNote('');
+  const refresh = () => {
     for (const k of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [k] });
   };
-  const check = useMutation({ mutationFn: () => api.lists.check(id, itemId, note.trim() ? { note: note.trim() } : {}), onSuccess: done });
+  const check = useMutation({
+    mutationFn: () => api.lists.check(id, itemId, note.trim() ? { note: note.trim() } : {}),
+    // Only a successful check clears a half-typed note.
+    onSuccess: () => {
+      setNoting(false);
+      setNote('');
+      refresh();
+    },
+  });
   const act = useMutation({
     mutationFn: async ({ noteId, action }: { noteId: string; action: NoteAction }): Promise<void> => {
       if (action === 'apply') await api.notes.apply(noteId);
       else if (action === 'call-again') await api.notes.callAgain(noteId);
       else await api.notes.dismiss(noteId);
     },
-    onSuccess: done,
+    onSuccess: refresh,
   });
 
   const busy = act.isPending || check.isPending;
+  const pull = usePullRefresh(detail.refetch);
   if (detail.isLoading) {
     return (
       <Screen underHeader>
@@ -43,8 +50,8 @@ export default function ItemScreen() {
   }
   if (!detail.data) {
     return (
-      <Screen underHeader refreshControl={<RefreshControl refreshing={detail.isRefetching} onRefresh={() => detail.refetch()} />}>
-        <T tone="danger">{offline ? noSignalLine(true, 0) : errorMessage(detail.error)}</T>
+      <Screen underHeader refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}>
+        <T tone="danger" accessibilityLiveRegion="polite">{offline ? noSignalLine(true, 0) : errorMessage(detail.error)}</T>
       </Screen>
     );
   }
@@ -56,10 +63,10 @@ export default function ItemScreen() {
   const signal = noSignalLine(offline, detail.dataUpdatedAt);
 
   return (
-    <Screen underHeader keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={detail.isRefetching} onRefresh={() => detail.refetch()} />}>
+    <Screen underHeader keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}>
       <Stack.Screen options={{ title: list.entity.label }} />
       <H title={item.title} size="xl" />
-      {signal && <Badge tone="warning" label={signal} />}
+      {signal && <Badge tone="warning" label={signal} accessibilityLiveRegion="polite" />}
       <T tone="body" size="sm">
         Came in: {item.source.label}
       </T>
@@ -116,26 +123,27 @@ export default function ItemScreen() {
               accessibilityLabel="Why it is right as it is"
               style={{ minHeight: 72, textAlignVertical: 'top' }}
             />
-            <Button testID="check-confirm" variant="success" title={button.label} disabled={!note.trim() || offline || busy} loading={check.isPending} onPress={() => check.mutate()} />
+            <Button testID="check-confirm" variant="success" title={button.label} disabled={!note.trim() || offline || (busy && !check.isPending)} loading={check.isPending} onPress={() => check.mutate()} />
             <Button
               variant="ghost"
               title="Cancel"
               onPress={() => {
                 setNoting(false);
                 setNote('');
+                check.reset();
               }}
             />
           </Card>
         ) : (
-          <Button testID="check" variant="success" title={button.label} disabled={offline || busy} loading={check.isPending} onPress={() => (button.needsNote ? setNoting(true) : check.mutate())} />
+          <Button testID="check" variant="success" title={button.label} disabled={offline || (busy && !check.isPending)} loading={check.isPending} onPress={() => (button.needsNote ? setNoting(true) : check.mutate())} />
         ))}
       {offline && (
-        <T tone="muted" size="sm">
+        <T tone="muted" size="sm" accessibilityLiveRegion="polite">
           {NEEDS_CONNECTION}
         </T>
       )}
       {check.error && (
-        <T tone="danger" size="sm">
+        <T tone="danger" size="sm" accessibilityLiveRegion="polite">
           {errorMessage(check.error)}
         </T>
       )}
@@ -168,24 +176,27 @@ export default function ItemScreen() {
                 </T>
                 {actions.length > 0 && (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-                    {actions.map((a) => (
-                      <Button
-                        key={a}
-                        testID={`note-${a}`}
-                        title={NOTE_ACTION_LABELS[a]}
-                        variant={a === 'apply' ? 'success' : 'secondary'}
-                        disabled={offline || busy}
-                        loading={act.isPending && act.variables?.noteId === n.id && act.variables.action === a}
-                        onPress={() => act.mutate({ noteId: n.id, action: a })}
-                      />
-                    ))}
+                    {actions.map((a) => {
+                      const loadingThis = act.isPending && act.variables?.noteId === n.id && act.variables.action === a;
+                      return (
+                        <Button
+                          key={a}
+                          testID={`note-${a}`}
+                          title={NOTE_ACTION_LABELS[a]}
+                          variant={a === 'apply' ? 'success' : 'secondary'}
+                          disabled={offline || (busy && !loadingThis)}
+                          loading={loadingThis}
+                          onPress={() => act.mutate({ noteId: n.id, action: a })}
+                        />
+                      );
+                    })}
                   </View>
                 )}
               </Card>
             );
           })}
           {act.error && (
-            <T tone="danger" size="sm">
+            <T tone="danger" size="sm" accessibilityLiveRegion="polite">
               {errorMessage(act.error)}
             </T>
           )}

@@ -5,15 +5,17 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ListItem, ListMeta, ListRange, ListShow } from '@onehuman/schemas';
-import { initialView, listParams, RANGE_LABELS, SHOW_LABELS, type ListView } from '@onehuman/sdk';
+import { initialView, listParams, lowerWords, RANGE_LABELS, SHOW_LABELS, type ListView } from '@onehuman/sdk';
 import { Badge, Button, Card, Empty, Input, Pill, Screen, T } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { checkedLine, NEEDS_CONNECTION, noSignalLine, pageTotals, rowSummary, undatedLine } from '@/lib/lists';
 import { space, useTheme } from '@/lib/theme';
-import { useListsOverview, useOffline } from '@/lib/use-lists';
+import { useListsOverview, useOffline, usePullRefresh } from '@/lib/use-lists';
 
 const SHOWS: (ListShow | 'all')[] = ['all', 'problems', 'not_checked', 'checked', 'new_notes'];
 const RANGES: ListRange[] = ['today', 'this_week', 'this_month', 'last_month', 'all'];
+/** Bottom padding while selecting: the floating bar's height plus a gap. */
+const BAR_SPACE = 140;
 
 function Row({ list, item, selecting, selected, onPress }: { list: ListMeta; item: ListItem; selecting: boolean; selected: boolean; onPress: () => void }) {
   const { c } = useTheme();
@@ -81,13 +83,6 @@ export default function ListScreen() {
     enabled: !!meta,
     placeholderData: keepPreviousData,
   });
-  // A selection belongs to what was on screen: a new view starts with none.
-  useEffect(() => {
-    setSelected(new Set());
-    setSelecting(false);
-    setResult(null);
-  }, [key]);
-
   const check = useMutation({
     mutationFn: () => api.lists.checkMany(id, [...selected]),
     onSuccess: (r) => {
@@ -98,15 +93,26 @@ export default function ListScreen() {
       for (const k of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [k] });
     },
   });
+  // A selection belongs to what was on screen: a new view starts with none.
+  useEffect(() => {
+    setSelected(new Set());
+    setSelecting(false);
+    setResult(null);
+    check.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
   const offline = useOffline(pages.error, overview.error);
+  const pullOverview = usePullRefresh(overview.refetch);
+  const pullPages = usePullRefresh(pages.refetch);
 
   if (!meta) {
     return (
-      <Screen underHeader refreshControl={<RefreshControl refreshing={overview.isRefetching} onRefresh={() => overview.refetch()} />}>
+      <Screen underHeader refreshControl={<RefreshControl refreshing={pullOverview.refreshing} onRefresh={pullOverview.onRefresh} />}>
         {overview.isLoading ? (
           <T tone="muted">Loading…</T>
         ) : overview.error ? (
-          <T tone="danger">{offline ? noSignalLine(true, overview.dataUpdatedAt) : errorMessage(overview.error)}</T>
+          <T tone="danger" accessibilityLiveRegion="polite">{offline ? noSignalLine(true, overview.dataUpdatedAt) : errorMessage(overview.error)}</T>
         ) : (
           <Empty title="This list isn't here">It may belong to another kind of organization.</Empty>
         )}
@@ -115,7 +121,9 @@ export default function ListScreen() {
   }
 
   const first = pages.data?.pages[0];
-  const items = pages.data?.pages.flatMap((p) => p.items) ?? [];
+  // A refetch of several pages can move an item to the next page: keep the first of each id.
+  const seenIds = new Set<string>();
+  const items = (pages.data?.pages.flatMap((p) => p.items) ?? []).filter((i) => !seenIds.has(i.id) && !!seenIds.add(i.id));
   const signal = noSignalLine(offline, pages.dataUpdatedAt);
   const undated = first ? undatedLine(first) : null;
   const toggle = (itemId: string) =>
@@ -129,8 +137,8 @@ export default function ListScreen() {
   const header = (
     <View style={{ gap: space.md, paddingBottom: space.md }}>
       {first && <T tone="lead">{pageTotals(first)}</T>}
-      {signal && <Badge tone="warning" label={signal} />}
-      <Input testID="list-search" value={q} onChangeText={setQ} placeholder={`Search ${meta.label.toLowerCase()}`} accessibilityLabel={`Search ${meta.label.toLowerCase()}`} />
+      {signal && <Badge tone="warning" label={signal} accessibilityLiveRegion="polite" />}
+      <Input testID="list-search" value={q} onChangeText={setQ} placeholder={`Search ${lowerWords(meta.label)}`} accessibilityLabel={`Search ${lowerWords(meta.label)}`} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
         {SHOWS.map((s) => (
           <Pill key={s} testID={`show-${s}`} label={SHOW_LABELS[s]} active={v.show === s} onPress={() => change(s === 'all' ? { show: s } : { show: s, range: 'all' })} />
@@ -155,7 +163,7 @@ export default function ListScreen() {
           {result}
         </T>
       )}
-      {pages.error && !offline && <T tone="danger">{errorMessage(pages.error)}</T>}
+      {pages.error && !offline && <T tone="danger" accessibilityLiveRegion="polite">{errorMessage(pages.error)}</T>}
       {(items.length > 0 || selecting) && (
         <Button
           testID="select"
@@ -165,11 +173,12 @@ export default function ListScreen() {
           onPress={() => {
             setSelecting((s) => !s);
             setSelected(new Set());
+            check.reset();
           }}
         />
       )}
       {offline && (
-        <T tone="muted" size="sm">
+        <T tone="muted" size="sm" accessibilityLiveRegion="polite">
           {NEEDS_CONNECTION}
         </T>
       )}
@@ -195,20 +204,20 @@ export default function ListScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
         onEndReached={() => {
-          if (pages.hasNextPage && !pages.isFetchingNextPage) void pages.fetchNextPage();
+          if (pages.hasNextPage && !pages.isFetchingNextPage && !pages.isPlaceholderData) void pages.fetchNextPage();
         }}
         onEndReachedThreshold={0.5}
-        refreshControl={<RefreshControl refreshing={pages.isRefetching && !pages.isFetchingNextPage} onRefresh={() => pages.refetch()} />}
+        refreshControl={<RefreshControl refreshing={pullPages.refreshing} onRefresh={pullPages.onRefresh} />}
         ListEmptyComponent={
           pages.isLoading ? (
             <T tone="muted">Loading…</T>
           ) : pages.error ? null : (
-            <Empty title={v.q ? `Nothing matches “${v.q}”` : 'Nothing here'}>Try another Show or range.</Empty>
+            <Empty title={v.q ? `Nothing matches “${v.q}”` : 'Nothing here'}>{meta.dateField ? 'Try another Show or range.' : 'Try another Show or search.'}</Empty>
           )
         }
         ListFooterComponent={pages.isFetchingNextPage ? <T tone="muted">Loading more…</T> : null}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: selecting ? 140 + insets.bottom : space.xxl }}
+        contentContainerStyle={{ paddingBottom: selecting ? BAR_SPACE + insets.bottom : space.xxl }}
       />
       {selecting && (
         <View style={{ position: 'absolute', left: space.lg, right: space.lg, bottom: space.lg + insets.bottom, gap: space.xs }}>
@@ -221,7 +230,7 @@ export default function ListScreen() {
             onPress={() => check.mutate()}
           />
           {check.error && (
-            <T tone="danger" size="sm">
+            <T tone="danger" size="sm" accessibilityLiveRegion="polite">
               {errorMessage(check.error)}
             </T>
           )}
