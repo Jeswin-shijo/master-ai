@@ -34,6 +34,8 @@ const LINK = join(ROOT, '.superpowers/demo/onehuman-demo/.vercel');
 const PORT = 3100;
 const QUEUE = 'onehuman-demo';
 const VERCEL = 'vercel@61.1.0';
+/** Deploy attempts before giving up. Each one sends only the files Vercel doesn't have yet. */
+const DEPLOY_TRIES = 5;
 
 function fail(message: string): never {
   console.error(`\n✗ ${message}`);
@@ -74,6 +76,25 @@ function run(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.Pro
   if (r.error && (r.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') fail(`${cmd} ${args.join(' ')} took longer than ${Math.round(opts.timeoutMs! / 60_000)} min`);
   if (r.status !== 0) fail(`${cmd} ${args.join(' ')} failed${opts.quiet ? `:\n${r.stdout}\n${r.stderr}` : ''}`);
   return `${r.stdout ?? ''}${r.stderr ?? ''}`;
+}
+
+/**
+ * Deploys the staged web app. The CLI uploads every new file at once; over a slow uplink one upload can drop
+ * ("fetch failed") and the CLI gives up on the whole deploy. The files that did arrive stay on Vercel, so the
+ * next attempt sends only the rest. Anything other than a dropped connection fails at once.
+ */
+function deployWeb(): string {
+  for (let attempt = 1; ; attempt++) {
+    const r = spawnSync('npx', ['--yes', VERCEL, 'deploy', STAGE, '--prod', '--yes'], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe', timeout: 8 * 60_000 });
+    if (r.error && (r.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') fail(`npx ${VERCEL} deploy took longer than 8 min`);
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    if (r.status === 0) return out;
+    if (attempt < DEPLOY_TRIES && /fetch failed|ECONNRESET|ETIMEDOUT|socket hang up/i.test(out)) {
+      console.log(`… An upload to Vercel dropped; trying again (${attempt + 1} of ${DEPLOY_TRIES}), sending only what is missing`);
+      continue;
+    }
+    fail(`npx ${VERCEL} deploy ${STAGE} --prod --yes failed:\n${r.stdout}\n${r.stderr}`);
+  }
 }
 
 /** Connect as the app role and look at what it can see, setting its password once if it is refused. */
@@ -204,7 +225,7 @@ async function start() {
   // One page app: every path (/cases/…, /r/<tenant>/<form>, /invite/…) serves index.html, with the
   // security headers and caching in master-ai-web/src/hosting.ts.
   writeFileSync(join(STAGE, 'vercel.json'), JSON.stringify(hostingConfig(apiUrl), null, 2));
-  const out = run('npx', ['--yes', VERCEL, 'deploy', STAGE, '--prod', '--yes'], { quiet: true, timeoutMs: 8 * 60_000 });
+  const out = deployWeb();
   mkdirSync(LINK, { recursive: true });
   cpSync(join(STAGE, '.vercel'), LINK, { recursive: true });
   if (/Blocked|doesn.t have permission/i.test(out)) fail(`Vercel blocked the deploy:\n${out.slice(-600)}`);
