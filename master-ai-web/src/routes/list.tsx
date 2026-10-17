@@ -12,9 +12,11 @@ import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feed
 import { Input, Select } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import {
+  amountText,
   csvFileName,
   initialView,
   listParams,
+  lowerWords,
   nextSort,
   RANGE_LABELS,
   saveText,
@@ -25,7 +27,7 @@ import {
 } from '@/lib/lists';
 import { itemCell } from '@/lib/record-cell';
 import { usePageTitle } from '@/lib/title';
-import { cn, formatInr } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const chip = (on: boolean) => cn('rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary-soft text-primary' : 'border-border text-fg-muted hover:text-fg');
@@ -166,8 +168,7 @@ export function ListPage() {
   const field = (name: string) => meta.entity.fields.find((f) => f.name === name)!;
   const columns = meta.columns.map(field);
   const items = page.data?.items ?? [];
-  const singular = meta.entity.label.toLowerCase();
-  const total = (f: EntityField, n: number) => (f.type === 'money' ? formatInr(n) : n.toLocaleString('en-IN'));
+  const singular = lowerWords(meta.entity.label);
 
   return (
     <div>
@@ -270,7 +271,7 @@ export function ListPage() {
         {page.isLoading ? (
           <Spinner />
         ) : items.length === 0 ? (
-          <EmptyState title={`No ${meta.label.toLowerCase()} here`}>Try another date range, or clear the filters.</EmptyState>
+          <EmptyState title={`No ${lowerWords(meta.label)} here`}>Try another date range, or clear the filters.</EmptyState>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -350,16 +351,16 @@ export function ListPage() {
         {page.data && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-10 px-5 py-3 text-sm">
             <span className="font-medium text-fg">
-              {page.data.total} {page.data.total === 1 ? singular : meta.label.toLowerCase()}
+              {page.data.total} {page.data.total === 1 ? singular : lowerWords(meta.label)}
             </span>
             {meta.totals.map((name) => (
               <span key={name} className="text-fg-body">
-                {field(name).label} {total(field(name), page.data!.totals[name] ?? 0)}
+                {field(name).label} {amountText(field(name), page.data!.totals[name] ?? 0)}
               </span>
             ))}
             {page.data.undated > 0 && meta.dateField && (
               <button type="button" className="text-accent hover:underline" onClick={() => set({ range: 'all' })}>
-                {page.data.undated} {page.data.undated === 1 ? 'has' : 'have'} no {field(meta.dateField).label.toLowerCase()}: show all time
+                {page.data.undated} {page.data.undated === 1 ? 'has' : 'have'} no {lowerWords(field(meta.dateField).label)}: show all time
               </button>
             )}
             <div className="ml-auto flex items-center gap-2">

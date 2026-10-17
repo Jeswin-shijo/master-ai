@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EntityField, ListItem } from '@onehuman/schemas';
-import { amountText, ApiError, createClient, dayLabel, followUpLine, initialView, itemCell, listParams, listQuery, NOTE_LABELS, recordCell, referenceText } from '../src/index';
+import { amountText, ApiError, createClient, dayLabel, followUpLine, initialView, itemCell, listParams, listQuery, lowerWords, NOTE_LABELS, recordCell, referenceText } from '../src/index';
 
 describe('listQuery', () => {
   it('writes only what is set, with filters as f.<field>', () => {
@@ -148,5 +148,17 @@ describe('amountText (a total in words)', () => {
     expect(amountText(field('money'), 1240000)).toBe('₹12,40,000');
     expect(amountText(field('integer'), 1240000)).toBe('12,40,000');
     expect(amountText(undefined, 5)).toBe('5');
+  });
+});
+
+describe('lowerWords (a label inside a sentence)', () => {
+  it.each([
+    ['Bills', 'bills'],
+    ['Due date', 'due date'],
+    ['EMIs and repayments', 'EMIs and repayments'],
+    ['Next KYC update due', 'next KYC update due'],
+    ['GST returns', 'GST returns'],
+  ])('%s becomes %s', (label, want) => {
+    expect(lowerWords(label)).toBe(want);
   });
 });

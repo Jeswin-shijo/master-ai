@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
-import { formatInr } from '@/lib/utils';
+import { amountText } from '@/lib/lists';
 
 function ListCard({ list }: { list: ListSummary }) {
   const sumField = list.card.sumField ? list.entity.fields.find((f) => f.name === list.card.sumField) : undefined;
@@ -18,7 +18,7 @@ function ListCard({ list }: { list: ListSummary }) {
       </p>
       {list.card.sum !== null && (
         <p className="mt-1 text-sm text-fg-body">
-          {sumField?.type === 'money' ? formatInr(list.card.sum) : list.card.sum.toLocaleString('en-IN')} {list.card.sumLabel}
+          {amountText(sumField, list.card.sum)} {list.card.sumLabel}
         </p>
       )}
       <div className="mt-3 flex flex-wrap gap-1.5">

@@ -116,3 +116,8 @@ export function itemCell(field: EntityField, item: Pick<ListItem, 'data' | 'titl
 export function amountText(field: EntityField | undefined, n: number): string {
   return field?.type === 'money' ? formatInr(n) : n.toLocaleString('en-IN');
 }
+
+/** A label inside a sentence: words in title case drop to lower case, acronyms ("EMIs", "KYC", "GST") stay as written. */
+export function lowerWords(label: string): string {
+  return label.replace(/[A-Z][a-z]\S*/g, (w, i: number, all: string) => (i === 0 || /\s/.test(all[i - 1]!) ? w.toLowerCase() : w));
+}

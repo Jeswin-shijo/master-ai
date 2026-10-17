@@ -2,7 +2,7 @@
  * The list page's web-only helpers: sort marks and the CSV download. The wording
  * the phone shares (labels, the page's query, values in words) lives in @onehuman/sdk.
  */
-export { dayLabel, followUpLine, initialView, listParams, NOTE_LABELS, RANGE_LABELS, referenceText, SHOW_LABELS, SOURCE_LABELS, type ListView } from '@onehuman/sdk';
+export { amountText, dayLabel, followUpLine, initialView, listParams, lowerWords, NOTE_LABELS, RANGE_LABELS, referenceText, SHOW_LABELS, SOURCE_LABELS, type ListView } from '@onehuman/sdk';
 
 /** Clicking a column header: ascending, then descending, then back to the list's own order. */
 export function nextSort(current: string, field: string): string {

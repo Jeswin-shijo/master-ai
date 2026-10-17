@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { ErrorNote, Spinner } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
 import { collectDefaults } from '@/lib/collect';
+import { lowerWords } from '@/lib/lists';
 
 /** Adding today's items by hand: the list's own form, only the routine's fields, its defaults filled in. Done records how many were added. */
 export function CollectForm({ routine, staffId, open, onClose }: { routine: Routine; staffId: string | null; open: boolean; onClose: () => void }) {
@@ -63,7 +64,7 @@ export function CollectForm({ routine, staffId, open, onClose }: { routine: Rout
     else onClose();
   };
   return (
-    <Dialog open={open} onClose={close} title={`Add today's ${collect.listLabel.toLowerCase()}`} lead={added ? `${added} added so far.` : `Each one goes to ${collect.listLabel}.`}>
+    <Dialog open={open} onClose={close} title={`Add today's ${lowerWords(collect.listLabel)}`} lead={added ? `${added} added so far.` : `Each one goes to ${collect.listLabel}.`}>
       {!person && <p className="text-sm text-fg-muted">Nobody is on this routine yet. Add someone to it first.</p>}
       {person && !form && <Spinner />}
       {person && form && (
