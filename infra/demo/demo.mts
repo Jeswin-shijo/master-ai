@@ -16,7 +16,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createConnection } from 'node:net';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
@@ -95,6 +95,24 @@ function deployWeb(): string {
     }
     fail(`npx ${VERCEL} deploy ${STAGE} --prod --yes failed:\n${r.stdout}\n${r.stderr}`);
   }
+}
+
+/**
+ * The phone app. A build made without EXPO_PUBLIC_API_URL asks for localhost:3000, so every Android
+ * phone or emulator on USB gets that port forwarded to the demo API. A phone elsewhere needs a build
+ * made with the tunnel's address, which changes on every run.
+ */
+function phoneSetup(apiUrl: string) {
+  const adb = process.env.ADB ?? join(homedir(), 'Library/Android/sdk/platform-tools/adb');
+  const list = spawnSync(adb, ['devices'], { encoding: 'utf8' });
+  const ids = list.status === 0 ? list.stdout.split('\n').filter((l) => /\tdevice$/.test(l)).map((l) => l.split('\t')[0]!) : [];
+  const forwarded = ids.filter((id) => spawnSync(adb, ['-s', id, 'reverse', 'tcp:3000', `tcp:${PORT}`]).status === 0);
+  console.log(
+    forwarded.length
+      ? `✓ Phone app: ${forwarded.join(', ')} reach the demo API (localhost:3000 → :${PORT})`
+      : `  Phone app: connect an Android phone or emulator, then run: adb reverse tcp:3000 tcp:${PORT}`,
+  );
+  console.log(`  A phone that isn't on USB needs a build made with EXPO_PUBLIC_API_URL=${apiUrl}`);
 }
 
 /** Connect as the app role and look at what it can see, setting its password once if it is refused. */
@@ -265,6 +283,7 @@ async function start() {
   for (let i = 0; i < 60 && !(await fetch(`${apiUrl}/health`).then((r) => r.ok, () => false)); i++) await new Promise((r) => setTimeout(r, 2000));
   const health = await fetch(`${apiUrl}/health`).then((r) => r.json(), () => null);
   if (!health) fail('The API did not answer through the tunnel.');
+  phoneSetup(apiUrl);
   console.log(`\n✓ Demo ready: ${webUrl}\n  API ${apiUrl} · AI ${health.llm} (${health.provider}) · built-in rules when the AI is unavailable\n  Ctrl-C stops it. A new run gets a new tunnel address and redeploys the web app.\n`);
 }
 
