@@ -18,9 +18,11 @@ export function useRealtime() {
       onEvent: (e) => {
         const area = e.type.split('.')[0];
         if (area === 'approval' || area === 'policy' || area === 'action') void queryClient.invalidateQueries({ queryKey: ['approvals'] });
-        if (area === 'note' || area === 'record' || area === 'call') {
+        if (area === 'note' || area === 'record') {
           for (const key of ['lists', 'list', 'list-item']) void queryClient.invalidateQueries({ queryKey: [key] });
         }
+        // "Call again" on another device: the server decides canCallAgain.
+        if (area === 'followup') void queryClient.invalidateQueries({ queryKey: ['list-item'] });
         if (area === 'goal' || area === 'task' || area === 'action') {
           void queryClient.invalidateQueries({ queryKey: ['goals'] });
           if (e.goalId) void queryClient.invalidateQueries({ queryKey: ['goal', e.goalId] });

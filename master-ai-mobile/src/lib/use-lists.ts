@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNetworkState } from 'expo-network';
 import { AppState } from 'react-native';
@@ -23,4 +24,17 @@ export function refreshListsOnForeground(): () => void {
 export function useOffline(...errors: unknown[]): boolean {
   const net = useNetworkState();
   return net.isConnected === false || errors.some(isNetworkError);
+}
+
+/** The pull-to-refresh spinner: on from a pull until that refetch settles, never for a background refetch. */
+export function usePullRefresh(refetch: () => Promise<unknown>): { refreshing: boolean; onRefresh: () => void } {
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void refetch().then(
+      () => setRefreshing(false),
+      () => setRefreshing(false),
+    );
+  }, [refetch]);
+  return { refreshing, onRefresh };
 }

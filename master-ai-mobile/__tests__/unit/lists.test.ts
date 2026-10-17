@@ -7,7 +7,9 @@ import {
   checkButton,
   checkedLine,
   historyWords,
+  NEEDS_CONNECTION,
   newNotesTotal,
+  NOTE_ACTION_LABELS,
   noSignalLine,
   noteActions,
   noteState,
@@ -104,6 +106,26 @@ describe('a list', () => {
     expect(pageTotals(page({ total: 1, totals: { total: 500 } }))).toBe('1 bill · Total ₹500');
   });
 
+  it('keeps acronyms in the label as written', () => {
+    const emis = { ...list, label: 'EMIs and repayments' };
+    expect(pageTotals(page({ list: emis }))).toBe('48 EMIs and repayments · Total ₹12,40,000');
+    const kyc = { ...list, entity: { ...entity, fields: entity.fields.map((f) => (f.name === 'dueDate' ? { ...f, label: 'KYC date' } : f)) } } as ListMeta;
+    expect(undatedLine(page({ list: kyc, undated: 1 }))).toBe("1 item has no KYC date and isn't shown.");
+  });
+
+  it('reads a missing total as 0', () => {
+    expect(pageTotals(page({ totals: {} }))).toBe('48 bills · Total ₹0');
+  });
+
+  it('says nothing about undated items on a list with no date field', () => {
+    expect(undatedLine(page({ list: { ...list, dateField: null }, undated: 3 }))).toBeNull();
+  });
+
+  it('takes the first text field as the title when the entity names none', () => {
+    const untitled = { ...list, entity: { ...entity, title_field: undefined } } as ListMeta;
+    expect(rowSummary(untitled, item())).toBe('Sri Ganesh Traders · ₹48,260');
+  });
+
   it("sums up a row with the list's next two columns, in words", () => {
     expect(rowSummary(list, item())).toBe('Sri Ganesh Traders · ₹48,260');
   });
@@ -147,6 +169,15 @@ describe('an item', () => {
     expect(noteState(note())).toBe('New from a call');
     expect(noteState(note({ status: 'applied', decidedBy: 'Asha Owner' }))).toBe('Applied by Asha Owner');
     expect(noteState(note({ status: 'dismissed', decidedBy: null }))).toBe('Seen by someone');
+  });
+
+  it('says who saw a dismissed note', () => {
+    expect(noteState(note({ status: 'dismissed', decidedBy: 'Asha Owner' }))).toBe('Seen by Asha Owner');
+  });
+
+  it('words the note buttons', () => {
+    expect(NOTE_ACTION_LABELS).toEqual({ apply: 'Apply', dismiss: 'Dismiss', seen: 'Seen', 'call-again': 'Call again' });
+    expect(NEEDS_CONNECTION).toBe('Needs a connection');
   });
 
   it('tells its history in words', () => {

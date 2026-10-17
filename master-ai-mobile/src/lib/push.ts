@@ -48,6 +48,12 @@ export async function registerForPush(): Promise<string | null> {
   }
 }
 
+/** The lazy require: the one place a tap listener reaches expo-notifications. */
+function loadNotifications(): typeof import('expo-notifications') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-notifications') as typeof import('expo-notifications');
+}
+
 /** The last push this run opened, so signing in again doesn't open it twice. */
 let opened: string | null = null;
 
@@ -57,11 +63,10 @@ let opened: string | null = null;
  * listens for nothing there, and expo-notifications is required lazily for the
  * same reason as above.
  */
-export function openPushTaps(open: (href: Href) => void): () => void {
+export function openPushTaps(open: (href: Href) => void, load: () => typeof import('expo-notifications') = loadNotifications): () => void {
   if (Platform.OS === 'web' || !Device.isDevice || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return () => undefined;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+    const Notifications = load();
     const go = (response: import('expo-notifications').NotificationResponse | null) => {
       if (!response || response.notification.request.identifier === opened) return;
       opened = response.notification.request.identifier;

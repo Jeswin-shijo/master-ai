@@ -1,5 +1,5 @@
 import type { HumanRole, ListHistoryEntry, ListItem, ListMeta, ListNote, ListPage, ListSummary, ListsOverview } from '@onehuman/schemas';
-import { amountText, itemCell } from '@onehuman/sdk';
+import { amountText, itemCell, lowerWords } from '@onehuman/sdk';
 
 /*
  * The phone's lists in words: what the tab, a list and an item say. Pure, so
@@ -44,7 +44,7 @@ export function cardMarks(list: ListSummary): string | null {
 /** What matches, under a list's heading: "48 bills · Total ₹12,40,000". */
 export function pageTotals(page: ListPage): string {
   const { list, total, totals } = page;
-  const parts = [`${total} ${total === 1 ? list.entity.label.toLowerCase() : list.label.toLowerCase()}`];
+  const parts = [`${total} ${total === 1 ? lowerWords(list.entity.label) : lowerWords(list.label)}`];
   for (const name of list.totals) {
     const field = list.entity.fields.find((f) => f.name === name);
     if (field) parts.push(`${field.label} ${amountText(field, totals[name] ?? 0)}`);
@@ -69,7 +69,7 @@ export function undatedLine(page: ListPage): string | null {
   const n = page.undated;
   const field = page.list.dateField ? page.list.entity.fields.find((f) => f.name === page.list.dateField) : undefined;
   if (!n || !field) return null;
-  return n === 1 ? `1 item has no ${field.label.toLowerCase()} and isn't shown.` : `${n} items have no ${field.label.toLowerCase()} and aren't shown.`;
+  return n === 1 ? `1 item has no ${lowerWords(field.label)} and isn't shown.` : `${n} items have no ${lowerWords(field.label)} and aren't shown.`;
 }
 
 /** After "Mark N checked". The server leaves items with open problems: those need a note, one at a time. */
