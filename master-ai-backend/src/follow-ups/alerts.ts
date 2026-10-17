@@ -10,6 +10,8 @@ export interface PartyAlert {
 }
 
 const QUOTE_MAX = 120;
+const TITLE_MAX = 60;
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 /**
  * The push for what an outside party said that the head must decide on: it is
@@ -35,29 +37,34 @@ export function partyAlert(
     case 'dispute':
       return { title: `${party} disputes ${item}`, body: quote, data };
     case 'wrong_number':
-      return { title: `Wrong number for ${named || 'your contact'}`, body: `The number called about ${item} isn't theirs. Correct it on the web, then tap Call again on the note.`, data };
+      return { title: `Wrong number for ${named || 'your contact'}`, body: `The number called about ${item} isn't theirs. Correct it on the web, then the owner can tap Call again on the note.`, data };
     default:
       return null;
   }
 }
 
-/** The proposed value of the first enum field, as words: "part paid". Null when none is proposed. */
+/** The proposed value of the status-like enum field, else the first enum field, as words: "part paid". Null when none is proposed. */
 function settledWord(entity: EntityDef, proposed: Record<string, unknown>): string | null {
+  const enums: string[] = [];
   for (const [key, value] of Object.entries(proposed)) {
     const field = entity.fields.find((f) => f.name === key);
-    if (field?.type === 'enum' && typeof value === 'string' && value.trim()) return value.trim().toLowerCase().replace(/-/g, ' ');
+    if (field?.type === 'enum' && typeof value === 'string' && value.trim()) enums.push(value);
   }
-  return null;
+  const status = Object.keys(proposed).find((key) => /status/i.test(key) && enums.includes(proposed[key] as string));
+  const pick = status ? (proposed[status] as string) : enums[0];
+  return pick ? pick.trim().toLowerCase().replace(/-/g, ' ') : null;
 }
 
 /** "bill S-1042", or "the bill" when it has no title. */
 function itemWords(entity: EntityDef, data: Record<string, unknown>): string {
   const label = lowerFirst(entity.label);
   const title = titleOf(entity, data);
-  return title === entity.label ? `the ${label}` : `${label} ${title}`;
+  return title === entity.label ? `the ${label}` : `${label} ${clip(title, TITLE_MAX)}`;
 }
 
-function clip(text: string): string {
+/** Clips to `max` characters as people see them, so an emoji or a conjunct is never split. */
+function clip(text: string, max = QUOTE_MAX): string {
   const t = text.trim().replace(/\s+/g, ' ');
-  return t.length <= QUOTE_MAX ? t : `${t.slice(0, QUOTE_MAX - 1).trimEnd()}…`;
+  const parts = Array.from(graphemes.segment(t), (x) => x.segment);
+  return parts.length <= max ? t : `${parts.slice(0, max - 1).join('').trimEnd()}…`;
 }

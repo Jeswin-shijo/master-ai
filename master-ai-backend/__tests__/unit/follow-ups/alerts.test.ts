@@ -49,7 +49,7 @@ describe('the push for a party answer that needs the head', () => {
     expect(partyAlert({ kind: 'dispute', said: 'The goods never came' }, about())).toMatchObject({ title: 'Sri Ganesh Traders disputes bill S-1042', body: '"The goods never came"' });
     expect(partyAlert({ kind: 'wrong_number', said: 'Wrong number' }, about())).toMatchObject({
       title: 'Wrong number for Sri Ganesh Traders',
-      body: "The number called about bill S-1042 isn't theirs. Correct it on the web, then tap Call again on the note.",
+      body: "The number called about bill S-1042 isn't theirs. Correct it on the web, then the owner can tap Call again on the note.",
     });
   });
 
@@ -71,7 +71,41 @@ describe('the push for a party answer that needs the head', () => {
   it('keeps a long answer short enough for a phone', () => {
     const said = `It was paid ${'last week through the bank '.repeat(10)}`;
     const { body } = partyAlert({ kind: 'dispute', said }, about())!;
-    expect(body.length).toBeLessThanOrEqual(122);
     expect(body).toMatch(/…"$/);
+  });
+
+  it('clips at exactly 120 characters', () => {
+    const { body } = partyAlert({ kind: 'dispute', said: 'a'.repeat(200) }, about())!;
+    expect(body).toBe(`"${'a'.repeat(119)}…"`);
+  });
+
+  it.each([['👍🏽'], ['क्षि']])('never splits %s when clipping', (g) => {
+    const said = `${'a'.repeat(119)}${g}${'b'.repeat(30)}`;
+    const { body } = partyAlert({ kind: 'dispute', said }, about())!;
+    expect(body).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+    const has = body.includes(g);
+    if (has) expect(body).toContain(`a${g}`);
+    else expect(body).toBe(`"${'a'.repeat(119)}…"`);
+    const near = `${'a'.repeat(118)}${g}${'b'.repeat(30)}`;
+    expect(partyAlert({ kind: 'dispute', said: near }, about())!.body).toContain(g);
+  });
+
+  it('clips a long item title to 60 characters', () => {
+    const data = { billNo: 'x'.repeat(100) };
+    const { title } = partyAlert({ kind: 'dispute', said: 'No' }, about({ data }))!;
+    expect(title).toBe(`Sri Ganesh Traders disputes bill ${'x'.repeat(59)}…`);
+  });
+
+  it('puts the status field first when several enums are proposed', () => {
+    const Two = {
+      name: 'Job', label: 'Job', title_field: 'name',
+      fields: [
+        { name: 'name', label: 'Name', type: 'string', required: true },
+        { name: 'stage', label: 'Stage', type: 'enum', options: ['open', 'closed'], required: false },
+        { name: 'paymentStatus', label: 'Payment', type: 'enum', options: ['unpaid', 'part-paid', 'paid'], required: false },
+      ],
+    } as EntityDef;
+    const r = partyAlert({ kind: 'settled', said: 'x', proposed: { stage: 'closed', paymentStatus: 'part-paid' } }, about({ entity: Two, data: { name: 'J1' } }))!;
+    expect(r.title).toBe('Sri Ganesh Traders says job J1 is part paid');
   });
 });

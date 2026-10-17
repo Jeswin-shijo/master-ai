@@ -100,7 +100,7 @@ The web takes run-time values only from `@onehuman/schemas/plain`. The moved cod
 |---|---|---|
 | settled | `{party} says {item} is paid`. The word is the proposed value of the first enum field in the proposal, lowercased with hyphens as spaces (`is paid`, `is part paid`, `is delivered`); `… is settled` when no enum value is proposed | `"{their words}" Tap to apply or dismiss.` (only the quote when nothing can be applied) |
 | dispute | `{party} disputes {item}` | `"{their words}"` |
-| wrong number | `Wrong number for {party}` | `The number called about {item} isn't theirs. Correct it on the web, then tap Call again on the note.` |
+| wrong number | `Wrong number for {party}` | `The number called about {item} isn't theirs. Correct it on the web, then the owner can tap Call again on the note.` |
 
 Their words are clipped to 120 characters.
 

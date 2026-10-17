@@ -866,22 +866,22 @@ describe('pushes for answers that need the head', () => {
   type Sent = { tenantId: string; message: { title: string; body: string; data?: Record<string, unknown> }; openTransactions: number };
   let sent: Sent[] = [];
   const listPushes = () => sent.filter((s) => s.message.data && 'listId' in s.message.data);
-  let open = 0;
+  const open = new Map<string, number>();
 
   beforeAll(() => {
     // Count the transactions open at the moment a push is sent: after the commit there are none.
     const dbs = h.get(DbService);
     const real = dbs.tenant.bind(dbs);
     vi.spyOn(dbs, 'tenant').mockImplementation((async (id: string, fn: never) => {
-      open++;
+      open.set(id, (open.get(id) ?? 0) + 1);
       try {
         return await real(id, fn);
       } finally {
-        open--;
+        open.set(id, (open.get(id) ?? 1) - 1);
       }
     }) as never);
     vi.spyOn(h.get(NotificationsService), 'pushToManagers').mockImplementation(async (tenantId, message) => {
-      sent.push({ tenantId, message, openTransactions: open });
+      sent.push({ tenantId, message, openTransactions: open.get(tenantId) ?? 0 });
     });
   });
   afterAll(() => vi.restoreAllMocks());
@@ -925,7 +925,7 @@ describe('pushes for answers that need the head', () => {
     expect(listPushes().map((p) => p.message)).toEqual([
       {
         title: 'Wrong number for Wrong Push Traders',
-        body: "The number called about bill PU-3 isn't theirs. Correct it on the web, then tap Call again on the note.",
+        body: "The number called about bill PU-3 isn't theirs. Correct it on the web, then the owner can tap Call again on the note.",
         data: { listId: 'bills', itemId: id },
       },
     ]);
