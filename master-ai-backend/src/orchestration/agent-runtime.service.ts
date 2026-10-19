@@ -17,6 +17,7 @@ import { truncate } from '../common/mappers';
 import { DbService } from '../db/db.service';
 import { approvalRequests, tasks, toolCalls, type staff, type TaskFeedback } from '../db/schema';
 import { BusService } from '../events/bus.service';
+import { JobRunnerService } from '../jobs/job-runner.service';
 import { LlmRefusalError, LlmService } from '../llm/llm.service';
 import { TeamService } from '../voice/team.service';
 import { addFeedback, addUsage, loadTaskContext, type TaskContext } from './context';
@@ -34,7 +35,8 @@ const QUALITY_JSON_SCHEMA = (() => {
  * Agent runtime. One step = one model call that proposes exactly one tool
  * call (or finishes). The proposal is stored, then the workflow sends it to
  * the policy engine. Budgets and step limits are enforced here, before any
- * tokens are spent.
+ * tokens are spent. A job run's task is stepped by its script instead
+ * (JobRunnerService), through the same workflow.
  */
 @Injectable()
 export class AgentRuntimeService {
@@ -44,9 +46,13 @@ export class AgentRuntimeService {
     private readonly llm: LlmService,
     private readonly bus: BusService,
     private readonly team: TeamService,
+    private readonly jobs: JobRunnerService,
   ) {}
 
   async step(tenantId: string, taskId: string): Promise<AgentStepResult> {
+    const job = await this.jobs.step(tenantId, taskId);
+    if (job) return job;
+
     const { ctx, history, team } = await this.db.tenant(tenantId, async (tx) => {
       const ctx = await loadTaskContext(tx, taskId);
       const canDelegate = toolsForAgent(ctx.workspace.pack, ctx.agent.spec.tools).some((t) => t.primitive.control === 'delegate');
@@ -181,6 +187,8 @@ export class AgentRuntimeService {
 
   /** Check the agent's result before the task counts as done. */
   async qualityCheck(tenantId: string, taskId: string, output: { summary: string }): Promise<{ pass: boolean; feedback: string }> {
+    // A job's checks are its quality: it finishes only after every one of them passed.
+    if (await this.jobs.isJobTask(tenantId, taskId)) return { pass: true, feedback: "The job's own checks passed." };
     const ctx = await this.db.tenant(tenantId, (tx) => loadTaskContext(tx, taskId));
     let verdict: { pass: boolean; feedback: string };
 

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import type {
+  Conditions,
   ItemSource,
   ListCard,
   ListHistoryEntry,
@@ -23,7 +24,7 @@ import { istDate } from '../voice/time';
 import { toCsv } from './csv';
 import { csvValue, isUuid, istStamp, problemMessage, shown } from './format';
 import { PAGE_SIZE, parseListQuery } from './query';
-import { cardSelect, dayExpr, flaggedCte, flagSelect, orderSql, totalsSelect, whereSql, type SqlClock } from './sql';
+import { cardSelect, conditionSql, dayExpr, flaggedCte, flagSelect, openProblems, orderSql, totalsSelect, whereSql, type SqlClock } from './sql';
 
 type RecordRow = typeof records.$inferSelect;
 type FlagRow = { id: string } & Record<string, unknown>;
@@ -98,6 +99,21 @@ export class ListsService {
       const reg = this.register(ws.pack, listId);
       return { list: meta(reg), item: await this.one(tx, ws, reg, itemId), history: await this.history(tx, ws, reg, itemId), notes: await this.itemNotes(tx, ws, reg, itemId, viewer) };
     });
+  }
+
+  /**
+   * A list's open items (a problem nobody has accepted) that meet `when`, in the list's own order,
+   * with the same compiled checks the list page uses. What a job's `read … from: list` sees.
+   */
+  async openItems(tx: Tx, ws: Workspace, listId: string, when: Conditions | undefined, limit: number): Promise<ListItem[]> {
+    const reg = this.register(ws.pack, listId);
+    const clock = this.clock();
+    const flags = (
+      await tx.execute<FlagRow>(
+        sql`${flaggedCte(reg, ws.id, clock)} select ${flagSelect(reg)} from flagged r where ${openProblems(reg)} and ${conditionSql(reg.entity, when)} order by ${orderSql(reg.sort, reg)} limit ${limit}`,
+      )
+    ).rows;
+    return this.decorate(tx, ws, reg, flags, clock);
   }
 
   async exportCsv(tenantId: string, listId: string, raw: Record<string, unknown>): Promise<string> {

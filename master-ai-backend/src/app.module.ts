@@ -13,6 +13,7 @@ import { StageModel } from './cases/stage-model';
 import { CaseStagesService } from './cases/stages.service';
 import { AuthGuard } from './common/auth';
 import { ConnectorsService } from './connectors/connectors.service';
+import { DataModule } from './data.module';
 import { DbModule } from './db/db.service';
 import { BusModule } from './events/bus.service';
 import { GoalsController } from './goals/goals.controller';
@@ -20,7 +21,8 @@ import { GoalsService } from './goals/goals.service';
 import { HealthController } from './health.controller';
 import { IdentityController } from './identity/identity.controller';
 import { IdentityService } from './identity/identity.service';
-import { KnowledgeController, KnowledgeService } from './knowledge/knowledge.service';
+import { JobsModule } from './jobs/jobs.module';
+import { KnowledgeController } from './knowledge/knowledge.service';
 import { LlmModule } from './llm/llm.service';
 import { NotificationsModule } from './notifications/notifications.service';
 import { OpsController, OpsService } from './ops/ops.service';
@@ -33,14 +35,12 @@ import { PackRegistry } from './packs/registry.service';
 import { PolicyService } from './policy/policy.service';
 import { RealtimeGateway } from './realtime/realtime.gateway';
 import { ListsController } from './lists/lists.controller';
-import { ListsService } from './lists/lists.service';
 import { FollowUpCallsService } from './follow-ups/follow-up-calls.service';
 import { FollowUpsController } from './follow-ups/follow-ups.controller';
 import { FollowUpsService } from './follow-ups/follow-ups.service';
 import { NotesController } from './notes/notes.controller';
 import { NotesService } from './notes/notes.service';
 import { RecordsController } from './records/records.controller';
-import { RecordsService } from './records/records.service';
 import { OnboardingService } from './tenancy/onboarding.service';
 import { TenancyController } from './tenancy/tenancy.controller';
 import { TenancyService } from './tenancy/tenancy.service';
@@ -64,7 +64,7 @@ import { TeamController, TeamService } from './voice/team.service';
  * below is a future service (see docs/adr/0001-modular-monolith.md).
  */
 @Module({
-  imports: [DbModule, BusModule, AuditModule, LlmModule, NotificationsModule],
+  imports: [DbModule, BusModule, AuditModule, LlmModule, NotificationsModule, DataModule, JobsModule],
   controllers: [
     HealthController,
     IdentityController,
@@ -112,13 +112,10 @@ import { TeamController, TeamService } from './voice/team.service';
     AgentRuntimeService,
     TaskLifecycleService,
     TemporalService,
-    // Data and connectors
-    RecordsService,
-    ListsService,
+    // Data and connectors (records, lists and knowledge are in DataModule)
     NotesService,
     FollowUpsService,
     FollowUpCallsService,
-    KnowledgeService,
     ConnectorsService,
     // Team and phone delegation
     TeamService,

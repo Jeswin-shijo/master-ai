@@ -73,10 +73,12 @@ export class KnowledgeService {
     });
   }
 
+  /** The best-matching passages; `id` is the passage's, so a grounded answer can name its sources. */
   async search(tx: Tx, query: string, limit = 5) {
     const q = sql`websearch_to_tsquery('english', ${query})`;
     const rows = await tx
       .select({
+        id: knowledgeChunks.id,
         title: knowledgeDocs.title,
         content: knowledgeChunks.content,
         rank: sql<number>`ts_rank(${knowledgeChunks.tsv}, ${q})`,
@@ -86,7 +88,7 @@ export class KnowledgeService {
       .where(sql`${knowledgeChunks.tsv} @@ ${q}`)
       .orderBy(desc(sql`ts_rank(${knowledgeChunks.tsv}, ${q})`))
       .limit(limit);
-    return rows.map(({ title, content }) => ({ title, content }));
+    return rows.map(({ id, title, content }) => ({ id, title, content }));
   }
 }
 

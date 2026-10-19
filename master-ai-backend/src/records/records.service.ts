@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import type { EntityDef, HumanRole, OutboxItem, PackRecord, ResolvedPack } from '@onehuman/schemas';
+import type { Conditions, EntityDef, HumanRole, OutboxItem, PackRecord, ResolvedPack } from '@onehuman/schemas';
 import { entityValidator, titleOf } from '@onehuman/agent-kit';
 import { AuditService, type Actor } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
 import { outbox, records, workspaces } from '../db/schema';
+import { conditionSql } from '../lists/sql';
 import { istDate } from '../voice/time';
 
 export type RecordFilter = Record<string, string | number | boolean>;
@@ -64,11 +65,20 @@ export class RecordsService {
     return result.data as Record<string, unknown>;
   }
 
-  async search(tx: Tx, workspaceId: string, entity: string, opts: { query?: string; filter?: RecordFilter; limit?: number }) {
+  /** `matching`: a pack's conditions (`when`) on the entity, compiled by the same SQL the lists use. */
+  async search(
+    tx: Tx,
+    workspaceId: string,
+    entity: string,
+    opts: { query?: string; filter?: RecordFilter; matching?: { entity: EntityDef; when: Conditions }; limit?: number },
+  ) {
     const conditions = [eq(records.workspaceId, workspaceId), eq(records.entity, entity)];
     if (opts.query) conditions.push(sql`${records.data}::text ilike ${`%${opts.query}%`}`);
     for (const [field, value] of Object.entries(opts.filter ?? {})) {
       conditions.push(sql`${records.data}->>${field} = ${String(value)}`);
+    }
+    if (opts.matching) {
+      conditions.push(sql`exists (select 1 from records r where r.id = ${records.id} and ${conditionSql(opts.matching.entity, opts.matching.when)})`);
     }
     return tx
       .select()
