@@ -99,4 +99,13 @@ describe('shared escalation sets', () => {
     expect(matchWords('my password is abc', get('secrets').words)).toEqual(['password is']);
     expect(matchWords('mar jaunga main', get('distress').words)).toEqual(['mar jaunga']);
   });
+
+  it('catches people sharing an OTP or PIN, and not an ordinary mention', () => {
+    const words = get('secrets').words;
+    for (const text of ['my otp is 4821', 'OTP hai 4821', 'mera pin 1234', 'मेरा ओटीपी 4821', 'मेरा पिन 1234 है']) {
+      expect(matchWords(text, words), text).not.toEqual([]);
+    }
+    expect(matchWords('I forgot my password, please reset', words)).toEqual([]);
+    expect(matchWords('पिन कोड 560001', words)).toEqual([]);
+  });
 });

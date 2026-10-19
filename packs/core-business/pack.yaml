@@ -36,7 +36,7 @@ escalations:
     for: customer_facing
     alert: owner
     reply: "Please don't share OTPs, PINs, passwords or card numbers here. We will never ask for them."
-    words: [otp is, password is, pin is, card number is, cvv, upi pin, atm pin, पिन नंबर, पासवर्ड है, ओटीपी है, mera otp, mera password, otp bata, pin bata]
+    words: [my otp, my pin, mera otp, mera pin, otp hai, pin hai, otp is, password is, pin is, card number is, cvv, upi pin, atm pin, पिन नंबर, मेरा पिन, मेरा ओटीपी, मेरा पासवर्ड, पासवर्ड है, ओटीपी है, mera otp, mera password, otp bata, pin bata]
 
 agents:
   - role: ops-assistant
