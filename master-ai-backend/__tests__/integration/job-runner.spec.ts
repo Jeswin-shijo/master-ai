@@ -384,7 +384,7 @@ describe('a job card forbid compiles to a policy the engine applies', () => {
 });
 
 describe('what a job reads', () => {
-  it('reads records, open list items and company notes, and a duplicate check sees earlier runs', async () => {
+  it('reads records, the list items still to be checked and company notes, and a duplicate check sees earlier runs', async () => {
     const org = await newOrg(h, 'power-plant');
     await h.get(ListsService).removeSamples(org.session);
     const add = (data: Record<string, unknown>) =>
@@ -395,6 +395,8 @@ describe('what a job reads', () => {
     const confined = await add({ permitNo: 'SPEC-CS-1', permitType: 'confined-space', equipment: 'Coal mill 2', status: 'issued' });
     const electrical = await add({ permitNo: 'SPEC-EL-1', permitType: 'electrical', equipment: 'Feeder 7', status: 'issued', earthsFixed: 2 });
     await h.get(KnowledgeService).add(org.session, { title: 'Gas testing', content: 'Every confined space needs a gas test before anyone goes in.' });
+    // A person checks the confined-space permit (its missing gas test accepted with a note); the electrical one, with no problem, is still to be checked.
+    await h.get(ListsService).check(org.session, 'work-permits', confined, { note: 'Gas test done and recorded on the paper permit' });
 
     const READS: JobInput = {
       id: 'spec-reads',
@@ -416,7 +418,7 @@ describe('what a job reads', () => {
     expect(await runtime.step(org.tenantId, first.taskId)).toEqual({ kind: 'finish', output: { summary: 'Morning permit check finished' } });
     const { results } = (await runRow(first.runId)).state;
     expect(results.permits).toEqual([expect.objectContaining({ id: electrical, permitNo: 'SPEC-EL-1', equipment: 'Feeder 7' })]);
-    expect(results.open).toEqual([expect.objectContaining({ id: confined, title: 'SPEC-CS-1', permitNo: 'SPEC-CS-1', problems: [expect.any(String)] })]);
+    expect(results.open).toEqual([expect.objectContaining({ id: electrical, title: 'SPEC-EL-1', permitNo: 'SPEC-EL-1', problems: [] })]);
     // The pack's playbooks are company notes too; the spec's own note is among the passages found.
     expect(results.notes).toContainEqual({ id: expect.any(String), title: 'Gas testing', text: 'Every confined space needs a gas test before anyone goes in.' });
     expect(results.__seen).toEqual(['permit-SPEC-CS-1']);

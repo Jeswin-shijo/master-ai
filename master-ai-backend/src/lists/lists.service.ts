@@ -24,7 +24,7 @@ import { istDate } from '../voice/time';
 import { toCsv } from './csv';
 import { csvValue, isUuid, istStamp, problemMessage, shown } from './format';
 import { PAGE_SIZE, parseListQuery } from './query';
-import { cardSelect, conditionSql, dayExpr, flaggedCte, flagSelect, openProblems, orderSql, totalsSelect, whereSql, type SqlClock } from './sql';
+import { cardSelect, conditionSql, dayExpr, flaggedCte, flagSelect, orderSql, totalsSelect, whereSql, type SqlClock } from './sql';
 
 type RecordRow = typeof records.$inferSelect;
 type FlagRow = { id: string } & Record<string, unknown>;
@@ -102,15 +102,16 @@ export class ListsService {
   }
 
   /**
-   * A list's open items (a problem nobody has accepted) that meet `when`, in the list's own order,
-   * with the same compiled checks the list page uses. What a job's `read … from: list` sees.
+   * A list's open items, the ones still to be dealt with: not yet checked by a person, with or
+   * without problems, that meet `when`, in the list's own order. Each comes with its problems from
+   * the same compiled checks the list page uses. What a job's `read … from: list` sees.
    */
   async openItems(tx: Tx, ws: Workspace, listId: string, when: Conditions | undefined, limit: number): Promise<ListItem[]> {
     const reg = this.register(ws.pack, listId);
     const clock = this.clock();
     const flags = (
       await tx.execute<FlagRow>(
-        sql`${flaggedCte(reg, ws.id, clock)} select ${flagSelect(reg)} from flagged r where ${openProblems(reg)} and ${conditionSql(reg.entity, when)} order by ${orderSql(reg.sort, reg)} limit ${limit}`,
+        sql`${flaggedCte(reg, ws.id, clock)} select ${flagSelect(reg)} from flagged r where r.checked_at is null and ${conditionSql(reg.entity, when)} order by ${orderSql(reg.sort, reg)} limit ${limit}`,
       )
     ).rows;
     return this.decorate(tx, ws, reg, flags, clock);

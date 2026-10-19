@@ -370,6 +370,7 @@ export class JobRunnerService {
           return rows.map((r) => ({ id: r.id, ...r.data }));
         });
       case 'list':
+        // The items still to be dealt with (not yet checked by a person), each with the problems nobody has accepted.
         return this.db.tenant(tenantId, async (tx) => {
           const items = await this.lists.openItems(tx, ws, step.list ?? '', step.when, step.limit);
           return items.map((it) => ({
