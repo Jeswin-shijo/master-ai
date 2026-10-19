@@ -21,6 +21,7 @@ import {
   type PlanDecisionSignal,
   type FollowUpSweepInput,
   type JobScheduleInput,
+  type JobSweepInput,
   type RoutineRunInput,
 } from './shared';
 
@@ -144,6 +145,34 @@ export class TemporalService implements OnModuleDestroy {
         taskQueue: config.TEMPORAL_TASK_QUEUE,
         workflowId: scheduleId,
         args: [{ tenantId: r.tenantId, workspaceId: r.workspaceId, jobId: r.jobId } satisfies JobScheduleInput],
+      },
+      policies: { overlap: ScheduleOverlapPolicy.SKIP },
+    });
+  }
+
+  /**
+   * Keep the company's job sweep in step: every 10 minutes while any list or
+   * record job is on, none otherwise. A sweep that comes while the last one is
+   * still going is skipped.
+   */
+  async syncJobSweep(r: { tenantId: string; active: boolean }) {
+    const client = await this.client();
+    const scheduleId = `jobs-${r.tenantId}`;
+    try {
+      await client.schedule.getHandle(scheduleId).delete();
+    } catch (err) {
+      if (!(err instanceof ScheduleNotFoundError)) throw err;
+    }
+    if (!r.active) return;
+    await client.schedule.create({
+      scheduleId,
+      spec: { intervals: [{ every: '10m' }] },
+      action: {
+        type: 'startWorkflow',
+        workflowType: 'jobSweepWorkflow',
+        taskQueue: config.TEMPORAL_TASK_QUEUE,
+        workflowId: scheduleId,
+        args: [{ tenantId: r.tenantId } satisfies JobSweepInput],
       },
       policies: { overlap: ScheduleOverlapPolicy.SKIP },
     });

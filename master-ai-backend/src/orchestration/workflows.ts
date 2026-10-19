@@ -19,6 +19,7 @@ import {
   type FollowUpSweepInput,
   type GoalWorkflowInput,
   type JobScheduleInput,
+  type JobSweepInput,
   type PlanDecisionSignal,
   type RoutineRunInput,
   type TaskOutcome,
@@ -342,4 +343,12 @@ export async function followUpCallWorkflow(input: FollowUpCallInput): Promise<{ 
  */
 export async function jobScheduleWorkflow(input: JobScheduleInput) {
   return db.startScheduledJob(input);
+}
+
+/**
+ * The company's list and record sweep (every 10 minutes while a list or record
+ * job is on): each due item and each changed record starts one run.
+ */
+export async function jobSweepWorkflow(input: JobSweepInput) {
+  return db.sweepJobs(input);
 }

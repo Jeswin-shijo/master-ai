@@ -1,4 +1,4 @@
-import { lifecycleOf, registersOf } from '@onehuman/agent-kit';
+import { ANY_CATEGORY, lifecycleOf, registersOf } from '@onehuman/agent-kit';
 import type { JobDef, JobTriggerKind, ResolvedPack } from '@onehuman/schemas';
 
 /**
@@ -41,7 +41,7 @@ export function triggerKind(job: JobDef): JobTriggerKind {
 export function triggerText(pack: ResolvedPack, job: JobDef): string {
   const t = job.trigger;
   if (t.request) {
-    if (t.request.categories.includes('any')) return 'When any request comes in';
+    if (t.request.categories.includes(ANY_CATEGORY)) return 'When any request comes in';
     const categories = lifecycleOf(pack).categories;
     const names = t.request.categories.map((id) => categories.find((c) => c.id === id)?.name ?? id);
     return `When a request about ${orList(names)} comes in`;

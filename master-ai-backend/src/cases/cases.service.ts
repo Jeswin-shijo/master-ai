@@ -6,6 +6,7 @@ import {
   Controller,
   Get,
   Injectable,
+  Logger,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -32,6 +33,7 @@ import { ZodPipe } from '../common/zod';
 import { DbService, type Tx } from '../db/db.service';
 import { isUniqueViolation } from '../db/errors';
 import { agents, approvalRequests, cases, caseStages, tenants, users, workspaceCounters, workspaces } from '../db/schema';
+import { JobsService } from '../jobs/jobs.service';
 import { caseWorkflowId } from '../orchestration/shared';
 import { TemporalService } from '../orchestration/temporal.service';
 import { RecordsService } from '../records/records.service';
@@ -68,12 +70,15 @@ const ACTIVE_STAGE_STATES = ['running', 'needs_info', 'waiting_approval'] as con
 /** Cases: every request runs the 8 stages as a durable workflow. */
 @Injectable()
 export class CasesService {
+  private readonly logger = new Logger(CasesService.name);
+
   constructor(
     private readonly db: DbService,
     private readonly audit: AuditService,
     private readonly temporal: TemporalService,
     private readonly records: RecordsService,
     private readonly reports: ReportsService,
+    private readonly jobs: JobsService,
   ) {}
 
   /** "New request" from someone with a login. */
@@ -109,7 +114,14 @@ export class CasesService {
       result = { row, duplicate: true };
     }
     // Starting is idempotent, so a repeat also starts a case whose first start failed.
-    if (result.row.status === 'open' && result.row.stage === 'request') await this.temporal.startCase({ tenantId, caseId: result.row.id });
+    if (result.row.status === 'open' && result.row.stage === 'request') {
+      await this.temporal.startCase({ tenantId, caseId: result.row.id });
+      // Jobs that answer as a request arrives (once per case, so a repeat starts nothing new).
+      // The case is saved and started either way.
+      await this.jobs.startArrivalRuns(tenantId, result.row).catch((err: unknown) =>
+        this.logger.error(`Arrival jobs for case ${result.row.code} did not start: ${(err as Error).message}`),
+      );
+    }
     return result;
   }
 

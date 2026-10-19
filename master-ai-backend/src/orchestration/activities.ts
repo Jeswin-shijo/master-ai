@@ -19,6 +19,7 @@ import type {
   FollowUpSweepInput,
   GoalWorkflowInput,
   JobScheduleInput,
+  JobSweepInput,
   RoutineRunInput,
   TaskOutcome,
   TaskWorkflowInput,
@@ -94,8 +95,9 @@ export function createActivities(app: INestApplicationContext) {
     endCheckinCall: (i: CheckinCallInput & { callId: string }) => routines.endUnanswered(i.tenantId, i.callId),
     markCheckinMissed: (i: CheckinCallInput) => routines.markMissed(i.tenantId, i.entryId),
 
-    // Jobs: a scheduled job's run
+    // Jobs: a scheduled job's run, and the list and record sweep
     startScheduledJob: (i: JobScheduleInput) => jobs.startScheduled(i),
+    sweepJobs: (i: JobSweepInput) => jobs.sweep(i.tenantId),
 
     // Cases: one activity per piece of stage work
     beginStage: (i: StageWorkflowInput) => stages.beginStage(i),

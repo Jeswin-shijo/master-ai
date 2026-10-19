@@ -1,6 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import type { Condition, Conditions, EntityDef, EntityField } from '@onehuman/schemas';
-import type { ListCheck, ResolvedFollowUp, ResolvedRegister } from '@onehuman/agent-kit';
+import type { DueCheck, ListCheck, ResolvedFollowUp, ResolvedRegister } from '@onehuman/agent-kit';
 import { rangeDays, type ParsedListQuery } from './query';
 
 /** "Today" and "now" in India time, fixed once per request so every query agrees. */
@@ -199,7 +199,12 @@ export function cardSelect(reg: ResolvedRegister, clock: SqlClock): SQL {
     from flagged r`;
 }
 
-/** Items a follow-up is due to call about: its conditions and its overdue or expiring rule, the same SQL the list's checks use. */
+/** Items due by an overdue or expiring rule and meeting its conditions, by the same SQL the list's checks use (follow-ups, list jobs). */
+export function dueRuleSql(rule: { due: DueCheck; when?: Conditions }, entity: EntityDef, clock: SqlClock): SQL {
+  return sql`(${conditionSql(entity, rule.when)}) and coalesce((${problemCore(rule.due, entity, clock)}), false)`;
+}
+
+/** Items a follow-up is due to call about. */
 export function dueSql(f: ResolvedFollowUp, entity: EntityDef, clock: SqlClock): SQL {
-  return sql`(${conditionSql(entity, f.when)}) and coalesce((${problemCore(f.due, entity, clock)}), false)`;
+  return dueRuleSql(f, entity, clock);
 }

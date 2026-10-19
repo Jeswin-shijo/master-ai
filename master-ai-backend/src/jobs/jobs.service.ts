@@ -1,13 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { and, count, desc, eq, gte, sql } from 'drizzle-orm';
-import { jobById, normalizeSnapshot, startJobState } from '@onehuman/agent-kit';
-import type { JobDef, JobRunView, JobSwitchInput, JobTriggerKind, JobView, PlannedTask, ResolvedPack, RunJobInput } from '@onehuman/schemas';
+import { and, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import {
+  isUntrusted,
+  jobById,
+  lifecycleOf,
+  normalizeSnapshot,
+  offlineReview,
+  registersOf,
+  requestJobsFor,
+  resolveDueRule,
+  startJobState,
+  withPreset,
+} from '@onehuman/agent-kit';
+import type { CaseSource, JobDef, JobRunView, JobSwitchInput, JobTriggerKind, JobView, PlannedTask, ResolvedPack, RunJobInput } from '@onehuman/schemas';
 import { AuditService, SYSTEM, type Actor } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { iso } from '../common/zod';
 import { afterCommit, DbService, type Tx } from '../db/db.service';
-import { agents, auditEvents, goals, jobRuns, jobSettings, tasks, tenants, workspaces } from '../db/schema';
+import { agents, auditEvents, cases, goals, jobRuns, jobSettings, tasks, tenants, workspaces } from '../db/schema';
+import { conditionSql, dayExpr, dueRuleSql } from '../lists/sql';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { JobScheduleInput } from '../orchestration/shared';
 import { goalWorkflowId, TemporalService } from '../orchestration/temporal.service';
@@ -17,6 +29,12 @@ import { runText, triggerKind, triggerText } from './describe';
 
 type SettingsRow = typeof jobSettings.$inferSelect;
 type RunRow = typeof jobRuns.$inferSelect;
+type CaseRow = typeof cases.$inferSelect;
+
+/** At most this many runs start for one job in one sweep; the rest wait for the next sweep. */
+const SWEEP_MAX = 50;
+/** Changed records are read a page at a time. */
+const SWEEP_PAGE = 100;
 
 export interface StartRunInput {
   workspaceId: string;
@@ -43,6 +61,28 @@ class DuplicateRun extends Error {}
 const istDayStart = () => new Date(`${istDate()}T00:00:00+05:30`);
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** Words from outside the company (a customer, a form, a partner system) make the run's goal inbound. */
+const originOf = (source: CaseSource): 'owner' | 'inbound' => (isUntrusted(source) ? 'inbound' : 'owner');
+
+/** What a request job's `read from: trigger` step sees: the case number, its title, the request's own words and who sent it. */
+function requestPayload(c: CaseRow, reworkNote?: string): Record<string, unknown> {
+  return {
+    code: c.code,
+    title: c.title,
+    text: c.file.request?.text ?? c.title,
+    from: c.requester.name,
+    ...(reworkNote && { note: reworkNote }),
+  };
+}
+
+/** A switched-on list or record job, ready to sweep. */
+interface Swept {
+  settingsId: string;
+  workspaceId: string;
+  pack: ResolvedPack;
+  job: JobDef;
+}
 
 /**
  * Jobs: the owner's switches (on or off, and the daily cap), the runs that
@@ -121,12 +161,14 @@ export class JobsService {
         .for('update');
       const enabled = input.enabled ?? had?.enabled ?? false;
       const dailyCap = input.dailyCap ?? had?.dailyCap ?? job.daily_cap;
+      // Switched on (again): a record job looks at changes from now, not at what changed while it was off.
+      const fromNow = enabled && !had?.enabled ? { sweptAt: sql`now()` } : {};
       const [row] = await tx
         .insert(jobSettings)
-        .values({ tenantId: session.tenantId, workspaceId: ws.id, jobId, enabled, dailyCap, updatedBy: session.principalId })
+        .values({ tenantId: session.tenantId, workspaceId: ws.id, jobId, enabled, dailyCap, updatedBy: session.principalId, ...fromNow })
         .onConflictDoUpdate({
           target: [jobSettings.workspaceId, jobSettings.jobId],
-          set: { enabled, dailyCap, updatedBy: session.principalId, updatedAt: new Date() },
+          set: { enabled, dailyCap, updatedBy: session.principalId, updatedAt: new Date(), ...fromNow },
         })
         .returning();
       await this.audit.append(tx, session.tenantId, {
@@ -143,7 +185,10 @@ export class JobsService {
         .limit(1);
       return { view: toJobView(pack, job, row, last), job, workspaceId: ws.id, enabled };
     });
-    if (input.enabled !== undefined) await this.syncTriggers(session.tenantId, saved.workspaceId, saved.job, saved.enabled);
+    if (input.enabled !== undefined) {
+      await this.syncSchedule(session.tenantId, saved.workspaceId, saved.job, saved.enabled);
+      if (sweeps(saved.job)) await this.syncSweep(session.tenantId);
+    }
     return saved.view;
   }
 
@@ -152,10 +197,11 @@ export class JobsService {
    * Runs inside the install's transaction; the schedules follow the commit.
    */
   async enableAll(tx: Tx, tenantId: string, workspaceId: string, pack: ResolvedPack, actor: Actor): Promise<void> {
+    let sweep = false;
     for (const job of pack.jobs ?? []) {
       const [row] = await tx
         .insert(jobSettings)
-        .values({ tenantId, workspaceId, jobId: job.id, enabled: true, dailyCap: job.daily_cap, updatedBy: actor.id })
+        .values({ tenantId, workspaceId, jobId: job.id, enabled: true, dailyCap: job.daily_cap, updatedBy: actor.id, sweptAt: sql`now()` })
         .onConflictDoNothing()
         .returning();
       if (!row) continue;
@@ -165,8 +211,10 @@ export class JobsService {
         refId: row.id,
         payload: { job: job.name, jobId: job.id, workspaceId, enabled: true, dailyCap: job.daily_cap },
       });
-      afterCommit(tx, () => void this.syncTriggers(tenantId, workspaceId, job, true));
+      if (job.trigger.schedule) afterCommit(tx, () => void this.syncSchedule(tenantId, workspaceId, job, true));
+      sweep ||= sweeps(job);
     }
+    if (sweep) afterCommit(tx, () => void this.syncSweep(tenantId));
   }
 
   // ---------- runs ----------
@@ -368,6 +416,257 @@ export class JobsService {
     }
   }
 
+  // ---------- request triggers ----------
+
+  /**
+   * A request just arrived: each switched-on request job with `at: arrival`
+   * that covers its provisional category (the rules' first reading of it, as
+   * review would make it offline), or that lists `any`, starts one run in a
+   * goal of its own, so a first reply doesn't wait for stages 2 to 5. Once per
+   * case and job: calling it again starts nothing.
+   */
+  async startArrivalRuns(tenantId: string, c: CaseRow): Promise<{ jobId: string; result: StartRunResult }[]> {
+    const found = await this.db.tenant(tenantId, async (tx) => {
+      // Most packs have no arrival job: look at the jobs alone before reading the whole pack.
+      const [has] = await tx
+        .select({ jobs: sql<Partial<JobDef>[] | null>`${workspaces.pack}->'jobs'` })
+        .from(workspaces)
+        .where(eq(workspaces.id, c.workspaceId));
+      if (!has?.jobs?.some((j) => j.trigger?.request?.at === 'arrival')) return [];
+      const [ws] = await tx.select({ pack: workspaces.pack }).from(workspaces).where(eq(workspaces.id, c.workspaceId));
+      if (!ws) return [];
+      const pack = normalizeSnapshot(ws.pack);
+      const request = c.file.request;
+      const category = request ? offlineReview(withPreset(lifecycleOf(pack), request), request, request.amountInr).provisionalCategory : null;
+      const matching = requestJobsFor(pack, category, 'arrival');
+      if (!matching.length) return [];
+      const on = new Set(
+        (
+          await tx
+            .select({ jobId: jobSettings.jobId })
+            .from(jobSettings)
+            .where(and(eq(jobSettings.workspaceId, c.workspaceId), eq(jobSettings.enabled, true), inArray(jobSettings.jobId, matching.map((j) => j.id))))
+        ).map((r) => r.jobId),
+      );
+      return matching.filter((j) => on.has(j.id));
+    });
+    const out: { jobId: string; result: StartRunResult }[] = [];
+    for (const job of found) {
+      try {
+        const result = await this.startRun(tenantId, {
+          workspaceId: c.workspaceId,
+          jobId: job.id,
+          trigger: 'request',
+          dedupeKey: `arrival:${c.id}`,
+          caseId: c.id,
+          origin: originOf(c.source),
+          payload: requestPayload(c),
+        });
+        out.push({ jobId: job.id, result });
+      } catch (err) {
+        // The run is already marked failed; the other jobs still start.
+        this.logger.error(`Job ${job.id} could not start for case ${c.code}: ${(err as Error).message}`);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Stage 6 of a case, step 1: the first switched-on request job with `at:
+   * execute` (pack order) that covers the case's category, or null. Called in
+   * startExecution's transaction before its first audit: the job's switch row
+   * is locked here, so that transaction takes its locks in the order switches
+   * and run starts do (the switch row, then the audit chain).
+   */
+  async executeJobFor(tx: Tx, workspaceId: string, pack: ResolvedPack, category: string | null): Promise<JobDef | null> {
+    for (const job of requestJobsFor(pack, category, 'execute')) {
+      const [on] = await tx
+        .select({ id: jobSettings.id })
+        .from(jobSettings)
+        .where(and(eq(jobSettings.workspaceId, workspaceId), eq(jobSettings.jobId, job.id), eq(jobSettings.enabled, true)))
+        .for('update');
+      if (on) return job;
+    }
+    return null;
+  }
+
+  /**
+   * Stage 6, step 2, in the same transaction once the case's goal is saved: the
+   * job's task and run go into that goal (key `case:<caseId>:<attempt>`), so
+   * planning finds the task instead of planning. The case workflow starts the
+   * goal; nothing is started here, and a refusal (paused, cap, duplicate) leaves
+   * the goal to be planned as before.
+   */
+  async startInCaseGoal(tx: Tx, tenantId: string, i: { job: JobDef; caseRow: CaseRow; goalId: string; attempt: number; reworkNote?: string }): Promise<StartRunResult> {
+    const c = i.caseRow;
+    const started = await this.begin(tx, tenantId, {
+      workspaceId: c.workspaceId,
+      jobId: i.job.id,
+      trigger: 'request',
+      dedupeKey: `case:${c.id}:${i.attempt}`,
+      caseId: c.id,
+      goalId: i.goalId,
+      origin: originOf(c.source),
+      payload: requestPayload(c, i.reworkNote),
+    });
+    return 'skipped' in started ? started : { runId: started.runId, goalId: started.goalId };
+  }
+
+  // ---------- the list and record sweep ----------
+
+  /**
+   * The 10-minute sweep. Each switched-on list job starts a run for each due
+   * item of its list (once per item and due date); each record job one per
+   * change to a record of its type since it last looked (once per record
+   * version). At most 50 runs start per job and sweep, and the daily cap still
+   * applies: what is left waits for a later sweep. Nothing starts while the
+   * company is paused, and nothing is marked seen either.
+   */
+  async sweep(tenantId: string): Promise<{ started: number }> {
+    const due = await this.db.tenant(tenantId, async (tx) => {
+      const [tenant] = await tx.select({ status: tenants.status }).from(tenants).where(eq(tenants.id, tenantId));
+      return !tenant || tenant.status === 'paused' ? [] : this.sweptJobs(tx);
+    });
+    let started = 0;
+    for (const s of due) {
+      try {
+        started += s.job.trigger.list ? await this.sweepList(tenantId, s) : await this.sweepRecords(tenantId, s);
+      } catch (err) {
+        this.logger.error(`The sweep of job ${s.job.id} stopped: ${(err as Error).message}`);
+      }
+    }
+    return { started };
+  }
+
+  /** Due items with no run for their due date yet, earliest first. */
+  private async sweepList(tenantId: string, s: Swept): Promise<number> {
+    const t = s.job.trigger.list!;
+    const reg = registersOf(s.pack).find((r) => r.id === t.list);
+    const due = reg ? resolveDueRule(t.due, reg.entity, `job:${s.job.id}`) : null;
+    if (!reg || !due) return 0;
+    const field = due.field.name;
+    const now = new Date();
+    const items = await this.db.tenant(tenantId, async (tx) =>
+      (
+        await tx.execute<{ id: string; data: Record<string, unknown> }>(sql`
+          select r.id, r.data from records r
+          where r.workspace_id = ${s.workspaceId} and r.entity = ${reg.entity.name}
+            and ${dueRuleSql({ due, ...(t.when && { when: t.when }) }, reg.entity, { now, today: istDate(now) })}
+            and not exists (
+              select 1 from job_runs j where j.workspace_id = r.workspace_id and j.job_id = ${s.job.id}
+                and j.dedupe_key = 'item:' || r.id::text || ':' || coalesce(r.data->>${field}, ''))
+          order by ${dayExpr(due.field)} asc nulls last, r.id
+          limit ${SWEEP_MAX}`)
+      ).rows,
+    );
+    let started = 0;
+    for (const item of items) {
+      const result = await this.startRun(tenantId, {
+        workspaceId: s.workspaceId,
+        jobId: s.job.id,
+        trigger: 'list',
+        dedupeKey: `item:${item.id}:${String(item.data[field] ?? '')}`,
+        payload: { item: { id: item.id, ...item.data } },
+        origin: 'owner',
+      });
+      if ('runId' in result) started++;
+      else if (result.skipped !== 'duplicate') break; // paused, switched off or the cap: the items stay due
+    }
+    await this.db.tenant(tenantId, (tx) => tx.update(jobSettings).set({ sweptAt: sql`now()` }).where(eq(jobSettings.id, s.settingsId)));
+    return started;
+  }
+
+  /**
+   * Records changed (or added, for `on: created`) since the job last looked,
+   * oldest change first. The mark then moves past what was looked at, to a
+   * minute before this sweep began: a change saved by a transaction still open
+   * while the sweep read is seen next time, and its run key makes a second look
+   * start nothing. Stopped early (paused, the cap, 50 runs), the mark moves only
+   * to the last change handled, so the rest wait instead of being lost.
+   */
+  private async sweepRecords(tenantId: string, s: Swept): Promise<number> {
+    const t = s.job.trigger.record!;
+    const entity = s.pack.entities.find((e) => e.name === t.entity);
+    if (!entity) return 0;
+    const version = sql.raw(t.on === 'created' ? 'r.created_at' : 'r.updated_at');
+    const changed = t.on === 'updated' ? sql`and r.updated_at > r.created_at` : sql``;
+    const mark = sql`(select coalesce(js.swept_at, js.updated_at) from job_settings js where js.id = ${s.settingsId})`;
+    type Row = { id: string; data: Record<string, unknown>; v: string; at: Date };
+
+    let started = 0;
+    let stopped = false;
+    let last: string | null = null;
+    let looked: string | null = null;
+    for (let after: Row | null = null; ; ) {
+      const page: { rows: Row[]; now: string } = await this.db.tenant(tenantId, async (tx) => {
+        const [clock] = (await tx.execute<{ now: string }>(sql`select now()::text as now`)).rows;
+        const rows = (
+          await tx.execute<Row>(sql`
+            select r.id, r.data, ${version}::text as v, ${version} as at from records r
+            where r.workspace_id = ${s.workspaceId} and r.entity = ${entity.name}
+              and ${version} >= ${mark} ${changed}
+              and (${conditionSql(entity, t.when)})
+              ${after ? sql`and (${version}, r.id) > (${after.v}::timestamptz, ${after.id}::uuid)` : sql``}
+            order by ${version}, r.id
+            limit ${SWEEP_PAGE}`)
+        ).rows;
+        return { rows, now: clock!.now };
+      });
+      looked ??= page.now;
+      for (const row of page.rows) {
+        const result = await this.startRun(tenantId, {
+          workspaceId: s.workspaceId,
+          jobId: s.job.id,
+          trigger: 'record',
+          dedupeKey: `record:${row.id}:${new Date(row.at).toISOString()}`,
+          payload: { record: { id: row.id, ...row.data } },
+          origin: 'owner',
+        });
+        if ('skipped' in result && result.skipped !== 'duplicate') {
+          stopped = true;
+          break;
+        }
+        last = row.v;
+        if ('runId' in result && ++started >= SWEEP_MAX) {
+          stopped = true;
+          break;
+        }
+      }
+      if (stopped || page.rows.length < SWEEP_PAGE) break;
+      after = page.rows.at(-1)!;
+    }
+    const to = stopped ? (last ? sql`${last}::timestamptz` : null) : sql`${looked}::timestamptz - interval '1 minute'`;
+    if (to) {
+      // greatest(): never back, and never behind a switch-on that happened while this sweep ran.
+      await this.db.tenant(tenantId, (tx) =>
+        tx
+          .update(jobSettings)
+          .set({ sweptAt: sql`greatest(coalesce(${jobSettings.sweptAt}, ${jobSettings.updatedAt}), ${to})` })
+          .where(eq(jobSettings.id, s.settingsId)),
+      );
+    }
+    return started;
+  }
+
+  /** The company's switched-on list and record jobs. */
+  private async sweptJobs(tx: Tx): Promise<Swept[]> {
+    const on = await tx
+      .select({ id: jobSettings.id, workspaceId: jobSettings.workspaceId, jobId: jobSettings.jobId })
+      .from(jobSettings)
+      .where(eq(jobSettings.enabled, true));
+    if (!on.length) return [];
+    const rows = await tx
+      .select({ id: workspaces.id, pack: workspaces.pack })
+      .from(workspaces)
+      .where(inArray(workspaces.id, [...new Set(on.map((s) => s.workspaceId))]));
+    const packs = new Map(rows.map((w) => [w.id, normalizeSnapshot(w.pack)]));
+    return on.flatMap((s) => {
+      const pack = packs.get(s.workspaceId);
+      const job = pack && jobById(pack, s.jobId);
+      return pack && job && sweeps(job) ? [{ settingsId: s.id, workspaceId: s.workspaceId, pack, job }] : [];
+    });
+  }
+
   // ---------- helpers ----------
 
   /** The card the runner uses: the agent's own (edited) card, else the pack's. */
@@ -376,8 +675,8 @@ export class JobsService {
     return !!(agent?.spec.job ?? pack.agents.find((a) => a.role === job.agent)?.job);
   }
 
-  /** Keep what starts a job in step with its switch. Only scheduled jobs have a Temporal schedule of their own. */
-  private async syncTriggers(tenantId: string, workspaceId: string, job: JobDef, enabled: boolean) {
+  /** A scheduled job's own Temporal schedule follows its switch. */
+  private async syncSchedule(tenantId: string, workspaceId: string, job: JobDef, enabled: boolean) {
     const schedule = job.trigger.schedule;
     if (!schedule) return;
     try {
@@ -386,7 +685,20 @@ export class JobsService {
       this.logger.error(`Could not schedule job ${job.id}: ${(err as Error).message}`);
     }
   }
+
+  /** The company's 10-minute sweep runs while any list or record job is on. */
+  private async syncSweep(tenantId: string) {
+    try {
+      const active = await this.db.tenant(tenantId, async (tx) => (await this.sweptJobs(tx)).length > 0);
+      await this.temporal.syncJobSweep({ tenantId, active });
+    } catch (err) {
+      this.logger.error(`Could not schedule the job sweep for ${tenantId}: ${(err as Error).message}`);
+    }
+  }
 }
+
+/** List and record jobs are started by the sweep. */
+const sweeps = (job: JobDef) => !!(job.trigger.list || job.trigger.record);
 
 interface Begun {
   runId: string;

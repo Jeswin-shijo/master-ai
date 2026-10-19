@@ -1,11 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import { ForbiddenException, NotFoundException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { eq } from 'drizzle-orm';
 import { JobDefSchema, ORG_TYPES, type JobCard, type JobInput, type PackAgent, type ResolvedPack } from '@onehuman/schemas';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AgentsService } from '../../src/agents/agents.service';
+import { CasesService } from '../../src/cases/cases.service';
+import { CaseStagesService } from '../../src/cases/stages.service';
 import { AuthGuard, issueToken, MANAGERS_ONLY, type Session } from '../../src/common/auth';
 import { DbService } from '../../src/db/db.service';
+import { cases as casesTable } from '../../src/db/schema';
 import { IdentityService } from '../../src/identity/identity.service';
 import { JobsController } from '../../src/jobs/jobs.controller';
 import { JobsService } from '../../src/jobs/jobs.service';
@@ -17,6 +21,7 @@ import { TemporalService } from '../../src/orchestration/temporal.service';
 import { OnboardingService } from '../../src/tenancy/onboarding.service';
 import { TenancyService } from '../../src/tenancy/tenancy.service';
 import { PackRegistry } from '../../src/packs/registry.service';
+import { RecordsService } from '../../src/records/records.service';
 import { istDate } from '../../src/voice/time';
 import { anyIp, boot, newOrg, PASSWORD, uniqueEmail, type Harness, type Org } from './harness';
 import { installJobFixture, JOB_TESTER } from './jobs-fixture';
@@ -365,5 +370,322 @@ describe('jobs and job cards from the base packs', () => {
     expect(rows).toEqual([{ job_id: 'spec-installed', enabled: true, daily_cap: 50 }]);
     expect(recorded('syncJobSchedule').at(-1)).toEqual({ tenantId: session.tenantId, workspaceId: ws.id, jobId: 'spec-installed', days: [1, 2, 3, 4, 5, 6], time: '09:00', active: true });
     expect((await jobs.list(session.tenantId)).map((j) => ({ id: j.id, enabled: j.enabled }))).toEqual([{ id: 'spec-installed', enabled: true }]);
+  });
+});
+
+// ---------- Task 10: request triggers and the list and record sweep ----------
+
+const PM_TEXT = 'Quarterly lubrication and greasing of boiler feed pump BFP-2 is due as per the PM schedule.';
+const requestJob = (id: string, categories: string[], at: 'arrival' | 'execute', extra: Partial<JobInput> = {}): JobInput => ({
+  id,
+  name: 'Answer the request',
+  description: 'Works on a request as soon as it fits.',
+  agent: JOB_TESTER,
+  trigger: { request: { categories, at } },
+  steps: READ_ONLY,
+  ...extra,
+});
+const listJob = (id: string, extra: Partial<JobInput> = {}): JobInput => ({
+  id,
+  name: 'Maintenance reminder',
+  description: 'Reminds the crew when equipment is past its maintenance date.',
+  agent: JOB_TESTER,
+  trigger: { list: { list: 'equipment', due: { overdue: { date: 'nextMaintenance' } } } },
+  steps: READ_ONLY,
+  ...extra,
+});
+const recordJob = (id: string, on: 'created' | 'updated' | 'either', extra: Partial<JobInput> = {}): JobInput => ({
+  id,
+  name: 'Equipment watch',
+  description: 'Looks at equipment whenever it changes.',
+  agent: JOB_TESTER,
+  trigger: { record: { entity: 'Equipment', on } },
+  steps: READ_ONLY,
+  ...extra,
+});
+
+/** A day in India `offset` days from today. */
+const day = (offset: number) => istDate(new Date(Date.now() + offset * 86_400_000));
+
+async function caseRow(org: Org, id: string) {
+  const [row] = await h.get(DbService).tenant(org.tenantId, (tx) => tx.select().from(casesTable).where(eq(casesTable.id, id)));
+  return row!;
+}
+
+async function equipment(org: Org) {
+  const { rows } = await h.owner.query<{ id: string; data: Record<string, unknown> }>(
+    `select id, data from records where workspace_id = $1 and entity = 'Equipment' order by created_at, id`,
+    [org.workspaceId],
+  );
+  return rows;
+}
+
+/** Change a record the one way records change: RecordsService.update, audited. */
+async function updateEquipment(org: Org, id: string, patch: Record<string, unknown>) {
+  const records = h.get(RecordsService);
+  await h.get(DbService).tenant(org.tenantId, async (tx) => {
+    const ws = await records.activeWorkspace(tx, org.workspaceId);
+    await records.update(tx, org.tenantId, ws, 'Equipment', id, patch, { actor: { id: org.session.principalId, kind: 'human' }, via: 'manual' });
+  });
+}
+
+async function runRows(org: Org, jobId: string) {
+  const { rows } = await h.owner.query<{ id: string; dedupe_key: string; input: Record<string, unknown>; trigger: string; case_id: string | null; goal_id: string; task_id: string }>(
+    `select id, dedupe_key, input, trigger, case_id, goal_id, task_id from job_runs where workspace_id = $1 and job_id = $2 order by created_at, dedupe_key`,
+    [org.workspaceId, jobId],
+  );
+  return rows;
+}
+
+describe('request jobs', () => {
+  it('a case reaching Execute in the job category runs the job as the goal one task, and planning reuses it', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const stages = h.get(CaseStagesService);
+    const { jobId, agentId } = await installJobFixture(h, org, requestJob('spec-pm', ['planned-maintenance'], 'execute', { name: 'Plan the maintenance' }));
+    // A second job for the same category: one job per case, the first by pack order.
+    await installJobFixture(h, org, requestJob('spec-pm-second', ['any'], 'execute'));
+
+    const c = await h.get(CasesService).create(org.session, { text: PM_TEXT });
+    const at = (stage: 'request' | 'review' | 'classify' | 'assign' | 'execute', attempt = 1) => ({ tenantId: org.tenantId, caseId: c.id, stage, attempt });
+    for (const stage of ['request', 'review', 'classify', 'assign'] as const) {
+      await stages.beginStage(at(stage));
+      expect(await stages.runStage(at(stage)), stage).toEqual({ outcome: 'done' });
+    }
+    expect((await caseRow(org, c.id)).category).toBe('planned-maintenance');
+
+    await stages.beginStage(at('execute'));
+    const started = await stages.startExecution(at('execute'));
+    const { rows: taskRows } = await h.owner.query<{ id: string; key: string; agent_id: string }>(`select id, key, agent_id from tasks where goal_id = $1`, [started.goalId]);
+    expect(taskRows).toEqual([{ id: expect.any(String), key: `job-${jobId}`, agent_id: agentId }]);
+    expect(await runRows(org, jobId)).toEqual([
+      {
+        id: expect.any(String),
+        dedupe_key: `case:${c.id}:1`,
+        input: { code: c.code, title: c.title, text: PM_TEXT, from: 'Asha Owner' },
+        trigger: 'request',
+        case_id: c.id,
+        goal_id: started.goalId,
+        task_id: taskRows[0]!.id,
+      },
+    ]);
+    expect(await runsOf(org, 'spec-pm-second')).toBe(0);
+    const { rows: goalRows } = await h.owner.query<{ case_id: string; status: string; origin: string }>(`select case_id, status, origin from goals where id = $1`, [started.goalId]);
+    expect(goalRows).toEqual([{ case_id: c.id, status: 'running', origin: 'owner' }]);
+    // The case workflow starts the goal as its child: no goal of its own is started.
+    expect(recorded('startGoal').some((g) => g.goalId === started.goalId)).toBe(false);
+
+    const plan = await h.get(OrchestratorService).planGoal(org.tenantId, started.goalId, true);
+    expect(plan.tasks).toEqual([{ id: taskRows[0]!.id, key: `job-${jobId}`, dependsOn: [] }]);
+
+    // A retried activity finds the goal it started.
+    expect(await stages.startExecution(at('execute'))).toEqual(started);
+    expect(await runsOf(org, jobId)).toBe(1);
+
+    // Rework (attempt 2): a new goal and a new run, with the reason the first result was not accepted.
+    const rework = { ...at('execute', 2), reworkNote: 'Greased, but the oil was not topped up.' };
+    await stages.beginStage(rework);
+    const second = await stages.startExecution(rework);
+    expect(second.goalId).not.toBe(started.goalId);
+    const runs = await runRows(org, jobId);
+    expect(runs.map((r) => r.dedupe_key)).toEqual([`case:${c.id}:1`, `case:${c.id}:2`]);
+    expect(runs[1]).toMatchObject({ goal_id: second.goalId, input: { code: c.code, note: 'Greased, but the oil was not topped up.' } });
+  });
+
+  it('a switched-off execute job leaves the case goal to the planner', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const stages = h.get(CaseStagesService);
+    const { jobId } = await installJobFixture(h, org, requestJob('spec-pm-off', ['planned-maintenance'], 'execute'));
+    await jobs.switch(org.session, jobId, { enabled: false });
+    const c = await h.get(CasesService).create(org.session, { text: PM_TEXT });
+    const at = (stage: 'request' | 'review' | 'classify' | 'assign' | 'execute') => ({ tenantId: org.tenantId, caseId: c.id, stage, attempt: 1 });
+    for (const stage of ['request', 'review', 'classify', 'assign'] as const) {
+      await stages.beginStage(at(stage));
+      await stages.runStage(at(stage));
+    }
+    await stages.beginStage(at('execute'));
+    const started = await stages.startExecution(at('execute'));
+    expect(await count(`select count(*) as n from tasks where goal_id = $1`, [started.goalId])).toBe(0);
+    expect(await runsOf(org, jobId)).toBe(0);
+  });
+
+  it('a request arriving starts its arrival jobs (any, or its category) once per case, each in a goal of its own', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const first = await installJobFixture(h, org, requestJob('spec-first-reply', ['any'], 'arrival', { name: 'First reply' }));
+    const pm = await installJobFixture(h, org, requestJob('spec-pm-arrival', ['planned-maintenance'], 'arrival'));
+    const accident = await installJobFixture(h, org, requestJob('spec-accident-arrival', ['accident'], 'arrival'));
+    const later = await installJobFixture(h, org, requestJob('spec-pm-later', ['planned-maintenance'], 'execute'));
+
+    const c = await h.get(CasesService).create(org.session, { text: PM_TEXT });
+    const [run] = await runRows(org, first.jobId);
+    expect(run).toMatchObject({ dedupe_key: `arrival:${c.id}`, trigger: 'request', case_id: c.id, input: { code: c.code, title: c.title, text: PM_TEXT, from: 'Asha Owner' } });
+    const { rows: goalRows } = await h.owner.query<{ case_id: string | null; status: string; origin: string; text: string }>(`select case_id, status, origin, text from goals where id = $1`, [run!.goal_id]);
+    expect(goalRows).toEqual([{ case_id: null, status: 'running', origin: 'owner', text: `First reply: request ${c.code}` }]);
+    expect(recorded('startGoal')).toContainEqual({ tenantId: org.tenantId, goalId: run!.goal_id, autoStart: true });
+    expect(await runsOf(org, pm.jobId)).toBe(1);
+    expect(await runsOf(org, accident.jobId)).toBe(0);
+    expect(await runsOf(org, later.jobId)).toBe(0);
+
+    // Again for the same case: nothing new.
+    const again = await jobs.startArrivalRuns(org.tenantId, await caseRow(org, c.id));
+    expect(again.map((r) => r.result)).toEqual([{ skipped: 'duplicate' }, { skipped: 'duplicate' }]);
+    expect(await runsOf(org, first.jobId)).toBe(1);
+    expect(await runsOf(org, pm.jobId)).toBe(1);
+
+    // A customer's words: the run's goal is inbound, so the untrusted-origin rules apply to what it does.
+    const { row } = await h.get(CasesService).open(org.tenantId, {
+      source: 'customer',
+      requester: { name: 'Ravi Kumar', phone: '+91 98450 12345' },
+      text: 'The street light outside house 14 has been off for three days.',
+      createdBy: null,
+      actor: { id: org.session.principalId, kind: 'human' },
+    });
+    const customerRun = (await runRows(org, first.jobId)).find((r) => r.case_id === row.id)!;
+    expect(customerRun.input).toMatchObject({ from: 'Ravi Kumar', text: 'The street light outside house 14 has been off for three days.' });
+    expect(await count(`select count(*) as n from goals where id = $1 and origin = 'inbound'`, [customerRun.goal_id])).toBe(1);
+    expect(await runsOf(org, pm.jobId)).toBe(1);
+  });
+});
+
+describe('the list and record sweep', () => {
+  it('starts one run per due list item, once per due date', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const { jobId } = await installJobFixture(h, org, listJob('spec-pm-due'));
+    const [a, b, notDue] = await equipment(org);
+    await updateEquipment(org, a!.id, { nextMaintenance: day(-5) });
+    await updateEquipment(org, b!.id, { nextMaintenance: day(-2) });
+
+    await jobs.sweep(org.tenantId);
+    const runs = await runRows(org, jobId);
+    expect(runs.map((r) => r.dedupe_key).sort()).toEqual([`item:${a!.id}:${day(-5)}`, `item:${b!.id}:${day(-2)}`].sort());
+    const forA = runs.find((r) => r.dedupe_key.startsWith(`item:${a!.id}`))!;
+    expect(forA).toMatchObject({ trigger: 'list', case_id: null, input: { item: { id: a!.id, nextMaintenance: day(-5), tag: a!.data.tag } } });
+    expect(runs.some((r) => r.dedupe_key.includes(notDue!.id))).toBe(false);
+
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, jobId)).toBe(2);
+
+    // A new due date is a new reason to run.
+    await updateEquipment(org, a!.id, { nextMaintenance: day(-1) });
+    await jobs.sweep(org.tenantId);
+    expect((await runRows(org, jobId)).map((r) => r.dedupe_key)).toContain(`item:${a!.id}:${day(-1)}`);
+    expect(await runsOf(org, jobId)).toBe(3);
+
+    const { rows } = await h.owner.query<{ swept_at: Date | null }>(`select swept_at from job_settings where workspace_id = $1 and job_id = $2`, [org.workspaceId, jobId]);
+    expect(rows[0]!.swept_at).not.toBeNull();
+  });
+
+  it('starts one run per record change, and nothing when nothing changed', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const { jobId } = await installJobFixture(h, org, recordJob('spec-watch', 'updated'));
+    const [a] = await equipment(org);
+
+    // Sample records made before the job was on are not changes.
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, jobId)).toBe(0);
+
+    await updateEquipment(org, a!.id, { location: 'Unit 2 boiler house' });
+    await jobs.sweep(org.tenantId);
+    const runs = await runRows(org, jobId);
+    const { rows: rec } = await h.owner.query<{ updated_at: Date }>(`select updated_at from records where id = $1`, [a!.id]);
+    expect(runs).toEqual([expect.objectContaining({ dedupe_key: `record:${a!.id}:${rec[0]!.updated_at.toISOString()}`, trigger: 'record' })]);
+    expect(runs[0]!.input).toMatchObject({ record: { id: a!.id, location: 'Unit 2 boiler house' } });
+
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, jobId)).toBe(1);
+
+    await updateEquipment(org, a!.id, { location: 'Unit 3 boiler house' });
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, jobId)).toBe(2);
+  });
+
+  it('a record job on created starts for new records only', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const { jobId } = await installJobFixture(h, org, recordJob('spec-new-equipment', 'created'));
+    const [a] = await equipment(org);
+    await updateEquipment(org, a!.id, { location: 'Moved' });
+    const records = h.get(RecordsService);
+    const made = await h.get(DbService).tenant(org.tenantId, async (tx) => {
+      const ws = await records.activeWorkspace(tx, org.workspaceId);
+      return records.create(tx, org.tenantId, ws, 'Equipment', { ...a!.data, tag: 'BFP-9', name: 'Boiler feed pump 9' }, { id: org.session.principalId, kind: 'human' });
+    });
+    await jobs.sweep(org.tenantId);
+    expect((await runRows(org, jobId)).map((r) => r.dedupe_key)).toEqual([`record:${made.id}:${made.createdAt.toISOString()}`]);
+  });
+
+  it('changes past the daily cap wait for a later sweep instead of being lost', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const { jobId } = await installJobFixture(h, org, recordJob('spec-capped-watch', 'either', { daily_cap: 1 }));
+    vi.spyOn(h.get(NotificationsService), 'pushToManagers').mockResolvedValue();
+    const [a, b] = await equipment(org);
+    await updateEquipment(org, a!.id, { location: 'Bay 1' });
+    await updateEquipment(org, b!.id, { location: 'Bay 2' });
+
+    await jobs.sweep(org.tenantId);
+    expect((await runRows(org, jobId)).map((r) => r.dedupe_key)).toEqual([expect.stringContaining(`record:${a!.id}:`)]);
+    await jobs.switch(org.session, jobId, { dailyCap: 5 });
+    await jobs.sweep(org.tenantId);
+    expect((await runRows(org, jobId)).map((r) => r.dedupe_key.split(':')[1])).toEqual([a!.id, b!.id]);
+  });
+
+  it('starts nothing while the company is paused, and catches up once it is resumed', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const list = await installJobFixture(h, org, listJob('spec-paused-list'));
+    const watch = await installJobFixture(h, org, recordJob('spec-paused-watch', 'updated'));
+    const [a] = await equipment(org);
+    await updateEquipment(org, a!.id, { nextMaintenance: day(-3) });
+
+    const tenancy = h.get(TenancyService);
+    await tenancy.setTenantPaused(org.session, true);
+    const activities = createActivities({ get: (t: unknown) => h.get(t as never) } as never);
+    await activities.sweepJobs({ tenantId: org.tenantId });
+    expect(await runsOf(org, list.jobId)).toBe(0);
+    expect(await runsOf(org, watch.jobId)).toBe(0);
+
+    await tenancy.setTenantPaused(org.session, false);
+    await activities.sweepJobs({ tenantId: org.tenantId });
+    expect(await runsOf(org, list.jobId)).toBe(1);
+    expect(await runsOf(org, watch.jobId)).toBe(1);
+  });
+
+  it('keeps the 10-minute sweep in step with the list and record jobs that are on', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const list = await installJobFixture(h, org, listJob('spec-sweep-list'));
+    await h.owner.query(`update job_settings set enabled = false where workspace_id = $1`, [org.workspaceId]);
+    const sweeps = () => recorded('syncJobSweep').filter((s) => s.tenantId === org.tenantId);
+
+    await jobs.switch(org.session, list.jobId, { enabled: true });
+    expect(sweeps()).toEqual([{ tenantId: org.tenantId, active: true }]);
+    await jobs.switch(org.session, list.jobId, { enabled: false });
+    expect(sweeps().at(-1)).toEqual({ tenantId: org.tenantId, active: false });
+
+    // Another list or record job still on keeps the sweep.
+    const watch = await installJobFixture(h, org, recordJob('spec-sweep-watch', 'either'));
+    await jobs.switch(org.session, list.jobId, { enabled: true });
+    await jobs.switch(org.session, list.jobId, { enabled: false });
+    expect(sweeps().at(-1)).toEqual({ tenantId: org.tenantId, active: true });
+    await jobs.switch(org.session, watch.jobId, { enabled: false });
+    expect(sweeps().at(-1)).toEqual({ tenantId: org.tenantId, active: false });
+
+    // Scheduled jobs have their own schedule.
+    const before = sweeps().length;
+    const morning = await installJobFixture(h, org, scheduleJob('spec-sweep-morning'));
+    await jobs.switch(org.session, morning.jobId, { enabled: false });
+    expect(sweeps().length).toBe(before);
+  });
+
+  it('a record job switched back on does not run for what changed while it was off', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const { jobId } = await installJobFixture(h, org, recordJob('spec-off-watch', 'either'));
+    const [a] = await equipment(org);
+    await jobs.switch(org.session, jobId, { enabled: false });
+    await updateEquipment(org, a!.id, { location: 'Changed while off' });
+    await jobs.sweep(org.tenantId);
+    await jobs.switch(org.session, jobId, { enabled: true });
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, jobId)).toBe(0);
+
+    await updateEquipment(org, a!.id, { location: 'Changed while on' });
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, jobId)).toBe(1);
   });
 });

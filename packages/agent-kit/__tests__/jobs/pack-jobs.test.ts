@@ -8,6 +8,7 @@ import {
   jobById,
   jobsFor,
   packUpdates,
+  requestJobsFor,
   resolvePack,
   validateJobs,
   validatePackRefs,
@@ -126,6 +127,25 @@ describe('jobsFor and jobById', () => {
     expect(jobsFor(p, 'back-office')).toHaveLength(0);
     expect(jobById(p, 'bill')?.id).toBe('bill');
     expect(jobById(p, 'nope')).toBeUndefined();
+  });
+
+  it('finds the request jobs for a category and a point of the case, in pack order; any covers every category', () => {
+    const steps = [{ read: { as: 'o', from: 'trigger' } }];
+    const p = resolve(
+      base({
+        jobs: [
+          job(steps, { id: 'late', trigger: { request: { categories: ['refund'] } } }),
+          job(steps, { id: 'first-reply', trigger: { request: { categories: ['any'], at: 'arrival' } } }),
+          job(steps, { id: 'refund-reply', trigger: { request: { categories: ['refund'], at: 'arrival' } } }),
+          job(steps, { id: 'nightly', trigger: { schedule: { time: '21:00' } } }),
+        ],
+      }),
+    );
+    expect(requestJobsFor(p, 'refund', 'arrival').map((j) => j.id)).toEqual(['first-reply', 'refund-reply']);
+    expect(requestJobsFor(p, 'billing', 'arrival').map((j) => j.id)).toEqual(['first-reply']);
+    expect(requestJobsFor(p, null, 'arrival').map((j) => j.id)).toEqual(['first-reply']);
+    expect(requestJobsFor(p, 'refund', 'execute').map((j) => j.id)).toEqual(['late']);
+    expect(requestJobsFor(p, 'billing', 'execute')).toEqual([]);
   });
 });
 
@@ -296,6 +316,21 @@ describe('validateJobs', () => {
     expect(validateJobs(resolve(base({ jobs: [job(steps, { trigger: { record: { entity: 'Nope' } } })] }))).join()).toMatch(/Nope/);
     expect(validateJobs(resolve(base({ jobs: [job(steps, { trigger: { list: { list: 'order', due: { overdue: { date: 'nope' } } } } })] }))).join()).toMatch(/nope/);
     expect(validateJobs(resolve(base({ jobs: [job(steps, { trigger: { list: { list: 'order', due: { overdue: { date: 'due' } } } } })] })))).toEqual([]);
+  });
+
+  it('accepts the special request category any, alone or beside real ones', () => {
+    const steps = [{ read: { as: 'o', from: 'trigger' } }];
+    const p = (categories: string[], at: 'arrival' | 'execute') => resolve(base({ jobs: [job(steps, { trigger: { request: { categories, at } } })] }));
+    expect(validateJobs(p(['any'], 'arrival'))).toEqual([]);
+    expect(validateJobs(p(['any'], 'execute'))).toEqual([]);
+    expect(validateJobs(p(['any', 'zzz'], 'arrival')).join()).toMatch(/zzz/);
+  });
+
+  it('refuses an escalate check that only flags: it must hand to a person or stop', () => {
+    const escalate = (on_fail: string) => [{ check: { on_fail, message: 'm', escalate: { text: '{{trigger.text}}' } } }];
+    expect(validateJobs(resolve(base({ jobs: [job(escalate('flag'))] }))).join()).toMatch(/escalate check must hand to a person or stop/);
+    expect(validateJobs(resolve(base({ jobs: [job(escalate('person'))] })))).toEqual([]);
+    expect(validateJobs(resolve(base({ jobs: [job(escalate('stop'))] })))).toEqual([]);
   });
 
   it('needs an escalation set for an escalate check', () => {

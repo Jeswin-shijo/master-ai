@@ -92,6 +92,11 @@ export interface JobScheduleInput {
   jobId: string;
 }
 
+/** The company's list and record sweep came round (schedule `jobs-<tenantId>`). */
+export interface JobSweepInput {
+  tenantId: string;
+}
+
 export interface FollowUpCallInput {
   tenantId: string;
   callId: string;

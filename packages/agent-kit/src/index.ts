@@ -9,6 +9,7 @@ export * from './gemini';
 export * from './registers';
 // `resolvePath` is already taken by registers; the jobs one is exported here as `resolveScopePath`.
 export {
+  ANY_CATEGORY,
   CUSTOMER_MESSAGE_RULE,
   STANDARD_RULES,
   aiOfflineOutput,
@@ -32,6 +33,7 @@ export {
   matchWords,
   resolvePath as resolveScopePath,
   recordActResult,
+  requestJobsFor,
   runCheck,
   sixPartSystem,
   sixPartUser,

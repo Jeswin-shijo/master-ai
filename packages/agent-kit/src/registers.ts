@@ -1,4 +1,4 @@
-import type { Check, Collect, Conditions, ContactPath, EntityDef, EntityField, FieldType, FollowUp, Register, ResolvedPack, RoutineTemplate } from '@onehuman/schemas';
+import type { Check, Collect, Conditions, ContactPath, DueRule, EntityDef, EntityField, FieldType, FollowUp, Register, ResolvedPack, RoutineTemplate } from '@onehuman/schemas';
 import { pluralize } from './pack';
 
 const NUMBERS: FieldType[] = ['money', 'number', 'integer'];
@@ -22,6 +22,9 @@ export type ListCheck =
   | (CheckBase & { kind: 'expiring'; field: EntityField; days: number })
   | (CheckBase & { kind: 'ref'; field: EntityField; target: EntityDef });
 
+/** An overdue or expiring rule: when a list item is due (follow-ups, list jobs). */
+export type DueCheck = Extract<ListCheck, { kind: 'overdue' | 'expiring' }>;
+
 /** Where a call reads a phone number or a name, resolved against the pack's record types. */
 export type ResolvedPath =
   | { kind: 'field'; field: EntityField }
@@ -36,7 +39,7 @@ export interface ResolvedFollowUp {
   label: string;
   who: 'party' | 'staff';
   /** When an item is due: the same overdue or expiring rule the list's checks use. */
-  due: Extract<ListCheck, { kind: 'overdue' | 'expiring' }>;
+  due: DueCheck;
   when?: Conditions;
   phone: ResolvedPath | null;
   contact: ResolvedPath | null;
@@ -202,18 +205,23 @@ export function resolvePath(p: ContactPath, entity: EntityDef, entities: EntityD
   return field ? { kind: 'field', field } : null;
 }
 
+/** When an item is due, as the check the lists compile to SQL; null when the date field is not one of the record type's. */
+export function resolveDueRule(rule: DueRule, entity: EntityDef, key: string): DueCheck | null {
+  const field = entity.fields.find((f) => f.name === ('overdue' in rule ? rule.overdue.date : rule.expiring.date));
+  if (!field) return null;
+  return 'overdue' in rule
+    ? { kind: 'overdue', key, field, graceDays: rule.overdue.grace_days }
+    : { kind: 'expiring', key, field, days: rule.expiring.days };
+}
+
 function resolveFollowUps(r: Register, entity: EntityDef, entities: EntityDef[]): ResolvedFollowUp[] {
   const own = (n: string) => entity.fields.find((f) => f.name === n);
   const pick = (names: string[]) => names.map(own).filter((f): f is EntityField => !!f);
   const out: ResolvedFollowUp[] = [];
   for (const f of r.follow_ups ?? []) {
     const key = `${r.id}.${f.id}`;
-    const dueField = own('overdue' in f.due ? f.due.overdue.date : f.due.expiring.date);
-    if (!dueField) continue;
-    const due: ResolvedFollowUp['due'] =
-      'overdue' in f.due
-        ? { kind: 'overdue', key: `due:${key}`, field: dueField, graceDays: f.due.overdue.grace_days }
-        : { kind: 'expiring', key: `due:${key}`, field: dueField, days: f.due.expiring.days };
+    const due = resolveDueRule(f.due, entity, `due:${key}`);
+    if (!due) continue;
     const phone = f.phone ? resolvePath(f.phone, entity, entities) : null;
     const contact = f.contact ? resolvePath(f.contact, entity, entities) : null;
     const staffField = f.staff ? (own(f.staff.field) ?? null) : null;

@@ -63,6 +63,20 @@ export const jobsFor = (pack: Pick<ResolvedPack, 'jobs'>, role: string): JobDef[
 
 export const jobById = (pack: Pick<ResolvedPack, 'jobs'>, id: string): JobDef | undefined => (pack.jobs ?? []).find((j) => j.id === id);
 
+/** The request category that stands for every request. */
+export const ANY_CATEGORY = 'any';
+
+/**
+ * The request jobs that start when a case of this category arrives or reaches
+ * Execute, in pack order. `any` covers every category.
+ */
+export function requestJobsFor(pack: Pick<ResolvedPack, 'jobs'>, category: string | null, at: 'arrival' | 'execute'): JobDef[] {
+  return (pack.jobs ?? []).filter((j) => {
+    const r = j.trigger.request;
+    return !!r && r.at === at && (r.categories.includes(ANY_CATEGORY) || (category !== null && r.categories.includes(category)));
+  });
+}
+
 const TEMPLATE = /\{\{\s*([^{}\s]+)\s*\}\}/g;
 const BARE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)*$/;
 const NAME = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*/g;
@@ -128,7 +142,9 @@ export function validateJobs(pack: ResolvedPack): string[] {
 
     const t = job.trigger;
     if (t.request) {
-      for (const id of t.request.categories) if (!categories.has(id)) issues.push(`${at}: trigger names unknown request category ${id}`);
+      for (const id of t.request.categories) {
+        if (id !== ANY_CATEGORY && !categories.has(id)) issues.push(`${at}: trigger names unknown request category ${id}`);
+      }
     }
     if (t.record && !entities.has(t.record.entity)) issues.push(`${at}: trigger names unknown record type ${t.record.entity}`);
     if (t.list) {
@@ -182,6 +198,8 @@ export function validateJobs(pack: ResolvedPack): string[] {
         const paths = checkPaths(c);
         pointsAt(where, paths);
         if (c.escalate && escalations.length === 0) issues.push(`${at} ${where}: an escalate check needs at least one escalation set for ${job.agent}`);
+        // A flag would drop the alert and let the run go on to act.
+        if (c.escalate && c.on_fail === 'flag') issues.push(`${at} ${where}: an escalate check must hand to a person or stop (on_fail person or stop), not flag`);
         if (c.as) {
           define(where, c.as);
           if (c.calc && paths.some((p) => tainted.has(first(p)))) tainted.add(c.as);

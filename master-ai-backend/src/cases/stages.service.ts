@@ -25,6 +25,7 @@ import { routeApprover } from '../approvals/may-decide';
 import { AuditService, SYSTEM } from '../audit/audit.service';
 import { DbService, type Tx } from '../db/db.service';
 import { approvalRequests, cases, caseStages, goals, principals, tasks } from '../db/schema';
+import { JobsService } from '../jobs/jobs.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { stageWorkflowId, type CaseEnding, type GateName, type GateOpened, type StageRunResult, type StageWorkflowInput } from '../orchestration/shared';
 import { PolicyService } from '../policy/policy.service';
@@ -76,6 +77,7 @@ export class CaseStagesService {
     private readonly team: TeamService,
     private readonly reports: ReportsService,
     private readonly notifications: NotificationsService,
+    private readonly jobs: JobsService,
   ) {}
 
   // ---------- bookkeeping ----------
@@ -500,6 +502,9 @@ export class CaseStagesService {
       if (typeof started === 'string') return { goalId: started, workflowId: `goal-${started}` };
 
       const c = ctx.caseRow;
+      // A switched-on request job for the case's category does the work. Found (and its switch row
+      // locked) before this transaction's first audit, in the lock order switches and run starts use.
+      const job = await this.jobs.executeJobFor(tx, c.workspaceId, ctx.pack, c.category);
       const goalId = randomUUID();
       const workflowId = `goal-${goalId}`;
       const text = caseGoalText({ code: c.code, label: ctx.lc.case.label, file: c.file, lc: ctx.lc, attempt: i.attempt, ...(i.reworkNote && { reworkNote: i.reworkNote }) });
@@ -519,6 +524,8 @@ export class CaseStagesService {
         goalId,
         payload: { text: `${c.code} · ${c.title}`, caseId: c.id },
       });
+      // Its task and run go into this goal, so planning reuses the task. Refused (paused, the cap), the goal is planned as before.
+      if (job) await this.jobs.startInCaseGoal(tx, i.tenantId, { job, caseRow: c, goalId, attempt: i.attempt, ...(i.reworkNote && { reworkNote: i.reworkNote }) });
       await tx.update(cases).set({ goalId, status: 'in_progress', updatedAt: new Date() }).where(eq(cases.id, c.id));
       await tx
         .update(caseStages)
