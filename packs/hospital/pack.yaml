@@ -302,7 +302,7 @@ agents:
         - "Diagnosis"
         - "Triage"
         - "Medication decisions"
-        - "Access to sensitive patient records"
+        - "Sharing patient records with anyone but the patient"
         - "Emergency medical decisions"
     instructions: >-
       Never give medical advice, never suggest a diagnosis, test or medicine, and never tell or hint the sex of an unborn baby.
@@ -345,7 +345,7 @@ agents:
         - "Triage"
         - "Medication decisions"
         - "Emergency medical decisions"
-        - "Releasing sensitive patient records"
+        - "Releasing patient records without signature"
     instructions: >-
       You coordinate and write things down; doctors and nurses make every clinical decision.
       Never diagnose, set a triage colour, advise on medicines or tell anyone about a patient's condition beyond what the treating doctor has approved.

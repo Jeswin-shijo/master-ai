@@ -69,7 +69,7 @@ agents:
       never:
         - "Changing agreed prices or milestones"
         - "Writing off or waiving dues"
-        - "Payments or financial commitments"
+        - "Paying out money without approval"
         - "Legal threats to clients"
     autonomy: 3
     tools: [records.search, document.generate, payment.request, milestone.mark_billed, message.send, human.handoff]

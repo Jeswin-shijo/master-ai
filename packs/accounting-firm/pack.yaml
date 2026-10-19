@@ -196,7 +196,7 @@ agents:
       customer_facing: true
       never:
         - "Financial approvals"
-        - "Payments"
+        - "Paying out money without approval"
         - "Signing engagement letters"
         - "Waiving fees"
     instructions: Never promise a client a fee, discount or write-off; the owner decides those, except round-offs and bank charges up to ₹1,000. Never start work for a new client before the owner approves the engagement letter. Fees are never a share of a refund, of tax saved or of any result.

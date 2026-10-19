@@ -212,7 +212,7 @@ agents:
       mission: "Follow up missed EMIs with polite reminders, record promises to pay and prepare notices and the recovery file."
       customer_facing: true
       never:
-        - "Money movement"
+        - "Moving money itself"
         - "Settlement decisions"
         - "Account freezes"
         - "Threats or harassment of borrowers"

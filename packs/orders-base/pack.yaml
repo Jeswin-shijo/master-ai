@@ -88,7 +88,7 @@ agents:
       never:
         - "Refunds outside policy"
         - "Writing off or waiving dues"
-        - "Payments or financial commitments"
+        - "Paying out money without approval"
         - "Legal threats to customers"
     autonomy: 3
     tools: [records.search, payment.request, refund.issue, document.generate, message.draft, message.send, human.handoff]

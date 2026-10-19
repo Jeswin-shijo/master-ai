@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import type { Pack } from '@onehuman/schemas';
-import { parsePack, resolvePack, validatePackRefs } from '../../src/index';
+import { escalationsFor, matchWords, parsePack, resolvePack, validatePackRefs } from '../../src/index';
 
 const PACKS_DIR = join(__dirname, '../../../../packs');
 
@@ -46,8 +46,8 @@ describe('shared escalation sets', () => {
 
   it('defines the five sets with the right scope', () => {
     expect(sets.map((s) => [s.id, s.for])).toEqual([
-      ['emergency', 'all'],
-      ['distress', 'all'],
+      ['emergency', 'customer_facing'],
+      ['distress', 'customer_facing'],
       ['anger', 'customer_facing'],
       ['legal-threat', 'customer_facing'],
       ['secrets', 'customer_facing'],
@@ -80,5 +80,23 @@ describe('shared escalation sets', () => {
     expect(get('anger').reply).toBe("We're sorry. A person from our team will contact you shortly.");
     expect(get('legal-threat').reply).toBe('Thank you. A senior person from our team will contact you about this.');
     expect(get('secrets').reply).toBe("Please don't share OTPs, PINs, passwords or card numbers here. We will never ask for them.");
+  });
+
+  it('gives shared sets to customer-facing agents only', () => {
+    const core = resolvePack(registry.get('core-business')!, lookup);
+    expect(escalationsFor(core, 'case-coordinator')).toEqual([]);
+    expect(escalationsFor(resolvePack(registry.get('crm-base')!, lookup), 'enquiry-intake').map((e) => e.id)).toEqual([
+      'emergency',
+      'distress',
+      'anger',
+      'legal-threat',
+      'secrets',
+    ]);
+  });
+
+  it('does not flag an ordinary password reset or khudkhushi misses', () => {
+    expect(matchWords('I forgot my password, please reset', get('secrets').words)).toEqual([]);
+    expect(matchWords('my password is abc', get('secrets').words)).toEqual(['password is']);
+    expect(matchWords('mar jaunga main', get('distress').words)).toEqual(['mar jaunga']);
   });
 });

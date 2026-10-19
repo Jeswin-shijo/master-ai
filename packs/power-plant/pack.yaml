@@ -159,7 +159,7 @@ agents:
       escalate:
         - id: plant-safety
           label: "Plant safety"
-          words: ["flashover", "tripping", "burn", "trapped", "explosion", "जल गया", "फंस गया", "fas gaya", "dhamaka"]
+          words: ["flashover", "trapped", "explosion", "electrocuted", "फंस गया", "fas gaya", "dhamaka"]
           alert: owner
     instructions: Never mark a permit as issued and never tell anyone to start work; only the shift in-charge issues permits. Quote the equipment tag in everything you write.
     autonomy: 3
@@ -180,7 +180,7 @@ agents:
       escalate:
         - id: plant-safety
           label: "Plant safety"
-          words: ["flashover", "tripping", "burn", "trapped", "explosion", "जल गया", "फंस गया", "fas gaya", "dhamaka"]
+          words: ["flashover", "trapped", "explosion", "electrocuted", "फंस गया", "fas gaya", "dhamaka"]
           alert: owner
     instructions: Life and safety first. Never mark a report as sent; a person signs and sends statutory reports.
     autonomy: 2

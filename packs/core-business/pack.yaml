@@ -9,16 +9,16 @@ kind: base
 escalations:
   - id: emergency
     label: Emergencies
-    for: all
+    for: customer_facing
     alert: owner
     reply: "If anyone is in danger, please call 112 now. We have alerted our team and a person will contact you right away."
     words: [fire, smoke, gas leak, explosion, accident, injured, injury, bleeding, unconscious, chest pain, heart attack, electric shock, collapsed, drowning, ambulance, emergency, "112", आग, धुआं, दुर्घटना, घायल, खून, बेहोश, सीने में दर्द, करंट, आपातकाल, aag, dhuan, durghatna, ghayal, khoon, behosh, current laga, seene mein dard]
   - id: distress
     label: Distress or self-harm
-    for: all
+    for: customer_facing
     alert: owner
     reply: "We're sorry you are going through this. A person from our team will contact you shortly. If you are in danger or thinking of harming yourself, please call 112 or the Tele-MANAS helpline on 14416."
-    words: [suicide, kill myself, end my life, self harm, hurt myself, want to die, no reason to live, आत्महत्या, खुदकुशी, मरना चाहता, मरना चाहती, जीना नहीं, khudkushi, aatmahatya, marna chahta, marna chahti, jeena nahi]
+    words: [suicide, kill myself, end my life, self harm, hurt myself, want to die, no reason to live, आत्महत्या, खुदकुशी, मरना चाहता, मरना चाहती, जीना नहीं, khudkushi, aatmahatya, marna chahta, marna chahti, jeena nahi, khudkhushi, mar jaunga, mar jaungi, jaan de dunga, jaan de dungi]
   - id: anger
     label: Anger or abuse
     for: customer_facing
@@ -36,7 +36,7 @@ escalations:
     for: customer_facing
     alert: owner
     reply: "Please don't share OTPs, PINs, passwords or card numbers here. We will never ask for them."
-    words: [otp, cvv, upi pin, atm pin, password, card number, pin number, ओटीपी, पासवर्ड, पिन, otp bata, pin bata]
+    words: [otp is, password is, pin is, card number is, cvv, upi pin, atm pin, पिन नंबर, पासवर्ड है, ओटीपी है, mera otp, mera password, otp bata, pin bata]
 
 agents:
   - role: ops-assistant

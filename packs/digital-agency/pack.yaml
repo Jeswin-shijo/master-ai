@@ -225,7 +225,7 @@ agents:
       mission: "Turn briefs into estimates, check requests against the signed scope, draft change orders, update clients and raise invoices."
       customer_facing: true
       never:
-        - "Client budget changes"
+        - "Budget changes the client has not approved"
         - "Final client approvals"
         - "Signing brand contracts"
         - "Ad spend above limits"
@@ -259,7 +259,7 @@ agents:
       customer_facing: true
       never:
         - "Ad spend above limits"
-        - "Client budget changes"
+        - "Budget changes the client has not approved"
         - "Security-sensitive changes"
         - "Final client approvals"
     instructions: "Start the CERT-In 6-hour clock from the moment anyone noticed a hack or leak, and never send the report yourself: the security lead approves it. Roll back first and find the cause after. Pausing or capping runaway ad spend never waits, but new spend goes live only after the client's written OK is recorded and the account manager clears it."

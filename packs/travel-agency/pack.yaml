@@ -145,8 +145,8 @@ agents:
       customer_facing: true
       never:
         - "Paid bookings without approval"
-        - "Refunds"
-        - "Cancellation penalties"
+        - "Refunds outside policy"
+        - "Waiving or setting cancellation penalties"
         - "Non-refundable hotel advances"
         - "Emergency medical situations during travel"
     autonomy: 4

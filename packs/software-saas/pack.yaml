@@ -246,7 +246,7 @@ agents:
       customer_facing: true
       never:
         - "Refunds outside policy"
-        - "Payments or financial commitments"
+        - "Paying out money without approval"
         - "Releasing passwords or API keys"
         - "Signing client agreements"
     instructions: Refunds go back only to the card, UPI or bank account that paid. Refunds, credits or waivers above ₹10,000 wait for the finance manager. Send the pre-debit notice at least 24 hours before every auto-debit, and get the customer's OTP for any auto-debit above ₹15,000.

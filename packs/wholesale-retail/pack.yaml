@@ -229,7 +229,7 @@ agents:
       mission: "Keep party ledgers, send statements and payment reminders, prepare credit notes and match supplier bills."
       customer_facing: true
       never:
-        - "Customer credit limits"
+        - "Raising credit limits without approval"
         - "Price overrides"
         - "Supplier orders"
         - "Writing off dues"
@@ -246,8 +246,8 @@ agents:
       customer_facing: false
       never:
         - "Supplier orders without approval"
-        - "Food-safety actions"
-        - "Product recalls"
+        - "Food-safety decisions"
+        - "Starting a recall without the owner"
         - "Price overrides"
     instructions: Order no more than the shelf life allows. In a recall or detention, stop the sale first, then gather the papers; the owner deals with officers, police, insurers and the company.
     autonomy: 3

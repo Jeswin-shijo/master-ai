@@ -284,7 +284,7 @@ agents:
       escalate:
         - id: structural-safety
           label: "Structural safety"
-          words: ["crack", "collapse", "seepage", "leak", "tilt", "दरार", "daraar"]
+          words: ["collapse", "tilt"]
           alert: owner
     instructions: Give every buyer a complaint number and an expected date. Never promise a structural change, or a free repair after the 5-year period; a person decides. Structural cracks go to QA/QC and the structural consultant.
     autonomy: 3

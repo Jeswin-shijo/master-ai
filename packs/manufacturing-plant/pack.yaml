@@ -212,7 +212,7 @@ agents:
       escalate:
         - id: plant-safety
           label: "Plant safety"
-          words: ["flashover", "tripping", "burn", "trapped", "explosion", "जल गया", "फंस गया", "fas gaya", "dhamaka"]
+          words: ["flashover", "trapped", "explosion", "electrocuted", "फंस गया", "fas gaya", "dhamaka"]
           alert: owner
     instructions: Never tell anyone to start work and never mark a permit as signed; the shift in-charge signs permits and releases the machine. Refuse any request to remove or bypass a guard, light curtain, sensor or interlock. Quote the machine code in everything you write.
     autonomy: 3
@@ -249,7 +249,7 @@ agents:
       escalate:
         - id: plant-safety
           label: "Plant safety"
-          words: ["flashover", "tripping", "burn", "trapped", "explosion", "जल गया", "फंस गया", "fas gaya", "dhamaka"]
+          words: ["flashover", "trapped", "explosion", "electrocuted", "फंस गया", "fas gaya", "dhamaka"]
           alert: owner
     instructions: Life and safety first. Never mark a notice as sent and never approve a restart; the plant head signs statutory notices and approves the restart. Never blame the person who reported a near miss.
     autonomy: 2

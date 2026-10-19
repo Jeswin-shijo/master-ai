@@ -85,7 +85,7 @@ agents:
         - "Refunds outside policy"
         - "Cancellation penalties"
         - "Confirming a booking without the owner's approval"
-        - "Payments or financial commitments"
+        - "Paying out money without approval"
     autonomy: 4
     tools:
       - records.search
