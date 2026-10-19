@@ -12,6 +12,7 @@ import {
 } from '@onehuman/schemas';
 import { registersOf, validateCollects, validateRegisters } from './registers';
 import { CASE_COORDINATOR_ROLE, GATE_TOOLS, getCatalogTool } from './catalog';
+import { jobForbidPolicies, validateJobs } from './jobs/pack-jobs';
 import { lifecyclePolicies, mergeLifecycles, validateLifecycle } from './lifecycle/resolve';
 
 export class PackError extends Error {
@@ -63,7 +64,7 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   visit(pack);
 
   const { lifecycle: _ownLifecycle, ...ownPack } = pack;
-  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], registers: [], policies: [], kpis: [], connectors: [], labels: {}, playbooks: [] };
+  const merged: Omit<Pack, 'lifecycle'> = { ...ownPack, entities: [], agents: [], tools: [], workflows: [], routines: [], registers: [], policies: [], kpis: [], connectors: [], labels: {}, playbooks: [], escalations: [], jobs: [] };
   const entities = new Map<string, EntityDef>();
   const agents = new Map<string, Pack['agents'][number]>();
   const tools = new Map<string, Pack['tools'][number]>();
@@ -73,6 +74,8 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   const policies = new Map<string, Pack['policies'][number]>();
   const kpis = new Map<string, Pack['kpis'][number]>();
   const playbooks = new Map<string, Pack['playbooks'][number]>();
+  const escalations = new Map<string, Pack['escalations'][number]>();
+  const jobs = new Map<string, Pack['jobs'][number]>();
   const connectors = new Set<string>();
 
   for (const p of chain) {
@@ -85,6 +88,8 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
     p.policies.forEach((r) => policies.set(policyKey(r), r));
     p.kpis.forEach((k) => kpis.set(k.id, k));
     (p.playbooks ?? []).forEach((b) => playbooks.set(b.id, b));
+    (p.escalations ?? []).forEach((e) => escalations.set(e.id, e));
+    (p.jobs ?? []).forEach((j) => jobs.set(j.id, j));
     p.connectors.forEach((c) => connectors.add(c));
     Object.assign(merged.labels, p.labels);
   }
@@ -92,6 +97,10 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   const lifecycle = mergeLifecycles(chain.flatMap((p) => (p.lifecycle ? [p.lifecycle] : [])));
   // Derived gate policies; an explicit pack policy with the same id wins.
   for (const rule of lifecyclePolicies(lifecycle)) {
+    if (!policies.has(policyKey(rule))) policies.set(policyKey(rule), rule);
+  }
+  // Derived forbids from job cards; an explicit pack policy with the same id wins.
+  for (const rule of jobForbidPolicies([...agents.values()])) {
     if (!policies.has(policyKey(rule))) policies.set(policyKey(rule), rule);
   }
   merged.sector = [...chain].reverse().find((p) => p.sector)?.sector;
@@ -105,6 +114,8 @@ export function resolvePack(pack: Pack, lookup: PackLookup, source: PackSource =
   merged.policies = [...policies.values()];
   merged.kpis = [...kpis.values()];
   merged.playbooks = [...playbooks.values()];
+  merged.escalations = [...escalations.values()];
+  merged.jobs = [...jobs.values()];
   merged.connectors = [...connectors];
 
   return applyLabels({ ...merged, lifecycle, lineage: chain.map((p) => p.id), source });
@@ -181,7 +192,14 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     ...lifecycle.categories,
   ].map((c) => c.id));
 
-  return {
+  // Sets, jobs and job cards. A job is offered only when it validates against the updated workspace.
+  const newEscalations = missing(latest.escalations ?? [], installed.escalations ?? [], (e) => e.id);
+  const jobCards = installed.agents.flatMap((mine) => {
+    const card = latest.agents.find((a) => a.role === mine.role)?.job;
+    return !mine.job && card ? [{ role: mine.role, job: card }] : [];
+  });
+
+  const updates: PackUpdates = {
     agents,
     tools,
     workflows,
@@ -198,8 +216,16 @@ export function packUpdates(installed: ResolvedPack, latest: ResolvedPack): Pack
     fields,
     registers,
     followUps,
+    escalations: newEscalations,
+    jobs: [],
+    jobCards,
     lifecycle,
   };
+  const next = applyPackUpdates(installed, updates);
+  updates.jobs = missing(latest.jobs ?? [], installed.jobs ?? [], (j) => j.id).filter(
+    (j) => roles.has(j.agent) && validateJobs({ ...next, jobs: [j] }).length === 0,
+  );
+  return updates;
 }
 
 /** Record types with new fields appended, then the new record types. */
@@ -225,6 +251,8 @@ export function normalizeSnapshot(pack: ResolvedPack): ResolvedPack {
     registers: pack.registers ?? [],
     playbooks: pack.playbooks ?? [],
     other_org_types: pack.other_org_types ?? [],
+    escalations: pack.escalations ?? [],
+    jobs: pack.jobs ?? [],
   };
 }
 
@@ -234,7 +262,7 @@ export function workAgents(pack: Pick<ResolvedPack, 'agents'>): ResolvedPack['ag
 }
 
 export function emptyPackUpdates(): PackUpdates {
-  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], entities: [], fields: [], registers: [], followUps: [], lifecycle: { whole: null, categories: [], roles: [] } };
+  return { agents: [], tools: [], workflows: [], routines: [], policies: [], kpis: [], playbooks: [], entities: [], fields: [], registers: [], followUps: [], escalations: [], jobs: [], jobCards: [], lifecycle: { whole: null, categories: [], roles: [] } };
 }
 
 export function countPackUpdates(u: PackUpdates): number {
@@ -242,6 +270,7 @@ export function countPackUpdates(u: PackUpdates): number {
     u.agents.length + u.tools.length + u.workflows.length + u.routines.length + u.policies.length + u.kpis.length + u.playbooks.length +
     (u.entities ?? []).length + (u.fields ?? []).reduce((n, x) => n + x.fields.length, 0) + (u.registers ?? []).length +
     (u.followUps ?? []).reduce((n, x) => n + x.followUps.length, 0) +
+    (u.escalations ?? []).length + (u.jobs ?? []).length + (u.jobCards ?? []).length +
     (u.lifecycle.whole ? 1 : 0) + u.lifecycle.categories.length + u.lifecycle.roles.length
   );
 }
@@ -256,13 +285,18 @@ export function applyPackUpdates(installed: ResolvedPack, u: PackUpdates): Resol
       };
   return {
     ...installed,
-    agents: [...installed.agents, ...u.agents],
+    agents: [...installed.agents.map((a) => {
+      const card = (u.jobCards ?? []).find((c) => c.role === a.role)?.job;
+      return card && !a.job ? { ...a, job: card } : a;
+    }), ...u.agents],
     tools: [...installed.tools, ...u.tools],
     workflows: [...installed.workflows, ...u.workflows],
     routines: [...(installed.routines ?? []), ...u.routines],
     policies: [...installed.policies, ...u.policies],
     kpis: [...installed.kpis, ...u.kpis],
     playbooks: [...(installed.playbooks ?? []), ...u.playbooks],
+    escalations: [...(installed.escalations ?? []), ...(u.escalations ?? [])],
+    jobs: [...(installed.jobs ?? []), ...(u.jobs ?? [])],
     entities: withAdditions(installed.entities, u.entities ?? [], u.fields ?? []),
     registers: [...(installed.registers ?? []), ...(u.registers ?? [])].map((r) => {
       const extra = (u.followUps ?? []).find((x) => x.register === r.id)?.followUps;
@@ -409,6 +443,7 @@ export function validatePackRefs(pack: ResolvedPack): string[] {
   }
   issues.push(...validateRegisters(pack));
   issues.push(...validateCollects(pack));
+  issues.push(...validateJobs(pack));
   return issues;
 }
 

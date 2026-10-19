@@ -11,6 +11,7 @@ import {
   applyPackUpdates,
   countPackUpdates,
   matchIndustry,
+  normalizeSnapshot,
   packUpdates,
   parsePack,
   prepareArgs,
@@ -274,5 +275,16 @@ describe('calls in the ready-made types', () => {
         else expect(f.staffField, `${f.key} staff`).not.toBeNull();
       }
     }
+  });
+});
+
+describe('normalizeSnapshot for jobs', () => {
+  it('fills escalations and jobs on an old snapshot', () => {
+    const old = { ...resolvePack(parsePack({ id: 'x', version: '1.0.0', name: 'X', description: 'x' }), () => undefined) } as Record<string, unknown>;
+    delete old.jobs;
+    delete old.escalations;
+    const n = normalizeSnapshot(old as never);
+    expect(n.jobs).toEqual([]);
+    expect(n.escalations).toEqual([]);
   });
 });
