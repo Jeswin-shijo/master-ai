@@ -214,6 +214,8 @@ export function composeOfflinePack(industry: string): Pack {
     workflows: [],
     routines: [],
     registers: [],
+    escalations: [],
+    jobs: [],
     policies: [],
     kpis: [],
     connectors: [],

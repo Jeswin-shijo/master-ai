@@ -1,6 +1,7 @@
 import type { AgentClearance, AutonomyLevel, DataClass, ModelTier } from './autonomy';
 import type { CaseFile, Requester } from './case';
 import type { CaseLabel, CaseRisk, CaseSource, PriorityId, SectorId, StageKey } from './lifecycle';
+import type { JobRunStatus, JobTriggerKind } from './jobs';
 import type { PackAgent, ResolvedPack, RoutineQuestion, RoutineTemplate } from './pack';
 
 /** Response shapes returned by the API. Dates are ISO strings on the wire. */
@@ -119,6 +120,55 @@ export interface AgentView {
   model: { tier: ModelTier; fallback?: ModelTier; dataClass: DataClass };
   stats: { tasksCompleted: number; approvalsRequested: number; approvalsRejected: number; spendInr: number };
   overrides: AutonomyOverride[];
+  /** The agent's job card, as owners read it. */
+  job?: AgentJobCardView | null;
+  /** The jobs this agent runs. */
+  jobs?: JobView[];
+}
+
+export interface AgentJobCardView {
+  mission: string;
+  /** Tool names the agent may use. */
+  may: string[];
+  never: string[];
+  customerFacing: boolean;
+  escalations: {
+    id: string;
+    label: string;
+    words: string[];
+    reply: string | null;
+    alert: string;
+    inherited: boolean;
+    fromPack: boolean;
+  }[];
+  /** Tool names the agent may not use. */
+  forbidden: string[];
+  trialDays: number;
+}
+
+export interface JobView {
+  id: string;
+  name: string;
+  description: string;
+  agentRole: string;
+  trigger: JobTriggerKind;
+  triggerText: string;
+  enabled: boolean;
+  dailyCap: number;
+  lastRun: JobRunView | null;
+}
+
+export interface JobRunView {
+  id: string;
+  jobId: string;
+  trigger: JobTriggerKind;
+  status: JobRunStatus;
+  summary: string | null;
+  flags: string[];
+  createdAt: string;
+  finishedAt: string | null;
+  goalId: string;
+  caseId: string | null;
 }
 
 export interface AutonomyOverride {

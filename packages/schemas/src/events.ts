@@ -82,6 +82,11 @@ export const AUDIT_EVENT_TYPES = [
   'member.updated',
   'member.removed',
   'invite.revoked',
+  'job.switched',
+  'job.run_started',
+  'job.run_finished',
+  'job.escalated',
+  'agent.job_card_updated',
 ] as const;
 
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
@@ -211,6 +216,16 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
       return `${p.name ?? 'A person'} no longer has access`;
     case 'invite.revoked':
       return `Invite for ${p.name ?? 'someone'} withdrawn`;
+    case 'job.switched':
+      return `${p.job ?? 'A job'} switched ${p.enabled ? 'on' : 'off'}`;
+    case 'job.run_started':
+      return `${p.job ?? 'A job'} started`;
+    case 'job.run_finished':
+      return `${p.job ?? 'A job'} ${String(p.status ?? 'finished').replace(/_/g, ' ')}${p.summary ? `: ${p.summary}` : ''}`;
+    case 'job.escalated':
+      return `${p.job ?? 'A job'} stopped for a person: ${p.label ?? 'needs a decision'}`;
+    case 'agent.job_card_updated':
+      return `${p.name ?? 'An agent'}'s job card changed`;
     default:
       return type.replace('.', ' ').replace(/_/g, ' ');
   }

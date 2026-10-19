@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AgentClearanceSchema } from './autonomy';
+import { EscalationSetSchema } from './jobs';
 import { BudgetsSchema, RoutineQuestionSchema, ToolNameSchema } from './pack';
 import { SectorIdSchema } from './lifecycle';
 
@@ -104,10 +105,30 @@ export const RegisterPushTokenInputSchema = z.object({
 });
 export type RegisterPushTokenInput = z.input<typeof RegisterPushTokenInputSchema>;
 
+/** What the owner may change on a job card. */
+export const JobCardEditSchema = z.object({
+  mission: z.string().min(1).max(300).optional(),
+  never: z.array(z.string().min(1).max(200)).max(20).optional(),
+  escalate: z.array(EscalationSetSchema).max(30).optional(),
+});
+export type JobCardEdit = z.input<typeof JobCardEditSchema>;
+
+export const JobSwitchInputSchema = z.object({
+  enabled: z.boolean().optional(),
+  dailyCap: z.number().int().min(1).max(500).optional(),
+});
+export type JobSwitchInput = z.input<typeof JobSwitchInputSchema>;
+
+export const RunJobInputSchema = z.object({
+  input: z.string().max(4000).optional(),
+});
+export type RunJobInput = z.input<typeof RunJobInputSchema>;
+
 export const UpdateAgentInputSchema = z.object({
   autonomy: AgentClearanceSchema.optional(),
   budgets: BudgetsSchema.partial().optional(),
   instructions: z.string().max(4000).optional(),
+  job: JobCardEditSchema.optional(),
 });
 export type UpdateAgentInput = z.input<typeof UpdateAgentInputSchema>;
 

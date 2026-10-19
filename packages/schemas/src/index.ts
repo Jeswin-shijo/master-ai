@@ -1,5 +1,6 @@
 export * from './autonomy';
 export * from './pack';
+export * from './jobs';
 export * from './api';
 export * from './domain';
 export * from './events';
