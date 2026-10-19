@@ -37,6 +37,9 @@ import type {
   CheckinStatus,
   CheckinValue,
   DelegationStatus,
+  JobRunState,
+  JobRunStatus,
+  JobTriggerKind,
   PackAgent,
   PlannedTask,
   PolicyDecision,
@@ -778,4 +781,50 @@ export const doNotCall = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('do_not_call_phone_idx').on(t.tenantId, t.phone)],
+);
+
+/** Which jobs a company has switched on, and how many runs a day each may start. Every job starts off. */
+export const jobSettings = pgTable(
+  'job_settings',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    jobId: text('job_id').notNull(),
+    enabled: boolean('enabled').notNull().default(false),
+    dailyCap: integer('daily_cap').notNull().default(50),
+    sweptAt: timestamp('swept_at', { withTimezone: true }),
+    updatedBy: uuid('updated_by'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('job_settings_job_idx').on(t.workspaceId, t.jobId)],
+);
+
+/** One run of a job: what started it, where it got to, and how it ended. */
+export const jobRuns = pgTable(
+  'job_runs',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+    jobId: text('job_id').notNull(),
+    agentId: uuid('agent_id').notNull().references(() => agents.id),
+    goalId: uuid('goal_id').notNull().references(() => goals.id, { onDelete: 'cascade' }),
+    taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    caseId: uuid('case_id').references(() => cases.id, { onDelete: 'set null' }),
+    trigger: text('trigger').$type<JobTriggerKind>().notNull(),
+    dedupeKey: text('dedupe_key').notNull(),
+    input: jsonb('input').$type<Record<string, unknown>>().notNull().default({}),
+    status: text('status').$type<JobRunStatus>().notNull().default('running'),
+    state: jsonb('state').$type<JobRunState>().notNull(),
+    summary: text('summary'),
+    createdAt: createdAt(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('job_runs_task_idx').on(t.taskId),
+    uniqueIndex('job_runs_dedupe_idx').on(t.workspaceId, t.jobId, t.dedupeKey),
+    index('job_runs_tenant_created_idx').on(t.tenantId, t.createdAt),
+    index('job_runs_job_created_idx').on(t.workspaceId, t.jobId, t.createdAt),
+  ],
 );

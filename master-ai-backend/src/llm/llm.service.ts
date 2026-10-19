@@ -13,7 +13,7 @@ import { Redactor } from './redaction';
 import { rateLimiter } from './rate-limit';
 import { RulesFallback } from './rules-fallback';
 
-export type LlmPurpose = 'agent_step' | 'plan' | 'pack_generate' | 'quality' | 'summary' | 'call' | 'case_stage';
+export type LlmPurpose = 'agent_step' | 'plan' | 'pack_generate' | 'quality' | 'summary' | 'call' | 'case_stage' | 'job_step';
 
 export interface LlmToolCall {
   name: string;

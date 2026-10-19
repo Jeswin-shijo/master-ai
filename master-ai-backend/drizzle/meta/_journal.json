@@ -120,6 +120,20 @@
       "when": 1792041985861,
       "tag": "0016_calls_outside_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792384503569,
+      "tag": "0017_fine_invaders",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792384504569,
+      "tag": "0018_jobs_rls",
+      "breakpoints": true
     }
   ]
 }
