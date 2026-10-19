@@ -13,6 +13,7 @@ export {
   STANDARD_RULES,
   aiOfflineOutput,
   aiOutputJsonSchema,
+  advanceJob,
   aiOutputSchema,
   escalationsFor,
   jobById,
@@ -30,8 +31,18 @@ export {
   jobAiPrompt,
   matchWords,
   resolvePath as resolveScopePath,
+  recordActResult,
   runCheck,
   sixPartSystem,
   sixPartUser,
+  startJobState,
 } from './jobs';
-export type { CheckContext, CheckOutcome, EffectiveEscalation, JobScope } from './jobs';
+export type {
+  CheckContext,
+  CheckOutcome,
+  EffectiveEscalation,
+  JobAdvance,
+  JobContext,
+  JobEffects,
+  JobScope,
+} from './jobs';
