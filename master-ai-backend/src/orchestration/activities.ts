@@ -3,6 +3,7 @@ import type { DelegationStatus } from '@onehuman/schemas';
 import { FollowUpCallsService } from '../follow-ups/follow-up-calls.service';
 import { FollowUpsService } from '../follow-ups/follow-ups.service';
 import { CaseStagesService } from '../cases/stages.service';
+import { JobsService } from '../jobs/jobs.service';
 import { RoutinesService } from '../routines/routines.service';
 import { DelegationService, type CallResult, type DelegationResult } from '../voice/delegation.service';
 import { AgentRuntimeService } from './agent-runtime.service';
@@ -17,6 +18,7 @@ import type {
   FollowUpCallInput,
   FollowUpSweepInput,
   GoalWorkflowInput,
+  JobScheduleInput,
   RoutineRunInput,
   TaskOutcome,
   TaskWorkflowInput,
@@ -36,6 +38,7 @@ export function createActivities(app: INestApplicationContext) {
   const stages = app.get(CaseStagesService);
   const followUps = app.get(FollowUpsService);
   const followUpCalls = app.get(FollowUpCallsService);
+  const jobs = app.get(JobsService);
 
   return {
     planGoal: (i: GoalWorkflowInput) => orchestrator.planGoal(i.tenantId, i.goalId, !!i.autoStart),
@@ -90,6 +93,9 @@ export function createActivities(app: INestApplicationContext) {
     checkinResult: (i: CheckinCallInput & { callId: string | null }) => routines.callResult(i.tenantId, i.entryId, i.callId),
     endCheckinCall: (i: CheckinCallInput & { callId: string }) => routines.endUnanswered(i.tenantId, i.callId),
     markCheckinMissed: (i: CheckinCallInput) => routines.markMissed(i.tenantId, i.entryId),
+
+    // Jobs: a scheduled job's run
+    startScheduledJob: (i: JobScheduleInput) => jobs.startScheduled(i),
 
     // Cases: one activity per piece of stage work
     beginStage: (i: StageWorkflowInput) => stages.beginStage(i),

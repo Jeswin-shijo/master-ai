@@ -85,6 +85,13 @@ export interface FollowUpSweepInput {
   trigger: 'schedule' | 'manual';
 }
 
+/** A scheduled job's time came round (schedule `job-<workspaceId>-<jobId>`). */
+export interface JobScheduleInput {
+  tenantId: string;
+  workspaceId: string;
+  jobId: string;
+}
+
 export interface FollowUpCallInput {
   tenantId: string;
   callId: string;

@@ -217,6 +217,7 @@ export function summarizeEvent(type: AuditEventType, payload: Record<string, unk
     case 'invite.revoked':
       return `Invite for ${p.name ?? 'someone'} withdrawn`;
     case 'job.switched':
+      if (p.cap) return `${p.job ?? 'A job'} reached its daily limit of ${p.dailyCap ?? '?'} run${p.dailyCap === 1 ? '' : 's'}`;
       return `${p.job ?? 'A job'} switched ${p.enabled ? 'on' : 'off'}`;
     case 'job.run_started':
       return `${p.job ?? 'A job'} started`;

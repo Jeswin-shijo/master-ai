@@ -63,4 +63,10 @@ describe('job cards and jobs', () => {
     expect(s).toContain('Emergencies');
     expect(s).not.toMatch(/\w\.\w/);
   });
+
+  it('says when a job reached its daily limit, instead of calling it switched off', () => {
+    expect(summarizeEvent('job.switched', { job: 'Rent reminder', enabled: true, dailyCap: 20, cap: true })).toBe('Rent reminder reached its daily limit of 20 runs');
+    expect(summarizeEvent('job.switched', { job: 'Rent reminder', enabled: true, dailyCap: 1, cap: true })).toBe('Rent reminder reached its daily limit of 1 run');
+    expect(summarizeEvent('job.switched', { job: 'Rent reminder', enabled: false })).toBe('Rent reminder switched off');
+  });
 });

@@ -8,6 +8,7 @@ import type { Session } from '../common/auth';
 import { toDraft, toWorkspace } from '../common/mappers';
 import { DbService, type Tx } from '../db/db.service';
 import { agents, packDrafts, policies, principals, tenants, workspaces } from '../db/schema';
+import { JobsService } from '../jobs/jobs.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { PackGenerator } from '../packs/generator.service';
 import { PackRegistry } from '../packs/registry.service';
@@ -31,6 +32,7 @@ export class OnboardingService {
     private readonly registry: PackRegistry,
     private readonly policy: PolicyService,
     private readonly knowledge: KnowledgeService,
+    private readonly jobs: JobsService,
   ) {}
 
   async preview(session: Session, input: { industry?: string; forceGenerate?: boolean }): Promise<PackDraft> {
@@ -86,6 +88,8 @@ export class OnboardingService {
       });
 
       for (const spec of pack.agents) await this.createAgent(tx, session.tenantId, ws!.id, spec, actor);
+      // Every job of a new install is on; its agent starts on trial.
+      await this.jobs.enableAll(tx, session.tenantId, ws!.id, pack, actor);
       await this.knowledge.addPackDocs(tx, session.tenantId, pack.playbooks ?? [], actor);
 
       await tx.update(packDrafts).set({ status: 'installed' }).where(eq(packDrafts.id, draftId));
@@ -143,6 +147,8 @@ export class OnboardingService {
         });
       }
       for (const spec of updates.agents) await this.createAgent(tx, session.tenantId, workspaceId, spec, actor);
+      const jobCards = await this.addJobCards(tx, workspaceId, updates.jobCards ?? []);
+      // New jobs arrive switched off: no job_settings row until the owner turns one on.
       if (updates.playbooks.length) await this.knowledge.addPackDocs(tx, session.tenantId, updates.playbooks, actor);
       await this.audit.append(tx, session.tenantId, {
         type: 'pack.updated',
@@ -159,11 +165,31 @@ export class OnboardingService {
           registers: updates.registers.map((r) => r.id),
           fields: updates.fields.reduce((n, x) => n + x.fields.length, 0),
           policies: updates.policies.length,
+          escalations: (updates.escalations ?? []).map((e) => e.id),
+          jobs: (updates.jobs ?? []).map((j) => j.id),
+          jobCards,
           ...(policyVersion && { policyVersion }),
         },
       });
       return toWorkspace(updated!);
     });
+  }
+
+  /**
+   * Agents saved before job cards get their pack's card. An agent whose card
+   * the owner has already written keeps it. Returns the roles that got one.
+   */
+  private async addJobCards(tx: Tx, workspaceId: string, cards: NonNullable<PackUpdates['jobCards']>): Promise<string[]> {
+    if (cards.length === 0) return [];
+    const rows = await tx.select({ id: agents.id, role: agents.role, spec: agents.spec }).from(agents).where(eq(agents.workspaceId, workspaceId));
+    const added: string[] = [];
+    for (const row of rows) {
+      const card = cards.find((c) => c.role === row.role)?.job;
+      if (!card || row.spec.job) continue;
+      await tx.update(agents).set({ spec: { ...row.spec, job: card }, updatedAt: new Date() }).where(eq(agents.id, row.id));
+      added.push(row.role);
+    }
+    return added;
   }
 
   private updatesFor(installed: ResolvedPack): PackUpdates {
@@ -195,6 +221,8 @@ function describeUpdates(u: PackUpdates): string {
     ...u.workflows.map((w) => `${w.name} (workflow)`),
     ...u.registers.map((r) => `${r.label ?? r.entity} (list)`),
     ...(u.followUps ?? []).flatMap((x) => x.followUps.map((f) => `${f.label} (follow-up)`)),
+    ...(u.jobs ?? []).map((j) => `${j.name} (job, switched off)`),
+    u.jobCards?.length ? `${u.jobCards.length} job card${u.jobCards.length === 1 ? '' : 's'}` : '',
     u.entities.length ? `${u.entities.length} new kind${u.entities.length === 1 ? '' : 's'} of record` : '',
     u.fields.length ? `${u.fields.reduce((n, x) => n + x.fields.length, 0)} new field(s)` : '',
     u.tools.length ? `${u.tools.length} tool${u.tools.length === 1 ? '' : 's'}` : '',

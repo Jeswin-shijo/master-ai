@@ -18,6 +18,7 @@ import {
   type FollowUpCallInput,
   type FollowUpSweepInput,
   type GoalWorkflowInput,
+  type JobScheduleInput,
   type PlanDecisionSignal,
   type RoutineRunInput,
   type TaskOutcome,
@@ -333,4 +334,12 @@ export async function followUpCallWorkflow(input: FollowUpCallInput): Promise<{ 
   }
   await db.finishFollowUp(input);
   return { failed: !!placed.failed };
+}
+
+/**
+ * A scheduled job's time came round: start its run. One run per tick: a
+ * retried start finds the tick's run already there and starts nothing.
+ */
+export async function jobScheduleWorkflow(input: JobScheduleInput) {
+  return db.startScheduledJob(input);
 }

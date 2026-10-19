@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, Module, OnModuleDestroy } from '@nestjs/common';
 import {
   Client,
   Connection,
@@ -20,6 +20,7 @@ import {
   type GoalWorkflowInput,
   type PlanDecisionSignal,
   type FollowUpSweepInput,
+  type JobScheduleInput,
   type RoutineRunInput,
 } from './shared';
 
@@ -119,6 +120,35 @@ export class TemporalService implements OnModuleDestroy {
     });
   }
 
+  /**
+   * Keep a scheduled job's Temporal schedule in step with its switch: on its
+   * days at its time (India time) while on, deleted while off. A tick that
+   * comes while the last one is still starting is skipped.
+   */
+  async syncJobSchedule(r: { tenantId: string; workspaceId: string; jobId: string; days: number[]; time: string; active: boolean }) {
+    const client = await this.client();
+    const scheduleId = `job-${r.workspaceId}-${r.jobId}`;
+    try {
+      await client.schedule.getHandle(scheduleId).delete();
+    } catch (err) {
+      if (!(err instanceof ScheduleNotFoundError)) throw err;
+    }
+    if (!r.active) return;
+    const [hour, minute] = r.time.split(':').map(Number) as [number, number];
+    await client.schedule.create({
+      scheduleId,
+      spec: { calendars: [{ dayOfWeek: r.days.map((d) => DAYS_OF_WEEK[d]!), hour, minute }], timezone: 'Asia/Kolkata' },
+      action: {
+        type: 'startWorkflow',
+        workflowType: 'jobScheduleWorkflow',
+        taskQueue: config.TEMPORAL_TASK_QUEUE,
+        workflowId: scheduleId,
+        args: [{ tenantId: r.tenantId, workspaceId: r.workspaceId, jobId: r.jobId } satisfies JobScheduleInput],
+      },
+      policies: { overlap: ScheduleOverlapPolicy.SKIP },
+    });
+  }
+
   /** Keep the company's follow-up sweep in step: every 30 minutes while any follow-up is on, none otherwise. */
   async syncFollowUpSchedule(r: { tenantId: string; active: boolean }) {
     const client = await this.client();
@@ -210,3 +240,11 @@ export class TemporalService implements OnModuleDestroy {
     await this.connection?.close().catch(() => undefined);
   }
 }
+
+/**
+ * The one TemporalService. Modules beside the app's (jobs) import this instead
+ * of listing the service, so there is a single client (and the integration
+ * harness's recorder replaces every call).
+ */
+@Module({ providers: [TemporalService], exports: [TemporalService] })
+export class TemporalModule {}

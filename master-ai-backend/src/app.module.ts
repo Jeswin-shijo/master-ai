@@ -29,7 +29,7 @@ import { OpsController, OpsService } from './ops/ops.service';
 import { AgentRuntimeService } from './orchestration/agent-runtime.service';
 import { OrchestratorService } from './orchestration/orchestrator.service';
 import { TaskLifecycleService } from './orchestration/task-lifecycle.service';
-import { TemporalService } from './orchestration/temporal.service';
+import { TemporalModule } from './orchestration/temporal.service';
 import { PackGenerator } from './packs/generator.service';
 import { PackRegistry } from './packs/registry.service';
 import { PolicyService } from './policy/policy.service';
@@ -64,7 +64,7 @@ import { TeamController, TeamService } from './voice/team.service';
  * below is a future service (see docs/adr/0001-modular-monolith.md).
  */
 @Module({
-  imports: [DbModule, BusModule, AuditModule, LlmModule, NotificationsModule, DataModule, JobsModule],
+  imports: [DbModule, BusModule, AuditModule, LlmModule, NotificationsModule, DataModule, TemporalModule, JobsModule],
   controllers: [
     HealthController,
     IdentityController,
@@ -111,7 +111,6 @@ import { TeamController, TeamService } from './voice/team.service';
     OrchestratorService,
     AgentRuntimeService,
     TaskLifecycleService,
-    TemporalService,
     // Data and connectors (records, lists and knowledge are in DataModule)
     NotesService,
     FollowUpsService,
