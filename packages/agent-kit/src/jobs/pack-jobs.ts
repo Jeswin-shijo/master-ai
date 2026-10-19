@@ -1,5 +1,6 @@
 import type { JobCheck, JobDef, PolicyRule, ResolvedPack } from '@onehuman/schemas';
 import { registersOf } from '../registers';
+import { getCatalogTool } from '../catalog';
 import { resolveTool } from '../tools';
 import { lifecycleOf } from '../lifecycle/resolve';
 import type { EffectiveEscalation } from './words';
@@ -195,7 +196,8 @@ export function validateJobs(pack: ResolvedPack): string[] {
         }
         const refs = argPaths(a.args, false);
         pointsAt(where, refs.map((r) => r.path));
-        const movesMoney = tool?.risk.movesMoney === true;
+        const alias = pack.tools.find((t) => t.name === a.tool);
+        const movesMoney = tool?.risk.movesMoney === true || getCatalogTool(alias ? alias.uses : a.tool)?.risk.movesMoney === true;
         for (const r of refs) {
           if ((r.amount || movesMoney) && tainted.has(first(r.path))) {
             issues.push(
@@ -203,6 +205,8 @@ export function validateJobs(pack: ResolvedPack): string[] {
             );
           }
         }
+        // A value an AI shaped stays AI-derived when an act hands it on.
+        if (refs.some((r) => tainted.has(first(r.path)))) tainted.add(a.as);
         define(where, a.as);
       }
     });

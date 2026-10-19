@@ -175,6 +175,73 @@ describe('validateJobs', () => {
     expect(validateJobs(p).join('\n')).toMatch(/money/);
   });
 
+  it('refuses a money argument when an alias downgrades the risk', () => {
+    const p = resolve(
+      base({
+        tools: [{ name: 'pay.link', description: 'd', uses: 'payment.request', risk: { moves_money: false } }],
+        agents: [
+          { role: 'front-desk', name: 'F', description: 'd', tools: ['pay.link', 'message.draft'], job: { mission: 'm' } },
+        ],
+        jobs: [
+          job([
+            { ai: { as: 'draft', task: 't', output: [{ name: 'who', type: 'text' }] } },
+            { act: { as: 'pay', tool: 'pay.link', args: { payer: '{{draft.who}}', amount: '5' } } },
+          ]),
+        ],
+      }),
+    );
+    expect(validateJobs(p).join('\n')).toMatch(/money/);
+  });
+
+  it('refuses money laundered through an act result', () => {
+    const p = resolve(
+      base({
+        jobs: [
+          job([
+            { ai: { as: 'draft', task: 't', output: [{ name: 'x', type: 'text' }] } },
+            { act: { as: 'm', tool: 'message.draft', args: { text: '{{draft.x}}' } } },
+            { act: { as: 'pay', tool: 'payment.request', args: { amount: '{{m.text}}' } } },
+          ]),
+        ],
+      }),
+    );
+    expect(validateJobs(p).join('\n')).toMatch(/money/);
+  });
+
+  it('refuses spaced, nested and array amount references', () => {
+    const run = (args: Record<string, unknown>) =>
+      validateJobs(
+        resolve(
+          base({
+            jobs: [
+              job([
+                { ai: { as: 'draft', task: 't', output: [{ name: 'amount', type: 'money' }] } },
+                { act: { as: 'a', tool: 'message.draft', args } },
+              ]),
+            ],
+          }),
+        ),
+      ).join('\n');
+    expect(run({ amount: '{{ draft.amount }}' })).toMatch(/money/);
+    expect(run({ lines: { amount: '{{draft.amount}}' } })).toMatch(/money/);
+    expect(run({ lines: [{ amount: '{{draft.amount}}' }] })).toMatch(/money/);
+  });
+
+  it('accepts an amount from a record the AI only picked', () => {
+    const p = resolve(
+      base({
+        jobs: [
+          job([
+            { ai: { as: 'draft', task: 't', output: [{ name: 'id', type: 'text' }] } },
+            { read: { as: 'rec', from: 'records', entity: 'Order', query: '{{draft.id}}' } },
+            { act: { as: 'pay', tool: 'payment.request', args: { amount: '{{rec.total}}', payer: 'x', purpose: 'y' } } },
+          ]),
+        ],
+      }),
+    );
+    expect(validateJobs(p).filter((m) => /money/.test(m))).toEqual([]);
+  });
+
   it('accepts a money argument from a read result', () => {
     const p = aiThenAct({ amount: '{{order.amount}}', payer: '{{order.title}}', purpose: 'y' });
     expect(validateJobs(p).filter((m) => /money/.test(m))).toEqual([]);
