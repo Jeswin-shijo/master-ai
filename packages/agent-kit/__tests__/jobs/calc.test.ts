@@ -27,4 +27,12 @@ describe('evalCalc', () => {
   it('resolves dotted names', () => {
     expect(evalCalc('item.qty * 2', v({ 'item.qty': 3 }))).toEqual({ ok: true, value: 6 });
   });
+  it('refuses deep nesting, long unary chains and over-long input without throwing', () => {
+    const bad = { ok: false, reason: 'Not a sum this check can work out' };
+    expect(evalCalc('('.repeat(20000) + '1' + ')'.repeat(20000), v({}))).toEqual(bad);
+    expect(evalCalc('-'.repeat(20000) + '1', v({}))).toEqual(bad);
+    expect(evalCalc('1+'.repeat(1000) + '1', v({}))).toEqual(bad);
+    expect(evalCalc('('.repeat(100) + '1' + ')'.repeat(100), v({}))).toEqual(bad);
+    expect(evalCalc('('.repeat(20) + '1' + ')'.repeat(20), v({}))).toEqual({ ok: true, value: 1 });
+  });
 });

@@ -1,5 +1,7 @@
 type Result = { ok: true; value: number } | { ok: false; reason: string };
 
+const MAX_LENGTH = 500;
+const MAX_DEPTH = 50;
 const BAD = 'Not a sum this check can work out';
 
 class Fail extends Error {}
@@ -44,8 +46,13 @@ function toNumber(raw: unknown): number | null {
  */
 export function evalCalc(expr: string, values: (path: string) => unknown): Result {
   try {
+    if (expr.length > MAX_LENGTH) throw new Fail(BAD);
     const toks = lex(expr);
     let pos = 0;
+    let depth = 0;
+    const enter = () => {
+      if (++depth > MAX_DEPTH) throw new Fail(BAD);
+    };
     const peek = () => toks[pos];
     const isOp = (v: string) => {
       const t = peek();
@@ -76,7 +83,10 @@ export function evalCalc(expr: string, values: (path: string) => unknown): Resul
     const unary = (): number => {
       if (isOp('-')) {
         pos++;
-        return -unary();
+        enter();
+        const v = -unary();
+        depth--;
+        return v;
       }
       return primary();
     };
@@ -90,7 +100,9 @@ export function evalCalc(expr: string, values: (path: string) => unknown): Resul
         return n;
       }
       if (t.v === '(') {
+        enter();
         const v = expression();
+        depth--;
         if (!isOp(')')) throw new Fail(BAD);
         pos++;
         return v;
