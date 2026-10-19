@@ -39,6 +39,15 @@ describe('runCheck', () => {
     const bad = await runCheck(c, { draft: { text: 'The 2BHK is ₹40,00,000' }, listings }, ctx());
     expect(bad.ok).toBe(false);
   });
+  it('in_data reads Indian price formats', async () => {
+    const c = chk({ in_data: { value: 'draft.text', among: 'listings' } });
+    const listings = [{ price: 4500000 }];
+    const run = (t: string) => runCheck(c, { draft: { text: t }, listings }, ctx());
+    for (const t of ['Rs40,00,000', '₹40L', 'INR40,00,000', '₹9Cr', '1.2 crore', '40lakh'])
+      expect((await run(t)).ok, t).toBe(false);
+    for (const t of ['₹45L', '45 lakh', 'Rs45,00,000', 'The 2BHK is ₹45,00,000', '45Lakh', 'Rs. 45,00,000'])
+      expect((await run(t)).ok, t).toBe(true);
+  });
   it('in_data with a non-string value compares deeply', async () => {
     const c = chk({ in_data: { value: 'x', among: 'rows' } });
     expect((await runCheck(c, { x: { a: 1 }, rows: [{ k: { a: 1 } }] }, ctx())).ok).toBe(true);

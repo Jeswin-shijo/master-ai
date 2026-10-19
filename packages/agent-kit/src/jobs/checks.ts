@@ -41,13 +41,34 @@ function toNum(v: unknown): number | null {
   return null;
 }
 
-const NUMBER = /(?<![\p{L}\p{N}])\d[\d,]*(?:\.\d+)?(?![\p{L}\p{N}])/gu;
+const UNITS: Record<string, number> = {
+  l: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5,
+  cr: 1e7, crore: 1e7, crores: 1e7,
+  k: 1e3, thousand: 1e3,
+};
+const SPACED_UNITS = new Set(['lakh', 'lakhs', 'lac', 'lacs', 'cr', 'crore', 'crores', 'thousand']);
+const NOT_MONEY = new Set(['bhk', 'rk', 'br', 'bed', 'beds', 'bath', 'st', 'nd', 'rd', 'th', 'am', 'pm']);
+const SPACED_NOT_MONEY = new Set(['bhk', 'rk', 'br', 'bed', 'beds', 'bath']);
 
+/** Every number in a text, failing closed: units (lakh, crore, k) are applied, room counts and ordinals are skipped. */
 function numbersIn(text: string): number[] {
   const out: number[] = [];
-  for (const m of text.replace(/₹/g, ' ').matchAll(NUMBER)) {
+  const t = text.replace(/₹/g, ' ');
+  for (const m of t.matchAll(/\d[\d,]*(?:\.\d+)?/g)) {
     const n = Number(m[0].replace(/,+$/, '').replace(/,/g, ''));
-    if (Number.isFinite(n)) out.push(n);
+    if (!Number.isFinite(n)) continue;
+    const rest = t.slice(m.index + m[0].length);
+    const glued = /^[A-Za-z]+/.exec(rest)?.[0].toLowerCase();
+    const spaced = /^ ([A-Za-z]+)/.exec(rest)?.[1]?.toLowerCase();
+    if (glued) {
+      if (NOT_MONEY.has(glued)) continue;
+      const mult = UNITS[glued];
+      out.push(mult ? Math.round(n * mult * 100) / 100 : n);
+    } else if (spaced && SPACED_NOT_MONEY.has(spaced)) {
+      continue;
+    } else if (spaced && SPACED_UNITS.has(spaced)) {
+      out.push(Math.round(n * UNITS[spaced]! * 100) / 100);
+    } else out.push(n);
   }
   return out;
 }
