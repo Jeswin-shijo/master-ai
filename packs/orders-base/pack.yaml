@@ -68,12 +68,28 @@ agents:
   - role: order-desk
     name: Order desk
     description: Takes new orders, confirms them and keeps customers updated.
+    job:
+      mission: "Take new orders, confirm them and keep customers updated."
+      customer_facing: true
+      never:
+        - "Price overrides"
+        - "Customer credit limits"
+        - "Refunds or discounts outside policy"
+        - "Approving anything itself"
     autonomy: 3
     tools: [records.search, records.create, order.confirm, order.cancel, message.draft, message.send, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }
   - role: billing-assistant
     name: Billing assistant
     description: Chases unpaid orders with payment links, prepares invoices and handles refunds.
+    job:
+      mission: "Chase unpaid orders with payment links, prepare invoices and handle refunds within policy."
+      customer_facing: true
+      never:
+        - "Refunds outside policy"
+        - "Writing off or waiving dues"
+        - "Payments or financial commitments"
+        - "Legal threats to customers"
     autonomy: 3
     tools: [records.search, payment.request, refund.issue, document.generate, message.draft, message.send, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }

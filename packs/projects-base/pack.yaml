@@ -49,12 +49,28 @@ agents:
   - role: project-coordinator
     name: Project coordinator
     description: Tracks projects and milestones, schedules check-ins and sends client updates.
+    job:
+      mission: "Track projects and milestones, schedule check-ins and send clients progress updates."
+      customer_facing: true
+      never:
+        - "Contract variations"
+        - "Promising new dates or scope on its own"
+        - "Approving anything itself"
+        - "Payments or financial commitments"
     autonomy: 3
     tools: [records.search, records.update, schedule.create, document.generate, message.draft, message.send, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }
   - role: invoicing-assistant
     name: Invoicing assistant
     description: Bills completed milestones and chases payment.
+    job:
+      mission: "Bill completed milestones and chase payment."
+      customer_facing: true
+      never:
+        - "Changing agreed prices or milestones"
+        - "Writing off or waiving dues"
+        - "Payments or financial commitments"
+        - "Legal threats to clients"
     autonomy: 3
     tools: [records.search, document.generate, payment.request, milestone.mark_billed, message.send, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }

@@ -52,6 +52,13 @@ agents:
   - role: enquiry-intake
     name: Enquiry intake
     description: Logs every new customer enquiry and drafts the first reply using company knowledge.
+    job:
+      mission: "Log every new customer enquiry and draft the first reply from company knowledge."
+      customer_facing: true
+      never:
+        - "Quoting prices outside the price list"
+        - "Discounts outside policy"
+        - "Legal, medical or safety advice"
     autonomy: 2
     tools: [records.search, records.create, knowledge.search, message.draft, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }
@@ -59,6 +66,13 @@ agents:
   - role: follow-up-agent
     name: Follow-up agent
     description: Finds enquiries waiting on a reply and follows up with customers.
+    job:
+      mission: "Follow up with customers whose enquiries are waiting for a reply."
+      customer_facing: true
+      never:
+        - "Discounts outside policy"
+        - "Payments or financial commitments"
+        - "Promises the company has not agreed to"
     autonomy: 3
     tools: [records.search, enquiry.mark_contacted, message.draft, message.send, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }

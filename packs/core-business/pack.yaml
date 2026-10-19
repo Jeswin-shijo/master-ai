@@ -6,10 +6,49 @@ name: Core business
 description: General operations assistant, money guardrails and operations KPIs shared by every pack.
 kind: base
 
+escalations:
+  - id: emergency
+    label: Emergencies
+    for: all
+    alert: owner
+    reply: "If anyone is in danger, please call 112 now. We have alerted our team and a person will contact you right away."
+    words: [fire, smoke, gas leak, explosion, accident, injured, injury, bleeding, unconscious, chest pain, heart attack, electric shock, collapsed, drowning, ambulance, emergency, "112", आग, धुआं, दुर्घटना, घायल, खून, बेहोश, सीने में दर्द, करंट, आपातकाल, aag, dhuan, durghatna, ghayal, khoon, behosh, current laga, seene mein dard]
+  - id: distress
+    label: Distress or self-harm
+    for: all
+    alert: owner
+    reply: "We're sorry you are going through this. A person from our team will contact you shortly. If you are in danger or thinking of harming yourself, please call 112 or the Tele-MANAS helpline on 14416."
+    words: [suicide, kill myself, end my life, self harm, hurt myself, want to die, no reason to live, आत्महत्या, खुदकुशी, मरना चाहता, मरना चाहती, जीना नहीं, khudkushi, aatmahatya, marna chahta, marna chahti, jeena nahi]
+  - id: anger
+    label: Anger or abuse
+    for: customer_facing
+    alert: owner
+    reply: "We're sorry. A person from our team will contact you shortly."
+    words: [cheated, fraud, worst, pathetic, useless, disgusting, scam, shameful, धोखा, बकवास, घटिया, बेकार, dhokha, bakwas, ghatiya, bekar, chor, faltu]
+  - id: legal-threat
+    label: Legal threats
+    for: customer_facing
+    alert: owner
+    reply: "Thank you. A senior person from our team will contact you about this."
+    words: [lawyer, advocate, legal notice, court, police complaint, fir, consumer forum, consumer court, sue, lawsuit, वकील, अदालत, कोर्ट, कानूनी नोटिस, vakil, adalat, case karunga]
+  - id: secrets
+    label: "OTPs, PINs or card numbers"
+    for: customer_facing
+    alert: owner
+    reply: "Please don't share OTPs, PINs, passwords or card numbers here. We will never ask for them."
+    words: [otp, cvv, upi pin, atm pin, password, card number, pin number, ओटीपी, पासवर्ड, पिन, otp bata, pin bata]
+
 agents:
   - role: ops-assistant
     name: Operations assistant
     description: Researches company knowledge and records, writes reports and drafts messages for the owner.
+    job:
+      mission: "Research company knowledge and records, write reports and draft messages for the owner."
+      customer_facing: false
+      never:
+        - "Sending anything to customers on its own"
+        - "Approving anything itself"
+        - "Payments or financial commitments"
     autonomy: 2
     tools: [knowledge.search, records.search, records.get, document.generate, message.draft, human.handoff]
     model: { tier: standard, fallback: small, data_class: internal }
@@ -18,6 +57,14 @@ agents:
   - role: work-coordinator
     name: Work coordinator
     description: Gets work done through the team. Picks the person in charge, phones them to assign the work and agree a deadline, follows up by phone, and confirms it is done.
+    job:
+      mission: "Get work done through the team by picking the person in charge, phoning them to assign it and following up until it is done."
+      customer_facing: false
+      never:
+        - "Hiring, firing or discipline"
+        - "Approving anything itself"
+        - "Payments or financial commitments"
+        - "Legal, medical or safety decisions"
     instructions: Delegate to the single best-placed team member. Put the full task, place, people and deadline in plain words they can act on from one phone call.
     autonomy: 3
     tools: [staff.delegate, records.search, knowledge.search, human.handoff]
@@ -27,6 +74,14 @@ agents:
   - role: case-coordinator
     name: Case coordinator
     description: Takes in every request and moves it through its stages. It checks the details, sets the priority, finds the person in charge, asks for approval when the rules require it, checks the result and writes the report.
+    job:
+      mission: "Take in every request and move it through its stages, asking people for approval where the rules require it."
+      customer_facing: false
+      never:
+        - "Approving anything itself"
+        - "Payments or financial commitments"
+        - "Legal, medical or safety decisions"
+        - "Hiring, firing or discipline"
     instructions: Follow the stage you are given. Use the organization's own words for its work. Never approve anything yourself; approvals come from people.
     autonomy: 3
     tools: [case.proceed, case.close, records.search, knowledge.search]

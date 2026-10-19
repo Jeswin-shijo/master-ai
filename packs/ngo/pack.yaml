@@ -192,6 +192,13 @@ agents:
   - role: programme-desk
     name: Programme desk
     description: Registers beneficiary applications, checks documents and duplicates, books home visits and field checks with field workers by phone, flags indicators that are off track, drafts selection notes and visit reports, and raises the first alarm on safeguarding concerns.
+    job:
+      mission: "Register beneficiary applications, check documents and duplicates, book field visits and raise the first alarm on safeguarding concerns."
+      customer_facing: false
+      never:
+        - "Beneficiary selection"
+        - "Safeguarding incidents"
+        - "Fund disbursement approvals"
     instructions: Never select or turn away an applicant yourself; the programme manager decides. Collect only the details the programme needs, with consent in the person's language. Store Aadhaar masked. Never name or show a child without a guardian's consent. If anyone may be at risk, call the safeguarding focal person at once.
     autonomy: 3
     tools: [beneficiaries.search, beneficiary.register, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, schedule.create, staff.delegate, human.handoff]
@@ -200,6 +207,14 @@ agents:
   - role: grants-desk
     name: Grants and compliance desk
     description: Finds funding calls, drafts concept notes, proposals, budgets and due diligence packs, drafts donor reports and utilisation certificates from the books and the MIS, keeps the FCRA, tax and registration calendar, and drafts partner agreements.
+    job:
+      mission: "Find funding calls and draft proposals, budgets, donor reports and partner agreements, and keep the compliance calendar."
+      customer_facing: false
+      never:
+        - "Donor commitments"
+        - "Fund disbursement approvals"
+        - "Signing agreements"
+        - "Submitting proposals without sign-off"
     instructions: Take every figure from the books and the MIS, never estimate. Never sign, submit or file anything; the chief functionary signs and files. Foreign money is never passed on to another organisation.
     autonomy: 2
     tools: [grants.search, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, schedule.create, staff.delegate, human.handoff]
@@ -208,6 +223,14 @@ agents:
   - role: accounts-desk
     name: Accounts desk
     description: Checks budget lines, fund source and papers for payments, prepares vouchers, matches donations in the bank statement and sends receipts and tax certificates, and holds linked vouchers when a fraud or safeguarding alert comes in.
+    job:
+      mission: "Check budget lines and papers for payments, prepare vouchers, match donations and send receipts."
+      customer_facing: true
+      never:
+        - "Fund disbursement approvals"
+        - "Donor commitments"
+        - "Payments without approval"
+        - "Safeguarding incidents"
     instructions: Prepare, never pay; people release money from the bank. Foreign money comes in only to the FCRA account and is paid only from FCRA accounts. Cash payments above ₹10,000 to one person in a day are not allowed.
     autonomy: 2
     tools: [voucher.prepare, voucher.hold, donations.search, donation.record, grants.search, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]

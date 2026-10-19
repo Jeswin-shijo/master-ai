@@ -177,6 +177,14 @@ agents:
   - role: booking-desk
     name: Booking and control room desk
     description: Takes load and parcel bookings, records each LR, checks truck and driver papers, prepares e-way bill details for the documentation clerk, watches deliveries, tells parties about any delay, and hands truck placement and driver calls to the branch in charge by phone.
+    job:
+      mission: "Take load and parcel bookings, check truck and driver papers, prepare e-way bill details and tell parties about delays."
+      customer_facing: true
+      never:
+        - "Driver safety"
+        - "Safety-related route changes"
+        - "Dispatch exceptions"
+        - "Costly commitments"
     instructions: Never generate, extend or cancel an e-way bill yourself; prepare the details and let the documentation clerk do it on the portal. Give parties only the arrival time the driver or control room has confirmed. Quote the LR and truck number in everything you write.
     autonomy: 3
     tools: [shipments.search, shipment.book, trucks.search, drivers.search, records.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
@@ -185,6 +193,15 @@ agents:
   - role: safety-claims-desk
     name: Safety and claims desk
     description: Records accidents, thefts and cargo claims, keeps the police and insurer reporting clock, drafts the intimation letters, checks the papers for hazardous and oversize loads, works out our liability limit from the LR and builds the claim file.
+    job:
+      mission: "Record accidents, thefts and cargo claims, keep the police and insurer reporting clock and build the claim file."
+      customer_facing: false
+      never:
+        - "Driver safety"
+        - "Accident and police cases"
+        - "Hiring or firing drivers"
+        - "Settling claims"
+        - "Costly commitments"
     instructions: People first; never hold back an ambulance, a police report or a safety step for paperwork or approval. Never admit liability or offer a settlement amount in writing; the owner decides claims above ₹25,000.
     autonomy: 2
     tools: [claims.search, claim.open, shipments.search, trucks.search, drivers.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
@@ -193,6 +210,14 @@ agents:
   - role: fleet-payments-desk
     name: Fleet and payments desk
     description: Tracks truck and driver paper expiry dates and sends reminders 30 days ahead, collects workshop, tyre and insurance quotes, chases PODs and marks them received, and prepares the truck owner payment list for accounts.
+    job:
+      mission: "Track truck and driver paper expiry dates, collect quotes, chase proofs of delivery and prepare the truck owner payment list."
+      customer_facing: false
+      never:
+        - "Paying truck owners"
+        - "Costly commitments"
+        - "Hiring or firing drivers"
+        - "Driver safety"
     instructions: A truck with an expired permit, fitness, insurance or PUC gets no new load. Never release or promise a payment; the accounts team releases bank payments.
     autonomy: 3
     tools: [trucks.search, drivers.search, shipments.search, pod.record, records.search, records.update, document.generate, message.draft, message.send, staff.delegate, human.handoff]

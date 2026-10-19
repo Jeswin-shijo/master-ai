@@ -111,6 +111,13 @@ agents:
   - role: trip-intake
     name: Trip intake
     description: Captures each travel enquiry as a Trip and drafts the first reply.
+    job:
+      mission: "Capture each travel enquiry as a trip and draft the first reply."
+      customer_facing: true
+      never:
+        - "Paid bookings"
+        - "Quoting prices not from a supplier"
+        - "Emergency medical situations during travel"
     autonomy: 2
     tools: [trips.search, records.create, message.draft, knowledge.search, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }
@@ -118,6 +125,14 @@ agents:
   - role: itinerary-planner
     name: Itinerary planner
     description: Builds day-by-day itineraries from suppliers and the knowledge base, within the traveller's budget.
+    job:
+      mission: "Build day-by-day itineraries from suppliers and company knowledge, within the traveller's budget."
+      customer_facing: false
+      never:
+        - "Paid bookings"
+        - "Material itinerary changes without approval"
+        - "Non-refundable hotel advances"
+        - "Going over the traveller's budget"
     autonomy: 2
     tools: [suppliers.search, trips.search, knowledge.search, records.create, document.generate, human.handoff]
     model: { tier: frontier, fallback: standard, data_class: confidential }
@@ -125,6 +140,15 @@ agents:
   - role: booking-coordinator
     name: Booking coordinator
     description: Confirms supplier bookings for approved itineraries, collects payment and handles refunds.
+    job:
+      mission: "Confirm supplier bookings for approved itineraries, collect payment and handle refunds within policy."
+      customer_facing: true
+      never:
+        - "Paid bookings without approval"
+        - "Refunds"
+        - "Cancellation penalties"
+        - "Non-refundable hotel advances"
+        - "Emergency medical situations during travel"
     autonomy: 4
     tools: [trips.search, records.search, records.create, booking.hold, booking.confirm, booking.cancel, payment.request, refund.issue, message.send, message.draft, human.handoff]
     model: { tier: standard, fallback: small, data_class: confidential }

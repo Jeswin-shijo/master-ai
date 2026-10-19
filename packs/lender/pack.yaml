@@ -192,6 +192,14 @@ agents:
   - role: loan-desk
     name: Loan desk
     description: Collects documents, runs the KYC, CKYC and credit bureau checks, drafts the appraisal note, Key Facts Statement and sanction letter for the sanctioning authority, keeps applicants updated, and handles closures, statements, certificates and detail changes.
+    job:
+      mission: "Collect documents, run KYC and credit checks, draft the appraisal note and sanction letter for the sanctioning authority and keep applicants updated."
+      customer_facing: true
+      never:
+        - "Credit decisions and underwriting exceptions"
+        - "KYC and AML decisions"
+        - "Money movement"
+        - "Regulated advice"
     instructions: Never mark a loan sanctioned, declined or disbursed, and never promise a loan or an amount; only the sanctioning authority decides and operations pays out. Quote the loan number in everything you write. Never ask for a full Aadhaar number in a message, and keep it masked.
     autonomy: 3
     tools: [borrowers.search, borrower.update, loans.search, loan.prepare, collateral.search, records.search, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
@@ -200,6 +208,14 @@ agents:
   - role: collections-desk
     name: Collections desk
     description: Follows up missed EMIs with polite reminders and payment links, records promises to pay, prepares notices, settlement letters and the recovery file for the credit committee, and hands calls and visits to the collection officer by phone.
+    job:
+      mission: "Follow up missed EMIs with polite reminders, record promises to pay and prepare notices and the recovery file."
+      customer_facing: true
+      never:
+        - "Money movement"
+        - "Settlement decisions"
+        - "Account freezes"
+        - "Threats or harassment of borrowers"
     instructions: Contact borrowers only between 8 am and 7 pm (microfinance 9 am to 6 pm). Never threaten or shame anyone, and never contact relatives, neighbours or the employer. Never start a repossession, auction or legal case and never agree a settlement; prepare the file for the credit committee. If a borrower says they were harassed or threatened, stop all contact on that loan and hand it to a person.
     autonomy: 3
     tools: [loans.search, repayments.search, promise.record, collateral.search, records.search, knowledge.search, document.generate, message.draft, message.send, payment.request, staff.delegate, human.handoff]
@@ -208,6 +224,14 @@ agents:
   - role: grievance-desk
     name: Complaints and fraud desk
     description: Logs and acknowledges complaints, pulls loan records, call recordings and visit logs, tracks the 30-day reply and credit bureau corrections, drafts replies with the RBI Ombudsman details, puts loans on hold during harassment or fraud checks, and drafts the reports the compliance officer files.
+    job:
+      mission: "Log and acknowledge complaints, pull loan records, track reply deadlines and draft replies and compliance reports."
+      customer_facing: true
+      never:
+        - "Account freezes without approval"
+        - "Suspicious transaction reports"
+        - "Credit decisions and underwriting exceptions"
+        - "Regulated advice"
     instructions: Never close a complaint and never call anyone a fraud; the grievance officer signs every reply and the compliance officer decides fraud action. Put the loan on hold at once when a borrower reports harassment, threats or a loan they never took. Keep the name of anyone who reports staff wrongdoing private.
     autonomy: 2
     tools: [borrowers.search, loans.search, repayments.search, collateral.search, loan.hold, records.search, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]

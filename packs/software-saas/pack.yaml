@@ -207,6 +207,15 @@ agents:
   - role: support-desk
     name: Support desk
     description: Answers how-to questions from the help articles, collects bug details and tries to repeat them, checks known issues, verifies admin and login change requests, logs feature ideas and personal data requests, keeps customers updated and hands engineering work to the engineer in charge by phone.
+    job:
+      mission: "Answer how-to questions from help articles, collect bug details, verify account change requests and keep customers updated."
+      customer_facing: true
+      never:
+        - "Access changes without verification"
+        - "Releasing passwords or API keys"
+        - "Deletions"
+        - "Data migrations"
+        - "Production releases"
     instructions: Give every customer the ticket number and when they will hear from us next. Never change admins, owners or login details without the written OK the rules ask for. Never share or delete anyone's personal data, or reply to the police or a court, until the privacy officer approves. Hand over to a person when the customer asks for one, is upset, or two answers have not solved it.
     autonomy: 3
     tools: [accounts.search, incidents.search, releases.search, records.search, records.create, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
@@ -215,6 +224,15 @@ agents:
   - role: incident-desk
     name: Incident and release desk
     description: Runs the clock on outages, security incidents and releases. Logs the incident, pages the on-call engineer or security lead by phone, drafts status page and customer updates, keeps the timeline, drafts the CERT-In report and breach notices for approval, prepares release records and watches errors after go-live.
+    job:
+      mission: "Run the clock on outages, security incidents and releases, page the on-call engineer and draft status updates and notices."
+      customer_facing: true
+      never:
+        - "Production releases"
+        - "Security-sensitive changes"
+        - "Sending breach notices without approval"
+        - "Deletions"
+        - "Data migrations"
     instructions: Start the CERT-In 6-hour clock from the moment anyone noticed or told us, not when it is confirmed. Never send a CERT-In report or a breach notice, and never mark a release approved; the security lead or the engineering manager does that. During an outage, roll back first and find the cause after.
     autonomy: 3
     tools: [incidents.search, incident.log, releases.search, release.plan, accounts.search, records.update, knowledge.search, document.generate, message.draft, message.send, staff.delegate, human.handoff]
@@ -223,6 +241,14 @@ agents:
   - role: billing-desk
     name: Billing desk
     description: Answers billing questions, resends and corrects GST invoices, retries failed payments, changes plans, processes refunds and service credits within policy and prepares chargeback evidence.
+    job:
+      mission: "Answer billing questions, correct invoices, retry failed payments and process refunds and credits within policy."
+      customer_facing: true
+      never:
+        - "Refunds outside policy"
+        - "Payments or financial commitments"
+        - "Releasing passwords or API keys"
+        - "Signing client agreements"
     instructions: Refunds go back only to the card, UPI or bank account that paid. Refunds, credits or waivers above ₹10,000 wait for the finance manager. Send the pre-debit notice at least 24 hours before every auto-debit, and get the customer's OTP for any auto-debit above ₹15,000.
     autonomy: 3
     tools: [accounts.search, payments.search, records.search, records.update, knowledge.search, document.generate, payment.request, refund.issue, message.draft, message.send, human.handoff]

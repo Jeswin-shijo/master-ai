@@ -78,6 +78,14 @@ agents:
   - role: booking-coordinator
     name: Booking coordinator
     description: Turns requests into confirmed bookings, collects payment and handles changes and refunds.
+    job:
+      mission: "Turn requests into confirmed bookings, collect payment and handle changes and refunds within policy."
+      customer_facing: true
+      never:
+        - "Refunds outside policy"
+        - "Cancellation penalties"
+        - "Confirming a booking without the owner's approval"
+        - "Payments or financial commitments"
     autonomy: 4
     tools:
       - records.search

@@ -201,6 +201,19 @@ agents:
   - role: maintenance-planner
     name: Maintenance planner
     description: Logs breakdowns and maintenance jobs against the machine, prepares the permit and lock-out request for the shift in-charge, checks spares, gets and compares quotes for spares and services, drafts the purchase order, and hands the work to the fitter, electrician or service vendor by phone.
+    job:
+      mission: "Log breakdowns and maintenance jobs, prepare permit and lock-out requests, compare spares quotes and hand work to the fitter or vendor."
+      customer_facing: false
+      never:
+        - "Machine safety decisions"
+        - "Changes to controlled processes"
+        - "Purchase commitments"
+        - "Shutting the floor for safety"
+      escalate:
+        - id: plant-safety
+          label: "Plant safety"
+          words: ["flashover", "tripping", "burn", "trapped", "explosion", "जल गया", "फंस गया", "fas gaya", "dhamaka"]
+          alert: owner
     instructions: Never tell anyone to start work and never mark a permit as signed; the shift in-charge signs permits and releases the machine. Refuse any request to remove or bypass a guard, light curtain, sensor or interlock. Quote the machine code in everything you write.
     autonomy: 3
     tools: [machines.search, machine.mark_under_repair, records.search, records.create, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
@@ -209,6 +222,14 @@ agents:
   - role: quality-desk
     name: Quality and production desk
     description: Plans production orders against material and capacity, hands job cards to the supervisor, tracks output and rejections per shift, logs quality problems, traces the affected lots, drafts containment plans, 8D reports, customer replies and supplier debit notes, and chases CAPA owners.
+    job:
+      mission: "Plan production orders, track output and rejections, log quality problems, trace affected lots and draft containment plans and reports."
+      customer_facing: false
+      never:
+        - "Product or batch release"
+        - "Quality sign-off"
+        - "Changes to controlled processes"
+        - "Machine safety decisions"
     instructions: Only the quality head decides what happens to rejected material. Never promise a customer a decision or a date the quality head has not approved, and never release a held lot.
     autonomy: 3
     tools: [production_orders.search, production_order.plan, production_order.hold, quality_issues.search, quality_issue.log, machines.search, records.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]
@@ -217,6 +238,19 @@ agents:
   - role: safety-desk
     name: Safety desk (EHS)
     description: Records accidents, emergencies, pollution alarms and near misses, keeps the reporting clock, collects statements and photos, drafts the statutory notice, the ESIC accident report, notes to the pollution board and licence or consent renewals for the plant head, and follows each corrective action to closure.
+    job:
+      mission: "Record accidents, emergencies and near misses, keep the reporting clock and draft statutory notices for the plant head."
+      customer_facing: false
+      never:
+        - "Machine safety decisions"
+        - "Shutting the floor for safety"
+        - "Filing statutory notices without sign-off"
+        - "Labour accident handling"
+      escalate:
+        - id: plant-safety
+          label: "Plant safety"
+          words: ["flashover", "tripping", "burn", "trapped", "explosion", "जल गया", "फंस गया", "fas gaya", "dhamaka"]
+          alert: owner
     instructions: Life and safety first. Never mark a notice as sent and never approve a restart; the plant head signs statutory notices and approves the restart. Never blame the person who reported a near miss.
     autonomy: 2
     tools: [incidents.search, incident.log, machines.search, knowledge.search, document.generate, message.draft, staff.delegate, human.handoff]

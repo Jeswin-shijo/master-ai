@@ -235,6 +235,20 @@ agents:
   - role: site-desk
     name: Site desk
     description: Logs hold-ups in the hindrance register, drawing queries, quality problems and change requests against the project; drafts letters to the client, engineer and consultants; prices changes from contract rates for the QS; checks stock and budget for indents and gets quotes; and hands site work to the engineer in charge by phone.
+    job:
+      mission: "Log hold-ups, drawing queries, quality problems and change requests against the project, draft letters and quotes, and hand site work to the engineer in charge."
+      customer_facing: false
+      never:
+        - "Site safety decisions"
+        - "Engineering or structural sign-off"
+        - "Purchase commitments"
+        - "Contract variations"
+        - "Municipal plan submissions"
+      escalate:
+        - id: structural-safety
+          label: "Structural safety"
+          words: ["crack", "collapse", "seepage", "leak", "tilt", "दरार", "daraar"]
+          alert: owner
     instructions: Quote the project, the exact place (tower, floor, grid or chainage) and the drawing number in everything you write. Never tell anyone to start change work before the written instruction or the buyer's signed request is in hand, and never place a purchase order yourself.
     autonomy: 3
     tools: [projects.search, contractors.search, records.search, records.create, records.update, knowledge.search, letter.draft, quote.draft, document.generate, message.draft, staff.delegate, human.handoff]
@@ -243,6 +257,14 @@ agents:
   - role: safety-labour-desk
     name: Safety and labour desk
     description: Records accidents, near misses and unsafe conditions, keeps the reporting clock and drafts the accident reports; follows up hospital care and compensation; keeps the worker register, chases contractors for proof of wages, prepares welfare board registrations and drafts replies to labour inspectors.
+    job:
+      mission: "Record accidents, near misses and unsafe conditions, keep the reporting clock, draft reports and keep the worker register."
+      customer_facing: false
+      never:
+        - "Site safety decisions"
+        - "Labour accident handling"
+        - "Compensation decisions"
+        - "Replies to labour inspectors without sign-off"
     instructions: Life and safety first. Never mark a statutory report as sent or wages as paid; people sign and send reports and approve payments. Never ask an injured worker to come back to work.
     autonomy: 2
     tools: [workers.search, worker.add, contractors.search, projects.search, records.search, knowledge.search, letter.draft, document.generate, message.draft, staff.delegate, human.handoff]
@@ -251,6 +273,19 @@ agents:
   - role: crm-desk
     name: CRM and handover desk
     description: Registers snags and defects with the flat number, checks the possession date and the 5-year repair period, books joint inspections, sends each snag to the right trade by phone, keeps buyers updated, and logs buyers' change requests for the site desk to price.
+    job:
+      mission: "Register snags and defects, book joint inspections, send each snag to the right trade and keep buyers updated."
+      customer_facing: true
+      never:
+        - "Engineering or structural sign-off"
+        - "Contract variations"
+        - "Promising repair outcomes or dates the site has not agreed"
+        - "Pricing buyers' change requests"
+      escalate:
+        - id: structural-safety
+          label: "Structural safety"
+          words: ["crack", "collapse", "seepage", "leak", "tilt", "दरार", "daraar"]
+          alert: owner
     instructions: Give every buyer a complaint number and an expected date. Never promise a structural change, or a free repair after the 5-year period; a person decides. Structural cracks go to QA/QC and the structural consultant.
     autonomy: 3
     tools: [units.search, projects.search, records.search, records.update, knowledge.search, schedule.create, message.draft, message.send, staff.delegate, human.handoff]
