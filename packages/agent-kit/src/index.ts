@@ -8,5 +8,24 @@ export * from './pricing';
 export * from './gemini';
 export * from './registers';
 // `resolvePath` is already taken by registers; the jobs one is exported here as `resolveScopePath`.
-export { evalCalc, fillTemplate, findEscalation, matchWords, resolvePath as resolveScopePath } from './jobs';
-export type { EffectiveEscalation } from './jobs';
+export {
+  CUSTOMER_MESSAGE_RULE,
+  STANDARD_RULES,
+  aiOfflineOutput,
+  aiOutputJsonSchema,
+  aiOutputSchema,
+  evalCalc,
+  fillTemplate,
+  findEscalation,
+  isValidGstin,
+  isValidIfsc,
+  isValidPan,
+  isValidPincode,
+  jobAiPrompt,
+  matchWords,
+  resolvePath as resolveScopePath,
+  runCheck,
+  sixPartSystem,
+  sixPartUser,
+} from './jobs';
+export type { CheckContext, CheckOutcome, EffectiveEscalation, JobScope } from './jobs';
