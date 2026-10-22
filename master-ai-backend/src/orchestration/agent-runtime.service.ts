@@ -300,7 +300,7 @@ export function agentUserPrompt(ctx: TaskContext, history: OfflineHistoryItem[],
             h.status === 'executed'
               ? `executed\n   ${truncate(JSON.stringify(h.result), 2500)}`
               : h.status === 'rejected'
-                ? `REJECTED by the owner${h.notes ? `: "${h.notes}"` : ''}`
+                ? `REJECTED by the owner${h.notes ? ' (their note is under "Feedback for you")' : ''}`
                 : h.status === 'blocked'
                   ? 'BLOCKED by policy'
                   : h.status === 'failed'
@@ -310,7 +310,13 @@ export function agentUserPrompt(ctx: TaskContext, history: OfflineHistoryItem[],
         })
         .join('\n')
     : 'None yet.';
-  const notes = feedback.length ? feedback.map((f) => `- (${f.source}) ${f.text}`).join('\n') : 'None.';
+  // The owner's note on a rejected step is an instruction from the owner, so it goes in TASK with
+  // the other feedback, never inside the untrusted DATA fence with the steps.
+  const rejected = history.flatMap((h, i) =>
+    h.status === 'rejected' && h.notes ? [`- (owner) You proposed step ${i + 1} (${h.tool}) and the owner rejected it, saying: "${h.notes}"`] : [],
+  );
+  const lines = [...feedback.map((f) => `- (${f.source}) ${f.text}`), ...rejected];
+  const notes = lines.length ? lines.join('\n') : 'None.';
   const task = `Goal from the owner: "${ctx.goal.text}"
 
 Your task: ${ctx.task.title}

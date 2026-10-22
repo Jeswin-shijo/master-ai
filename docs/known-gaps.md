@@ -167,4 +167,3 @@ No pack ships `jobs:` yet, so none of this reaches an owner. What waits, and the
 - **Every job stop also pushes "A task needs you"** to managers, so an escalation or a plain duplicate stop can notify twice.
 - **Cap and overlap edges.** Two manual runs at the same moment can pass the cap together when the job has no settings row yet. A run's budget check can end it `stopped` just after its last act ran. The sweeps spend a run on a record seen again before the duplicate is found.
 - **Owner edits.** The word box has no length limit and may show raw validation text past 200 words in a set. The daily-limit box does not follow a change made elsewhere until it is reloaded. Saving a mission for an agent with no card creates one; if a later pack update adds a card for that role it is skipped, and every save then fails.
-- **Rejection notes** from an owner sit inside the untrusted-data fence of the prompt while the rules tell the model to use them.
