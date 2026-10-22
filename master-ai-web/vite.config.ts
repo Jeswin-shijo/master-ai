@@ -12,5 +12,6 @@ export default defineConfig({
   // The production build is previewed (CI's browser tests) under the same headers it is hosted with.
   preview: { headers: pageHeaders(process.env.VITE_API_URL ?? 'http://localhost:3000') },
   // Browser tests (__tests__/e2e/) run in Playwright, not here.
-  test: { include: ['__tests__/unit/**/*.test.ts'], environment: 'node' },
+  // Component tests render to HTML with react-dom/server: no DOM in the node environment.
+  test: { include: ['__tests__/unit/**/*.test.{ts,tsx}'], environment: 'node' },
 });

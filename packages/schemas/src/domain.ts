@@ -120,10 +120,10 @@ export interface AgentView {
   model: { tier: ModelTier; fallback?: ModelTier; dataClass: DataClass };
   stats: { tasksCompleted: number; approvalsRequested: number; approvalsRejected: number; spendInr: number };
   overrides: AutonomyOverride[];
-  /** The agent's job card, as owners read it. */
-  job?: AgentJobCardView | null;
+  /** The agent's job card, as owners read it: its own (edited) card, else its pack's. Null when it has neither. */
+  job: AgentJobCardView | null;
   /** The jobs this agent runs. */
-  jobs?: JobView[];
+  jobs: JobView[];
 }
 
 export interface AgentJobCardView {
@@ -137,8 +137,11 @@ export interface AgentJobCardView {
     label: string;
     words: string[];
     reply: string | null;
+    /** Who is alerted: `owner` or a role id. */
     alert: string;
+    /** One of the pack's shared sets, which every agent of its kind inherits. */
     inherited: boolean;
+    /** Came with the pack: it can't be removed, and its pack words can't be taken out. */
     fromPack: boolean;
   }[];
   /** Tool names the agent may not use. */
@@ -157,6 +160,12 @@ export interface JobView {
   dailyCap: number;
   lastRun: JobRunView | null;
 }
+
+/** Why a trigger started no run: the job is off, something is paused, the daily limit, or it already ran for this. */
+export type JobSkipReason = 'off' | 'paused' | 'cap' | 'duplicate';
+
+/** What Run now (or any trigger) did: a run started, or why none did. */
+export type JobRunStart = { runId: string; goalId: string } | { skipped: JobSkipReason };
 
 export interface JobRunView {
   id: string;

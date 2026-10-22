@@ -1,8 +1,20 @@
 import { randomBytes } from 'node:crypto';
-import { ForbiddenException, NotFoundException, type ExecutionContext } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException, type ExecutionContext, type PipeTransform } from '@nestjs/common';
+import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
+import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum';
 import { Reflector } from '@nestjs/core';
 import { eq } from 'drizzle-orm';
-import { JobDefSchema, ORG_TYPES, type JobCard, type JobInput, type PackAgent, type ResolvedPack } from '@onehuman/schemas';
+import {
+  JobDefSchema,
+  ORG_TYPES,
+  type AgentView,
+  type JobCard,
+  type JobCardEdit,
+  type JobInput,
+  type PackAgent,
+  type ResolvedPack,
+  type RunJobInput,
+} from '@onehuman/schemas';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AgentsService } from '../../src/agents/agents.service';
 import { CasesService } from '../../src/cases/cases.service';
@@ -159,6 +171,19 @@ describe('Run now', () => {
     );
     expect(rows).toEqual([{ goal: 'failed', task: 'failed' }]);
     expect(await jobs.runNow(plant.session, jobId, {})).toHaveProperty('runId');
+  });
+
+  it('runs with no request body at all: Express 5 leaves the body undefined, and that is no text, not a 400', async () => {
+    const { jobId } = await installJobFixture(h, plant, manualJob('spec-no-body'));
+    const args = Reflect.getMetadata(ROUTE_ARGS_METADATA, JobsController, 'run') as Record<string, { pipes: PipeTransform[] }>;
+    const pipes = Object.entries(args).find(([key]) => key.startsWith(`${RouteParamtypes.BODY}:`))![1].pipes;
+    const body = pipes.reduce<unknown>((value, pipe) => pipe.transform(value, { type: 'body' }), undefined) as RunJobInput;
+    expect(body).toEqual({});
+
+    const started = await h.get(JobsController).run(plant.session, jobId, body);
+    if (!('runId' in started)) throw new Error(`skipped: ${started.skipped}`);
+    const { rows } = await h.owner.query<{ input: Record<string, unknown> }>(`select input from job_runs where id = $1`, [started.runId]);
+    expect(rows[0]!.input).toEqual({ text: null, by: plant.session.principalId });
   });
 });
 
@@ -750,5 +775,140 @@ describe('the list and record sweep', () => {
     await updateEquipment(org, a!.id, { location: 'Changed while on' });
     await jobs.sweep(org.tenantId);
     expect(await runsOf(org, jobId)).toBe(1);
+  });
+});
+
+// ---------- Task 12: the job card on the Agents page ----------
+
+describe('the job card owners read and edit', () => {
+  const PACK_SET_KEPT = "A safety word set that came with the pack can't be removed or shortened";
+  const agentsService = () => h.get(AgentsService);
+  const agentOf = async (org: Org, role: string): Promise<AgentView> => (await agentsService().list(org.tenantId)).find((a) => a.role === role)!;
+  /** The card's sets as the Agents page sends them back. */
+  const editable = (view: AgentView): NonNullable<JobCardEdit['escalate']> =>
+    view.job!.escalations.map(({ id, label, words, alert, reply }) => ({ id, label, words, alert, ...(reply && { reply }) }));
+  const storedCard = async (agentId: string): Promise<JobCard | undefined> =>
+    (await h.owner.query<{ spec: PackAgent }>(`select spec from agents where id = $1`, [agentId])).rows[0]!.spec.job;
+  const cardAudits = (agentId: string) =>
+    h.owner
+      .query<{ payload: Record<string, unknown> }>(`select payload from audit_events where type = 'agent.job_card_updated' and ref_id = $1 order by seq`, [agentId])
+      .then((r) => r.rows.map((row) => row.payload));
+
+  it('lists each card with the shared sets marked inherited, what it may do, and the jobs its agent runs', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const desk = await agentOf(org, 'consumer-desk');
+    expect(desk.job).toMatchObject({
+      mission: 'Register supply complaints and connection applications, keep consumers updated and send the line crew by phone.',
+      customerFacing: true,
+      never: expect.arrayContaining(['Grid switching', 'Electrical safety decisions']),
+      may: desk.tools,
+      forbidden: [],
+    });
+    expect(desk.job!.escalations.map((e) => [e.id, e.inherited, e.fromPack])).toEqual([
+      ['emergency', true, true],
+      ['distress', true, true],
+      ['anger', true, true],
+      ['legal-threat', true, true],
+      ['secrets', true, true],
+    ]);
+    expect(desk.job!.escalations[0]).toMatchObject({ label: 'Emergencies', alert: 'owner', reply: expect.stringContaining('112'), words: expect.arrayContaining(['fire', 'smoke']) });
+    expect(desk.jobs).toEqual([]);
+
+    // An internal desk inherits none of the customer sets and keeps its own pack set.
+    const safety = await agentOf(org, 'safety-desk');
+    expect(safety.job!.escalations).toEqual([expect.objectContaining({ id: 'plant-safety', label: 'Plant safety', inherited: false, fromPack: true })]);
+    expect(await agentsService().get(org.tenantId, safety.id)).toMatchObject({ job: safety.job, jobs: [] });
+
+    const { jobId } = await installJobFixture(h, org, manualJob('spec-card-jobs'));
+    const tester = await agentOf(org, JOB_TESTER);
+    expect(tester.jobs).toEqual([expect.objectContaining({ id: jobId, agentRole: JOB_TESTER, trigger: 'manual', enabled: true, lastRun: null })]);
+    expect((await agentOf(org, 'consumer-desk')).jobs).toEqual([]);
+  });
+
+  it('refuses to remove a word from emergency, to drop a pack set, or to empty an agent pack set, and saves nothing', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const desk = await agentOf(org, 'consumer-desk');
+    const before = await storedCard(desk.id);
+    const sets = editable(desk);
+
+    const shortened = sets.map((s) => (s.id === 'emergency' ? { ...s, words: s.words.filter((w) => w !== 'fire') } : s));
+    await expect(agentsService().update(org.session, desk.id, { job: { escalate: shortened } })).rejects.toThrow(PACK_SET_KEPT);
+    await expect(agentsService().update(org.session, desk.id, { job: { escalate: shortened } })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(agentsService().update(org.session, desk.id, { job: { escalate: sets.filter((s) => s.id !== 'distress') } })).rejects.toThrow(PACK_SET_KEPT);
+
+    const safety = await agentOf(org, 'safety-desk');
+    await expect(agentsService().update(org.session, safety.id, { job: { escalate: [] } })).rejects.toThrow(PACK_SET_KEPT);
+
+    expect(await storedCard(desk.id)).toEqual(before);
+    expect(await cardAudits(desk.id)).toEqual([]);
+  });
+
+  it('adds a word to an inherited set: kept as the owner set with the shared label, alert and reply, and audited', async () => {
+    const org = await newOrg(h, 'power-plant');
+    // The shared set alerts a role, so a merge that fell back to the default would show.
+    await h.owner.query(
+      `update workspaces set pack = jsonb_set(pack, '{escalations}', (select jsonb_agg(case when e->>'id' = 'emergency' then e || '{"alert": "safety-officer"}'::jsonb else e end) from jsonb_array_elements(pack->'escalations') e)) where id = $1`,
+      [org.workspaceId],
+    );
+    const desk = await agentOf(org, 'consumer-desk');
+    const emergency = desk.job!.escalations.find((e) => e.id === 'emergency')!;
+    expect(emergency.alert).toBe('safety-officer');
+
+    // The page may leave the alert and reply out: they keep what the set had.
+    const sets = editable(desk).map((s) => (s.id === 'emergency' ? { id: s.id, label: s.label, words: [...s.words, 'sparking'] } : s));
+    const after = await agentsService().update(org.session, desk.id, { job: { escalate: sets } });
+
+    expect(after.job!.escalations.find((e) => e.id === 'emergency')).toEqual({ ...emergency, words: [...emergency.words, 'sparking'] });
+    expect(after.job!.escalations.map((e) => e.id)).toEqual(['emergency', 'distress', 'anger', 'legal-threat', 'secrets']);
+    const stored = await storedCard(desk.id);
+    expect(stored?.escalate).toEqual([
+      { id: 'emergency', label: 'Emergencies', words: [...emergency.words, 'sparking'], alert: 'safety-officer', reply: emergency.reply },
+    ]);
+    expect(await cardAudits(desk.id)).toEqual([expect.objectContaining({ name: 'Consumer service desk', changed: ['escalate'] })]);
+    expect((await agentOf(org, 'consumer-desk')).job).toEqual(after.job);
+  });
+
+  it('adds an owner set, renames it and deletes it again', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const desk = await agentOf(org, 'consumer-desk');
+    const sets = editable(desk);
+
+    const added = await agentsService().update(org.session, desk.id, {
+      job: { escalate: [...sets, { id: 'meter-tamper', label: 'Meter tampering', words: ['tampered', 'meter seal', 'मीटर से छेड़छाड़'] }] },
+    });
+    expect(added.job!.escalations.at(-1)).toEqual({
+      id: 'meter-tamper',
+      label: 'Meter tampering',
+      words: ['tampered', 'meter seal', 'मीटर से छेड़छाड़'],
+      reply: null,
+      alert: 'owner',
+      inherited: false,
+      fromPack: false,
+    });
+
+    const renamed = await agentsService().update(org.session, desk.id, { job: { escalate: editable(added).map((s) => (s.id === 'meter-tamper' ? { ...s, label: 'Meter tampering or theft' } : s)) } });
+    expect(renamed.job!.escalations.at(-1)).toMatchObject({ id: 'meter-tamper', label: 'Meter tampering or theft' });
+
+    const removed = await agentsService().update(org.session, desk.id, { job: { escalate: editable(renamed).filter((s) => s.id !== 'meter-tamper') } });
+    expect(removed.job!.escalations).toEqual(desk.job!.escalations);
+    expect((await storedCard(desk.id))?.escalate).toEqual([]);
+    expect((await cardAudits(desk.id)).map((p) => p.changed)).toEqual([['escalate'], ['escalate'], ['escalate']]);
+  });
+
+  it('changes the mission and the never list, audited once, and an unchanged save changes nothing', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const coordinator = await agentOf(org, 'case-coordinator');
+    const after = await agentsService().update(org.session, coordinator.id, {
+      job: { mission: 'Move every request through its stages, and ask a person whenever the rules say so.', never: [...coordinator.job!.never, 'Promising dates to customers'] },
+    });
+    expect(after.job).toMatchObject({
+      mission: 'Move every request through its stages, and ask a person whenever the rules say so.',
+      never: [...coordinator.job!.never, 'Promising dates to customers'],
+      escalations: coordinator.job!.escalations,
+    });
+    expect((await storedCard(coordinator.id))?.mission).toBe('Move every request through its stages, and ask a person whenever the rules say so.');
+
+    await agentsService().update(org.session, coordinator.id, { job: { mission: after.job!.mission, never: after.job!.never, escalate: editable(after) } });
+    expect(await cardAudits(coordinator.id)).toEqual([expect.objectContaining({ name: 'Case coordinator', changed: ['mission', 'never'] })]);
   });
 });

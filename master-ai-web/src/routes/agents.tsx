@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Bot, Pause, Play, Undo2 } from 'lucide-react';
 import type { AgentView, AutonomySuggestion, ResolvedPack } from '@onehuman/schemas';
 import { toolLabel } from '@onehuman/sdk';
+import { AgentJobs } from '@/components/agents/agent-jobs';
+import { JobCard } from '@/components/agents/job-card';
 import { StatusBadge } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +11,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '@/components/ui/feedback';
 import { Select } from '@/components/ui/form';
 import { api } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { formatInr } from '@/lib/utils';
 
 /** What an assistant may do on its own. Level 4 steps always ask the owner, so 4 reads like 3. */
@@ -19,7 +22,7 @@ const CLEARANCE_OPTIONS: Record<1 | 2 | 3 | 4, string> = {
   4: 'Handle everyday tasks',
 };
 
-function AgentCard({ agent, suggestions, pack }: { agent: AgentView; suggestions: AutonomySuggestion[]; pack?: ResolvedPack }) {
+function AgentCard({ agent, suggestions, pack, manager }: { agent: AgentView; suggestions: AutonomySuggestion[]; pack?: ResolvedPack; manager: boolean }) {
   const label = (tool: string) => toolLabel(tool, pack);
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['agents'] });
@@ -30,7 +33,7 @@ function AgentCard({ agent, suggestions, pack }: { agent: AgentView; suggestions
   const budgets = agent.spec.budgets;
 
   return (
-    <Card>
+    <Card role="article" aria-label={agent.name}>
       <CardHeader
         title={
           <span className="inline-flex items-center gap-2">
@@ -68,23 +71,27 @@ function AgentCard({ agent, suggestions, pack }: { agent: AgentView; suggestions
           </span>
         </div>
 
-        <div>
-          <p className="mb-1 text-xs text-fg-muted">Can:</p>
-          <ul className="flex flex-wrap gap-1">
-            {agent.tools.map((t) => {
-              const override = agent.overrides.find((o) => o.tool === t);
-              return (
-                <li
-                  key={t}
-                  className={override ? 'rounded-md bg-success-soft px-2 py-0.5 text-xs text-success' : 'rounded-md bg-muted px-2 py-0.5 text-xs text-fg'}
-                  title={override ? 'You trusted it to do this without asking' : undefined}
-                >
-                  {label(t)}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        {agent.job ? (
+          <JobCard agent={agent} pack={pack} canEdit={manager} />
+        ) : (
+          <div>
+            <p className="mb-1 text-xs text-fg-muted">Can:</p>
+            <ul className="flex flex-wrap gap-1">
+              {agent.tools.map((t) => {
+                const override = agent.overrides.find((o) => o.tool === t);
+                return (
+                  <li
+                    key={t}
+                    className={override ? 'rounded-md bg-success-soft px-2 py-0.5 text-xs text-success' : 'rounded-md bg-muted px-2 py-0.5 text-xs text-fg'}
+                    title={override ? 'You trusted it to do this without asking' : undefined}
+                  >
+                    {label(t)}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {suggestions.map((s) => (
           <div key={s.tool} className="flex flex-wrap items-center gap-3 rounded-md border border-success/30 bg-success-soft px-3 py-2 text-sm">
@@ -106,6 +113,8 @@ function AgentCard({ agent, suggestions, pack }: { agent: AgentView; suggestions
           </div>
         ))}
 
+        <AgentJobs jobs={agent.jobs} canManage={manager} />
+
         <ErrorNote error={toggle.error ?? setClearance.error ?? grant.error ?? revoke.error} />
         <Button variant={agent.status === 'paused' ? 'success' : 'secondary'} size="sm" onClick={() => toggle.mutate()} loading={toggle.isPending}>
           {agent.status === 'paused' ? <><Play /> Resume agent</> : <><Pause /> Pause agent</>}
@@ -119,6 +128,8 @@ export function AgentsPage() {
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents.list });
   const suggestions = useQuery({ queryKey: ['agents', 'suggestions'], queryFn: api.agents.suggestions });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.workspaces.list });
+  const role = useSession((s) => s.user?.role);
+  const manager = role === 'owner' || role === 'admin';
 
   return (
     <div>
@@ -132,7 +143,13 @@ export function AgentsPage() {
       {agents.data?.length === 0 && <EmptyState icon={<Bot />} title="No agents yet">Install an industry pack to hire your first agents.</EmptyState>}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 [&>*]:min-w-0">
         {agents.data?.map((a) => (
-          <AgentCard key={a.id} agent={a} pack={workspaces.data?.[0]?.pack} suggestions={(suggestions.data ?? []).filter((s) => s.agentId === a.id)} />
+          <AgentCard
+            key={a.id}
+            agent={a}
+            pack={workspaces.data?.find((w) => w.id === a.workspaceId)?.pack ?? workspaces.data?.[0]?.pack}
+            manager={manager}
+            suggestions={(suggestions.data ?? []).filter((s) => s.agentId === a.id)}
+          />
         ))}
       </div>
     </div>

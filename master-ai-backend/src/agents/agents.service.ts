@@ -1,12 +1,19 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import type { AgentView, AutonomyOverride, AutonomyOverrideInput, AutonomySuggestion, UpdateAgentInput } from '@onehuman/schemas';
-import { CASE_COORDINATOR_ROLE } from '@onehuman/agent-kit';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import type { AgentView, AutonomyOverride, AutonomyOverrideInput, AutonomySuggestion, JobCard, JobView, ResolvedPack, UpdateAgentInput } from '@onehuman/schemas';
+import { CASE_COORDINATOR_ROLE, normalizeSnapshot } from '@onehuman/agent-kit';
 import { AuditService } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { DbService, type Tx } from '../db/db.service';
-import { agents, approvalRequests, autonomyOverrides, llmCalls, tasks } from '../db/schema';
+import { agents, approvalRequests, autonomyOverrides, llmCalls, tasks, workspaces } from '../db/schema';
+import { JobsService } from '../jobs/jobs.service';
 import { TenancyService } from '../tenancy/tenancy.service';
+import { cardOf, editJobCard, jobCardView } from './job-card';
+
+type AgentRow = typeof agents.$inferSelect;
+type CardPart = ReturnType<typeof editJobCard>['changed'][number];
+/** Each workspace's pack snapshot and jobs, read once for all of its agents. */
+type Workspaces = Map<string, { pack: ResolvedPack; jobs: JobView[] }>;
 
 /** Consecutive clean approvals before the platform suggests earned autonomy. */
 const EARNED_AUTONOMY_STREAK = 5;
@@ -18,13 +25,15 @@ export class AgentsService {
     private readonly db: DbService,
     private readonly audit: AuditService,
     private readonly tenancy: TenancyService,
+    private readonly jobs: JobsService,
   ) {}
 
   async list(tenantId: string): Promise<AgentView[]> {
     return this.db.tenant(tenantId, async (tx) => {
       const rows = await tx.select().from(agents).orderBy(asc(agents.createdAt));
+      const spaces = await this.workspacesOf(tx, rows);
       const views: AgentView[] = [];
-      for (const a of rows) views.push(await this.view(tx, a));
+      for (const a of rows) views.push(await this.view(tx, a, spaces));
       return views;
     });
   }
@@ -33,27 +42,56 @@ export class AgentsService {
     return this.db.tenant(tenantId, async (tx) => this.view(tx, await this.row(tx, id)));
   }
 
+  /**
+   * Tune an agent (clearance, budgets, instructions) or edit its job card. A card
+   * edit is checked against the pack (its safety word sets stay), saved on the
+   * agent and audited with the parts that changed; a save that changes nothing
+   * writes nothing.
+   */
   async update(session: Session, id: string, input: UpdateAgentInput): Promise<AgentView> {
     return this.db.tenant(session.tenantId, async (tx) => {
       const agent = await this.row(tx, id);
-      const spec = {
-        ...agent.spec,
-        ...(input.autonomy !== undefined && { autonomy: input.autonomy }),
-        ...(input.instructions !== undefined && { instructions: input.instructions }),
-        budgets: { ...agent.spec.budgets, ...input.budgets },
-      };
-      const [row] = await tx
-        .update(agents)
-        .set({ spec, autonomy: spec.autonomy, updatedAt: new Date() })
-        .where(eq(agents.id, id))
-        .returning();
-      await this.audit.append(tx, session.tenantId, {
-        type: 'agent.updated',
-        actor: { id: session.principalId, kind: 'human' },
-        refId: id,
-        payload: { changes: { ...input } },
-      });
-      return this.view(tx, row!);
+      const { job: cardEdit, ...settings } = input;
+      const tuned = cardEdit === undefined || Object.values(settings).some((v) => v !== undefined);
+      let spec = agent.spec;
+      if (tuned) {
+        spec = {
+          ...spec,
+          ...(settings.autonomy !== undefined && { autonomy: settings.autonomy }),
+          ...(settings.instructions !== undefined && { instructions: settings.instructions }),
+          budgets: { ...spec.budgets, ...settings.budgets },
+        };
+      }
+      let card: { before: JobCard | undefined; after: JobCard; changed: CardPart[] } | null = null;
+      if (cardEdit) {
+        const pack = await this.packOf(tx, agent.workspaceId);
+        const edited = editJobCard(agent, pack, cardEdit);
+        if (edited.changed.length) {
+          card = { before: cardOf(agent, pack), after: edited.card, changed: edited.changed };
+          spec = { ...spec, job: edited.card };
+        }
+      }
+
+      const row =
+        spec === agent.spec ? agent : (await tx.update(agents).set({ spec, autonomy: spec.autonomy, updatedAt: new Date() }).where(eq(agents.id, id)).returning())[0]!;
+      if (tuned) {
+        await this.audit.append(tx, session.tenantId, {
+          type: 'agent.updated',
+          actor: { id: session.principalId, kind: 'human' },
+          refId: id,
+          payload: { changes: { ...settings } },
+        });
+      }
+      if (card) {
+        const part = (c: JobCard | undefined) => Object.fromEntries(card.changed.map((k) => [k, c?.[k] ?? null]));
+        await this.audit.append(tx, session.tenantId, {
+          type: 'agent.job_card_updated',
+          actor: { id: session.principalId, kind: 'human' },
+          refId: id,
+          payload: { name: agent.name, changed: card.changed, before: part(card.before), after: part(card.after) },
+        });
+      }
+      return this.view(tx, row);
     });
   }
 
@@ -152,7 +190,26 @@ export class AgentsService {
     return agent;
   }
 
-  private async view(tx: Tx, a: typeof agents.$inferSelect): Promise<AgentView> {
+  /** The pack snapshot of the agents' workspaces, and their jobs. */
+  private async workspacesOf(tx: Tx, rows: Pick<AgentRow, 'workspaceId'>[]): Promise<Workspaces> {
+    const ids = [...new Set(rows.map((r) => r.workspaceId))];
+    const out: Workspaces = new Map();
+    if (!ids.length) return out;
+    for (const w of await tx.select({ id: workspaces.id, pack: workspaces.pack }).from(workspaces).where(inArray(workspaces.id, ids))) {
+      const pack = normalizeSnapshot(w.pack);
+      out.set(w.id, { pack, jobs: await this.jobs.views(tx, w.id, pack) });
+    }
+    return out;
+  }
+
+  private async packOf(tx: Tx, workspaceId: string): Promise<ResolvedPack> {
+    const [ws] = await tx.select({ pack: workspaces.pack }).from(workspaces).where(eq(workspaces.id, workspaceId));
+    if (!ws) throw new NotFoundException('Workspace not found');
+    return normalizeSnapshot(ws.pack);
+  }
+
+  private async view(tx: Tx, a: AgentRow, spaces?: Workspaces): Promise<AgentView> {
+    const ws = (spaces ?? (await this.workspacesOf(tx, [a]))).get(a.workspaceId);
     const [stats] = await tx.execute<{ completed: number; requested: number; rejected: number; spend: number }>(sql`
       select
         (select count(*)::int from ${tasks} where agent_id = ${a.id} and status = 'completed') as completed,
@@ -179,6 +236,8 @@ export class AgentsService {
         spendInr: Number(stats?.spend ?? 0),
       },
       overrides: overrides.map((o) => ({ id: o.id, tool: o.tool, level: o.level as 1 | 2 | 3, createdAt: o.createdAt.toISOString() })),
+      job: ws ? jobCardView(a, ws.pack) : null,
+      jobs: ws?.jobs.filter((j) => j.agentRole === a.role) ?? [],
     };
   }
 }

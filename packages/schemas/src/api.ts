@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AgentClearanceSchema } from './autonomy';
-import { EscalationSetSchema } from './jobs';
+import { SlugSchema } from './common';
 import { BudgetsSchema, RoutineQuestionSchema, ToolNameSchema } from './pack';
 import { SectorIdSchema } from './lifecycle';
 
@@ -105,11 +105,27 @@ export const RegisterPushTokenInputSchema = z.object({
 });
 export type RegisterPushTokenInput = z.input<typeof RegisterPushTokenInputSchema>;
 
-/** What the owner may change on a job card. */
+/**
+ * A word set as the owner edits it. An alert or reply left out keeps what the
+ * set had, so adding a word to an inherited set never moves its alert.
+ */
+export const EditedEscalationSetSchema = z.strictObject({
+  id: SlugSchema,
+  label: z.string().trim().min(1).max(100),
+  words: z.array(z.string().trim().min(1).max(100)).min(1).max(200),
+  reply: z.string().trim().min(1).max(500).optional(),
+  alert: z.string().min(1).max(60).optional(),
+});
+
+/**
+ * What the owner may change on a job card. `escalate` is every word set the
+ * agent should have, as the card shows them: the sets that came with the pack
+ * (each with all of its pack words) and the owner's own.
+ */
 export const JobCardEditSchema = z.object({
-  mission: z.string().min(1).max(300).optional(),
-  never: z.array(z.string().min(1).max(200)).max(20).optional(),
-  escalate: z.array(EscalationSetSchema).max(30).optional(),
+  mission: z.string().trim().min(1).max(300).optional(),
+  never: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
+  escalate: z.array(EditedEscalationSetSchema).max(30).optional(),
 });
 export type JobCardEdit = z.input<typeof JobCardEditSchema>;
 

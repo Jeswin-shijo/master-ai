@@ -26,10 +26,10 @@ export class JobsController {
     return this.jobs.switch(s, id, body);
   }
 
-  /** Run now, with what the person typed in. */
+  /** Run now, with what the person typed in. A request with no body at all (Express 5 leaves it undefined) is a run with no text. */
   @ManagersOnly()
   @Post(':id/run')
-  run(@CurrentSession() s: Session, @Param('id') id: string, @Body(new ZodPipe(RunJobInputSchema)) body: RunJobInput) {
+  run(@CurrentSession() s: Session, @Param('id') id: string, @Body(new ZodPipe(RunJobInputSchema.default({}))) body: RunJobInput) {
     return this.jobs.runNow(s, id, body);
   }
 }

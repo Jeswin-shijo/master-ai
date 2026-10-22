@@ -14,8 +14,9 @@ function title(icon: React.ReactNode, text: string) {
 
 /**
  * What an industry setup gives the business, in everyday words for owners and
- * their clients: the AI team and what each may do, what is kept track of, the
- * rules, the ready-made jobs and what is measured. No tool or code names.
+ * their clients: the AI team (each one's mission, what it never handles and what
+ * it may do), what is kept track of, the rules, the ready-made jobs and what is
+ * measured. No tool or code names.
  */
 export function PackSummary({ pack }: { pack: ResolvedPack }) {
   return (
@@ -36,7 +37,17 @@ export function PackSummary({ pack }: { pack: ResolvedPack }) {
                     <Badge tone="primary">{clearance.short}</Badge>
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-fg-muted">{a.description}</p>
+                <p className="mt-1 text-sm text-fg-muted">{a.job?.mission ?? a.description}</p>
+                {!!a.job?.never.length && (
+                  <>
+                    <p className="mt-2 text-xs text-fg-muted">Never handles:</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-fg" aria-label={`What the ${a.name} never handles`}>
+                      {a.job.never.map((n, i) => (
+                        <li key={i}>{n}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 <p className="mt-2 text-xs text-fg-muted">Can:</p>
                 <ul className="mt-1 flex flex-wrap gap-1" aria-label={`What the ${a.name} can do`}>
                   {a.tools.map((t) => (

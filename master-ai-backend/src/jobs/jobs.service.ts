@@ -13,7 +13,19 @@ import {
   startJobState,
   withPreset,
 } from '@onehuman/agent-kit';
-import type { CaseSource, JobDef, JobRunView, JobSwitchInput, JobTriggerKind, JobView, PlannedTask, ResolvedPack, RunJobInput } from '@onehuman/schemas';
+import type {
+  CaseSource,
+  JobDef,
+  JobRunStart,
+  JobRunView,
+  JobSkipReason,
+  JobSwitchInput,
+  JobTriggerKind,
+  JobView,
+  PlannedTask,
+  ResolvedPack,
+  RunJobInput,
+} from '@onehuman/schemas';
 import { AuditService, SYSTEM, type Actor } from '../audit/audit.service';
 import type { Session } from '../common/auth';
 import { iso } from '../common/zod';
@@ -51,8 +63,8 @@ export interface StartRunInput {
   goalId?: string;
 }
 
-export type SkipReason = 'off' | 'paused' | 'cap' | 'duplicate';
-export type StartRunResult = { runId: string; goalId: string } | { skipped: SkipReason };
+export type SkipReason = JobSkipReason;
+export type StartRunResult = JobRunStart;
 
 /** Raised inside the run's savepoint so the goal and task inserted for a duplicate trigger roll back. */
 class DuplicateRun extends Error {}
@@ -108,23 +120,28 @@ export class JobsService {
   async list(tenantId: string, workspaceId?: string): Promise<JobView[]> {
     return this.db.tenant(tenantId, async (tx) => {
       const ws = await this.records.activeWorkspace(tx, workspaceId);
-      const pack = normalizeSnapshot(ws.pack);
-      if (pack.jobs.length === 0) return [];
-      const settings = await tx.select().from(jobSettings).where(eq(jobSettings.workspaceId, ws.id));
-      const last = await tx
-        .selectDistinctOn([jobRuns.jobId])
-        .from(jobRuns)
-        .where(eq(jobRuns.workspaceId, ws.id))
-        .orderBy(jobRuns.jobId, desc(jobRuns.createdAt));
-      return pack.jobs.map((job) =>
-        toJobView(
-          pack,
-          job,
-          settings.find((s) => s.jobId === job.id),
-          last.find((r) => r.jobId === job.id),
-        ),
-      );
+      return this.views(tx, ws.id, ws.pack);
     });
+  }
+
+  /** One workspace's jobs as `list` shows them, inside the caller's transaction (the Agents page groups them by agent). */
+  async views(tx: Tx, workspaceId: string, snapshot: ResolvedPack): Promise<JobView[]> {
+    const pack = normalizeSnapshot(snapshot);
+    if (pack.jobs.length === 0) return [];
+    const settings = await tx.select().from(jobSettings).where(eq(jobSettings.workspaceId, workspaceId));
+    const last = await tx
+      .selectDistinctOn([jobRuns.jobId])
+      .from(jobRuns)
+      .where(eq(jobRuns.workspaceId, workspaceId))
+      .orderBy(jobRuns.jobId, desc(jobRuns.createdAt));
+    return pack.jobs.map((job) =>
+      toJobView(
+        pack,
+        job,
+        settings.find((s) => s.jobId === job.id),
+        last.find((r) => r.jobId === job.id),
+      ),
+    );
   }
 
   /** A job's latest runs, newest first. */

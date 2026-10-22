@@ -25,6 +25,11 @@ import type {
   CreatedIntakeKey,
   IntakeCaseInput,
   IntakeKey,
+  JobRunStart,
+  JobRunView,
+  JobSwitchInput,
+  JobView,
+  RunJobInput,
   PublicForm,
   PublicFormInput,
   ApprovalDecisionInput,
@@ -230,6 +235,16 @@ export function createClient(options: ClientOptions) {
       suggestions: () => get<AutonomySuggestion[]>('/agents/autonomy/suggestions'),
       addOverride: (id: string, input: AutonomyOverrideInput) => post<AutonomyOverride>(`/agents/${id}/overrides`, input),
       removeOverride: (id: string, overrideId: string) => del<{ ok: true }>(`/agents/${id}/overrides/${overrideId}`),
+    },
+    jobs: {
+      /** The workspace's jobs, each with its switch, daily limit and last run. */
+      list: () => get<JobView[]>('/jobs'),
+      /** A job's latest runs, newest first. */
+      runs: (id: string) => get<JobRunView[]>(`/jobs/${encodeURIComponent(id)}/runs`),
+      /** Switch a job on or off, or change its daily limit. */
+      switch: (id: string, input: JobSwitchInput) => patch<JobView>(`/jobs/${encodeURIComponent(id)}`, input),
+      /** Run now, with what the person typed in, if anything. */
+      run: (id: string, input: RunJobInput = {}) => post<JobRunStart>(`/jobs/${encodeURIComponent(id)}/run`, input),
     },
     goals: {
       list: () => get<Goal[]>('/goals'),
