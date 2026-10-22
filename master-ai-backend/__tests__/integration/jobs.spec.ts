@@ -371,6 +371,38 @@ describe('jobs and job cards from the base packs', () => {
     expect(recorded('syncJobSchedule').at(-1)).toEqual({ tenantId: session.tenantId, workspaceId: ws.id, jobId: 'spec-installed', days: [1, 2, 3, 4, 5, 6], time: '09:00', active: true });
     expect((await jobs.list(session.tenantId)).map((j) => ({ id: j.id, enabled: j.enabled }))).toEqual([{ id: 'spec-installed', enabled: true }]);
   });
+
+  it('an install with sample data starts nothing on its first sweep: the mark lies after the rows the install seeded', async () => {
+    const type = ORG_TYPES.find((t) => t.id === 'power-plant')!;
+    const auth = await h.get(IdentityService).signup(
+      { companyName: `Spec sweep ${randomBytes(2).toString('hex')}`, ownerName: 'Asha Owner', email: uniqueEmail('owner'), password: PASSWORD, sector: type.sector, orgType: type.id },
+      anyIp(),
+    );
+    const session: Session = { userId: auth.user.userId, principalId: auth.user.principalId, tenantId: auth.tenant.id, role: 'owner' };
+    const onboarding = h.get(OnboardingService);
+    const draft = await onboarding.preview(session, {});
+    const agent: PackAgent = {
+      ...draft.pack.agents[0]!,
+      role: JOB_TESTER,
+      name: 'Job tester',
+      job: { mission: 'Watches the plant.', never: [], customer_facing: false, escalate: [], forbid: [], trial_days: 14, metrics: [] },
+    };
+    const defs = [JobDefSchema.parse({ ...recordJob('spec-installed-created', 'created'), agent: JOB_TESTER }), JobDefSchema.parse({ ...listJob('spec-installed-list'), agent: JOB_TESTER })];
+    const pack: ResolvedPack = { ...draft.pack, agents: [...draft.pack.agents, agent], jobs: defs };
+    await h.owner.query(`update pack_drafts set pack = $2::jsonb where id = $1`, [draft.id, JSON.stringify(pack)]);
+
+    const ws = await onboarding.install(session, draft.id, true);
+    const { rows: seeded } = await h.owner.query<{ n: string; late: string }>(
+      `select count(*) as n, count(*) filter (where r.created_at >= js.swept_at or r.updated_at >= js.swept_at) as late
+       from records r, job_settings js where r.workspace_id = $1 and js.workspace_id = $1 and r.entity = 'Equipment'`,
+      [ws.id],
+    );
+    expect(Number(seeded[0]!.n)).toBeGreaterThan(0);
+    expect(Number(seeded[0]!.late)).toBe(0);
+
+    expect(await jobs.sweep(session.tenantId)).toEqual({ started: 0 });
+    expect(await count(`select count(*) as n from job_runs where workspace_id = $1`, [ws.id])).toBe(0);
+  });
 });
 
 // ---------- Task 10: request triggers and the list and record sweep ----------
@@ -415,6 +447,24 @@ async function caseRow(org: Org, id: string) {
 async function equipment(org: Org) {
   const { rows } = await h.owner.query<{ id: string; data: Record<string, unknown> }>(
     `select id, data from records where workspace_id = $1 and entity = 'Equipment' order by created_at, id`,
+    [org.workspaceId],
+  );
+  return rows;
+}
+
+/** Three real (manual) equipment records, made through RecordsService.create from the sample data. */
+async function realEquipment(org: Org) {
+  const records = h.get(RecordsService);
+  const [sample] = await equipment(org);
+  const tag = randomBytes(2).toString('hex');
+  await h.get(DbService).tenant(org.tenantId, async (tx) => {
+    const ws = await records.activeWorkspace(tx, org.workspaceId);
+    for (let i = 1; i <= 3; i++) {
+      await records.create(tx, org.tenantId, ws, 'Equipment', { ...sample!.data, tag: `R-${tag}-${i}`, name: `Real pump ${i}`, nextMaintenance: day(30) }, { id: org.session.principalId, kind: 'human' });
+    }
+  });
+  const { rows } = await h.owner.query<{ id: string; data: Record<string, unknown> }>(
+    `select id, data from records where workspace_id = $1 and entity = 'Equipment' and source <> 'sample' order by created_at, id`,
     [org.workspaceId],
   );
   return rows;
@@ -547,10 +597,23 @@ describe('request jobs', () => {
 });
 
 describe('the list and record sweep', () => {
+  it('starts nothing for sample items and sample records', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const list = await installJobFixture(h, org, listJob('spec-sample-list'));
+    const watch = await installJobFixture(h, org, recordJob('spec-sample-watch', 'either'));
+    const samples = await equipment(org);
+    expect(samples.length).toBeGreaterThan(0);
+    await h.owner.query(`update records set source = 'sample' where workspace_id = $1 and entity = 'Equipment'`, [org.workspaceId]);
+    await h.owner.query(`update records set created_at = now(), updated_at = now(), data = jsonb_set(data, '{nextMaintenance}', to_jsonb($2::text)) where workspace_id = $1 and entity = 'Equipment'`, [org.workspaceId, day(-4)]);
+    await jobs.sweep(org.tenantId);
+    expect(await runsOf(org, list.jobId)).toBe(0);
+    expect(await runsOf(org, watch.jobId)).toBe(0);
+  });
+
   it('starts one run per due list item, once per due date', async () => {
     const org = await newOrg(h, 'power-plant');
+    const [a, b, notDue] = await realEquipment(org);
     const { jobId } = await installJobFixture(h, org, listJob('spec-pm-due'));
-    const [a, b, notDue] = await equipment(org);
     await updateEquipment(org, a!.id, { nextMaintenance: day(-5) });
     await updateEquipment(org, b!.id, { nextMaintenance: day(-2) });
 
@@ -576,8 +639,8 @@ describe('the list and record sweep', () => {
 
   it('starts one run per record change, and nothing when nothing changed', async () => {
     const org = await newOrg(h, 'power-plant');
+    const [a] = await realEquipment(org);
     const { jobId } = await installJobFixture(h, org, recordJob('spec-watch', 'updated'));
-    const [a] = await equipment(org);
 
     // Sample records made before the job was on are not changes.
     await jobs.sweep(org.tenantId);
@@ -600,8 +663,8 @@ describe('the list and record sweep', () => {
 
   it('a record job on created starts for new records only', async () => {
     const org = await newOrg(h, 'power-plant');
+    const [a] = await realEquipment(org);
     const { jobId } = await installJobFixture(h, org, recordJob('spec-new-equipment', 'created'));
-    const [a] = await equipment(org);
     await updateEquipment(org, a!.id, { location: 'Moved' });
     const records = h.get(RecordsService);
     const made = await h.get(DbService).tenant(org.tenantId, async (tx) => {
@@ -614,9 +677,9 @@ describe('the list and record sweep', () => {
 
   it('changes past the daily cap wait for a later sweep instead of being lost', async () => {
     const org = await newOrg(h, 'power-plant');
+    const [a, b] = await realEquipment(org);
     const { jobId } = await installJobFixture(h, org, recordJob('spec-capped-watch', 'either', { daily_cap: 1 }));
     vi.spyOn(h.get(NotificationsService), 'pushToManagers').mockResolvedValue();
-    const [a, b] = await equipment(org);
     await updateEquipment(org, a!.id, { location: 'Bay 1' });
     await updateEquipment(org, b!.id, { location: 'Bay 2' });
 
@@ -629,9 +692,9 @@ describe('the list and record sweep', () => {
 
   it('starts nothing while the company is paused, and catches up once it is resumed', async () => {
     const org = await newOrg(h, 'power-plant');
+    const [a] = await realEquipment(org);
     const list = await installJobFixture(h, org, listJob('spec-paused-list'));
     const watch = await installJobFixture(h, org, recordJob('spec-paused-watch', 'updated'));
-    const [a] = await equipment(org);
     await updateEquipment(org, a!.id, { nextMaintenance: day(-3) });
 
     const tenancy = h.get(TenancyService);
@@ -675,8 +738,8 @@ describe('the list and record sweep', () => {
 
   it('a record job switched back on does not run for what changed while it was off', async () => {
     const org = await newOrg(h, 'power-plant');
+    const [a] = await realEquipment(org);
     const { jobId } = await installJobFixture(h, org, recordJob('spec-off-watch', 'either'));
-    const [a] = await equipment(org);
     await jobs.switch(org.session, jobId, { enabled: false });
     await updateEquipment(org, a!.id, { location: 'Changed while off' });
     await jobs.sweep(org.tenantId);

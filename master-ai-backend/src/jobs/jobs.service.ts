@@ -194,6 +194,8 @@ export class JobsService {
 
   /**
    * A new install: every job of the pack is on (its agent starts on trial).
+   * Its mark is clock_timestamp(), not now(): rows the same transaction seeds
+   * afterwards carry now() and so lie before the mark.
    * Runs inside the install's transaction; the schedules follow the commit.
    */
   async enableAll(tx: Tx, tenantId: string, workspaceId: string, pack: ResolvedPack, actor: Actor): Promise<void> {
@@ -201,7 +203,7 @@ export class JobsService {
     for (const job of pack.jobs ?? []) {
       const [row] = await tx
         .insert(jobSettings)
-        .values({ tenantId, workspaceId, jobId: job.id, enabled: true, dailyCap: job.daily_cap, updatedBy: actor.id, sweptAt: sql`now()` })
+        .values({ tenantId, workspaceId, jobId: job.id, enabled: true, dailyCap: job.daily_cap, updatedBy: actor.id, sweptAt: sql`clock_timestamp()` })
         .onConflictDoNothing()
         .returning();
       if (!row) continue;
@@ -550,7 +552,7 @@ export class JobsService {
       (
         await tx.execute<{ id: string; data: Record<string, unknown> }>(sql`
           select r.id, r.data from records r
-          where r.workspace_id = ${s.workspaceId} and r.entity = ${reg.entity.name}
+          where r.workspace_id = ${s.workspaceId} and r.entity = ${reg.entity.name} and r.source <> 'sample'
             and ${dueRuleSql({ due, ...(t.when && { when: t.when }) }, reg.entity, { now, today: istDate(now) })}
             and not exists (
               select 1 from job_runs j where j.workspace_id = r.workspace_id and j.job_id = ${s.job.id}
@@ -603,7 +605,7 @@ export class JobsService {
         const rows = (
           await tx.execute<Row>(sql`
             select r.id, r.data, ${version}::text as v, ${version} as at from records r
-            where r.workspace_id = ${s.workspaceId} and r.entity = ${entity.name}
+            where r.workspace_id = ${s.workspaceId} and r.entity = ${entity.name} and r.source <> 'sample'
               and ${version} >= ${mark} ${changed}
               and (${conditionSql(entity, t.when)})
               ${after ? sql`and (${version}, r.id) > (${after.v}::timestamptz, ${after.id}::uuid)` : sql``}
