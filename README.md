@@ -146,6 +146,7 @@ An installed workspace keeps a snapshot of its pack. When the base packs later g
 11. [Google Gemini as an optional second model provider](docs/adr/0011-gemini-as-a-second-model-provider.md)
 12. [Lists and checks](docs/adr/0012-lists-and-checks.md)
 13. [Calls that fill lists, and calls to outside parties](docs/adr/0013-calls-to-outside-parties.md)
+14. [Job cards and jobs](docs/adr/0014-job-cards-and-jobs.md)
 
 ## Not built yet
 

@@ -92,6 +92,14 @@ The words ONEHUMAN OS uses, in the product and in the code. Code names are in `b
 
 **Pack**: what the platform knows about one kind of organization: stages, categories, roles, agents, tools, records, workflows, rules, routines, KPIs and playbooks. It is written as YAML in `packs/`. Packs build on each other with `extends`.
 
+**Job card**: what an agent is for, written in the pack: its mission, what it never does, tools it may never use, and the words that make it hand over to a person. Code: `job` on a pack agent, `JobCard`.
+
+**Job**: a fixed list of steps (read, ask the AI, check, act) that a trigger starts and the task workflow runs. The AI only fills typed fields; code checks and decides. Code: `jobs:` in pack YAML, `JobDef`, `JobRunnerService`.
+
+**Escalation set** (*stop words*): a named group of words that makes an agent stop and hand over to a person, with who is alerted and what the customer is told. Some are shared by every customer-facing agent. Code: `escalations:` and `job.escalate`, `EscalationSet`.
+
+**Six-part prompt**: the shape of every model call made for an agent: ROLE, RULES, OUTPUT and ESCALATE WHEN in the system message, TASK and DATA in the user message, with the data fenced as untrusted. Code: `sixPartSystem`, `sixPartUser`.
+
 **Lifecycle**: the part of a pack about cases: the stage names, priorities, roles, categories and worked examples.
 
 **Snapshot**: the copy of its pack a workspace keeps. Later improvements to the base packs reach it only as additions the owner applies.

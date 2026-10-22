@@ -144,3 +144,27 @@ Reviews found these while part 2 was built, and a follow-up pass fixed most of t
 - **Packs:**
   - Lookup fields aren't type-checked.
   - A model-written pack with two follow-ups of the same id loses that list.
+
+## Agent method, plan 1a (job cards and jobs)
+
+No pack ships `jobs:` yet, so none of this reaches an owner. What waits, and the small things reviews left.
+
+### Waiting for plan 1b
+- **Trial runs, test sheets and going live.** A card has `trial_days` and `metrics`, but nothing captures trial runs yet and an agent does not start "on trial". Until these land no pack ships `jobs:`.
+- **A refused request job.** When a request job is refused or stops, the case goes back to the planner. Decide whether it should hold the case instead.
+- **Run origin.** List and record runs use origin `owner`, even for records that came from calls or agents.
+- **List sweeps do not skip checked items**, on purpose (a list job's `read from: list` does). A run is limited to one per item and due date. Do not change it the other way.
+
+### Waiting for part 2
+- **Delivering escalation replies.** The reply of a stop-word set is drafted and audited, never sent.
+- **OTP and PIN digits.** Word sets do not catch "otp 4821" or "mera pin 1234". A code check for digits after "otp" or "pin" belongs with the front desk.
+
+### Small and known
+- **The jobs API acts on the newest workspace only.** That is right while a company has one workspace. The workspace id must be passed before jobs ship.
+- **Word matching** knows a fixed list of endings; doubled-consonant and -ies forms are not matched, and a zero-width character inside a word can split it. List both forms in a set (see the [pack guide](packs.md)). The emergency word "112" also matches an amount like "Rs 112".
+- **An escalate check with no text passes.** Pack validation catches a template that points at nothing, but a run whose text is empty is not stopped.
+- **`in_data` is strict about spaced amounts.** "45 L" and "40 k" fail (the check refuses to guess); "45L" and "45 lakh" pass.
+- **Every job stop also pushes "A task needs you"** to managers, so an escalation or a plain duplicate stop can notify twice.
+- **Cap and overlap edges.** Two manual runs at the same moment can pass the cap together when the job has no settings row yet. A run's budget check can end it `stopped` just after its last act ran. The sweeps spend a run on a record seen again before the duplicate is found.
+- **Owner edits.** The word box has no length limit and may show raw validation text past 200 words in a set. The daily-limit box does not follow a change made elsewhere until it is reloaded. Saving a mission for an agent with no card creates one; if a later pack update adds a card for that role it is skipped, and every save then fails.
+- **Rejection notes** from an owner sit inside the untrusted-data fence of the prompt while the rules tell the model to use them.
