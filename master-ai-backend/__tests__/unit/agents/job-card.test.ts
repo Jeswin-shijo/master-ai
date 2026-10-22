@@ -29,8 +29,8 @@ describe('the job card owners read', () => {
       never: ['Refunds'],
       customerFacing: true,
       escalations: [
-        { id: 'emergency', label: 'Emergencies', words: ['fire', 'gas leak'], reply: 'Please call 112 now.', alert: 'safety-officer', inherited: true, fromPack: true },
-        { id: 'allergy', label: 'Allergies', words: ['allergy', 'peanut'], reply: null, alert: 'owner', inherited: false, fromPack: true },
+        { id: 'emergency', label: 'Emergencies', words: ['fire', 'gas leak'], reply: 'Please call 112 now.', alert: 'safety-officer', inherited: true, fromPack: true, packWords: ['fire', 'gas leak'] },
+        { id: 'allergy', label: 'Allergies', words: ['allergy', 'peanut'], reply: null, alert: 'owner', inherited: false, fromPack: true, packWords: ['allergy', 'peanut'] },
       ],
       forbidden: ['refund.issue'],
       trialDays: 14,
@@ -44,6 +44,18 @@ describe('the job card owners read', () => {
 });
 
 describe("an owner's edit", () => {
+  it('compares sets by what they say, not by how the stored card orders its keys', () => {
+    // Read back from jsonb: keys in jsonb's order, not the order the edit builds them in.
+    const stored = JSON.parse(
+      '{"role":"front-desk","name":"Front desk","description":"Answers customers.","tools":["records.search"],"job":{"never":["Refunds"],"forbid":[],"metrics":[],"mission":"Answer every customer enquiry.","escalate":[{"id":"emergency","alert":"safety-officer","label":"Emergencies","reply":"Please call 112 now.","words":["fire","gas leak","sparking"]},{"id":"allergy","alert":"owner","label":"Allergies","words":["allergy","peanut"]}],"trial_days":14,"customer_facing":true}}',
+    ) as PackAgent;
+    const shown = jobCardView(agent(stored), pack)!;
+    expect(shown.escalations.find((s) => s.id === 'emergency')).toMatchObject({ words: ['fire', 'gas leak', 'sparking'], packWords: ['fire', 'gas leak'] });
+    const sets = shown.escalations.map(({ id, label, words, alert, reply }) => ({ id, label, words, alert, ...(reply && { reply }) }));
+    expect(editJobCard(agent(stored), pack, { mission: shown.mission, never: shown.never, escalate: sets }).changed).toEqual([]);
+    expect(editJobCard(agent(stored), pack, { mission: 'Answer every enquiry.', escalate: sets }).changed).toEqual(['mission']);
+  });
+
   it('counts pack words however they are written, and keeps them as the owner wrote them', () => {
     const sets = asShown().map((s) => (s.id === 'emergency' ? { ...s, words: ['FIRE ', 'Gas Leak', 'sparking', 'sparking'] } : s));
     const { card } = editJobCard(agent(), pack, { escalate: sets });

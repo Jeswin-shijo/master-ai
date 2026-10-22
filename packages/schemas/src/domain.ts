@@ -143,6 +143,8 @@ export interface AgentJobCardView {
     inherited: boolean;
     /** Came with the pack: it can't be removed, and its pack words can't be taken out. */
     fromPack: boolean;
+    /** The words the pack gave this set (empty for an owner's set). Words beyond these are the owner's and can be taken out. */
+    packWords: string[];
   }[];
   /** Tool names the agent may not use. */
   forbidden: string[];

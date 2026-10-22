@@ -9,8 +9,8 @@ export interface SetDraft {
   alert: string;
   inherited: boolean;
   fromPack: boolean;
-  /** Words that stay: on a set that came with the pack, every word it had when editing began. */
-  kept: string[];
+  /** The words the pack gave the set: they stay. Any other word is the owner's and can be taken out. */
+  packWords: string[];
 }
 
 /** The card while the owner edits it. */
@@ -26,7 +26,7 @@ export function draftOf(card: AgentJobCardView): CardDraft {
   return {
     mission: card.mission,
     never: [...card.never],
-    sets: card.escalations.map((s) => ({ ...s, words: [...s.words], kept: s.fromPack ? [...s.words] : [] })),
+    sets: card.escalations.map((s) => ({ ...s, words: [...s.words], packWords: [...s.packWords] })),
   };
 }
 
@@ -37,9 +37,12 @@ export function withWord(set: SetDraft, word: string): SetDraft {
   return { ...set, words: [...set.words, w] };
 }
 
-/** The set without a word the owner added; the words a pack set came with stay. */
+/** Whether a word came with the pack, so it stays on the set. */
+export const isPackWord = (set: Pick<SetDraft, 'packWords'>, word: string) => set.packWords.some((w) => fold(w) === fold(word));
+
+/** The set without a word the owner added; the words the pack gave it stay. */
 export function withoutWord(set: SetDraft, word: string): SetDraft {
-  return set.kept.includes(word) ? set : { ...set, words: set.words.filter((w) => w !== word) };
+  return isPackWord(set, word) ? set : { ...set, words: set.words.filter((w) => w !== word) };
 }
 
 /** A new word set of the owner's, with an id made from its name and not yet taken. */
@@ -54,7 +57,7 @@ export function newSet(label: string, taken: string[]): SetDraft {
       .replace(/-+$/, '') || 'words';
   let id = base;
   for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`;
-  return { id, label: label.trim(), words: [], reply: null, alert: 'owner', inherited: false, fromPack: false, kept: [] };
+  return { id, label: label.trim(), words: [], reply: null, alert: 'owner', inherited: false, fromPack: false, packWords: [] };
 }
 
 /** What the API takes: every set the card should have, with its words, alert and reply. */

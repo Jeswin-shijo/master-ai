@@ -6,7 +6,7 @@ import { newOrganization, signInAs } from './helpers';
  * a safety word set the agent inherited. `smoke` is already one of the pack's
  * emergency words, so the test adds a word the pack doesn't have.
  */
-test('each agent shows its job card, and a word added to an inherited set is still there after a reload', async ({ page }) => {
+test('each agent shows its job card, and a word added to an inherited set stays after a reload until the owner takes it out', async ({ page }) => {
   const org = await newOrganization('power-plant');
   await signInAs(page, org);
   await page.goto('/agents');
@@ -30,4 +30,17 @@ test('each agent shows its job card, and a word added to an inherited set is sti
   await saved.getByText('Emergencies', { exact: true }).click();
   await expect(saved.getByRole('list', { name: 'Words for Emergencies' }).getByText('sparking', { exact: true })).toBeVisible();
   await expect(saved.getByText('Inherited')).toBeVisible();
+
+  // Saved, the owner's word can still be taken out again; the pack's words can't.
+  const card = page.getByRole('article', { name: 'Consumer service desk' });
+  await card.getByRole('button', { name: 'Edit job card' }).click();
+  const editing = card.getByRole('group', { name: 'Emergencies' });
+  await expect(editing.getByRole('button', { name: 'Take out fire' })).toHaveCount(0);
+  await editing.getByRole('button', { name: 'Take out sparking' }).click();
+  await card.getByRole('button', { name: 'Save job card' }).click();
+  await page.reload();
+  const after = page.getByRole('article', { name: 'Consumer service desk' }).getByRole('group', { name: 'Emergencies' });
+  await after.getByText('Emergencies', { exact: true }).click();
+  await expect(after.getByRole('list', { name: 'Words for Emergencies' }).getByText('fire', { exact: true })).toBeVisible();
+  await expect(after.getByRole('list', { name: 'Words for Emergencies' }).getByText('sparking', { exact: true })).toHaveCount(0);
 });

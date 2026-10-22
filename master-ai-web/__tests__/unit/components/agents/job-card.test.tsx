@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { JobCard, JobCardEditor } from '@/components/agents/job-card';
-import { cardEdit, draftOf, withWord } from '@/lib/job-card';
+import { cardEdit, draftOf, withoutWord, withWord } from '@/lib/job-card';
 import { agentWith, CARD } from './fixtures';
 
 const render = (node: ReactNode) => renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>);
@@ -17,7 +17,7 @@ describe('the job card', () => {
     expect(html).toContain('Never handles');
     for (const item of CARD.never) expect(html).toContain(item);
     expect(html).toContain('Escalates to a person when');
-    for (const word of ['fire', 'gas leak', 'करंट', 'tampered']) expect(html).toContain(`>${word}<`);
+    for (const word of ['fire', 'gas leak', 'करंट', 'cylinder blast', 'tampered']) expect(html).toContain(`>${word}<`);
   });
 
   it('marks the inherited set, names who is alerted and quotes the reply', () => {
@@ -49,6 +49,15 @@ describe('editing the job card', () => {
     expect(html).not.toContain('Remove the word set Emergencies');
   });
 
+  it("lets the owner take out words they added, also on a pack set, but never the pack's own words", () => {
+    expect(html).toContain('aria-label="Take out cylinder blast"');
+    expect(html).toContain('aria-label="Take out tampered"');
+    for (const word of ['fire', 'gas leak', 'करंट']) expect(html).not.toContain(`aria-label="Take out ${word}"`);
+    const emergency = draftOf(CARD).sets[0]!;
+    expect(withoutWord(emergency, 'cylinder blast').words).toEqual(['fire', 'gas leak', 'करंट']);
+    expect(withoutWord(emergency, 'fire')).toBe(emergency);
+  });
+
   it('lets words be added to any set, and only the owner set be renamed', () => {
     expect(html).toContain('aria-label="Add a word to Emergencies"');
     expect(html).toContain('aria-label="Add a word to Meter tampering"');
@@ -63,7 +72,7 @@ describe('editing the job card', () => {
       mission: CARD.mission,
       never: CARD.never,
       escalate: [
-        { id: 'emergency', label: 'Emergencies', words: ['fire', 'gas leak', 'करंट', 'sparking'], alert: 'owner', reply: 'If anyone is in danger, please call 112 now.' },
+        { id: 'emergency', label: 'Emergencies', words: ['fire', 'gas leak', 'करंट', 'cylinder blast', 'sparking'], alert: 'owner', reply: 'If anyone is in danger, please call 112 now.' },
         { id: 'meter-tamper', label: 'Meter tampering', words: ['tampered'], alert: 'owner' },
       ],
     });

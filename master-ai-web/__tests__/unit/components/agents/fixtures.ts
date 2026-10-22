@@ -1,6 +1,6 @@
 import type { AgentJobCardView, AgentView, JobView } from '@onehuman/schemas';
 
-/** A customer-facing desk's card: one set every customer desk inherits, one the owner added. */
+/** A customer-facing desk's card: one set every customer desk inherits (with a word the owner added), one set the owner added. */
 export const CARD: AgentJobCardView = {
   mission: 'Register supply complaints and keep consumers updated.',
   may: ['records.search', 'message.send'],
@@ -10,13 +10,15 @@ export const CARD: AgentJobCardView = {
     {
       id: 'emergency',
       label: 'Emergencies',
-      words: ['fire', 'gas leak', 'करंट'],
+      // The pack's words, then one the owner added in an earlier save.
+      words: ['fire', 'gas leak', 'करंट', 'cylinder blast'],
       reply: 'If anyone is in danger, please call 112 now.',
       alert: 'owner',
       inherited: true,
       fromPack: true,
+      packWords: ['fire', 'gas leak', 'करंट'],
     },
-    { id: 'meter-tamper', label: 'Meter tampering', words: ['tampered'], reply: null, alert: 'owner', inherited: false, fromPack: false },
+    { id: 'meter-tamper', label: 'Meter tampering', words: ['tampered'], reply: null, alert: 'owner', inherited: false, fromPack: false, packWords: [] },
   ],
   forbidden: ['refund.issue'],
   trialDays: 14,

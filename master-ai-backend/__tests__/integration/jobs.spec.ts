@@ -817,6 +817,8 @@ describe('the job card owners read and edit', () => {
     // An internal desk inherits none of the customer sets and keeps its own pack set.
     const safety = await agentOf(org, 'safety-desk');
     expect(safety.job!.escalations).toEqual([expect.objectContaining({ id: 'plant-safety', label: 'Plant safety', inherited: false, fromPack: true })]);
+    expect(safety.job!.escalations[0]!.packWords).toEqual(safety.job!.escalations[0]!.words);
+    expect(desk.job!.escalations.every((e) => e.packWords.length > 0 && e.packWords.every((w) => e.words.includes(w)))).toBe(true);
     expect(await agentsService().get(org.tenantId, safety.id)).toMatchObject({ job: safety.job, jobs: [] });
 
     const { jobId } = await installJobFixture(h, org, manualJob('spec-card-jobs'));
@@ -859,6 +861,9 @@ describe('the job card owners read and edit', () => {
     const after = await agentsService().update(org.session, desk.id, { job: { escalate: sets } });
 
     expect(after.job!.escalations.find((e) => e.id === 'emergency')).toEqual({ ...emergency, words: [...emergency.words, 'sparking'] });
+    // The page can tell the owner's word from the pack's: only the pack's stay locked.
+    expect(after.job!.escalations.find((e) => e.id === 'emergency')!.packWords).toEqual(emergency.packWords);
+    expect(emergency.packWords).not.toContain('sparking');
     expect(after.job!.escalations.map((e) => e.id)).toEqual(['emergency', 'distress', 'anger', 'legal-threat', 'secrets']);
     const stored = await storedCard(desk.id);
     expect(stored?.escalate).toEqual([
@@ -884,6 +889,7 @@ describe('the job card owners read and edit', () => {
       alert: 'owner',
       inherited: false,
       fromPack: false,
+      packWords: [],
     });
 
     const renamed = await agentsService().update(org.session, desk.id, { job: { escalate: editable(added).map((s) => (s.id === 'meter-tamper' ? { ...s, label: 'Meter tampering or theft' } : s)) } });
@@ -910,5 +916,33 @@ describe('the job card owners read and edit', () => {
 
     await agentsService().update(org.session, coordinator.id, { job: { mission: after.job!.mission, never: after.job!.never, escalate: editable(after) } });
     expect(await cardAudits(coordinator.id)).toEqual([expect.objectContaining({ name: 'Case coordinator', changed: ['mission', 'never'] })]);
+  });
+
+  it('a save that changes nothing writes and audits nothing, also on cards that hold sets of their own', async () => {
+    const org = await newOrg(h, 'power-plant');
+    const stamp = async (agentId: string) =>
+      (await h.owner.query<{ t: Date }>(`select updated_at as t from agents where id = $1`, [agentId])).rows[0]!.t.toISOString();
+    const resave = (view: AgentView, mission = view.job!.mission) =>
+      agentsService().update(org.session, view.id, { job: { mission, never: view.job!.never, escalate: editable(view) } });
+
+    // The safety desk's card holds its pack set from install, read back from jsonb.
+    const safety = await agentOf(org, 'safety-desk');
+    const safetyStamp = await stamp(safety.id);
+    expect(await resave(safety)).toMatchObject({ job: safety.job });
+    expect(await stamp(safety.id)).toBe(safetyStamp);
+    expect(await cardAudits(safety.id)).toEqual([]);
+
+    // The consumer desk once the owner has added a word to an inherited set.
+    const desk = await agentOf(org, 'consumer-desk');
+    const added = await agentsService().update(org.session, desk.id, {
+      job: { escalate: editable(desk).map((s) => (s.id === 'emergency' ? { ...s, words: [...s.words, 'sparking'] } : s)) },
+    });
+    const deskStamp = await stamp(desk.id);
+    await resave(added);
+    expect(await stamp(desk.id)).toBe(deskStamp);
+    expect((await cardAudits(desk.id)).map((p) => p.changed)).toEqual([['escalate']]);
+
+    await resave(added, 'Register supply complaints and keep consumers updated by SMS.');
+    expect((await cardAudits(desk.id)).map((p) => p.changed)).toEqual([['escalate'], ['mission']]);
   });
 });

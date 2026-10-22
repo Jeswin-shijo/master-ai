@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorNote } from '@/components/ui/feedback';
 import { Input, Textarea } from '@/components/ui/form';
 import { api } from '@/lib/api';
-import { alertWords, cardEdit, draftOf, draftProblem, newSet, withoutWord, withWord, type CardDraft, type SetDraft } from '@/lib/job-card';
+import { alertWords, cardEdit, draftOf, draftProblem, isPackWord, newSet, withoutWord, withWord, type CardDraft, type SetDraft } from '@/lib/job-card';
 import { cn } from '@/lib/utils';
 
 const heading = 'text-xs font-medium text-fg-muted';
@@ -166,13 +166,14 @@ function JobCardRead({ card, pack, trusted }: { card: AgentJobCardView; pack?: R
   );
 }
 
-function Words({ set, onTakeOut }: { set: Pick<SetDraft, 'label' | 'words'> & { kept?: string[] }; onTakeOut?: (word: string) => void }) {
+/** A set's words as chips. While editing, each word the owner added has a remove control; the pack's words have none. */
+function Words({ set, onTakeOut }: { set: Pick<SetDraft, 'label' | 'words' | 'packWords'>; onTakeOut?: (word: string) => void }) {
   return (
     <ul className="flex flex-wrap gap-1" aria-label={`Words for ${set.label}`}>
       {set.words.map((w, i) => (
         <li key={`${w}-${i}`} className={cn(chip, 'inline-flex max-w-full items-center gap-1 break-words')}>
           <span className="min-w-0">{w}</span>
-          {onTakeOut && !set.kept?.includes(w) && (
+          {onTakeOut && !isPackWord(set, w) && (
             <button type="button" className="text-fg-muted hover:text-fg" aria-label={`Take out ${w}`} onClick={() => onTakeOut(w)}>
               <X className="size-3" aria-hidden />
             </button>
@@ -278,7 +279,7 @@ export function JobCardEditor({ draft, pack, onChange }: { draft: CardDraft; pac
       </Part>
 
       <Part title="Escalates to a person when">
-        <p className="text-xs text-fg-muted">Any of these words in a message makes it stop and hand over to a person. Sets that came with your setup keep their words.</p>
+        <p className="text-xs text-fg-muted">Any of these words in a message makes it stop and hand over to a person. The words that came with your setup stay; words you added can be taken out.</p>
         {draft.sets.map((s, i) => (
           <SetEditor
             key={s.id}

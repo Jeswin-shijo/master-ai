@@ -27,13 +27,16 @@ const withCard = (agent: AgentRow, pack: Pack, card: JobCard): Pack => ({
 export function jobCardView(agent: AgentRow, pack: Pack): AgentJobCardView | null {
   const card = cardOf(agent, pack);
   if (!card) return null;
-  const fromPack = new Set(escalationsFor(pack, agent.role).map((s) => s.id));
+  const packSets = escalationsFor(pack, agent.role);
   return {
     mission: card.mission,
     may: agent.spec.tools.filter((t) => !card.forbid.includes(t)),
     never: card.never,
     customerFacing: card.customer_facing,
-    escalations: escalationsFor(withCard(agent, pack, card), agent.role).map((s) => ({ ...s, fromPack: fromPack.has(s.id) })),
+    escalations: escalationsFor(withCard(agent, pack, card), agent.role).map((s) => {
+      const packWords = packSets.find((p) => p.id === s.id)?.words;
+      return { ...s, fromPack: packWords !== undefined, packWords: packWords ?? [] };
+    }),
     forbidden: card.forbid,
     trialDays: card.trial_days,
   };
@@ -41,6 +44,17 @@ export function jobCardView(agent: AgentRow, pack: Pack): AgentJobCardView | nul
 
 const fold = (w: string) => w.normalize('NFC').trim().toLowerCase();
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * A card part in a fixed shape, so a card read back from jsonb (keys in jsonb's
+ * order, no `reply` key when there is none) compares equal to the same card
+ * built by an edit. A set's `for` is left out: only shared sets use it.
+ */
+function canonical(part: 'mission' | 'never' | 'escalate', card: JobCard): unknown {
+  if (part !== 'escalate') return card[part];
+  return card.escalate.map((s) => [s.id, s.label, s.alert, s.reply ?? null, s.words]);
+}
+
 const trimmed = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))];
 
 /** Words once each, however they are written ("Fire" and "fire " are one word). */
@@ -75,7 +89,7 @@ export function editJobCard(agent: AgentRow, pack: Pack, edit: JobCardEdit): { c
   if (edit.never !== undefined) card.never = trimmed(edit.never);
   if (edit.escalate !== undefined) card.escalate = ownSets(agent, pack, before, edit.escalate);
   const parts = ['mission', 'never', 'escalate'] as const;
-  const changed = live ? parts.filter((k) => !same(before[k], card[k])) : parts.filter((k) => edit[k] !== undefined);
+  const changed = live ? parts.filter((k) => !same(canonical(k, before), canonical(k, card))) : parts.filter((k) => edit[k] !== undefined);
   return { card, changed };
 }
 
