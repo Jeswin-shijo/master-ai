@@ -157,11 +157,11 @@ No pack ships `jobs:` yet, so none of this reaches an owner. What waits, and the
 
 ### Waiting for part 2
 - **Delivering escalation replies.** The reply of a stop-word set is drafted and audited, never sent.
-- **OTP and PIN digits.** Word sets do not catch "otp 4821" or "mera pin 1234". A code check for digits after "otp" or "pin" belongs with the front desk.
+- **OTP and PIN digits.** The secrets set catches a code by its digits ("otp ####", "pin ####"), so a code written with spaces ("4 8 2 1"), in words or glued to the word ("otp4821") is missed. A code check belongs with the front desk.
 
 ### Small and known
 - **The jobs API acts on the newest workspace only.** That is right while a company has one workspace. The workspace id must be passed before jobs ship.
-- **Word matching** knows a fixed list of endings; doubled-consonant and -ies forms are not matched, and a zero-width character inside a word can split it. List both forms in a set (see the [pack guide](packs.md)). The emergency word "112" also matches an amount like "Rs 112".
+- **Word matching** knows a fixed list of English endings; doubled-consonant, -ies and Hindi forms are not matched, so a set lists each form (see the [pack guide](packs.md)). A terse message that names no phrase ("Accident!", "FIR karunga", which is also Hinglish for "I'll do it again") is not caught by words. Some shared words still fire on routine work at a few desks: "injury", "bleeding" and "ambulance" at a hospital desk, "smoke from" in a municipal complaint about burning garbage, "password is" in "my password is not working". An agent can't opt out of a shared word.
 - **An escalate check with no text passes.** Pack validation catches a template that points at nothing, but a run whose text is empty is not stopped.
 - **`in_data` is strict about spaced amounts.** "45 L" and "40 k" fail (the check refuses to guess); "45L" and "45 lakh" pass.
 - **Every job stop also pushes "A task needs you"** to managers, so an escalation or a plain duplicate stop can notify twice.

@@ -811,7 +811,7 @@ describe('the job card owners read and edit', () => {
       ['legal-threat', true, true],
       ['secrets', true, true],
     ]);
-    expect(desk.job!.escalations[0]).toMatchObject({ label: 'Emergencies', alert: 'owner', reply: expect.stringContaining('112'), words: expect.arrayContaining(['fire', 'smoke']) });
+    expect(desk.job!.escalations[0]).toMatchObject({ label: 'Emergencies', alert: 'owner', reply: expect.stringContaining('112'), words: expect.arrayContaining(['gas leak', 'on fire', 'आग']) });
     expect(desk.jobs).toEqual([]);
 
     // An internal desk inherits none of the customer sets and keeps its own pack set.
@@ -833,7 +833,7 @@ describe('the job card owners read and edit', () => {
     const before = await storedCard(desk.id);
     const sets = editable(desk);
 
-    const shortened = sets.map((s) => (s.id === 'emergency' ? { ...s, words: s.words.filter((w) => w !== 'fire') } : s));
+    const shortened = sets.map((s) => (s.id === 'emergency' ? { ...s, words: s.words.filter((w) => w !== 'gas leak') } : s));
     await expect(agentsService().update(org.session, desk.id, { job: { escalate: shortened } })).rejects.toThrow(PACK_SET_KEPT);
     await expect(agentsService().update(org.session, desk.id, { job: { escalate: shortened } })).rejects.toBeInstanceOf(BadRequestException);
     await expect(agentsService().update(org.session, desk.id, { job: { escalate: sets.filter((s) => s.id !== 'distress') } })).rejects.toThrow(PACK_SET_KEPT);

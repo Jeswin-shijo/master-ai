@@ -195,7 +195,7 @@ describe('a job run, step by step through the task workflow', () => {
 
     const escalated = (await audits(run.taskId)).filter((a) => a.type === 'job.escalated');
     expect(escalated).toHaveLength(1);
-    expect(escalated[0]!.payload).toMatchObject({ job: 'Front desk reply', set: 'emergency', label: 'Emergencies', words: ['fire'] });
+    expect(escalated[0]!.payload).toMatchObject({ job: 'Front desk reply', set: 'emergency', label: 'Emergencies', words: ['there is a fire', 'fire in the'] });
 
     const { rows: drafts } = await h.owner.query<{ kind: string; status: string; payload: Record<string, unknown>; tool_call_id: string | null }>(
       `select kind, status, payload, tool_call_id from outbox where tenant_id = $1 and payload->>'jobRunId' = $2`,

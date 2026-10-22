@@ -32,6 +32,23 @@ describe('matchWords', () => {
     expect(matchWords('gas leaks', ['gas leak'])).toEqual(['gas leak']);
     expect(matchWords('gases leak', ['gas leak'])).toEqual([]);
   });
+  it('ignores zero-width characters inside a word, in the text or in the list', () => {
+    for (const ch of ['​', '‌', '‍', '﻿', '⁠', '­']) {
+      expect(matchWords(`आत्म${ch}हत्या`, ['आत्महत्या']), JSON.stringify(ch)).toEqual(['आत्महत्या']);
+      expect(matchWords(`sui${ch}cide`, ['suicide']), JSON.stringify(ch)).toEqual(['suicide']);
+    }
+    expect(matchWords('आत्महत्या', ['आत्म‍हत्या'])).toEqual(['आत्म‍हत्या']);
+  });
+  it('reads a run of # as a number with exactly that many digits', () => {
+    expect(matchWords('mera pin 1234', ['pin ####'])).toEqual(['pin ####']);
+    expect(matchWords('OTP: 4821 hai', ['otp ####'])).toEqual(['otp ####']);
+    expect(matchWords('मेरा पिन १२३४ है', ['पिन ####'])).toEqual(['पिन ####']);
+    expect(matchWords('pin is 560034', ['pin ####', 'pin is ####'])).toEqual([]);
+    expect(matchWords('pin 123', ['pin ####'])).toEqual([]);
+    expect(matchWords('pin abcd', ['pin ####'])).toEqual([]);
+    expect(matchWords('otp4821', ['otp ####'])).toEqual([]);
+    expect(matchWords('my otp is 482193', ['otp is ######'])).toEqual(['otp is ######']);
+  });
 });
 
 describe('findEscalation', () => {

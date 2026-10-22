@@ -159,7 +159,15 @@ agents:
       escalate:
         - id: plant-safety
           label: "Plant safety"
-          words: ["flashover", "trapped", "explosion", "electrocuted", "फंस गया", "fas gaya", "dhamaka"]
+          # "fas gaya" alone is everyday Hinglish for "stuck" (traffic mein fas gaya, payment fas gaya,
+          # a jammed part), so being caught is written with who or what is caught.
+          words: [
+            flashover, trapped, explosion, electrocuted, dhamaka, dhamake, धमाका, धमाके,
+            हाथ फंस गया, हाथ फँस गया, उंगली फंस गई, पैर फंस गया, आदमी फंस गया, मजदूर फंस गया, मज़दूर फंस गया, मजदूर फंस गए, लोग फंस गए, कोई फंस गया, हाथ दब गया, नीचे दब गया,
+            हाथ मशीन में, उंगली मशीन में, कोई अंदर फंस, आदमी अंदर फंस, मजदूर अंदर फंस,
+            haath fas gaya, hath fas gaya, ungli fas gayi, pair fas gaya, aadmi fas gaya, admi fas gaya, mazdoor fas gaya, mazdoor fas gaye, worker fas gaya, log fas gaye, koi fas gaya, haath dab gaya, neeche dab gaya,
+            haath machine mein, hath machine mein, haath machine me, ungli machine mein, koi andar fas, aadmi andar fas, mazdoor andar fas, worker andar fas,
+          ]
           alert: owner
     instructions: Never mark a permit as issued and never tell anyone to start work; only the shift in-charge issues permits. Quote the equipment tag in everything you write.
     autonomy: 3
@@ -180,7 +188,15 @@ agents:
       escalate:
         - id: plant-safety
           label: "Plant safety"
-          words: ["flashover", "trapped", "explosion", "electrocuted", "फंस गया", "fas gaya", "dhamaka"]
+          # "fas gaya" alone is everyday Hinglish for "stuck" (traffic mein fas gaya, payment fas gaya,
+          # a jammed part), so being caught is written with who or what is caught.
+          words: [
+            flashover, trapped, explosion, electrocuted, dhamaka, dhamake, धमाका, धमाके,
+            हाथ फंस गया, हाथ फँस गया, उंगली फंस गई, पैर फंस गया, आदमी फंस गया, मजदूर फंस गया, मज़दूर फंस गया, मजदूर फंस गए, लोग फंस गए, कोई फंस गया, हाथ दब गया, नीचे दब गया,
+            हाथ मशीन में, उंगली मशीन में, कोई अंदर फंस, आदमी अंदर फंस, मजदूर अंदर फंस,
+            haath fas gaya, hath fas gaya, ungli fas gayi, pair fas gaya, aadmi fas gaya, admi fas gaya, mazdoor fas gaya, mazdoor fas gaye, worker fas gaya, log fas gaye, koi fas gaya, haath dab gaya, neeche dab gaya,
+            haath machine mein, hath machine mein, haath machine me, ungli machine mein, koi andar fas, aadmi andar fas, mazdoor andar fas, worker andar fas,
+          ]
           alert: owner
     instructions: Life and safety first. Never mark a report as sent; a person signs and sends statutory reports.
     autonomy: 2

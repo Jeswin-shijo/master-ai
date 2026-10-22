@@ -7,36 +7,83 @@ description: General operations assistant, money guardrails and operations KPIs 
 kind: base
 
 escalations:
+  # These words reach every customer-facing desk and stay for good once a workspace installs them
+  # (owners can't take a pack word out), so each one is a word or phrase that only turns up when it
+  # matters. Bare words that are everyday in Indian English, Hindi or Hinglish are written as
+  # phrases: "fire" hits "I was fired" and Fire TV, "smoke" smoked salmon and smoke tests, "112" a
+  # flat, sector or amount, "emergency" an emergency contact, "accident" accident insurance and "by
+  # accident", खून/khoon a blood test (खून की जांच), करंट a power cut (करंट नहीं आ रहा), "court" a
+  # building or a food court, "fir" the Hinglish for "again", "sue" a name, "chor" chores, and a
+  # bare "pin" a postal PIN code. "####" stands for a number with that many digits (see the pack
+  # guide), so "pin ####" finds "mera pin 1234" and not "pin 560034". The matcher knows only
+  # English endings: list Hindi forms (धोखा, धोखे) one by one.
   - id: emergency
     label: Emergencies
     for: customer_facing
     alert: owner
     reply: "If anyone is in danger, please call 112 now. We have alerted our team and a person will contact you right away."
-    words: [fire, smoke, gas leak, explosion, accident, injured, injury, bleeding, unconscious, chest pain, heart attack, electric shock, collapsed, drowning, ambulance, emergency, "112", आग, धुआं, दुर्घटना, घायल, खून, बेहोश, सीने में दर्द, करंट, आपातकाल, aag, dhuan, durghatna, ghayal, khoon, behosh, current laga, seene mein dard]
+    words: [
+      on fire, caught fire, catch fire, catches fire, catching fire, fire broke out, fire has broken out, there is a fire, there's a fire, fire in the, fire in my, fire in our, fire at, fire accident, fire alarm went off, fire alarm is ringing, call the fire brigade, call fire brigade, fire brigade bulao, fire brigade ko, fire lagi, fire lag gayi, fire lag gai, fire fire, fire help, help fire, fire please help,
+      smoke coming, smoke is coming, smoke from, smoke in the, smoke everywhere, full of smoke, thick smoke, black smoke, smell smoke, smell of smoke, burning smell, smell of burning, something is burning,
+      gas leak, explosion, electric shock, electrocuted, injured, injury, bleeding, unconscious, chest pain, heart attack, collapsed, drowning, ambulance,
+      met with an accident, had an accident, there's been an accident, there has been an accident, there was an accident, road accident, serious accident, bad accident, big accident, accident near, accident at, accident on the, accident happened, accident please help, accident help, car accident, bike accident, truck accident, bus accident, accident ho gaya, accident ho gayi, accident hogaya, accident hua,
+      medical emergency, this is an emergency, it's an emergency, it is an emergency, emergency situation, emergency hai, emergency ho gayi, emergency ho gaya, emergency help, emergency please help, emergency jaldi, emergency come,
+      call 112, called 112, calling 112, dial 112, dialled 112, dialed 112, 112 pe call, 112 par call, 112 ko call, 112 पर कॉल, 112 को कॉल, 112 पर फोन, call 108, dial 108, 108 pe call, 108 ko call,
+      आग, धुआं, धुआँ, धुंआ, धुएं, धुएँ, aag, dhuan, dhuaan,
+      दुर्घटना हो गई, दुर्घटना हुई, दुर्घटना में, सड़क दुर्घटना, हादसा हो गया, हादसा हुआ, durghatna ho gayi, durghatna ho gai, durghatna hui, durghatna mein, hadsa ho gaya, hadsa hua,
+      घायल, घायलों, ज़ख्मी, जख्मी, ghayal, ghayalon, zakhmi,
+      खून बह, खून निकल, खून आ रहा, बहुत खून, khoon beh, khoon bah, khoon nikal, khoon aa raha, bahut khoon,
+      बेहोश, behosh, सीने में दर्द, छाती में दर्द, seene mein dard, seene me dard, chhati mein dard, एम्बुलेंस, एंबुलेंस, आपातकाल, आपात स्थिति,
+      करंट लग, करंट लगा, करंट लगने, करेंट लग, करेंट लगा, करंट का झटका, बिजली का झटका, current laga, current lag gaya, current lag gya, current lagne, current ka jhatka, bijli ka jhatka, current ka shock, bijli ka shock,
+    ]
   - id: distress
     label: Distress or self-harm
     for: customer_facing
     alert: owner
     reply: "We're sorry you are going through this. A person from our team will contact you shortly. If you are in danger or thinking of harming yourself, please call 112 or the Tele-MANAS helpline on 14416."
-    words: [suicide, kill myself, end my life, self harm, hurt myself, want to die, no reason to live, आत्महत्या, खुदकुशी, मरना चाहता, मरना चाहती, जीना नहीं, khudkushi, aatmahatya, marna chahta, marna chahti, jeena nahi, khudkhushi, mar jaunga, mar jaungi, jaan de dunga, jaan de dungi]
+    words: [
+      suicide, suicidal, kill myself, end my life, end it all, self harm, hurt myself, want to die, no reason to live, better off dead,
+      आत्महत्या, खुदकुशी, मरना चाहता, मरना चाहती, जीना नहीं, मर जाऊंगा, मर जाऊँगा, मर जाऊंगी, मर जाऊँगी, जान दे दूंगा, जान दे दूँगा, जान दे दूंगी, जान दे दूँगी, खुद को खत्म, जिंदगी खत्म, ज़िंदगी खत्म, जीने का मन नहीं,
+      khudkushi, khudkhushi, aatmahatya, aatmhatya, atmahatya, marna chahta, marna chahti, jeena nahi, mar jaunga, mar jaungi, jaan de dunga, jaan de dungi, khud ko khatam, zindagi khatam, jeene ka mann nahi, jeene ka man nahi,
+    ]
   - id: anger
     label: Anger or abuse
     for: customer_facing
     alert: owner
     reply: "We're sorry. A person from our team will contact you shortly."
-    words: [cheated, fraud, worst, pathetic, useless, disgusting, scam, shameful, धोखा, बकवास, घटिया, बेकार, dhokha, bakwas, ghatiya, bekar, chor, faltu]
+    words: [
+      cheated, cheating, cheater, fraud, fraudster, scam, scammed, scammer, worst, pathetic, useless, disgusting, shameful,
+      धोखा, धोखे, धोखेबाज, धोखेबाज़, धोखाधड़ी, बकवास, घटिया, बेकार, फालतू, चोर हो, चोर है, चोर हैं, चोर कंपनी, चोर लोग,
+      dhokha, dhoka, dhokhe, dhoke se, dhokebaaz, dhokhebaaz, dhokebaz, dhokhadhadi, bakwas, bakwaas, ghatiya, bekar, bekaar, faltu, chor ho, chor hai, chor hain, chor company, chor log, sab chor,
+    ]
   - id: legal-threat
     label: Legal threats
     for: customer_facing
     alert: owner
     reply: "Thank you. A senior person from our team will contact you about this."
-    words: [lawyer, advocate, legal notice, court, police complaint, fir, consumer forum, consumer court, sue, lawsuit, वकील, अदालत, कोर्ट, कानूनी नोटिस, vakil, adalat, case karunga]
+    words: [
+      my lawyer, our lawyer, lawyer will, hire a lawyer, get a lawyer, contact a lawyer, consult a lawyer, consulting a lawyer, talk to a lawyer, speak to a lawyer, lawyer se, lawyer ko, my advocate, our advocate, advocate se, advocate ke through,
+      legal notice, legal action, take you to court, drag you to court, see you in court, court case, case in court, court mein case, court me case, court mein le, court mein ghasit, court mein dekh, court jaunga, court jayenge, court jaenge, will go to court, i'll go to court, move court, approach the court, approach court, consumer court, consumer forum, lawsuit,
+      sue you, sue your, will sue, i'll sue, going to sue, suing you, be suing, are suing,
+      police complaint, police mein complaint, police me complaint, file an fir, file a fir, filed an fir, lodge an fir, lodge a fir, lodged an fir, fir darj, fir darz, fir against, police mein fir, police me fir, f i r,
+      एफआईआर, एफ़आईआर, एफ आई आर, पुलिस शिकायत, पुलिस में शिकायत, मेरा वकील, मेरे वकील, वकील से, वकील करूंगा, वकील करूँगा, वकील के जरिए, वकील के ज़रिए, अदालत, कोर्ट केस, कोर्ट में, कोर्ट जाऊंगा, कोर्ट जाऊँगा, कोर्ट जाएंगे, कोर्ट ले जाऊंगा, कानूनी नोटिस, कानूनी कार्रवाई, उपभोक्ता फोरम, केस करूंगा, केस करूँगा, केस कर दूंगा,
+      mera vakil, mere vakil, vakil se, vakil karunga, vakil ke through, adalat, kanooni notice, kanuni notice, kanooni karwai, case karunga, case kar dunga, case kar denge, case darj,
+    ]
   - id: secrets
     label: "OTPs, PINs or card numbers"
     for: customer_facing
     alert: owner
     reply: "Please don't share OTPs, PINs, passwords or card numbers here. We will never ask for them."
-    words: [my otp, my pin, mera otp, mera pin, otp hai, pin hai, otp is, password is, pin is, card number is, cvv, upi pin, atm pin, पिन नंबर, मेरा पिन, मेरा ओटीपी, मेरा पासवर्ड, पासवर्ड है, ओटीपी है, mera otp, mera password, otp bata, pin bata]
+    # A code shared is caught by its digits: "my OTP" or "UPI PIN" alone is an everyday complaint
+    # ("I didn't get my OTP", "UPI PIN galat dala"), and a 6-digit "pin" is a postal PIN code.
+    words: [
+      "otp ####", "otp ######", "otp is ####", "otp is ######", "otp hai ####", "otp hai ######", "otp was ####", "otp was ######", otp bata,
+      "pin ####", "pin is ####", "pin hai ####", "pin ye hai ####", "pin yeh hai ####", "pin number ####", atm pin, card pin, "upi pin ######", "upi pin is ######", "upi pin hai ######", upi pin bata,
+      password is, here is my password, here's my password, mera password hai, mera password ye hai, password ye hai, password yeh hai,
+      "card number ####", "card number is ####", "card number ################", "card number is ################", "card no ####", "card no ################",
+      "cvv ###", "cvv is ###", "cvv hai ###", "cvv number ###",
+      "ओटीपी ####", "ओटीपी ######", "ओटीपी है ####", "ओटीपी है ######", "पिन ####", "पिन है ####", "पिन नंबर ####", "कार्ड नंबर ####", पासवर्ड है, पासवर्ड यह है, मेरा पासवर्ड है,
+    ]
 
 agents:
   - role: ops-assistant

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import type { Pack } from '@onehuman/schemas';
-import { escalationsFor, matchWords, parsePack, resolvePack, validatePackRefs } from '../../src/index';
+import { escalationsFor, findEscalation, matchWords, parsePack, resolvePack, validatePackRefs, type EffectiveEscalation } from '../../src/index';
 
 const PACKS_DIR = join(__dirname, '../../../../packs');
 
@@ -107,5 +107,209 @@ describe('shared escalation sets', () => {
     }
     expect(matchWords('I forgot my password, please reset', words)).toEqual([]);
     expect(matchWords('पिन कोड 560001', words)).toEqual([]);
+  });
+});
+
+/**
+ * Real messages through the real matcher. The shared sets reach every customer-facing desk and an
+ * owner can't take a pack word out, so a word that fires on everyday messages stays for good.
+ */
+describe('shared escalation sets on real messages', () => {
+  const shared: EffectiveEscalation[] = (registry.get('core-business')!.escalations ?? []).map((s) => ({
+    id: s.id,
+    label: s.label,
+    words: s.words,
+    reply: s.reply ?? null,
+    alert: s.alert,
+    inherited: true,
+    fromPack: true,
+  }));
+  const wordsOf = (id: string) => shared.find((s) => s.id === id)!.words;
+
+  const MUST_ALARM: [string, string][] = [
+    // Emergencies
+    ['emergency', 'There is a fire in the kitchen, please help'],
+    ['emergency', 'Our godown caught fire last night'],
+    ['emergency', 'Fire! Please help'],
+    ['emergency', "There's a fire at our shop"],
+    ['emergency', 'the meter is on fire'],
+    ['emergency', 'Smoke is coming from the electricity meter'],
+    ['emergency', 'There is a burning smell from the switchboard'],
+    ['emergency', 'gas  leak. in flat 3'],
+    ['emergency', 'My father collapsed, please send an ambulance'],
+    ['emergency', 'He is bleeding and unconscious'],
+    ['emergency', 'A worker got injured at the site'],
+    ['emergency', 'My brother met with an accident near the gate'],
+    ['emergency', 'Accident near the gate, send help'],
+    ['emergency', 'This is an emergency, please call me back'],
+    ['emergency', 'medical emergency, need help now'],
+    ['emergency', 'Please call 112, someone is hurt'],
+    ['emergency', 'I have called 112 already'],
+    ['emergency', '112 ko call karo jaldi'],
+    ['emergency', 'emergency hai, jaldi aao'],
+    ['emergency', 'ghar mein aag lagi hai'],
+    ['emergency', 'fire lagi hai factory mein'],
+    ['emergency', 'accident ho gaya hai, do log ghayal hain'],
+    ['emergency', 'ghayalon ko hospital le jao'],
+    ['emergency', 'bhai ko current laga hai'],
+    ['emergency', 'current lag gaya bacche ko'],
+    ['emergency', 'bahut khoon nikal raha hai'],
+    ['emergency', 'papa ko seene mein dard ho raha hai'],
+    ['emergency', 'घर में आग लगी है'],
+    ['emergency', 'मीटर से धुआं निकल रहा है'],
+    ['emergency', 'बच्चे को करंट लग गया'],
+    ['emergency', 'करंट लगा है, जल्दी आओ'],
+    ['emergency', 'घायलों को अस्पताल ले जाओ'],
+    ['emergency', 'खून बह रहा है'],
+    ['emergency', 'वह बेहोश हो गया है'],
+    ['emergency', 'सड़क दुर्घटना में दो लोग घायल'],
+    // Distress
+    ['distress', 'I want to die'],
+    ['distress', 'I feel suicidal'],
+    ['distress', 'I am going to kill myself'],
+    ['distress', 'there is no reason to live'],
+    ['distress', 'ab jeena nahi chahta'],
+    ['distress', 'main mar jaungi'],
+    ['distress', 'khudkushi kar lunga'],
+    ['distress', 'aatmhatya kar lunga'],
+    ['distress', 'मैं आत्महत्या कर लूंगा'],
+    ['distress', 'मैं आत्म\u200dहत्या कर लूंगा'],
+    ['distress', 'मैं मर जाऊंगा'],
+    // Anger or abuse
+    ['anger', 'You people cheated me'],
+    ['anger', 'you are cheating customers'],
+    ['anger', 'I got scammed'],
+    ['anger', 'This is a fraud company'],
+    ['anger', 'worst service ever'],
+    ['anger', 'aap log chor ho'],
+    ['anger', 'unhone dhokhe se paise le liye'],
+    ['anger', 'मेरे साथ धोखे से पैसे लिए गए'],
+    ['anger', 'बकवास सर्विस है'],
+    // Legal threats
+    ['legal-threat', 'I will take you to court'],
+    ['legal-threat', 'My lawyer will send you a legal notice'],
+    ['legal-threat', 'I will contact a lawyer'],
+    ["legal-threat", "I'll sue you"],
+    ['legal-threat', 'I am going to sue your company'],
+    ['legal-threat', 'I will file an FIR'],
+    ['legal-threat', 'I have filed a police complaint'],
+    ['legal-threat', 'I will take legal action'],
+    ['legal-threat', 'I will complain to the consumer forum'],
+    ['legal-threat', 'police mein FIR darj karunga'],
+    ['legal-threat', 'consumer court mein case karunga'],
+    ['legal-threat', 'vakil se notice bhejunga'],
+    ['legal-threat', 'मैं कोर्ट में केस करूंगा'],
+    ['legal-threat', 'मैं एफआईआर दर्ज कराऊंगा'],
+    // OTPs, PINs or card numbers
+    ['secrets', 'mera pin 1234'],
+    ['secrets', 'mera pin hai 1234'],
+    ['secrets', 'OTP 4821 hai'],
+    ['secrets', 'OTP hai 4821'],
+    ['secrets', 'my otp is 4821'],
+    ['secrets', 'OTP: 482193'],
+    ['secrets', 'my atm pin is 4321'],
+    ['secrets', 'upi pin 123456 hai'],
+    ['secrets', 'my password is Abc@123'],
+    ['secrets', 'card number 4111 1111 1111 1111 cvv 123'],
+    ['secrets', 'cvv is 456'],
+    ['secrets', 'मेरा ओटीपी 4821 है'],
+    ['secrets', 'मेरा पिन 1234 है'],
+  ];
+
+  const MUST_NOT_ALARM = [
+    // From the final review
+    'maine fir se call kiya, fir bhi koi jawab nahi',
+    'Flat 3B, Silver Oak Court, Pune',
+    'Is there a food court near the venue?',
+    'Can I book the badminton court for Sunday?',
+    'My daughter Sue will pick it up',
+    'Please deliver to Flat 112, Sector 112, Gurugram',
+    'The order total was Rs 112',
+    'My emergency contact is my brother',
+    'This is not an emergency, just a question',
+    'बिजली का करंट नहीं आ रहा है',
+    'I was fired last month and need to change my plan',
+    'Can I get a smoked salmon platter?',
+    'Need help with household chores twice a week',
+    'Deliver to my address, pin is 560034',
+    'mera pin code 400001 hai',
+    // Addresses, names and amounts
+    'Sector 112, Noida 201301',
+    'Rs 112 only',
+    'Room 112 please',
+    'Turn left at Court Road',
+    'Lawyers Colony, Agra',
+    'Sue from accounts sent the invoice',
+    'mera pin hai 400001, kab tak aayega',
+    'My pin code is 560034',
+    'PIN: 560034',
+    'मेरा पिन कोड 400001 है',
+    // Everyday Hinglish "fir" (again)
+    'maine fir se call kiya',
+    'fir se bhej do please',
+    'file fir se upload karo',
+    'kal fir aaunga',
+    // Fire, smoke and accidents that aren't
+    'Do you sell fire extinguishers?',
+    'Need a fire NOC for my shop',
+    'Is the Fire TV stick in stock?',
+    'The webhook fires twice',
+    'Our smoke test failed after the release',
+    'The smoke detector is beeping',
+    'Do you have rooms for smokers?',
+    'I paid twice by accident',
+    'Does the policy cover accident insurance?',
+    // A power cut, a blood test, a surprise
+    'bijli ka current kab aayega',
+    'bill dekh ke shock laga',
+    'khoon ki report kab milegi',
+    'खून की जांच की रिपोर्ट कब मिलेगी',
+    // Asking about a code is not sharing one
+    "I didn't get my OTP",
+    'mera otp nahi aaya',
+    'OTP is not coming',
+    'I forgot my UPI PIN',
+    'UPI PIN galat dala, payment fail ho gaya',
+    'What is CVV?',
+    'my card number is not accepted',
+    'mera password bhool gaya',
+    // Professions and courts that aren't threats
+    'I am a lawyer and need help with my GST return',
+    'Advocate Sharma will visit tomorrow',
+    'Please register our court marriage',
+    'Please share the court order copy',
+  ];
+
+  it.each(MUST_ALARM)('%s catches: %s', (id, text) => {
+    expect(matchWords(text, wordsOf(id)), text).not.toEqual([]);
+  });
+
+  it.each(MUST_NOT_ALARM)('nothing fires on: %s', (text) => {
+    const hit = findEscalation(text, shared);
+    expect(hit && `${hit.set.id}: ${hit.words.join(', ')}`, text).toBeNull();
+  });
+});
+
+describe('agent plant-safety sets', () => {
+  const sets = ['power-plant', 'manufacturing-plant'].flatMap((id) =>
+    registry.get(id)!.agents.flatMap((a) => (a.job?.escalate ?? []).filter((s) => s.id === 'plant-safety').map((s) => [`${id}/${a.role}`, s.words] as const)),
+  );
+
+  it('are on both plants', () => {
+    expect(sets.map(([where]) => where)).toEqual([
+      'power-plant/maintenance-planner',
+      'power-plant/safety-desk',
+      'manufacturing-plant/maintenance-planner',
+      'manufacturing-plant/safety-desk',
+    ]);
+  });
+
+  it.each(sets)('%s catches a person caught in a machine, and not everyday "stuck"', (_where, words) => {
+    for (const text of ['worker ka haath machine mein fas gaya', 'ek mazdoor andar fas gaya hai', 'मजदूर का हाथ मशीन में फंस गया', 'boiler mein dhamaka hua', 'worker trapped under the beam']) {
+      expect(matchWords(text, words), text).not.toEqual([]);
+    }
+    for (const text of ['traffic mein fas gaya, late aaunga', 'payment fas gaya hai', 'kapda roller mein fas gaya', 'मैं ट्रैफिक में फंस गया']) {
+      expect(matchWords(text, words), text).toEqual([]);
+    }
   });
 });
